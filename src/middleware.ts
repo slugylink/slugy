@@ -1,17 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { appendGeoAndUserAgent } from "./lib/middleware/user-agent";
-import {
-  checkRateLimit,
-  checkTempLinkRateLimit,
-  normalizeIp,
-} from "./lib/middleware/rate-limit";
-import {
-  PUBLIC_ROUTE_PREFIXES,
-  PUBLIC_ROUTE_SET,
-  SUBDOMAINS,
-} from "./lib/middleware/routes";
-import { URLRedirects } from "./lib/middleware/redirection";
 
 // Optimize matcher configuration for better performance
 export const config = {
@@ -47,6 +35,46 @@ if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   );
 }
 
+// Inline public routes for better performance
+const PUBLIC_ROUTE_SET = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/terms",
+  "/privacy",
+  "/404",
+  "/500",
+  "/not-found",
+  "/onboarding",
+  "/onboarding/welcome",
+  "/pricing",
+  "/features",
+  "/about",
+  "/contact",
+  "/blog",
+]);
+
+const PUBLIC_ROUTE_PREFIXES = [
+  "/api/",
+  "/api/auth",
+  "/api/public",
+  "/_next",
+  "/static",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+
+// Inline subdomains
+const SUBDOMAINS = {
+  bio: `bio.${ROOT_DOMAIN}`,
+  assets: `assets.${ROOT_DOMAIN}`,
+  app: `app.${ROOT_DOMAIN}`,
+  admin: `admin.${ROOT_DOMAIN}`,
+} as const;
+
 // Cached path checkers
 const isPublicPath = (() => {
   const cache = new Map<string, boolean>();
@@ -76,6 +104,14 @@ const normalizeHostname = (host: string | null): string => {
 
   if (hostnameCache.size < 100) hostnameCache.set(host, normalized);
   return normalized;
+};
+
+// Simplified IP normalization
+const normalizeIp = (ip: string): string => {
+  if (ip.includes(":")) {
+    return ip.split(":").slice(0, 4).join(":");
+  }
+  return ip;
 };
 
 // Rate limiting response helper
@@ -121,28 +157,32 @@ export async function middleware(req: NextRequest) {
     // Rate limiting for API routes in production
     if (IS_PRODUCTION && pathname.startsWith("/api/")) {
       const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
+      
+      // Call rate limiting API route
+      try {
+        const rateLimitResponse = await fetch(`${req.nextUrl.origin}/api/rate-limit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            type: pathname === "/api/temp/link" && req.method === "POST" ? "temp-link" : "general",
+            ip,
+          }),
+        });
 
-      const { success, limit, reset, remaining } = await checkRateLimit(ip);
-      if (!success) {
-        return createRateLimitResponse(
-          "Too many requests",
-          limit,
-          reset,
-          remaining,
-        );
-      }
-
-      // Specific rate limiting for temp link creation
-      if (pathname === "/api/temp/link" && req.method === "POST") {
-        const tempLinkResult = await checkTempLinkRateLimit(ip);
-        if (!tempLinkResult.success) {
+        if (!rateLimitResponse.ok) {
+          const rateLimitData = await rateLimitResponse.json();
           return createRateLimitResponse(
-            "You can only create 2 temporary links at a time. Please wait for some links to expire or create an account for unlimited links.",
-            tempLinkResult.limit,
-            tempLinkResult.reset,
-            tempLinkResult.remaining,
+            rateLimitData.error || "Too many requests",
+            rateLimitData.limit || 100,
+            rateLimitData.reset || Date.now() + 60000,
+            rateLimitData.remaining || 0,
           );
         }
+      } catch (error) {
+        console.error("Rate limiting error:", error);
+        // Continue without rate limiting if the service is unavailable
       }
     }
 
@@ -150,9 +190,6 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return addSecurityHeaders(NextResponse.next());
     }
-
-    // Apply geo and user agent data
-    appendGeoAndUserAgent(url, req);
 
     // Enforce HTTPS in production
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
@@ -194,7 +231,6 @@ export async function middleware(req: NextRequest) {
       "Middleware error:",
       error instanceof Error ? error.message : String(error),
     );
-    // return addSecurityHeaders(NextResponse.redirect(COMMON_URLS.login));
   }
 }
 
@@ -334,10 +370,9 @@ async function handleRootDomain(
 
   // Short link redirection (302) - only process if not public path and not root
   if (!isPublicPath(pathname) && pathname !== "/") {
-    const destination = await URLRedirects(shortCode, req);
-    if (destination) {
-      return NextResponse.redirect(new URL(destination), 302);
-    }
+    // Redirect to the API route for handling redirections
+    const redirectUrl = new URL(`/api/redirect/${shortCode}`, req.url);
+    return NextResponse.redirect(redirectUrl, 302);
   }
 
   return addSecurityHeaders(NextResponse.next());
