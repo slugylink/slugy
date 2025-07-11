@@ -28,10 +28,10 @@ const extractUserAgentData = (req: NextRequest) => {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const shortCode = params.slug;
+    const { slug: shortCode } = await params;
     
     const link = await db.link.findUnique({
       where: {
