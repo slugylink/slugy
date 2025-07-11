@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { extractUserAgentData } from "./lib/middleware/user-agent";
 
 // Optimize matcher configuration for better performance
 export const config = {
@@ -142,18 +141,6 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
-// Add device info headers helper
-function addDeviceHeaders(response: NextResponse, data: ReturnType<typeof extractUserAgentData>): NextResponse {
-  if (!data.isBot) {
-    response.headers.set("x-device-type", data.device?.type || "desktop");
-    response.headers.set("x-browser-name", data.browser?.name || "unknown");
-    response.headers.set("x-browser-version", data.browser?.version || "unknown");
-    response.headers.set("x-os-name", data.os?.name || "unknown");
-    response.headers.set("x-os-version", data.os?.version || "unknown");
-  }
-  return response;
-}
-
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
@@ -201,9 +188,7 @@ export async function middleware(req: NextRequest) {
 
     // Early return for API routes
     if (pathname.startsWith("/api/")) {
-      const data = extractUserAgentData(req);
-      const response = addSecurityHeaders(NextResponse.next());
-      return addDeviceHeaders(response, data);
+      return addSecurityHeaders(NextResponse.next());
     }
 
     // Enforce HTTPS in production

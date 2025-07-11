@@ -4,6 +4,9 @@ import { extractUserAgentData } from "./user-agent";
 import { waitUntil } from "@vercel/functions";
 import { cookies } from "next/headers";
 
+/**
+ * Handles URL redirections with analytics tracking
+ */
 export async function URLRedirects(shortCode: string, req: NextRequest) {
   try {
     const link = await db.link.findUnique({
@@ -24,20 +27,24 @@ export async function URLRedirects(shortCode: string, req: NextRequest) {
       return `${req.nextUrl.origin}/`;
     }
 
+    // Check if link has expired
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
       return link.expirationUrl || `${req.nextUrl.origin}/`;
     }
 
-    const cookieStore = await cookies();
-    const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
-
-    if (link.password && !passwordVerified) {
-      return null;
+    // Check password protection
+    if (link.password) {
+      const cookieStore = await cookies();
+      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
+      
+      if (!passwordVerified) {
+        return null;
+      }
     }
 
     const analyticsData = extractUserAgentData(req);
 
-    // Process analytics in the background using waitUntil
+    // Process analytics in the background
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {
         method: "POST",
