@@ -114,15 +114,28 @@ const checkRateLimit = async (ip: string) => {
 
 const URLRedirects = async (shortCode: string, req: NextRequest) => {
   try {
-    // Fast API call with minimal headers
+    // Extract user agent data first
+    const ua = userAgent(req);
+    const userAgentData = {
+      device: ua.device?.type ?? "desktop",
+      browser: ua.browser?.name ?? "chrome",
+      browserVersion: ua.browser?.version ?? "unknown",
+      os: ua.os?.name ?? "windows",
+      osVersion: ua.os?.version ?? "unknown",
+      isBot: isBot(req)
+    };
+    
+    // Use API route instead of direct database access to reduce bundle size
     const response = await fetch(`${req.nextUrl.origin}/api/redirect/${shortCode}`, {
       method: "GET",
       headers: { 
         "Content-Type": "application/json",
-        "x-device-type": userAgent(req).device?.type ?? "desktop",
-        "x-browser-name": userAgent(req).browser?.name ?? "chrome",
-        "x-os-name": userAgent(req).os?.name ?? "windows",
-        "x-is-bot": (userAgent(req).isBot ?? false).toString()
+        "x-device-type": userAgentData.device,
+        "x-browser-name": userAgentData.browser,
+        "x-browser-version": userAgentData.browserVersion,
+        "x-os-name": userAgentData.os,
+        "x-os-version": userAgentData.osVersion,
+        "x-is-bot": userAgentData.isBot.toString()
       }
     });
     

@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+
+    console.log("📊 Analytics Tracking Data:", analyticsData);
+
     await db.$transaction(async (tx) => {
       await Promise.all([
         tx.link.update({
