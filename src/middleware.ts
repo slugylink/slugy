@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse, userAgent } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { db } from "@/server/db";
-import { waitUntil } from "@vercel/functions";
 import { cookies } from "next/headers";
 
 export const config = {
@@ -32,19 +30,7 @@ if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   throw new Error("Missing required environment variables");
 }
 
-const BOT_PATTERNS = [
-  "facebookexternalhit", "Facebot", "Twitterbot", "LinkedInBot", "Pinterest",
-  "vkShare", "redditbot", "Applebot", "WhatsApp", "TelegramBot", "Discordbot",
-  "Slackbot", "Viber", "Microlink", "Bingbot", "Slurp", "DuckDuckBot",
-  "Baiduspider", "YandexBot", "Sogou", "Exabot", "Thunderbird", "Outlook-iOS",
-  "Outlook-Android", "Feedly", "Feedspot", "Feedbin", "NewsBlur", "ia_archiver",
-  "archive.org_bot", "Uptimebot", "Monitis", "NewRelicPinger", "Postman",
-  "insomnia", "HeadlessChrome", "bot", "chatgpt", "bluesky", "bing",
-  "duckduckbot", "yandex", "baidu", "teoma", "slurp", "MetaInspector",
-  "iframely", "spider", "Go-http-client", "preview", "prerender", "msn"
-];
-
-const BOT_REGEX = new RegExp(BOT_PATTERNS.join("|"), "i");
+const BOT_REGEX = /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
 
 const PUBLIC_ROUTES = new Set([
   "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email",
@@ -95,7 +81,7 @@ const extractUserData = (req: NextRequest) => {
     country: req.headers.get("x-vercel-ip-country"),
     city: req.headers.get("x-vercel-ip-city"),
     region: req.headers.get("x-vercel-ip-country-region"),
-    continent: req.headers.get("x-vercel-ip-continent"),  
+    continent: req.headers.get("x-vercel-ip-continent"),
     referer: req.headers.get("referer"),
     device: ua.device?.type ?? "desktop",
     browser: ua.browser?.name ?? "chrome",
@@ -126,41 +112,23 @@ const checkRateLimit = async (ip: string) => {
   return { success: true, limit: 100, reset: Date.now() + 60000, remaining: 99 };
 };
 
-const checkTempLinkRateLimit = async (ip: string) => {
-  return { success: true, limit: 1, reset: Date.now() + 1200000, remaining: 1 };
-};
-
 const URLRedirects = async (shortCode: string, req: NextRequest) => {
   try {
-    const link = await db.link.findUnique({
-      where: { slug: shortCode, isArchived: false },
-      select: { id: true, url: true, expiresAt: true, expirationUrl: true, password: true }
+    // Use API route instead of direct database access to reduce bundle size
+    const response = await fetch(`${req.nextUrl.origin}/api/redirect/${shortCode}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
     });
-
-    if (!link) return `${req.nextUrl.origin}/`;
-    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return link.expirationUrl || `${req.nextUrl.origin}/`;
+    
+    if (response.ok) {
+      const data = await response.json();
+      return data.url;
     }
-
-    if (link.password) {
-      const cookieStore = await cookies();
-      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
-      if (!passwordVerified) return null;
-    }
-
-    const data = extractUserData(req);
-    waitUntil(
-      fetch(`${req.nextUrl.origin}/api/analytics/track`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ linkId: link.id, slug: shortCode, analyticsData: data })
-      }).catch(e => console.error("Analytics failed:", e))
-    );
-
-    return link.url;
+    
+    return `${req.nextUrl.origin}/`;
   } catch (error) {
     console.error("Link error:", error);
-    return null;
+    return `${req.nextUrl.origin}/`;
   }
 };
 

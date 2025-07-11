@@ -1,80 +1,89 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { cookies } from "next/headers";
+import { NextRequest, NextResponse, userAgent } from "next/server";
+import { waitUntil } from "@vercel/functions";
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> },
+const BOT_REGEX = /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
+
+const isBot = (req: NextRequest): boolean => {
+  const ua = req.headers.get("user-agent")?.toLowerCase() ?? "";
+  return BOT_REGEX.test(ua) || (userAgent(req).isBot ?? false);
+};
+
+const extractUserAgentData = (req: NextRequest) => {
+  const ua = userAgent(req);
+  return {
+    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+    country: req.headers.get("x-vercel-ip-country") ?? undefined,
+    city: req.headers.get("x-vercel-ip-city") ?? undefined,
+    region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
+    continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
+    referer: req.headers.get("referer") ?? undefined,
+    device: ua.device,
+    browser: ua.browser,
+    os: ua.os,
+    isBot: isBot(req),
+  };
+};
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { slug: string } }
 ) {
   try {
-    const { password } = await request.json();
-    const context = await params;
-
-    if (!password) {
-      return NextResponse.json(
-        { error: "Password is required" },
-        { status: 400 },
-      );
-    }
-
-    // Find the link with the given slug
+    const shortCode = params.slug;
+    
     const link = await db.link.findUnique({
       where: {
-        slug: context.slug,
+        slug: shortCode,
         isArchived: false,
       },
       select: {
         id: true,
         url: true,
-        password: true,
         expiresAt: true,
         expirationUrl: true,
+        password: true,
       },
     });
 
     if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return NextResponse.json({ url: `${req.nextUrl.origin}/` });
     }
 
-    // Check if link has expired
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return NextResponse.json(
-        {
-          error: "Link has expired",
-          redirectUrl: link.expirationUrl || null,
-        },
-        { status: 410 },
-      );
+      return NextResponse.json({ 
+        url: link.expirationUrl || `${req.nextUrl.origin}/` 
+      });
     }
 
-    // Check if link is password protected
-    if (!link.password) {
-      return NextResponse.json(
-        { error: "Link is not password protected" },
-        { status: 400 },
-      );
+    if (link.password) {
+      const cookieStore = await cookies();
+      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
+      if (!passwordVerified) {
+        return NextResponse.json({ url: null });
+      }
     }
 
-    // Verify password
-    if (link.password !== password) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
-    }
-
-    // Set a cookie to remember password verification and return the response
-    const response = NextResponse.json({
-      success: true,
-      url: link.url,
-    });
-    response.cookies.set(`password_verified_${context.slug}`, "true", {
-      httpOnly: true,
-      sameSite: "strict",
-      maxAge: 60 * 15, // 15 minutes
-    });
-    return response;
-  } catch (error) {
-    console.error("Password verification error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
+    // Track analytics in background
+    const analyticsData = extractUserAgentData(req);
+    waitUntil(
+      fetch(`${req.nextUrl.origin}/api/analytics/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          linkId: link.id,
+          slug: shortCode,
+          analyticsData,
+        }),
+      }).catch((error) => {
+        console.error("Analytics tracking failed:", error);
+      }),
     );
+
+    return NextResponse.json({ url: link.url });
+  } catch (error) {
+    console.error("Error getting link:", error);
+    return NextResponse.json({ url: `${req.nextUrl.origin}/` });
   }
 }
