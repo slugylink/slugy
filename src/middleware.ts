@@ -75,6 +75,7 @@ const isBot = (req: NextRequest): boolean => {
 
 const extractUserData = (req: NextRequest) => {
   const ua = userAgent(req);
+
   return {
     ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
     country: req.headers.get("x-vercel-ip-country"),
@@ -111,16 +112,17 @@ const checkRateLimit = async (ip: string) => {
   return { success: true, limit: 100, reset: Date.now() + 60000, remaining: 99 };
 };
 
-const URLRedirects = async (shortCode: string, userData: ReturnType<typeof extractUserData>) => {
+const URLRedirects = async (shortCode: string, req: NextRequest) => {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/api/redirect/${shortCode}`, {
+    // Fast API call with minimal headers
+    const response = await fetch(`${req.nextUrl.origin}/api/redirect/${shortCode}`, {
       method: "GET",
       headers: { 
         "Content-Type": "application/json",
-        "x-device-type": userData.device,
-        "x-browser-name": userData.browser,
-        "x-os-name": userData.os,
-        "x-is-bot": userData.isBot.toString()
+        "x-device-type": userAgent(req).device?.type ?? "desktop",
+        "x-browser-name": userAgent(req).browser?.name ?? "chrome",
+        "x-os-name": userAgent(req).os?.name ?? "windows",
+        "x-is-bot": (userAgent(req).isBot ?? false).toString()
       }
     });
     
@@ -129,10 +131,10 @@ const URLRedirects = async (shortCode: string, userData: ReturnType<typeof extra
       return data.url;
     }
     
-    return `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/`;
+    return `${req.nextUrl.origin}/`;
   } catch (error) {
     console.error("Link error:", error);
-    return `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/`;
+    return `${req.nextUrl.origin}/`;
   }
 };
 
@@ -155,32 +157,30 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // Extract user data once and reuse
-    const userData = extractUserData(req);
-
     if (pathname.startsWith("/api/")) {
+      const data = extractUserData(req);
       const response = addHeaders(NextResponse.next());
-      if (!userData.isBot) {
-        response.headers.set("x-device-type", userData.device);
-        response.headers.set("x-browser-name", userData.browser);
-        response.headers.set("x-os-name", userData.os);
+      if (!data.isBot) {
+        response.headers.set("x-device-type", data.device);
+        response.headers.set("x-browser-name", data.browser);
+        response.headers.set("x-os-name", data.os);
       }
       return response;
     }
 
-    // Add URL parameters for tracking
+    const data = extractUserData(req);
     const params = url.searchParams;
-    params.set("isMetadataPreview", userData.isBot.toString());
-    if (!userData.isBot) {
-      params.set("ipAddress", userData.ip);
-      params.set("country", userData.country ?? "Unknown");
-      params.set("city", userData.city ?? "Unknown");
-      params.set("region", userData.region ?? "Unknown");
-      params.set("continent", userData.continent ?? "Unknown");
-      params.set("referer", userData.referer ?? "direct");
-      params.set("device", userData.device);
-      params.set("browser", userData.browser);
-      params.set("os", userData.os);
+    params.set("isMetadataPreview", data.isBot.toString());
+    if (!data.isBot) {
+      params.set("ipAddress", data.ip);
+      params.set("country", data.country ?? "Unknown");
+      params.set("city", data.city ?? "Unknown");
+      params.set("region", data.region ?? "Unknown");
+      params.set("continent", data.continent ?? "Unknown");
+      params.set("referer", data.referer ?? "direct");
+      params.set("device", data.device);
+      params.set("browser", data.browser);
+      params.set("os", data.os);
     }
 
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
@@ -248,7 +248,7 @@ export async function middleware(req: NextRequest) {
           return addHeaders(NextResponse.next());
         }
         if (!isPublicPath(pathname) && pathname !== "/") {
-          const destination = await URLRedirects(shortCode, userData);
+          const destination = await URLRedirects(shortCode, req);
           if (destination) {
             return NextResponse.redirect(new URL(destination), 302);
           }
