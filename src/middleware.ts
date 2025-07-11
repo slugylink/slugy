@@ -76,6 +76,14 @@ const isBot = (req: NextRequest): boolean => {
 
 const extractUserData = (req: NextRequest) => {
   const ua = userAgent(req);
+  
+  // console.log("🔍 Middleware Raw User Agent Object:");
+  // console.log("  Full UA:", req.headers.get("user-agent"));
+  // console.log("  UA Device:", ua.device);
+  // console.log("  UA Browser:", ua.browser);
+  // console.log("  UA OS:", ua.os);
+  // console.log("  UA isBot:", ua.isBot);
+  
   return {
     ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
     country: req.headers.get("x-vercel-ip-country"),
@@ -114,10 +122,29 @@ const checkRateLimit = async (ip: string) => {
 
 const URLRedirects = async (shortCode: string, req: NextRequest) => {
   try {
+    // Extract user agent data first
+    const ua = userAgent(req);
+    const userAgentData = {
+      device: ua.device?.type ?? "desktop",
+      browser: ua.browser?.name ?? "chrome",
+      browserVersion: ua.browser?.version ?? "unknown",
+      os: ua.os?.name ?? "windows",
+      osVersion: ua.os?.version ?? "unknown",
+      isBot: isBot(req)
+    };
+    
     // Use API route instead of direct database access to reduce bundle size
     const response = await fetch(`${req.nextUrl.origin}/api/redirect/${shortCode}`, {
       method: "GET",
-      headers: { "Content-Type": "application/json" }
+      headers: { 
+        "Content-Type": "application/json",
+        "x-device-type": userAgentData.device,
+        "x-browser-name": userAgentData.browser,
+        "x-browser-version": userAgentData.browserVersion,
+        "x-os-name": userAgentData.os,
+        "x-os-version": userAgentData.osVersion,
+        "x-is-bot": userAgentData.isBot.toString()
+      }
     });
     
     if (response.ok) {
@@ -160,6 +187,14 @@ export async function middleware(req: NextRequest) {
         response.headers.set("x-browser-version", userAgent(req).browser?.version ?? "unknown");
         response.headers.set("x-os-name", data.os);
         response.headers.set("x-os-version", userAgent(req).os?.version ?? "unknown");
+        
+        // console.log("🔍 Middleware Device Info:");
+        // console.log("  Device:", data.device);
+        // console.log("  Browser:", data.browser);
+        // console.log("  Browser Version:", userAgent(req).browser?.version ?? "unknown");
+        // console.log("  OS:", data.os);
+        // console.log("  OS Version:", userAgent(req).os?.version ?? "unknown");
+        // console.log("  Is Bot:", data.isBot);
       }
       return response;
     }

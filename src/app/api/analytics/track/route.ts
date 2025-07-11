@@ -11,7 +11,6 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-
     await db.$transaction(async (tx) => {
       await Promise.all([
         tx.link.update({
@@ -27,11 +26,11 @@ export async function POST(req: NextRequest) {
             clickedAt: new Date(),
             ipAddress: analyticsData.ipAddress,
             country: analyticsData.country,
-            city: analyticsData.city ?? analyticsData.region,
+            city: analyticsData.city,
             continent: analyticsData.continent,
-            browser: analyticsData.browser?.name || "unknown",
-            os: analyticsData.os?.name || "unknown",
-            device: analyticsData.device?.type || "desktop",
+            browser: analyticsData.browser || "unknown",
+            os: analyticsData.os || "unknown",
+            device: analyticsData.device || "desktop",
             referer: analyticsData.referer || "direct",
           },
         }),
