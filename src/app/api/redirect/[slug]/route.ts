@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 import { waitUntil } from "@vercel/functions";
 
@@ -10,7 +10,7 @@ const isBot = (req: NextRequest): boolean => {
   return BOT_REGEX.test(ua) || (userAgent(req).isBot ?? false);
 };
 
-const extractUserAgentData = (req: NextRequest) => {
+const extractUserAgentData = (req: NextRequest, headersList: Headers) => {
   const ua = userAgent(req);
   return {
     ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
@@ -19,9 +19,9 @@ const extractUserAgentData = (req: NextRequest) => {
     region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
     continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
     referer: req.headers.get("referer") ?? undefined,
-    device: ua.device.type ?? "desktop",
-    browser: ua.browser.name ?? "chrome",
-    os: ua.os.name ?? "windows",
+    device: headersList.get("x-device-type") || (ua.device?.type ?? "desktop"),
+    browser: headersList.get("x-browser-name") || (ua.browser?.name ?? "chrome"),
+    os: headersList.get("x-os-name") || (ua.os?.name ?? "windows"),
     isBot: isBot(req),
   };
 };
@@ -32,9 +32,8 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
-    const { device, browser, os } = userAgent(req);
+    const headersList = await headers();
 
-    
     const link = await db.link.findUnique({
       where: {
         slug: shortCode,
@@ -68,7 +67,7 @@ export async function GET(
     }
 
     // Track analytics in background
-    const analyticsData = extractUserAgentData(req);
+    const analyticsData = extractUserAgentData(req, headersList);
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {
         method: "POST",
