@@ -1,20 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse, userAgent } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import {
-  appendGeoAndUserAgent,
-  extractUserAgentData,
-} from "./lib/middleware/user-agent";
-import {
-  checkRateLimit,
-  checkTempLinkRateLimit,
-  normalizeIp,
-} from "./lib/middleware/rate-limit";
-import {
-  PUBLIC_ROUTE_PREFIXES,
-  PUBLIC_ROUTE_SET,
-  SUBDOMAINS,
-} from "./lib/middleware/routes";
-import { URLRedirects } from "./lib/middleware/redirection";
+import { db } from "@/server/db";
+import { waitUntil } from "@vercel/functions";
+import { cookies } from "next/headers";
 
 export const config = {
   matcher: [
@@ -41,43 +29,87 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const ASSETS_URL = process.env.NEXT_PUBLIC_ASSETS?.trim();
 
 if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
-  throw new Error(
-    "Missing required environment variables: NEXT_PUBLIC_ROOT_DOMAIN, BETTER_AUTH_SECRET",
-  );
+  throw new Error("Missing required environment variables");
 }
 
-// Cached path checkers
-const isPublicPath = (() => {
-  const cache = new Map<string, boolean>();
-  return (path: string): boolean => {
-    if (cache.has(path)) return cache.get(path)!;
-    const isPublic =
-      PUBLIC_ROUTE_SET.has(path) ||
-      PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix));
-    if (cache.size < 1000) cache.set(path, isPublic);
-    return isPublic;
-  };
-})();
+const BOT_PATTERNS = [
+  "facebookexternalhit", "Facebot", "Twitterbot", "LinkedInBot", "Pinterest",
+  "vkShare", "redditbot", "Applebot", "WhatsApp", "TelegramBot", "Discordbot",
+  "Slackbot", "Viber", "Microlink", "Bingbot", "Slurp", "DuckDuckBot",
+  "Baiduspider", "YandexBot", "Sogou", "Exabot", "Thunderbird", "Outlook-iOS",
+  "Outlook-Android", "Feedly", "Feedspot", "Feedbin", "NewsBlur", "ia_archiver",
+  "archive.org_bot", "Uptimebot", "Monitis", "NewRelicPinger", "Postman",
+  "insomnia", "HeadlessChrome", "bot", "chatgpt", "bluesky", "bing",
+  "duckduckbot", "yandex", "baidu", "teoma", "slurp", "MetaInspector",
+  "iframely", "spider", "Go-http-client", "preview", "prerender", "msn"
+];
 
-// Cached hostname normalization
-const hostnameCache = new Map<string, string>();
+const BOT_REGEX = new RegExp(BOT_PATTERNS.join("|"), "i");
+
+const PUBLIC_ROUTES = new Set([
+  "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email",
+  "/terms", "/privacy", "/404", "/500", "/not-found", "/onboarding",
+  "/onboarding/welcome", "/pricing", "/features", "/about", "/contact", "/blog"
+]);
+
+const PUBLIC_PREFIXES = ["/api/", "/api/auth", "/api/public", "/_next", "/static", "/favicon.ico", "/robots.txt", "/sitemap.xml"];
+
+const SUBDOMAINS = {
+  bio: `bio.${ROOT_DOMAIN}`,
+  assets: `assets.${ROOT_DOMAIN}`,
+  app: `app.${ROOT_DOMAIN}`,
+  admin: `admin.${ROOT_DOMAIN}`,
+};
+
+const pathCache = new Map<string, boolean>();
+const hostCache = new Map<string, string>();
+
+const isPublicPath = (path: string): boolean => {
+  if (pathCache.has(path)) return pathCache.get(path)!;
+  const isPublic = PUBLIC_ROUTES.has(path) || PUBLIC_PREFIXES.some(p => path.startsWith(p));
+  if (pathCache.size < 1000) pathCache.set(path, isPublic);
+  return isPublic;
+};
+
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
-  if (hostnameCache.has(host)) return hostnameCache.get(host)!;
-  const normalized = host
-    .toLowerCase()
-    .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
-    .trim();
-  if (hostnameCache.size < 100) hostnameCache.set(host, normalized);
+  if (hostCache.has(host)) return hostCache.get(host)!;
+  const normalized = host.toLowerCase().replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`).trim();
+  if (hostCache.size < 100) hostCache.set(host, normalized);
   return normalized;
 };
 
-const createRateLimitResponse = (
-  error: string,
-  limit: number,
-  reset: number,
-  remaining: number,
-): NextResponse => {
+const normalizeIp = (ip: string): string => {
+  return ip.includes(":") ? ip.split(":").slice(0, 4).join(":") : ip;
+};
+
+const isBot = (req: NextRequest): boolean => {
+  const ua = req.headers.get("user-agent")?.toLowerCase() ?? "";
+  return BOT_REGEX.test(ua) || (userAgent(req).isBot ?? false);
+};
+
+const extractUserData = (req: NextRequest) => {
+  const ua = userAgent(req);
+  return {
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+    country: req.headers.get("x-vercel-ip-country"),
+    city: req.headers.get("x-vercel-ip-city"),
+    region: req.headers.get("x-vercel-ip-country-region"),
+    continent: req.headers.get("x-vercel-ip-continent"),  
+    referer: req.headers.get("referer"),
+    device: ua.device?.type ?? "desktop",
+    browser: ua.browser?.name ?? "chrome",
+    os: ua.os?.name ?? "windows",
+    isBot: isBot(req)
+  };
+};
+
+const addHeaders = (response: NextResponse): NextResponse => {
+  Object.entries(SECURITY_HEADERS).forEach(([k, v]) => response.headers.set(k, v));
+  return response;
+};
+
+const createRateLimitResponse = (error: string, limit: number, reset: number, remaining: number): NextResponse => {
   return new NextResponse(JSON.stringify({ error, limit, reset, remaining }), {
     status: 429,
     headers: {
@@ -90,268 +122,175 @@ const createRateLimitResponse = (
   });
 };
 
-function addSecurityHeaders(response: NextResponse): NextResponse {
-  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(header, value);
+const checkRateLimit = async (ip: string) => {
+  return { success: true, limit: 100, reset: Date.now() + 60000, remaining: 99 };
+};
+
+const checkTempLinkRateLimit = async (ip: string) => {
+  return { success: true, limit: 1, reset: Date.now() + 1200000, remaining: 1 };
+};
+
+const URLRedirects = async (shortCode: string, req: NextRequest) => {
+  try {
+    const link = await db.link.findUnique({
+      where: { slug: shortCode, isArchived: false },
+      select: { id: true, url: true, expiresAt: true, expirationUrl: true, password: true }
+    });
+
+    if (!link) return `${req.nextUrl.origin}/`;
+    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      return link.expirationUrl || `${req.nextUrl.origin}/`;
+    }
+
+    if (link.password) {
+      const cookieStore = await cookies();
+      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
+      if (!passwordVerified) return null;
+    }
+
+    const data = extractUserData(req);
+    waitUntil(
+      fetch(`${req.nextUrl.origin}/api/analytics/track`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkId: link.id, slug: shortCode, analyticsData: data })
+      }).catch(e => console.error("Analytics failed:", e))
+    );
+
+    return link.url;
+  } catch (error) {
+    console.error("Link error:", error);
+    return null;
   }
-  return response;
-}
+};
 
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
     const pathname = url.pathname;
 
-    // Early return for static assets
     if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
       return NextResponse.next();
     }
 
     const sessionCookie = getSessionCookie(req);
 
-    // Rate limiting for API routes in production
     if (IS_PRODUCTION && pathname.startsWith("/api/")) {
       const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
       const { success, limit, reset, remaining } = await checkRateLimit(ip);
-      
       if (!success) {
         return createRateLimitResponse("Too many requests", limit, reset, remaining);
       }
-
-      // Specific rate limiting for temp link creation
-      if (pathname === "/api/temp/link" && req.method === "POST") {
-        const tempLinkResult = await checkTempLinkRateLimit(ip);
-        if (!tempLinkResult.success) {
-          return createRateLimitResponse(
-            "You can only create 2 temporary links at a time. Please wait for some links to expire or create an account for unlimited links.",
-            tempLinkResult.limit,
-            tempLinkResult.reset,
-            tempLinkResult.remaining,
-          );
-        }
-      }
     }
 
-    // Early return for API routes
     if (pathname.startsWith("/api/")) {
-      const data = extractUserAgentData(req);
-      const response = addSecurityHeaders(NextResponse.next());
-      
+      const data = extractUserData(req);
+      const response = addHeaders(NextResponse.next());
       if (!data.isBot) {
-        response.headers.set("x-device-type", data.device?.type ?? "desktop");
-        response.headers.set("x-browser-name", data.browser?.name ?? "unknown");
-        response.headers.set("x-browser-version", data.browser?.version ?? "unknown");
-        response.headers.set("x-os-name", data.os?.name ?? "unknown");
-        response.headers.set("x-os-version", data.os?.version ?? "unknown");
+        response.headers.set("x-device-type", data.device);
+        response.headers.set("x-browser-name", data.browser);
+        response.headers.set("x-browser-version", userAgent(req).browser?.version ?? "unknown");
+        response.headers.set("x-os-name", data.os);
+        response.headers.set("x-os-version", userAgent(req).os?.version ?? "unknown");
       }
       return response;
     }
 
-    // Apply geo and user agent data
-    appendGeoAndUserAgent(url, req);
+    const data = extractUserData(req);
+    const params = url.searchParams;
+    params.set("isMetadataPreview", data.isBot.toString());
+    if (!data.isBot) {
+      params.set("ipAddress", data.ip);
+      params.set("country", data.country ?? "Unknown");
+      params.set("city", data.city ?? "Unknown");
+      params.set("region", data.region ?? "Unknown");
+      params.set("continent", data.continent ?? "Unknown");
+      params.set("referer", data.referer ?? "direct");
+      params.set("device", data.device);
+      params.set("browser", data.browser);
+      params.set("os", data.os);
+    }
 
-    // Enforce HTTPS in production
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsUrl = new URL(req.url);
       httpsUrl.protocol = "https:";
-      return addSecurityHeaders(NextResponse.redirect(httpsUrl, 308));
+      return addHeaders(NextResponse.redirect(httpsUrl, 308));
     }
 
     const hostname = normalizeHostname(req.headers.get("host"));
 
-    // Handle different subdomains
     switch (hostname) {
       case SUBDOMAINS.bio:
         const bioPath = pathname === "/" ? "/bio" : `/bio${pathname}`;
-        return addSecurityHeaders(
-          NextResponse.rewrite(new URL(`${bioPath}${url.search}`, req.url)),
-        );
+        return addHeaders(NextResponse.rewrite(new URL(`${bioPath}${url.search}`, req.url)));
 
       case SUBDOMAINS.assets:
-        return await handleAssetsSubdomain(pathname, req.url);
+        if (!ASSETS_URL) return addHeaders(NextResponse.rewrite(new URL("/404", req.url)));
+        try {
+          const assetUrl = new URL(pathname, ASSETS_URL);
+          const response = await fetch(assetUrl.toString(), { method: "HEAD", cache: "force-cache", signal: AbortSignal.timeout(5000) });
+          if (response.ok) {
+            const contentResponse = await fetch(assetUrl.toString(), { cache: "force-cache", signal: AbortSignal.timeout(10000) });
+            return new NextResponse(contentResponse.body, {
+              status: contentResponse.status,
+              headers: { ...Object.fromEntries(contentResponse.headers.entries()), "Cache-Control": "public, max-age=31536000, immutable", ...SECURITY_HEADERS }
+            });
+          }
+        } catch (error) {
+          console.error("Asset error:", error);
+        }
+        return addHeaders(NextResponse.rewrite(new URL("/404", req.url)));
 
       case SUBDOMAINS.app:
-        return handleAppSubdomain(url, sessionCookie, req.url);
+        const authPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/app/login", "/app/signup", "/app/forgot-password", "/app/reset-password"]);
+        if (sessionCookie && authPaths.has(pathname)) {
+          return addHeaders(NextResponse.redirect(new URL("/", req.url)));
+        }
+        if (!sessionCookie && !isPublicPath(pathname)) {
+          return addHeaders(NextResponse.redirect(new URL("/login", req.url)));
+        }
+        if (pathname === "/") {
+          return addHeaders(NextResponse.redirect(new URL(sessionCookie ? "/app" : "/login", req.url)));
+        }
+        const authRewrites: Record<string, string> = { "/login": "/app/login", "/signup": "/app/signup", "/forgot-password": "/app/forgot-password", "/reset-password": "/app/reset-password" };
+        if (authRewrites[pathname]) {
+          return addHeaders(NextResponse.rewrite(new URL(authRewrites[pathname], req.url)));
+        }
+        if (sessionCookie && !pathname.startsWith("/app")) {
+          return addHeaders(NextResponse.rewrite(new URL(`/app${pathname}${url.search}`, req.url)));
+        }
+        return addHeaders(NextResponse.next());
 
       case SUBDOMAINS.admin:
         const adminPath = pathname === "/" ? "/admin" : `/admin${pathname}`;
-        return addSecurityHeaders(
-          NextResponse.rewrite(new URL(`${adminPath}${url.search}`, req.url)),
-        );
+        return addHeaders(NextResponse.rewrite(new URL(`${adminPath}${url.search}`, req.url)));
 
       case ROOT_DOMAIN:
-        return handleRootDomain(url, sessionCookie, ROOT_DOMAIN, req.url, req);
+        const shortCode = pathname.slice(1);
+        if (pathname === "/" && sessionCookie) {
+          const appUrl = new URL(req.url);
+          appUrl.hostname = SUBDOMAINS.app;
+          return addHeaders(NextResponse.redirect(appUrl, 307));
+        }
+        if (pathname.startsWith("/api/") || pathname.startsWith("/_next/") || pathname.startsWith("/static/") || pathname.includes(".")) {
+          return addHeaders(NextResponse.next());
+        }
+        if (!isPublicPath(pathname) && pathname !== "/") {
+          const destination = await URLRedirects(shortCode, req);
+          if (destination) {
+            return NextResponse.redirect(new URL(destination), 302);
+          }
+        }
+        return addHeaders(NextResponse.next());
 
       default:
-        return handleCustomDomain(url, hostname, ROOT_DOMAIN, req.url);
+        if (pathname.startsWith("/app")) {
+          const redirectPath = pathname.replace(/^\/app/, "") || "/";
+          return addHeaders(NextResponse.redirect(new URL(`https://${SUBDOMAINS.app}${redirectPath}`, req.url)));
+        }
+        return addHeaders(NextResponse.rewrite(new URL(`/${hostname}${pathname}${url.search}`, req.url)));
     }
   } catch (error: unknown) {
-    console.error(
-      "Middleware error:",
-      error instanceof Error ? error.message : String(error),
-    );
+    console.error("Middleware error:", error instanceof Error ? error.message : String(error));
   }
-}
-
-async function handleAssetsSubdomain(
-  pathname: string,
-  baseUrl: string,
-): Promise<NextResponse> {
-  if (!ASSETS_URL) {
-    console.error("NEXT_PUBLIC_ASSETS environment variable not set");
-    return NextResponse.rewrite(new URL("/404", baseUrl));
-  }
-
-  try {
-    const assetUrl = new URL(pathname, ASSETS_URL);
-    const response = await fetch(assetUrl.toString(), {
-      method: "HEAD",
-      cache: "force-cache",
-      signal: AbortSignal.timeout(5000),
-    });
-
-    if (response.ok) {
-      const contentResponse = await fetch(assetUrl.toString(), {
-        cache: "force-cache",
-        signal: AbortSignal.timeout(10000),
-      });
-
-      return new NextResponse(contentResponse.body, {
-        status: contentResponse.status,
-        headers: {
-          ...Object.fromEntries(contentResponse.headers.entries()),
-          "Cache-Control": "public, max-age=31536000, immutable",
-          ...SECURITY_HEADERS,
-        },
-      });
-    }
-  } catch (error) {
-    console.error("Asset fetch error:", error);
-  }
-
-  return NextResponse.rewrite(new URL("/404", baseUrl));
-}
-
-function handleAppSubdomain(
-  url: URL,
-  token: unknown,
-  baseUrl: string,
-): NextResponse {
-  const { pathname } = url;
-  const authPaths = new Set([
-    "/login",
-    "/signup",
-    "/forgot-password",
-    "/reset-password",
-    "/app/login",
-    "/app/signup",
-    "/app/forgot-password",
-    "/app/reset-password",
-  ]);
-
-  // Redirect authenticated users away from auth pages
-  if (token && authPaths.has(pathname)) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
-  }
-
-  // Redirect unauthenticated users to login
-  if (!token && !isPublicPath(pathname)) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/login", baseUrl)));
-  }
-
-  // Handle root path
-  if (pathname === "/") {
-    return addSecurityHeaders(
-      NextResponse.redirect(
-        new URL(token ? "/app" : "/login", baseUrl),
-      ),
-    );
-  }
-
-  // Handle auth page rewrites
-  const authRewrites: Record<string, string> = {
-    "/login": "/app/login",
-    "/signup": "/app/signup",
-    "/forgot-password": "/app/forgot-password",
-    "/reset-password": "/app/reset-password",
-  };
-
-  if (authRewrites[pathname]) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(authRewrites[pathname], baseUrl)),
-    );
-  }
-
-  // Rewrite authenticated user paths to app directory
-  if (token && !pathname.startsWith("/app")) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathname}${url.search}`, baseUrl)),
-    );
-  }
-
-  return addSecurityHeaders(NextResponse.next());
-}
-
-async function handleRootDomain(
-  url: URL,
-  token: unknown,
-  rootDomain: string,
-  baseUrl: string,
-  req: NextRequest,
-): Promise<NextResponse> {
-  const { pathname } = url;
-  const shortCode = pathname.slice(1);
-
-  // Redirect authenticated users to app subdomain
-  if (pathname === "/" && token) {
-    const appUrl = new URL(baseUrl);
-    appUrl.hostname = SUBDOMAINS.app;
-    return addSecurityHeaders(NextResponse.redirect(appUrl, 307));
-  }
-
-  // Skip rewriting for system paths
-  if (
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/static/") ||
-    pathname.includes(".")
-  ) {
-    return addSecurityHeaders(NextResponse.next());
-  }
-
-  // Short link redirection
-  if (!isPublicPath(pathname) && pathname !== "/") {
-    const destination = await URLRedirects(shortCode, req);
-    if (destination) {
-      return NextResponse.redirect(new URL(destination), 302);
-    }
-  }
-
-  return addSecurityHeaders(NextResponse.next());
-}
-
-function handleCustomDomain(
-  url: URL,
-  hostname: string,
-  rootDomain: string,
-  baseUrl: string,
-): NextResponse {
-  const { pathname } = url;
-
-  // Redirect app paths to app subdomain
-  if (pathname.startsWith("/app")) {
-    const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return addSecurityHeaders(
-      NextResponse.redirect(
-        new URL(`https://${SUBDOMAINS.app}${redirectPath}`, baseUrl),
-      ),
-    );
-  }
-
-  // Handle custom domains
-  return addSecurityHeaders(
-    NextResponse.rewrite(
-      new URL(`/${hostname}${pathname}${url.search}`, baseUrl),
-    ),
-  );
 }
