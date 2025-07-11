@@ -1,6 +1,20 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { extractUserAgentData } from "./lib/middleware/user-agent";
+import {
+  appendGeoAndUserAgent,
+  extractUserAgentData,
+} from "./lib/middleware/user-agent";
+import {
+  checkRateLimit,
+  checkTempLinkRateLimit,
+  normalizeIp,
+} from "./lib/middleware/rate-limit";
+import {
+  PUBLIC_ROUTE_PREFIXES,
+  PUBLIC_ROUTE_SET,
+  SUBDOMAINS,
+} from "./lib/middleware/routes";
+import { URLRedirects } from "./lib/middleware/redirection";
 
 // Optimize matcher configuration for better performance
 export const config = {
@@ -36,46 +50,6 @@ if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   );
 }
 
-// Inline public routes for better performance
-const PUBLIC_ROUTE_SET = new Set([
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/verify-email",
-  "/terms",
-  "/privacy",
-  "/404",
-  "/500",
-  "/not-found",
-  "/onboarding",
-  "/onboarding/welcome",
-  "/pricing",
-  "/features",
-  "/about",
-  "/contact",
-  "/blog",
-]);
-
-const PUBLIC_ROUTE_PREFIXES = [
-  "/api/",
-  "/api/auth",
-  "/api/public",
-  "/_next",
-  "/static",
-  "/favicon.ico",
-  "/robots.txt",
-  "/sitemap.xml",
-];
-
-// Inline subdomains
-const SUBDOMAINS = {
-  bio: `bio.${ROOT_DOMAIN}`,
-  assets: `assets.${ROOT_DOMAIN}`,
-  app: `app.${ROOT_DOMAIN}`,
-  admin: `admin.${ROOT_DOMAIN}`,
-} as const;
-
 // Cached path checkers
 const isPublicPath = (() => {
   const cache = new Map<string, boolean>();
@@ -107,14 +81,6 @@ const normalizeHostname = (host: string | null): string => {
   return normalized;
 };
 
-// Simplified IP normalization
-const normalizeIp = (ip: string): string => {
-  if (ip.includes(":")) {
-    return ip.split(":").slice(0, 4).join(":");
-  }
-  return ip;
-};
-
 // Rate limiting response helper
 const createRateLimitResponse = (
   error: string,
@@ -142,18 +108,6 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
   return response;
 }
 
-// Add device info headers helper
-function addDeviceHeaders(response: NextResponse, data: ReturnType<typeof extractUserAgentData>): NextResponse {
-  if (!data.isBot) {
-    response.headers.set("x-device-type", data.device?.type || "desktop");
-    response.headers.set("x-browser-name", data.browser?.name || "unknown");
-    response.headers.set("x-browser-version", data.browser?.version || "unknown");
-    response.headers.set("x-os-name", data.os?.name || "unknown");
-    response.headers.set("x-os-version", data.os?.version || "unknown");
-  }
-  return response;
-}
-
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
@@ -170,41 +124,73 @@ export async function middleware(req: NextRequest) {
     // Rate limiting for API routes in production
     if (IS_PRODUCTION && pathname.startsWith("/api/")) {
       const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
-      
-      // Call rate limiting API route
-      try {
-        const rateLimitResponse = await fetch(`${req.nextUrl.origin}/api/rate-limit`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            type: pathname === "/api/temp/link" && req.method === "POST" ? "temp-link" : "general",
-            ip,
-          }),
-        });
 
-        if (!rateLimitResponse.ok) {
-          const rateLimitData = await rateLimitResponse.json();
+      const { success, limit, reset, remaining } = await checkRateLimit(ip);
+      if (!success) {
+        return createRateLimitResponse(
+          "Too many requests",
+          limit,
+          reset,
+          remaining,
+        );
+      }
+
+      // Specific rate limiting for temp link creation
+      if (pathname === "/api/temp/link" && req.method === "POST") {
+        const tempLinkResult = await checkTempLinkRateLimit(ip);
+        if (!tempLinkResult.success) {
           return createRateLimitResponse(
-            rateLimitData.error || "Too many requests",
-            rateLimitData.limit || 100,
-            rateLimitData.reset || Date.now() + 60000,
-            rateLimitData.remaining || 0,
+            "You can only create 2 temporary links at a time. Please wait for some links to expire or create an account for unlimited links.",
+            tempLinkResult.limit,
+            tempLinkResult.reset,
+            tempLinkResult.remaining,
           );
         }
-      } catch (error) {
-        console.error("Rate limiting error:", error);
-        // Continue without rate limiting if the service is unavailable
       }
     }
 
     // Early return for API routes
     if (pathname.startsWith("/api/")) {
+      // Add device info headers for non-bot requests
       const data = extractUserAgentData(req);
       const response = addSecurityHeaders(NextResponse.next());
-      return addDeviceHeaders(response, data);
+      if (!data.isBot) {
+        response.headers.set(
+          "x-device-type",
+          data.device && typeof data.device === "object"
+            ? data.device.type || "desktop"
+            : "desktop",
+        );
+        response.headers.set(
+          "x-browser-name",
+          data.browser && typeof data.browser === "object"
+            ? data.browser.name || "unknown"
+            : "unknown",
+        );
+        response.headers.set(
+          "x-browser-version",
+          data.browser && typeof data.browser === "object"
+            ? data.browser.version || "unknown"
+            : "unknown",
+        );
+        response.headers.set(
+          "x-os-name",
+          data.os && typeof data.os === "object"
+            ? data.os.name || "unknown"
+            : "unknown",
+        );
+        response.headers.set(
+          "x-os-version",
+          data.os && typeof data.os === "object"
+            ? data.os.version || "unknown"
+            : "unknown",
+        );
+      }
+      return response;
     }
+
+    // Apply geo and user agent data
+    appendGeoAndUserAgent(url, req);
 
     // Enforce HTTPS in production
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
@@ -246,6 +232,7 @@ export async function middleware(req: NextRequest) {
       "Middleware error:",
       error instanceof Error ? error.message : String(error),
     );
+    // return addSecurityHeaders(NextResponse.redirect(COMMON_URLS.login));
   }
 }
 
@@ -385,9 +372,10 @@ async function handleRootDomain(
 
   // Short link redirection (302) - only process if not public path and not root
   if (!isPublicPath(pathname) && pathname !== "/") {
-    // Redirect to the API route for handling redirections
-    const redirectUrl = new URL(`/api/redirect/${shortCode}`, req.url);
-    return NextResponse.redirect(redirectUrl, 302);
+    const destination = await URLRedirects(shortCode, req);
+    if (destination) {
+      return NextResponse.redirect(new URL(destination), 302);
+    }
   }
 
   return addSecurityHeaders(NextResponse.next());
