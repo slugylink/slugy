@@ -19,9 +19,9 @@ const extractUserAgentData = (req: NextRequest) => {
     region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
     continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
     referer: req.headers.get("referer") ?? undefined,
-    device: ua.device,
-    browser: ua.browser,
-    os: ua.os,
+    device: ua.device.type ?? "desktop",
+    browser: ua.browser.name ?? "chrome",
+    os: ua.os.name ?? "windows",
     isBot: isBot(req),
   };
 };
@@ -32,6 +32,8 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
+    const { device, browser, os } = userAgent(req);
+
     
     const link = await db.link.findUnique({
       where: {
