@@ -16,7 +16,6 @@ import {
 } from "./lib/middleware/routes";
 import { URLRedirects } from "./lib/middleware/redirection";
 
-// Optimize matcher configuration for better performance
 export const config = {
   matcher: [
     "/",
@@ -27,7 +26,6 @@ export const config = {
   ],
 };
 
-// Pre-computed security headers
 const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
@@ -37,13 +35,11 @@ const SECURITY_HEADERS = {
   "Cross-Origin-Opener-Policy": "same-origin",
 } as const;
 
-// Environment variables
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() ?? "";
 const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET?.trim();
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const ASSETS_URL = process.env.NEXT_PUBLIC_ASSETS?.trim();
 
-// Validate critical environment variables
 if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   throw new Error(
     "Missing required environment variables: NEXT_PUBLIC_ROOT_DOMAIN, BETTER_AUTH_SECRET",
@@ -55,11 +51,9 @@ const isPublicPath = (() => {
   const cache = new Map<string, boolean>();
   return (path: string): boolean => {
     if (cache.has(path)) return cache.get(path)!;
-
     const isPublic =
       PUBLIC_ROUTE_SET.has(path) ||
       PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix));
-
     if (cache.size < 1000) cache.set(path, isPublic);
     return isPublic;
   };
@@ -69,19 +63,15 @@ const isPublicPath = (() => {
 const hostnameCache = new Map<string, string>();
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
-
   if (hostnameCache.has(host)) return hostnameCache.get(host)!;
-
   const normalized = host
     .toLowerCase()
     .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
     .trim();
-
   if (hostnameCache.size < 100) hostnameCache.set(host, normalized);
   return normalized;
 };
 
-// Rate limiting response helper
 const createRateLimitResponse = (
   error: string,
   limit: number,
@@ -100,7 +90,6 @@ const createRateLimitResponse = (
   });
 };
 
-// Apply security headers helper
 function addSecurityHeaders(response: NextResponse): NextResponse {
   for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
     response.headers.set(header, value);
@@ -118,21 +107,15 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Get session cookie only when needed
     const sessionCookie = getSessionCookie(req);
 
     // Rate limiting for API routes in production
     if (IS_PRODUCTION && pathname.startsWith("/api/")) {
       const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
-
       const { success, limit, reset, remaining } = await checkRateLimit(ip);
+      
       if (!success) {
-        return createRateLimitResponse(
-          "Too many requests",
-          limit,
-          reset,
-          remaining,
-        );
+        return createRateLimitResponse("Too many requests", limit, reset, remaining);
       }
 
       // Specific rate limiting for temp link creation
@@ -151,40 +134,15 @@ export async function middleware(req: NextRequest) {
 
     // Early return for API routes
     if (pathname.startsWith("/api/")) {
-      // Add device info headers for non-bot requests
       const data = extractUserAgentData(req);
       const response = addSecurityHeaders(NextResponse.next());
+      
       if (!data.isBot) {
-        response.headers.set(
-          "x-device-type",
-          data.device && typeof data.device === "object"
-            ? data.device.type || "desktop"
-            : "desktop",
-        );
-        response.headers.set(
-          "x-browser-name",
-          data.browser && typeof data.browser === "object"
-            ? data.browser.name || "unknown"
-            : "unknown",
-        );
-        response.headers.set(
-          "x-browser-version",
-          data.browser && typeof data.browser === "object"
-            ? data.browser.version || "unknown"
-            : "unknown",
-        );
-        response.headers.set(
-          "x-os-name",
-          data.os && typeof data.os === "object"
-            ? data.os.name || "unknown"
-            : "unknown",
-        );
-        response.headers.set(
-          "x-os-version",
-          data.os && typeof data.os === "object"
-            ? data.os.version || "unknown"
-            : "unknown",
-        );
+        response.headers.set("x-device-type", data.device?.type ?? "desktop");
+        response.headers.set("x-browser-name", data.browser?.name ?? "unknown");
+        response.headers.set("x-browser-version", data.browser?.version ?? "unknown");
+        response.headers.set("x-os-name", data.os?.name ?? "unknown");
+        response.headers.set("x-os-version", data.os?.version ?? "unknown");
       }
       return response;
     }
@@ -232,11 +190,9 @@ export async function middleware(req: NextRequest) {
       "Middleware error:",
       error instanceof Error ? error.message : String(error),
     );
-    // return addSecurityHeaders(NextResponse.redirect(COMMON_URLS.login));
   }
 }
 
-// Handle assets subdomain
 async function handleAssetsSubdomain(
   pathname: string,
   baseUrl: string,
@@ -276,14 +232,12 @@ async function handleAssetsSubdomain(
   return NextResponse.rewrite(new URL("/404", baseUrl));
 }
 
-// Handle app subdomain
-async function handleAppSubdomain(
+function handleAppSubdomain(
   url: URL,
   token: unknown,
   baseUrl: string,
-): Promise<NextResponse<unknown>> {
+): NextResponse {
   const { pathname } = url;
-
   const authPaths = new Set([
     "/login",
     "/signup",
@@ -302,20 +256,16 @@ async function handleAppSubdomain(
 
   // Redirect unauthenticated users to login
   if (!token && !isPublicPath(pathname)) {
-    return addSecurityHeaders(
-      NextResponse.redirect(new URL("/login", baseUrl)),
-    );
+    return addSecurityHeaders(NextResponse.redirect(new URL("/login", baseUrl)));
   }
 
   // Handle root path
   if (pathname === "/") {
-    if (token) {
-      return addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)));
-    } else {
-      return addSecurityHeaders(
-        NextResponse.redirect(new URL("/login", baseUrl)),
-      );
-    }
+    return addSecurityHeaders(
+      NextResponse.redirect(
+        new URL(token ? "/app" : "/login", baseUrl),
+      ),
+    );
   }
 
   // Handle auth page rewrites
@@ -342,7 +292,6 @@ async function handleAppSubdomain(
   return addSecurityHeaders(NextResponse.next());
 }
 
-// Handle root domain
 async function handleRootDomain(
   url: URL,
   token: unknown,
@@ -360,7 +309,7 @@ async function handleRootDomain(
     return addSecurityHeaders(NextResponse.redirect(appUrl, 307));
   }
 
-  // Skip rewriting for system paths (optimized check)
+  // Skip rewriting for system paths
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
@@ -370,7 +319,7 @@ async function handleRootDomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Short link redirection (302) - only process if not public path and not root
+  // Short link redirection
   if (!isPublicPath(pathname) && pathname !== "/") {
     const destination = await URLRedirects(shortCode, req);
     if (destination) {
@@ -381,7 +330,6 @@ async function handleRootDomain(
   return addSecurityHeaders(NextResponse.next());
 }
 
-// Handle custom domains
 function handleCustomDomain(
   url: URL,
   hostname: string,

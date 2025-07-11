@@ -24,26 +24,26 @@ export async function URLRedirects(shortCode: string, req: NextRequest) {
       return `${req.nextUrl.origin}/`;
     }
 
+    // Check expiration
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
       return link.expirationUrl || `${req.nextUrl.origin}/`;
     }
 
-    const cookieStore = await cookies();
-    const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
-
-    if (link.password && !passwordVerified) {
-      return null;
+    // Check password protection
+    if (link.password) {
+      const cookieStore = await cookies();
+      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
+      if (!passwordVerified) {
+        return null;
+      }
     }
 
+    // Track analytics in background
     const analyticsData = extractUserAgentData(req);
-
-    // Process analytics in the background using waitUntil
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           linkId: link.id,
           slug: shortCode,
