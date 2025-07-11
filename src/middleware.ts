@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse, userAgent } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { cookies } from "next/headers";
 
 export const config = {
   matcher: [
@@ -76,14 +75,6 @@ const isBot = (req: NextRequest): boolean => {
 
 const extractUserData = (req: NextRequest) => {
   const ua = userAgent(req);
-  
-  // console.log("🔍 Middleware Raw User Agent Object:");
-  // console.log("  Full UA:", req.headers.get("user-agent"));
-  // console.log("  UA Device:", ua.device);
-  // console.log("  UA Browser:", ua.browser);
-  // console.log("  UA OS:", ua.os);
-  // console.log("  UA isBot:", ua.isBot);
-  
   return {
     ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
     country: req.headers.get("x-vercel-ip-country"),
@@ -120,30 +111,16 @@ const checkRateLimit = async (ip: string) => {
   return { success: true, limit: 100, reset: Date.now() + 60000, remaining: 99 };
 };
 
-const URLRedirects = async (shortCode: string, req: NextRequest) => {
+const URLRedirects = async (shortCode: string, userData: ReturnType<typeof extractUserData>) => {
   try {
-    // Extract user agent data first
-    const ua = userAgent(req);
-    const userAgentData = {
-      device: ua.device?.type ?? "desktop",
-      browser: ua.browser?.name ?? "chrome",
-      browserVersion: ua.browser?.version ?? "unknown",
-      os: ua.os?.name ?? "windows",
-      osVersion: ua.os?.version ?? "unknown",
-      isBot: isBot(req)
-    };
-    
-    // Use API route instead of direct database access to reduce bundle size
-    const response = await fetch(`${req.nextUrl.origin}/api/redirect/${shortCode}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/api/redirect/${shortCode}`, {
       method: "GET",
       headers: { 
         "Content-Type": "application/json",
-        "x-device-type": userAgentData.device,
-        "x-browser-name": userAgentData.browser,
-        "x-browser-version": userAgentData.browserVersion,
-        "x-os-name": userAgentData.os,
-        "x-os-version": userAgentData.osVersion,
-        "x-is-bot": userAgentData.isBot.toString()
+        "x-device-type": userData.device,
+        "x-browser-name": userData.browser,
+        "x-os-name": userData.os,
+        "x-is-bot": userData.isBot.toString()
       }
     });
     
@@ -152,10 +129,10 @@ const URLRedirects = async (shortCode: string, req: NextRequest) => {
       return data.url;
     }
     
-    return `${req.nextUrl.origin}/`;
+    return `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/`;
   } catch (error) {
     console.error("Link error:", error);
-    return `${req.nextUrl.origin}/`;
+    return `${process.env.NEXT_PUBLIC_ROOT_DOMAIN}/`;
   }
 };
 
@@ -178,40 +155,32 @@ export async function middleware(req: NextRequest) {
       }
     }
 
+    // Extract user data once and reuse
+    const userData = extractUserData(req);
+
     if (pathname.startsWith("/api/")) {
-      const data = extractUserData(req);
       const response = addHeaders(NextResponse.next());
-      if (!data.isBot) {
-        response.headers.set("x-device-type", data.device);
-        response.headers.set("x-browser-name", data.browser);
-        response.headers.set("x-browser-version", userAgent(req).browser?.version ?? "unknown");
-        response.headers.set("x-os-name", data.os);
-        response.headers.set("x-os-version", userAgent(req).os?.version ?? "unknown");
-        
-        // console.log("🔍 Middleware Device Info:");
-        // console.log("  Device:", data.device);
-        // console.log("  Browser:", data.browser);
-        // console.log("  Browser Version:", userAgent(req).browser?.version ?? "unknown");
-        // console.log("  OS:", data.os);
-        // console.log("  OS Version:", userAgent(req).os?.version ?? "unknown");
-        // console.log("  Is Bot:", data.isBot);
+      if (!userData.isBot) {
+        response.headers.set("x-device-type", userData.device);
+        response.headers.set("x-browser-name", userData.browser);
+        response.headers.set("x-os-name", userData.os);
       }
       return response;
     }
 
-    const data = extractUserData(req);
+    // Add URL parameters for tracking
     const params = url.searchParams;
-    params.set("isMetadataPreview", data.isBot.toString());
-    if (!data.isBot) {
-      params.set("ipAddress", data.ip);
-      params.set("country", data.country ?? "Unknown");
-      params.set("city", data.city ?? "Unknown");
-      params.set("region", data.region ?? "Unknown");
-      params.set("continent", data.continent ?? "Unknown");
-      params.set("referer", data.referer ?? "direct");
-      params.set("device", data.device);
-      params.set("browser", data.browser);
-      params.set("os", data.os);
+    params.set("isMetadataPreview", userData.isBot.toString());
+    if (!userData.isBot) {
+      params.set("ipAddress", userData.ip);
+      params.set("country", userData.country ?? "Unknown");
+      params.set("city", userData.city ?? "Unknown");
+      params.set("region", userData.region ?? "Unknown");
+      params.set("continent", userData.continent ?? "Unknown");
+      params.set("referer", userData.referer ?? "direct");
+      params.set("device", userData.device);
+      params.set("browser", userData.browser);
+      params.set("os", userData.os);
     }
 
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
@@ -279,7 +248,7 @@ export async function middleware(req: NextRequest) {
           return addHeaders(NextResponse.next());
         }
         if (!isPublicPath(pathname) && pathname !== "/") {
-          const destination = await URLRedirects(shortCode, req);
+          const destination = await URLRedirects(shortCode, userData);
           if (destination) {
             return NextResponse.redirect(new URL(destination), 302);
           }
