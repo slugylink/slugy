@@ -14,7 +14,10 @@ const isBot = (req: NextRequest): boolean => {
 };
 
 const extractUserAgentData = (req: NextRequest) => {
-  const { device, browser, os } = userAgent(req);
+  const headersList = req.headers;
+  const deviceType = headersList.get("x-device-type") || "unknown";
+  const browserName = headersList.get("x-browser-name") || "unknown";
+  const osName = headersList.get("x-os-name") || "unknown";
 
   return {
     ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
@@ -23,9 +26,9 @@ const extractUserAgentData = (req: NextRequest) => {
     region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
     continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
     referer: req.headers.get("referer") ?? undefined,
-    device: device?.type || "desktop",
-    browser: browser?.name || "chrome",
-    os: os?.name || "windows",
+    device: deviceType,
+    browser: browserName,
+    os: osName,
     isBot: isBot(req),
   };
 };
@@ -36,6 +39,12 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
+
+    const headersList = await headers();
+
+    const deviceType = headersList.get("x-device-type") || "unknown";
+    const browserName = headersList.get("x-browser-name") || "unknown";
+    const osName = headersList.get("x-os-name") || "unknown";
     
 
     const link = await db.link.findUnique({
