@@ -58,9 +58,9 @@ export async function GET(
       const passwordVerified = cookieStore.get(
         `password_verified_${shortCode}`,
       );
-      if (!passwordVerified) {
+      if ( link.password && !passwordVerified) {
         return NextResponse.json({ 
-          success: false, 
+          success: true, 
           url: null,
           requiresPassword: true 
         });
