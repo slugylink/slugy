@@ -1,28 +1,61 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import {
-  checkRateLimit,
-  normalizeIp,
-} from "./lib/middleware/rate-limit";
-import {
-  PUBLIC_ROUTES,
-  PUBLIC_PREFIXES,
-  SUBDOMAINS,
-} from "./lib/middleware/routes";
+import { checkRateLimit, normalizeIp } from "./lib/middleware/rate-limit";
 import { URLRedirects } from "./lib/middleware/redirection";
 
-// Optimize matcher configuration for better performance
-export const config = {
-  matcher: [
-    "/",
-    "/((?!_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
-    "/api/:path*",
-    "/api/auth/:path*",
-    "/api/workspace/:path*",
-  ],
+// Route configurations
+export const PUBLIC_ROUTES = new Set([
+  "/login",
+  "/test",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/terms",
+  "/privacy",
+  "/404",
+  "/500",
+  "/not-found",
+  "/onboarding",
+  "/onboarding/welcome",
+  "/pricing",
+  "/features",
+  "/about",
+  "/contact",
+  "/blog",
+]);
+
+export const PUBLIC_PREFIXES = [
+  "/api/",
+  "/api/auth",
+  "/api/public",
+  "/_next",
+  "/static",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+
+// Auth paths
+const AUTH_PATHS = new Set([
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/app/login",
+  "/app/signup",
+  "/app/forgot-password",
+  "/app/reset-password",
+]);
+
+const AUTH_REWRITES: Record<string, string> = {
+  "/login": "/app/login",
+  "/signup": "/app/signup",
+  "/forgot-password": "/app/forgot-password",
+  "/reset-password": "/app/reset-password",
 };
 
-// Pre-computed security headers
+// Security headers
 const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",
@@ -36,6 +69,7 @@ const SECURITY_HEADERS = {
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() ?? "";
 const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET?.trim();
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
+
 // Validate critical environment variables
 if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   throw new Error(
@@ -43,7 +77,23 @@ if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
   );
 }
 
-// Cached path checkers
+// Subdomains
+export const SUBDOMAINS = {
+  bio: `bio.${ROOT_DOMAIN}`,
+  app: `app.${ROOT_DOMAIN}`,
+  admin: `admin.${ROOT_DOMAIN}`,
+} as const;
+
+// Optimize matcher configuration
+export const config = {
+  matcher: [
+    "/",
+    "/((?!_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
+    "/api/:path*",
+  ],
+};
+
+// Cached path checker
 const isPublicPath = (() => {
   const cache = new Map<string, boolean>();
   return (path: string): boolean => {
@@ -58,12 +108,10 @@ const isPublicPath = (() => {
   };
 })();
 
-// Cached hostname normalization
+// Hostname normalization with cache
 const hostnameCache = new Map<string, string>();
-
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
-
   if (hostnameCache.has(host)) return hostnameCache.get(host)!;
 
   const normalized = host
@@ -75,7 +123,14 @@ const normalizeHostname = (host: string | null): string => {
   return normalized;
 };
 
-// Rate limiting response helper
+// Helper functions
+const addSecurityHeaders = (response: NextResponse): NextResponse => {
+  Object.entries(SECURITY_HEADERS).forEach(([header, value]) => {
+    response.headers.set(header, value);
+  });
+  return response;
+};
+
 const createRateLimitResponse = (
   error: string,
   limit: number,
@@ -94,14 +149,15 @@ const createRateLimitResponse = (
   });
 };
 
-// Apply security headers helper
-function addSecurityHeaders(response: NextResponse): NextResponse {
-  for (const [header, value] of Object.entries(SECURITY_HEADERS)) {
-    response.headers.set(header, value);
-  }
-  return response;
-}
+const redirectTo = (url: string, status = 307): NextResponse => {
+  return addSecurityHeaders(NextResponse.redirect(new URL(url), status));
+};
 
+const rewriteTo = (url: string, baseUrl: string): NextResponse => {
+  return addSecurityHeaders(NextResponse.rewrite(new URL(url, baseUrl)));
+};
+
+// Main middleware function
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
@@ -112,14 +168,13 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Get session cookie only when needed
     const sessionCookie = getSessionCookie(req);
 
     // Rate limiting for API routes in production
     if (IS_PRODUCTION && pathname.startsWith("/api/")) {
       const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
-
       const { success, limit, reset, remaining } = await checkRateLimit(ip);
+
       if (!success) {
         return createRateLimitResponse(
           "Too many requests",
@@ -139,7 +194,7 @@ export async function middleware(req: NextRequest) {
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsUrl = new URL(req.url);
       httpsUrl.protocol = "https:";
-      return addSecurityHeaders(NextResponse.redirect(httpsUrl, 308));
+      return redirectTo(httpsUrl.toString(), 308);
     }
 
     const hostname = normalizeHostname(req.headers.get("host"));
@@ -148,94 +203,63 @@ export async function middleware(req: NextRequest) {
     switch (hostname) {
       case SUBDOMAINS.bio:
         const bioPath = pathname === "/" ? "/bio" : `/bio${pathname}`;
-        return addSecurityHeaders(
-          NextResponse.rewrite(new URL(`${bioPath}${url.search}`, req.url)),
-        );
+        return rewriteTo(`${bioPath}${url.search}`, req.url);
 
       case SUBDOMAINS.app:
         return handleAppSubdomain(url, sessionCookie, req.url);
 
       case SUBDOMAINS.admin:
         const adminPath = pathname === "/" ? "/admin" : `/admin${pathname}`;
-        return addSecurityHeaders(
-          NextResponse.rewrite(new URL(`${adminPath}${url.search}`, req.url)),
-        );
+        return rewriteTo(`${adminPath}${url.search}`, req.url);
 
       case ROOT_DOMAIN:
-        return handleRootDomain(url, sessionCookie, ROOT_DOMAIN, req.url, req);
+        return handleRootDomain(url, sessionCookie, req);
 
       default:
-        return handleCustomDomain(url, hostname, ROOT_DOMAIN, req.url);
+        return handleCustomDomain(url, hostname, req.url);
     }
   } catch (error: unknown) {
     console.error(
       "Middleware error:",
       error instanceof Error ? error.message : String(error),
     );
-    // return addSecurityHeaders(NextResponse.redirect(COMMON_URLS.login));
+    return redirectTo("/login");
   }
 }
+
 // Handle app subdomain
 async function handleAppSubdomain(
   url: URL,
   token: unknown,
   baseUrl: string,
-): Promise<NextResponse<unknown>> {
+): Promise<NextResponse> {
   const { pathname } = url;
 
-  const authPaths = new Set([
-    "/login",
-    "/signup",
-    "/forgot-password",
-    "/reset-password",
-    "/app/login",
-    "/app/signup",
-    "/app/forgot-password",
-    "/app/reset-password",
-  ]);
-
   // Redirect authenticated users away from auth pages
-  if (token && authPaths.has(pathname)) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+  if (token && AUTH_PATHS.has(pathname)) {
+    return redirectTo(new URL("/", baseUrl).toString());
   }
 
   // Redirect unauthenticated users to login
   if (!token && !isPublicPath(pathname)) {
-    return addSecurityHeaders(
-      NextResponse.redirect(new URL("/login", baseUrl)),
-    );
+    return redirectTo(new URL("/login", baseUrl).toString());
   }
 
   // Handle root path
   if (pathname === "/") {
-    if (token) {
-      return addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)));
-    } else {
-      return addSecurityHeaders(
-        NextResponse.redirect(new URL("/login", baseUrl)),
-      );
-    }
+    return token
+      ? rewriteTo("/app", baseUrl)
+      : redirectTo(new URL("/login", baseUrl).toString());
   }
 
   // Handle auth page rewrites
-  const authRewrites: Record<string, string> = {
-    "/login": "/app/login",
-    "/signup": "/app/signup",
-    "/forgot-password": "/app/forgot-password",
-    "/reset-password": "/app/reset-password",
-  };
-
-  if (authRewrites[pathname]) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(authRewrites[pathname], baseUrl)),
-    );
+  if (AUTH_REWRITES[pathname]) {
+    return rewriteTo(AUTH_REWRITES[pathname], baseUrl);
   }
 
   // Rewrite authenticated user paths to app directory
   if (token && !pathname.startsWith("/app")) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathname}${url.search}`, baseUrl)),
-    );
+    return rewriteTo(`/app${pathname}${url.search}`, baseUrl);
   }
 
   return addSecurityHeaders(NextResponse.next());
@@ -245,8 +269,6 @@ async function handleAppSubdomain(
 async function handleRootDomain(
   url: URL,
   token: unknown,
-  rootDomain: string,
-  baseUrl: string,
   req: NextRequest,
 ): Promise<NextResponse> {
   const { pathname } = url;
@@ -254,12 +276,12 @@ async function handleRootDomain(
 
   // Redirect authenticated users to app subdomain
   if (pathname === "/" && token) {
-    const appUrl = new URL(baseUrl);
+    const appUrl = new URL(req.url);
     appUrl.hostname = SUBDOMAINS.app;
-    return addSecurityHeaders(NextResponse.redirect(appUrl, 307));
+    return redirectTo(appUrl.toString());
   }
 
-  // Skip rewriting for system paths (optimized check)
+  // Skip rewriting for system paths
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
@@ -269,7 +291,7 @@ async function handleRootDomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Short link redirection (302) - only process if not public path and not root
+  // Short link redirection - only process if not public path and not root
   if (!isPublicPath(pathname) && pathname !== "/") {
     const destination = await URLRedirects(shortCode, req);
     if (destination) {
@@ -284,7 +306,6 @@ async function handleRootDomain(
 function handleCustomDomain(
   url: URL,
   hostname: string,
-  rootDomain: string,
   baseUrl: string,
 ): NextResponse {
   const { pathname } = url;
@@ -292,17 +313,9 @@ function handleCustomDomain(
   // Redirect app paths to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return addSecurityHeaders(
-      NextResponse.redirect(
-        new URL(`https://${SUBDOMAINS.app}${redirectPath}`, baseUrl),
-      ),
-    );
+    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}`);
   }
 
   // Handle custom domains
-  return addSecurityHeaders(
-    NextResponse.rewrite(
-      new URL(`/${hostname}${pathname}${url.search}`, baseUrl),
-    ),
-  );
+  return rewriteTo(`/${hostname}${pathname}${url.search}`, baseUrl);
 }
