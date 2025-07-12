@@ -2,9 +2,6 @@ import { db } from "@/server/db";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-
-export const runtime = "edge";
-
 // Cache link data for 30 seconds
 const getCachedLink = unstable_cache(
   async (slug: string) => {
