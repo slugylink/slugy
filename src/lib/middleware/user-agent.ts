@@ -1,10 +1,7 @@
 import { type NextRequest, userAgent } from "next/server";
-import { headers } from "next/headers";
 
-// Pre-compile regex for better performance
 const BOT_REGEX =
   /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
-
 /**
  * Checks if the request is coming from a metadata preview bot
  */
@@ -16,21 +13,45 @@ function isMetadataPreviewBot(req: NextRequest): boolean {
 /**
  * Extracts user agent and geo data from the request.
  */
-export async function extractUserAgentData(req: NextRequest) {
+export function extractUserAgentData(req: NextRequest) {
   const isBot = isMetadataPreviewBot(req);
-  const headersList = await headers();
+  const ua = userAgent(req);
 
   return {
     ipAddress:
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
-    country: req.headers.get("x-vercel-ip-country") ?? "unknown",
-    city: req.headers.get("x-vercel-ip-city") ?? "unknown",
-    region: req.headers.get("x-vercel-ip-country-region") ?? "unknown",
-    continent: req.headers.get("x-vercel-ip-continent") ?? "unknown",
-    referer: req.headers.get("referer") ?? "direct",
-    device: headersList.get("x-device-type") || "unknown",
-    browser: headersList.get("x-browser-name") || "unknown",
-    os: headersList.get("x-os-name") || "unknown",
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+    country: req.headers.get("x-vercel-ip-country") ?? undefined,
+    city: req.headers.get("x-vercel-ip-city") ?? undefined,
+    region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
+    continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
+    referer: req.headers.get("referer") ?? undefined,
+    device: ua.device,
+    browser: ua.browser,
+    os: ua.os,
     isBot,
   };
+}
+
+/**
+ * Appends geolocation and user agent data to the URL
+ */
+export function appendGeoAndUserAgent(url: URL, req: NextRequest): void {
+  const data = extractUserAgentData(req);
+
+  // Set URL parameters efficiently
+  const params = url.searchParams;
+  params.set("isMetadataPreview", data.isBot.toString());
+
+  // Early return for bots
+  if (data.isBot) return;
+
+  params.set("ipAddress", data.ipAddress);
+  params.set("country", data.country ?? "Unknown");
+  params.set("city", data.city ?? "Unknown");
+  params.set("region", data.region ?? "Unknown");
+  params.set("continent", data.continent ?? "Unknown");
+  params.set("referer", data.referer ?? "direct");
+  params.set("device", data.device?.type ?? "desktop");
+  params.set("browser", data.browser?.name ?? "chrome");
+  params.set("os", data.os?.name ?? "windows");
 }

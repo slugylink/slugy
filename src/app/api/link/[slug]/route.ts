@@ -21,7 +21,7 @@ const getCachedLink = unstable_cache(
   },
   ["link-by-slug"],
   {
-    revalidate: 60 * 30, // Cache for 30 minutes
+    revalidate: 60 * 30, // Cache for 30 minutes    
     tags: ["link"],
   }
 );
@@ -58,7 +58,8 @@ export async function GET(
       const passwordVerified = cookieStore.get(
         `password_verified_${shortCode}`,
       );
-      if ( link.password && !passwordVerified) {
+      console.log("passwordVerified", passwordVerified);
+      if (link.password && !passwordVerified?.value) {
         return NextResponse.json({ 
           success: true, 
           url: null,

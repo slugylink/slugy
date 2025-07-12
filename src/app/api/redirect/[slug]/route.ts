@@ -1,53 +1,82 @@
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { cookies } from "next/headers";
-import { NextRequest, NextResponse, userAgent } from "next/server";
-import { waitUntil } from "@vercel/functions";
-import { headers } from "next/headers"
 
-export async function GET(
-  req: NextRequest,
+export async function POST(
+  request: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
-    const { slug: shortCode } = await params;
-    
+    const { password } = await request.json();
+    const context = await params;
 
+    if (!password) {
+      return NextResponse.json(
+        { error: "Password is required" },
+        { status: 400 },
+      );
+    }
+
+    // Find the link with the given slug
     const link = await db.link.findUnique({
       where: {
-        slug: shortCode,
+        slug: context.slug,
         isArchived: false,
       },
       select: {
         id: true,
         url: true,
+        password: true,
         expiresAt: true,
         expirationUrl: true,
-        password: true,
       },
     });
 
     if (!link) {
-      return NextResponse.json({ url: `${req.nextUrl.origin}/` });
+      return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
+    // Check if link has expired
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return NextResponse.json({
-        url: link.expirationUrl || `${req.nextUrl.origin}/`,
-      });
+      return NextResponse.json(
+        {
+          error: "Link has expired",
+          redirectUrl: link.expirationUrl || null,
+        },
+        { status: 410 },
+      );
     }
 
-    if (link.password) {
-      const cookieStore = await cookies();
-      const passwordVerified = cookieStore.get(
-        `password_verified_${shortCode}`,
+    // Check if link is password protected
+    if (!link.password) {
+      return NextResponse.json(
+        { error: "Link is not password protected" },
+        { status: 400 },
       );
-      if (!passwordVerified) {
-        return NextResponse.json({ url: null });
-      }
     }
-    return NextResponse.json({ url: link.url });
+
+    // Verify password
+    if (link.password !== password) {
+      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+    }
+
+    // Set a cookie to remember password verification and return the response
+    const response = NextResponse.json({
+      success: true,
+      url: link.url,
+    });
+    response.cookies.set(`password_verified_${context.slug}`, "true", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/",
+      maxAge: 60 * 15, // 15 minutes
+    });
+    return response;
   } catch (error) {
-    console.error("Error getting link:", error);
-    return NextResponse.json({ url: `${req.nextUrl.origin}/` });
+    console.error("Password verification error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

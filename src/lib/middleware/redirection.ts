@@ -4,11 +4,15 @@ import { waitUntil } from "@vercel/functions";
 
 export async function URLRedirects(shortCode: string, req: NextRequest) {
   try {
+    // Get cookies from the original request
+    const cookieHeader = req.headers.get("cookie");
+    
     // Get link data from API
     const response = await fetch(`${req.nextUrl.origin}/api/link/${shortCode}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        ...(cookieHeader && { "Cookie": cookieHeader }),
       },
     });
 
