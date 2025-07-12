@@ -12,13 +12,7 @@ const isBot = (req: NextRequest): boolean => {
 };
 
 const extractUserAgentData = (req: NextRequest) => {
-  const ua = userAgent(req);
-
-  // Use headers passed from middleware if available, otherwise fall back to user agent parsing
-  const deviceFromHeader = req.headers.get("x-device-type");
-  const browserFromHeader = req.headers.get("x-browser-name");
-  const osFromHeader = req.headers.get("x-os-name");
-  const isBotFromHeader = req.headers.get("x-is-bot");
+  const { device, browser, os } = userAgent(req);
 
   return {
     ipAddress:
@@ -28,10 +22,10 @@ const extractUserAgentData = (req: NextRequest) => {
     region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
     continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
     referer: req.headers.get("referer") ?? undefined,
-    device: deviceFromHeader || ua.device?.type || "desktop",
-    browser: browserFromHeader || ua.browser?.name || "chrome",
-    os: osFromHeader || ua.os?.name || "windows",
-    isBot: isBotFromHeader === "true" || isBot(req),
+    device: device?.type || "desktop",
+    browser: browser?.name || "chrome",
+    os: os?.name || "windows",
+    isBot: isBot(req),
   };
 };
 

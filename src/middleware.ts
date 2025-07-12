@@ -32,7 +32,7 @@ if (!ROOT_DOMAIN || !BETTER_AUTH_SECRET) {
 const BOT_REGEX = /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
 
 const PUBLIC_ROUTES = new Set([
-  "/login", "/signup", "/forgot-password", "/reset-password", "/verify-email",
+  "/login", "/test", "/signup", "/forgot-password", "/reset-password", "/verify-email",
   "/terms", "/privacy", "/404", "/500", "/not-found", "/onboarding",
   "/onboarding/welcome", "/pricing", "/features", "/about", "/contact", "/blog"
 ]);
@@ -171,14 +171,15 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname.startsWith("/api/")) {
-      const data = extractUserData(req);
-      const response = addHeaders(NextResponse.next());
-      if (!data.isBot) {
-        response.headers.set("x-device-type", data.device);
-        response.headers.set("x-browser-name", data.browser);
-        response.headers.set("x-os-name", data.os);
-      }
-      return response;
+      const { device, browser, os } = userAgent(req);
+      
+      // Add basic device info to headers
+      const response = NextResponse.next();
+      response.headers.set("x-device-type", device?.type || "desktop");
+      response.headers.set("x-browser-name", browser?.name || "unknown");
+      response.headers.set("x-os-name", os?.name || "unknown");
+      
+      return addHeaders(response);
     }
 
     const data = extractUserData(req);
