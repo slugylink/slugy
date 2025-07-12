@@ -2,6 +2,8 @@ import { db } from "@/server/db";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 import { waitUntil } from "@vercel/functions";
+import { headers } from "next/headers"
+
 
 const BOT_REGEX =
   /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
@@ -15,8 +17,7 @@ const extractUserAgentData = (req: NextRequest) => {
   const { device, browser, os } = userAgent(req);
 
   return {
-    ipAddress:
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
     country: req.headers.get("x-vercel-ip-country") ?? undefined,
     city: req.headers.get("x-vercel-ip-city") ?? undefined,
     region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
@@ -35,6 +36,7 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
+    
 
     const link = await db.link.findUnique({
       where: {

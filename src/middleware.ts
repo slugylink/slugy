@@ -167,7 +167,7 @@ export async function middleware(req: NextRequest) {
       const { success, limit, reset, remaining } = await checkRateLimit(ip);
       if (!success) {
         return createRateLimitResponse("Too many requests", limit, reset, remaining);
-      }
+      } 
     }
 
     if (pathname.startsWith("/api/")) {

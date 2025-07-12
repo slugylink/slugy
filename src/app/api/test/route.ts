@@ -1,20 +1,22 @@
-import type { NextRequest } from "next/server"
-import { userAgent } from "next/server"
+import { headers } from "next/headers";
+import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const { device, browser, os } = userAgent(request)
+  const headersList = await headers();
+
+  const deviceType = headersList.get("x-device-type") || "unknown";
+  const browserName = headersList.get("x-browser-name") || "unknown";
+  const osName = headersList.get("x-os-name") || "unknown";
 
   return Response.json({
     device: {
-      type: device.type || "desktop",
+      type: deviceType || "unknown",
     },
     browser: {
-      name: browser.name || "unknown",
-      version: browser.version || "unknown",
+      name: browserName || "unknown",
     },
     os: {
-      name: os.name || "unknown",
-      version: os.version || "unknown",
+      name: osName || "unknown",
     },
-  })
+  });
 }
