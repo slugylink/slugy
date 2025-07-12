@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { invalidateLinkCache } from "@/lib/cache-utils";
 
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),
@@ -223,6 +224,9 @@ export async function PATCH(
         },
       },
     });
+
+    // Invalidate cache for the updated link
+    invalidateLinkCache(linkWithTags?.slug);
 
     return NextResponse.json(linkWithTags, { status: 200 });
   } catch (error) {

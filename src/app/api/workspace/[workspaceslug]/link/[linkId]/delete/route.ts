@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { invalidateLinkCache } from "@/lib/cache-utils";
 
 export async function DELETE(
   req: Request,
@@ -30,9 +31,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
+    // Store the slug before deletion for cache invalidation
+    const linkSlug = link.slug;
+
     await db.link.delete({
       where: { id: context.linkId },
     });
+
+    // Invalidate cache for the deleted link
+    invalidateLinkCache(linkSlug);
 
     return NextResponse.json({ message: "Link deleted successfully" }, { status: 200 });
   } catch (error) {

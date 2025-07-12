@@ -1,51 +1,63 @@
-import { db } from "@/server/db";
 import { type NextRequest } from "next/server";
 import { extractUserAgentData } from "./user-agent";
 import { waitUntil } from "@vercel/functions";
-import { cookies } from "next/headers";
+import { unstable_cache } from "next/cache";
+
+// Cache link data for 30 seconds to avoid repeated API calls
+const getCachedLinkData = unstable_cache(
+  async (shortCode: string, origin: string) => {
+    try {
+      const response = await fetch(`${origin}/api/link/${shortCode}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        return { success: false, url: `${origin}/` };
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("Error fetching link data:", error);
+      return { success: false, url: `${origin}/` };
+    }
+  },
+  ["link-redirect-data"],
+  {
+    revalidate: 60 * 30, // Cache for 30 minutes
+    tags: ["link-redirect"],
+  }
+);
 
 export async function URLRedirects(shortCode: string, req: NextRequest) {
   try {
-    const link = await db.link.findUnique({
-      where: {
-        slug: shortCode,
-        isArchived: false,
-      },
-      select: {
-        id: true,
-        url: true,
-        expiresAt: true,
-        expirationUrl: true,
-        password: true,
-      },
-    });
+    // Get cached link data
+    const linkData = await getCachedLinkData(shortCode, req.nextUrl.origin);
 
-    if (!link) {
-      return `${req.nextUrl.origin}/`;
+    if (!linkData.success) {
+      return linkData.url || `${req.nextUrl.origin}/`;
     }
 
-    // Check expiration
-    if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return link.expirationUrl || `${req.nextUrl.origin}/`;
+    // If link requires password but not verified, return null
+    if (linkData.requiresPassword) {
+      return null;
     }
 
-    // Check password protection
-    if (link.password) {
-      const cookieStore = await cookies();
-      const passwordVerified = cookieStore.get(`password_verified_${shortCode}`);
-      if (!passwordVerified) {
-        return null;
-      }
+    // If link is expired, return expiration URL
+    if (linkData.expired) {
+      return linkData.url;
     }
 
     // Track analytics in background
-    const analyticsData = extractUserAgentData(req);
+    const analyticsData = await extractUserAgentData(req);
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          linkId: link.id,
+          linkId: linkData.linkId,
           slug: shortCode,
           analyticsData,
         }),
@@ -54,7 +66,7 @@ export async function URLRedirects(shortCode: string, req: NextRequest) {
       }),
     );
 
-    return link.url;
+    return linkData.url;
   } catch (error) {
     console.error("Error getting link:", error);
     return null;

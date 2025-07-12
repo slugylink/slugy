@@ -5,6 +5,7 @@ import { customAlphabet } from "nanoid";
 import { z } from "zod"; // Import zod for input validation
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { invalidateLinkCache } from "@/lib/cache-utils";
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,
@@ -258,6 +259,9 @@ export async function POST(
         },
       },
     });
+
+    // Invalidate cache for the new link
+    invalidateLinkCache(linkWithTags?.slug);
 
     return NextResponse.json(linkWithTags, {
       status: 201,

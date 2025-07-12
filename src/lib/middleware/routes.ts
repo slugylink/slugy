@@ -1,6 +1,6 @@
-// Use Sets for O(1) lookups
-export const PUBLIC_ROUTE_SET = new Set([
+export const PUBLIC_ROUTES = new Set([
   "/login",
+  "/test",
   "/signup",
   "/forgot-password",
   "/reset-password",
@@ -19,7 +19,7 @@ export const PUBLIC_ROUTE_SET = new Set([
   "/blog",
 ]);
 
-export const PUBLIC_ROUTE_PREFIXES = [
+export const PUBLIC_PREFIXES = [
   "/api/",
   "/api/auth",
   "/api/public",
@@ -29,16 +29,6 @@ export const PUBLIC_ROUTE_PREFIXES = [
   "/robots.txt",
   "/sitemap.xml",
 ];
-
-// Use Sets for marketing routes too
-export const MARKETING_ROUTE_SET = new Set([
-  "/",
-  "/pricing",
-  "/features",
-  "/about",
-  "/contact",
-  "/blog",
-]);
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() ?? "";
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
@@ -61,7 +51,6 @@ export const COMMON_URLS = {
 // Pre-computed subdomain patterns for faster lookups
 export const SUBDOMAINS = {
   bio: `bio.${ROOT_DOMAIN}`,
-  assets: `assets.${ROOT_DOMAIN}`,
   app: `app.${ROOT_DOMAIN}`,
   admin: `admin.${ROOT_DOMAIN}`,
 } as const;

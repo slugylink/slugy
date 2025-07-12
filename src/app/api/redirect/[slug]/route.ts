@@ -4,35 +4,6 @@ import { NextRequest, NextResponse, userAgent } from "next/server";
 import { waitUntil } from "@vercel/functions";
 import { headers } from "next/headers"
 
-
-const BOT_REGEX =
-  /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
-
-const isBot = (req: NextRequest): boolean => {
-  const ua = req.headers.get("user-agent")?.toLowerCase() ?? "";
-  return BOT_REGEX.test(ua) || (userAgent(req).isBot ?? false);
-};
-
-const extractUserAgentData = async (req: NextRequest) => {
-  const headersList = await headers();
-  const deviceType = headersList.get("x-device-type") || "unknown";
-  const browserName = headersList.get("x-browser-name") || "unknown";
-  const osName = headersList.get("x-os-name") || "unknown";
-
-  return {
-    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
-    country: req.headers.get("x-vercel-ip-country") ?? undefined,
-    city: req.headers.get("x-vercel-ip-city") ?? undefined,
-    region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
-    continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
-    referer: req.headers.get("referer") ?? undefined,
-    device: deviceType,
-    browser: browserName,
-    os: osName,
-    isBot: isBot(req),
-  };
-};
-
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -74,24 +45,6 @@ export async function GET(
         return NextResponse.json({ url: null });
       }
     }
-
-    // Track analytics in background
-    const analyticsData = await extractUserAgentData(req);
-
-    waitUntil(
-      fetch(`${req.nextUrl.origin}/api/analytics/track`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          linkId: link.id,
-          slug: shortCode,
-          analyticsData,
-        }),
-      }).catch((error) => {
-        console.error("Analytics tracking failed:", error);
-      }),
-    );
-
     return NextResponse.json({ url: link.url });
   } catch (error) {
     console.error("Error getting link:", error);
