@@ -36,6 +36,15 @@ export const PUBLIC_PREFIXES = [
   "/sitemap.xml",
 ];
 
+// Fast API route patterns for early exit
+const FAST_API_PATTERNS = [
+  /^\/api\/link\/[^\/]+$/,
+  /^\/api\/analytics\/track$/,
+  /^\/api\/redirect\/[^\/]+$/,
+  /^\/api\/metadata$/,
+  /^\/api\/rate-limit$/,
+];
+
 // Auth paths
 const AUTH_PATHS = new Set([
   "/login",
@@ -84,20 +93,29 @@ export const SUBDOMAINS = {
   admin: `admin.${ROOT_DOMAIN}`,
 } as const;
 
-// Optimize matcher configuration
+// Optimize matcher configuration for faster routing
 export const config = {
   matcher: [
-    "/",
-    "/((?!_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
+    // Prioritize API routes for faster matching
     "/api/:path*",
+    // Static assets
+    "/((?!_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)",
+    "/",
   ],
 };
 
-// Cached path checker
+// Enhanced cached path checker with API optimization
 const isPublicPath = (() => {
   const cache = new Map<string, boolean>();
   return (path: string): boolean => {
     if (cache.has(path)) return cache.get(path)!;
+
+    // Fast check for API routes
+    if (path.startsWith("/api/")) {
+      const isPublic = true; // All API routes are considered public for middleware
+      if (cache.size < 1000) cache.set(path, isPublic);
+      return isPublic;
+    }
 
     const isPublic =
       PUBLIC_ROUTES.has(path) ||
@@ -108,7 +126,12 @@ const isPublicPath = (() => {
   };
 })();
 
-// Hostname normalization with cache
+// Fast API route checker
+const isFastApiRoute = (pathname: string): boolean => {
+  return FAST_API_PATTERNS.some(pattern => pattern.test(pathname));
+};
+
+// Hostname normalization with enhanced cache
 const hostnameCache = new Map<string, string>();
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
@@ -123,7 +146,7 @@ const normalizeHostname = (host: string | null): string => {
   return normalized;
 };
 
-// Helper functions
+// Optimized helper functions
 const addSecurityHeaders = (response: NextResponse): NextResponse => {
   Object.entries(SECURITY_HEADERS).forEach(([header, value]) => {
     response.headers.set(header, value);
@@ -157,40 +180,51 @@ const rewriteTo = (url: string, baseUrl: string): NextResponse => {
   return addSecurityHeaders(NextResponse.rewrite(new URL(url, baseUrl)));
 };
 
-// Main middleware function
+// Fast API response for high-traffic endpoints
+const createFastApiResponse = (): NextResponse => {
+  return addSecurityHeaders(NextResponse.next());
+};
+
+// Main middleware function with API optimizations
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
     const pathname = url.pathname;
 
-    // Early return for static assets
+    // Ultra-fast early return for static assets
     if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
       return NextResponse.next();
     }
 
-    const sessionCookie = getSessionCookie(req);
-
-    // Rate limiting for API routes in production
-    if (IS_PRODUCTION && pathname.startsWith("/api/")) {
-      const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
-      const { success, limit, reset, remaining } = await checkRateLimit(ip);
-
-      if (!success) {
-        return createRateLimitResponse(
-          "Too many requests",
-          limit,
-          reset,
-          remaining,
-        );
-      }
-    }
-
-    // Early return for API routes
+    // Fast path for API routes
     if (pathname.startsWith("/api/")) {
+      // Ultra-fast return for high-traffic API endpoints
+      if (isFastApiRoute(pathname)) {
+        return createFastApiResponse();
+      }
+
+      // Rate limiting only for non-fast API routes in production
+      if (IS_PRODUCTION) {
+        const ip = normalizeIp(req.headers.get("x-forwarded-for") ?? "unknown");
+        const { success, limit, reset, remaining } = await checkRateLimit(ip);
+
+        if (!success) {
+          return createRateLimitResponse(
+            "Too many requests",
+            limit,
+            reset,
+            remaining,
+          );
+        }
+      }
+
       return addSecurityHeaders(NextResponse.next());
     }
 
-    // Enforce HTTPS in production
+    // Get session cookie for non-API routes
+    const sessionCookie = getSessionCookie(req);
+
+    // Enforce HTTPS in production (skip for API routes)
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsUrl = new URL(req.url);
       httpsUrl.protocol = "https:";
@@ -265,7 +299,7 @@ async function handleAppSubdomain(
   return addSecurityHeaders(NextResponse.next());
 }
 
-// Handle root domain
+// Handle root domain with API optimizations
 async function handleRootDomain(
   url: URL,
   token: unknown,
