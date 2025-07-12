@@ -13,8 +13,8 @@ const isBot = (req: NextRequest): boolean => {
   return BOT_REGEX.test(ua) || (userAgent(req).isBot ?? false);
 };
 
-const extractUserAgentData = (req: NextRequest) => {
-  const headersList = req.headers;
+const extractUserAgentData = async (req: NextRequest) => {
+  const headersList = await headers();
   const deviceType = headersList.get("x-device-type") || "unknown";
   const browserName = headersList.get("x-browser-name") || "unknown";
   const osName = headersList.get("x-os-name") || "unknown";
@@ -39,12 +39,6 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
-
-    const headersList = await headers();
-
-    const deviceType = headersList.get("x-device-type") || "unknown";
-    const browserName = headersList.get("x-browser-name") || "unknown";
-    const osName = headersList.get("x-os-name") || "unknown";
     
 
     const link = await db.link.findUnique({
@@ -82,7 +76,7 @@ export async function GET(
     }
 
     // Track analytics in background
-    const analyticsData = extractUserAgentData(req);
+    const analyticsData = await extractUserAgentData(req);
 
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {
