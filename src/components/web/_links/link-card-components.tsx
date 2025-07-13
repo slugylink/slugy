@@ -61,47 +61,54 @@ AnalyticsIcon.displayName = "AnalyticsIcon";
 
 // Creator Tooltip Component
 export const CreatorTooltip = memo(
-  ({ creator, date }: { creator: Creator; date: Date }) => (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Image
-          src={creator.image!}
-          width={16}
-          height={16}
-          quality={75}
-          loading="lazy"
-          className="mt-1 ml-3 hidden cursor-pointer rounded-full border sm:inline"
-          alt={creator.name ?? "Creator"}
-        />
-      </TooltipTrigger>
-      <TooltipContent className="flex items-center gap-2 rounded-lg p-2 shadow-sm">
-        <Image
-          src={creator.image!}
-          width={24}
-          height={24}
-          quality={85}
-          loading="eager"
-          className="rounded-full"
-          alt={creator.name ?? "Creator"}
-        />
-        <div>
-          <p className="line-clamp-1 font-semibold text-zinc-50 dark:text-zinc-900">
-            {creator.name}
-          </p>
-          <p className="text-xs text-zinc-300 dark:text-zinc-600">
-            {new Date(date).toLocaleDateString()}
-          </p>
-        </div>
-      </TooltipContent>
-    </Tooltip>
-  ),
+  ({ creator, date }: { creator: Creator | null; date: Date }) => {
+    // If creator is null, don't render anything
+    if (!creator) {
+      return null;
+    }
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Image
+            src={creator.image ?? "https://avatar.vercel.sh/demo"}
+            width={16}
+            height={16}
+            quality={75}
+            loading="lazy"
+            className="mt-1 ml-3 hidden cursor-pointer rounded-full border sm:inline"
+            alt={creator.name ?? "Creator"}
+          />
+        </TooltipTrigger>
+        <TooltipContent className="flex items-center gap-2 rounded-lg p-2 shadow-sm">
+          <Image
+            src={creator.image ?? "https://avatar.vercel.sh/demo"}
+            width={24}
+            height={24}
+            quality={85}
+            loading="eager"
+            className="rounded-full"
+            alt={creator.name ?? "Creator"}
+          />
+          <div>
+            <p className="line-clamp-1 font-semibold text-zinc-50 dark:text-zinc-900">
+              {creator.name}
+            </p>
+            <p className="text-xs text-zinc-300 dark:text-zinc-600">
+              {new Date(date).toLocaleDateString()}
+            </p>
+          </div>
+        </TooltipContent>
+      </Tooltip>
+    );
+  },
 );
 
 CreatorTooltip.displayName = "CreatorTooltip";
 
 // Link Preview Component
 export const LinkPreviewComponent = memo(
-  ({ url, date, creator }: { url: string; date: Date; creator: Creator }) => (
+  ({ url, date, creator }: { url: string; date: Date; creator: Creator | null }) => (
     <div className="flex w-full items-center">
       <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
         <CornerDownRight strokeWidth={1.5} size={15} className="mt-0.5" />

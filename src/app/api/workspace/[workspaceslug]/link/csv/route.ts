@@ -171,8 +171,6 @@ export async function GET(
   }
 }
 
-
-
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ workspaceslug: string }> },
@@ -260,6 +258,8 @@ export async function POST(
       url: string;
       description?: string;
       workspaceId: string;
+      userId: string;
+      createdAt: Date;
     }> = [];
 
     const tagsToCreate: Array<{
@@ -308,14 +308,18 @@ export async function POST(
       let tags: string[] = [];
       const tagsStr = record.tags as string;
       if (tagsStr && typeof tagsStr === "string") {
-        tags = tagsStr.split(",").map((tag: string) => tag.trim()).filter(Boolean);
+        tags = tagsStr
+          .split(",")
+          .map((tag: string) => tag.trim())
+          .filter(Boolean);
       }
 
       // Process description
       const description = record.description as string;
-      const descriptionStr = description && typeof description === "string" 
-        ? description.trim() 
-        : undefined;
+      const descriptionStr =
+        description && typeof description === "string"
+          ? description.trim()
+          : undefined;
 
       if (rowErrors.length > 0) {
         errors.push({
@@ -324,10 +328,12 @@ export async function POST(
         });
       } else {
         linksToCreate.push({
+          workspaceId: workspace.id,
+          userId: session.user.id,
           slug,
           url: url.trim(),
           description: descriptionStr,
-          workspaceId: workspace.id,
+          createdAt: new Date(),
         });
 
         if (tags.length > 0) {
@@ -342,9 +348,9 @@ export async function POST(
     // If there are validation errors, return them
     if (errors.length > 0) {
       return NextResponse.json(
-        { 
-          message: "Validation errors found in CSV", 
-          errors 
+        {
+          message: "Validation errors found in CSV",
+          errors,
         },
         { status: 400 },
       );
@@ -356,66 +362,16 @@ export async function POST(
       skipDuplicates: true, // Skip if slug already exists
     });
 
-    // Handle tags for created links
-    if (tagsToCreate.length > 0) {
-      for (const tagData of tagsToCreate) {
-        const link = await db.link.findUnique({
-          where: { slug: tagData.linkSlug },
-          select: { id: true },
-        });
-
-        if (link) {
-          for (const tagName of tagData.tagNames) {
-            // Find or create tag
-            let tag = await db.tag.findFirst({
-              where: {
-                name: tagName,
-                workspaceId: workspace.id,
-                deletedAt: null,
-              },
-            });
-
-            if (!tag) {
-              tag = await db.tag.create({
-                data: {
-                  name: tagName,
-                  workspaceId: workspace.id,
-                },
-              });
-            }
-
-            // Create link-tag relationship
-            await db.linkTag.upsert({
-              where: {
-                linkId_tagId: {
-                  linkId: link.id,
-                  tagId: tag.id,
-                },
-              },
-              update: {},
-              create: {
-                linkId: link.id,
-                tagId: tag.id,
-              },
-            });
-          }
-        }
-      }
-    }
-
     return NextResponse.json(
-      { 
-        message: `Successfully imported ${createdLinks.count} links` 
+      {
+        message: `Successfully imported ${createdLinks.count} links`,
       },
       { status: 200 },
     );
   } catch (error) {
     console.error("Error importing CSV:", error);
     if (error instanceof Error) {
-      return NextResponse.json(
-        { message: error.message },
-        { status: 400 },
-      );
+      return NextResponse.json({ message: error.message }, { status: 400 });
     }
     return NextResponse.json(
       { message: "An error occurred while importing CSV." },

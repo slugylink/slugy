@@ -34,7 +34,7 @@ interface EditLinkFormProps {
   creator: {
     name: string | null;
     image: string | null;
-  };
+  } | null;
 }
 
 // Define UTMParams type
@@ -221,7 +221,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
               />
             </div>
             <div className="text-muted-foreground px-4 text-xs font-light sm:px-6 flex items-center gap-1.5">
-              {creator.image && (
+              {creator?.image && (
                 <Image
                   src={creator.image}
                   width={16}
@@ -233,7 +233,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                 />
               )}
               Created by{" "}
-              <span className="font-normal text-primary">{creator.name ?? "Unknown"}</span>{" "}•{" "}
+              <span className="font-normal text-primary">{creator?.name ?? "Unknown"}</span>{" "}•{" "}
               <span>
                 {new Date(date).toDateString()}
               </span>
