@@ -64,9 +64,11 @@ export async function GET(
 
     // Check expiration
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
+      // Use expiration URL if available, otherwise redirect to a different path to avoid loops
+      const expirationUrl = link.expirationUrl || `${req.nextUrl.origin}/?status=expired`;
       return NextResponse.json({
         success: true,
-        url: link.expirationUrl || `${req.nextUrl.origin}/`,
+        url: expirationUrl,
         expired: true,
       });
     }

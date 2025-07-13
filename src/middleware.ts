@@ -254,7 +254,7 @@ async function handleRootDomain(
   }
 
   // Short link redirection - delegate to API
-  if (!isPublicPath(pathname) && pathname !== "/") {
+  if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
     try {
       const response = await fetch(
         `${req.nextUrl.origin}/api/link/${shortCode}`,
