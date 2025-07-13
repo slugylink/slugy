@@ -6,13 +6,13 @@ export async function POST(req: NextRequest) {
     const { linkId, slug, analyticsData } = await req.json();
 
     if (!linkId || !slug || !analyticsData) {
+      console.error("Analytics tracking: Missing required fields", { linkId, slug, analyticsData });
       return NextResponse.json(
         { error: "Missing linkId, slug, or analyticsData" },
         { status: 400 },
       );
     }
 
-    console.log("📊 Analytics Tracking Data:", analyticsData);
 
     await db.$transaction(async (tx) => {
       await Promise.all([
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
             country: analyticsData.country,
             city: analyticsData.city,
             continent: analyticsData.continent,
-            browser: analyticsData.browser.name || "unknown",
-            os: analyticsData.os.name || "unknown",
-            device: analyticsData.device.type || "desktop",
+            browser: analyticsData.browser?.name || analyticsData.browser || "unknown",
+            os: analyticsData.os?.name || analyticsData.os || "unknown",
+            device: analyticsData.device?.type || analyticsData.device || "desktop",
             referer: analyticsData.referer || "direct",
           },
         }),

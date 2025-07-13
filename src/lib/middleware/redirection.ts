@@ -4,6 +4,11 @@ import { waitUntil } from "@vercel/functions";
 
 export async function URLRedirects(shortCode: string, req: NextRequest) {
   try {
+    // Validate short code format for early exit
+    if (!shortCode || shortCode.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(shortCode)) {
+      return `${req.nextUrl.origin}/`;
+    }
+
     // Get cookies from the original request
     const cookieHeader = req.headers.get("cookie");
     
@@ -36,7 +41,7 @@ export async function URLRedirects(shortCode: string, req: NextRequest) {
       return linkData.url;
     }
 
-    // Track analytics in background
+    // Track analytics in background for successful redirects
     const analyticsData = await extractUserAgentData(req);
     waitUntil(
       fetch(`${req.nextUrl.origin}/api/analytics/track`, {

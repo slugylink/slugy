@@ -2,7 +2,8 @@ import { db } from "@/server/db";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
-// Cache link data for 30 seconds
+
+// Enhanced cached link data with better cache strategy
 const getCachedLink = unstable_cache(
   async (slug: string) => {
     return await db.link.findUnique({
@@ -26,12 +27,31 @@ const getCachedLink = unstable_cache(
   }
 );
 
+// Fast cookie parser for better performance
+const parseCookies = (cookieHeader: string | null): Record<string, string> => {
+  if (!cookieHeader) return {};
+  
+  return cookieHeader.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    if (key && value) acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>);
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
     const { slug: shortCode } = await params;
+
+    // Validate short code format for early exit
+    if (!shortCode || shortCode.length > 50 || !/^[a-zA-Z0-9_-]+$/.test(shortCode)) {
+      return NextResponse.json({ 
+        success: false, 
+        url: `${req.nextUrl.origin}/` 
+      });
+    }
 
     // Use cached link lookup
     const link = await getCachedLink(shortCode);
@@ -52,14 +72,13 @@ export async function GET(
       });
     }
 
-    // Check password protection
+    // Check password protection with optimized cookie parsing
     if (link.password) {
-      const cookieStore = await cookies();
-      const passwordVerified = cookieStore.get(
-        `password_verified_${shortCode}`,
-      );
-      console.log("passwordVerified", passwordVerified);
-      if (link.password && !passwordVerified?.value) {
+      const cookieHeader = req.headers.get("cookie");
+      const cookies = parseCookies(cookieHeader);
+      const passwordVerified = cookies[`password_verified_${shortCode}`];
+      
+      if (!passwordVerified) {
         return NextResponse.json({ 
           success: true, 
           url: null,
