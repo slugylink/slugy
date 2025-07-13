@@ -155,6 +155,35 @@ export function LoginForm({
     }
   };
 
+  const handleMagicLinkLogin = async (email: string) => {
+    try {
+      setIsLoading(true);
+      await authClient.signIn.magicLink(
+        {
+          email,
+          callbackURL: "/",
+        },
+        {
+          onSuccess: () => {
+            toast.success("Magic link sent! Please check your email.");
+          },
+          onError: (err) => {
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Failed to send magic link"
+            );
+          },
+        }
+      );
+    } catch (err) {
+      toast.error("An unexpected error occurred while sending magic link");
+      console.error("Magic link error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true);
@@ -171,12 +200,20 @@ export function LoginForm({
           return;
         }
 
+        // If user has a credential account, show password field
         if (userData.provider === "credential") {
           setIsPasswordLogin(true);
           return;
         }
 
-        await handlePasswordLogin(data.email, data.password || "");
+        // For social provider users, send magic link instead of trying password auth
+        if (userData.provider && userData.provider !== "credential") {
+          await handleMagicLinkLogin(data.email);
+          return;
+        }
+
+        // Fallback to magic link if no provider is found (user might have signed up with magic link)
+        await handleMagicLinkLogin(data.email);
       } else if (data.password) {
         await handlePasswordLogin(data.email, data.password);
       }
@@ -189,6 +226,9 @@ export function LoginForm({
 
   const renderPasswordField = (email: string) => {
     if (!isPasswordLogin) return null;
+    
+    // Don't show password field if we know the user uses a social provider
+    // This will be handled by the onSubmit logic
 
     return (
       <div className="space-y-2">
