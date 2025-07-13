@@ -1,5 +1,4 @@
 import { db } from "@/server/db";
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 
