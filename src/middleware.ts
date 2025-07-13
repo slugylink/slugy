@@ -7,7 +7,9 @@ const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // Validate critical environment variables
 if (!ROOT_DOMAIN) {
-  throw new Error("Missing required environment variable: NEXT_PUBLIC_ROOT_DOMAIN");
+  throw new Error(
+    "Missing required environment variable: NEXT_PUBLIC_ROOT_DOMAIN",
+  );
 }
 
 // Subdomains
@@ -28,26 +30,52 @@ export const config = {
 
 // Public routes
 const PUBLIC_ROUTES = new Set([
-  "/login", "/test", "/signup", "/forgot-password", "/reset-password",
-  "/verify-email", "/terms", "/privacy", "/404", "/500", "/not-found",
-  "/onboarding", "/onboarding/welcome", "/pricing", "/features",
-  "/about", "/contact", "/blog",
+  "/login",
+  "/test",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/verify-email",
+  "/terms",
+  "/privacy",
+  "/404",
+  "/500",
+  "/not-found",
+  "/onboarding",
+  "/onboarding/welcome",
+  "/pricing",
+  "/features",
+  "/about",
+  "/contact",
+  "/blog",
 ]);
 
 const PUBLIC_PREFIXES = [
-  "/api/", "/api/auth", "/api/public", "/_next", "/static",
-  "/favicon.ico", "/robots.txt", "/sitemap.xml",
+  "/api/",
+  "/api/auth",
+  "/api/public",
+  "/_next",
+  "/static",
+  "/favicon.ico",
+  "/robots.txt",
+  "/sitemap.xml",
 ];
 
 // Auth paths
 const AUTH_PATHS = new Set([
-  "/login", "/signup", "/forgot-password", "/reset-password",
-  "/app/login", "/app/signup", "/app/forgot-password", "/app/reset-password",
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/reset-password",
+  "/app/login",
+  "/app/signup",
+  "/app/forgot-password",
+  "/app/reset-password",
 ]);
 
 const AUTH_REWRITES: Record<string, string> = {
   "/login": "/app/login",
-  "/signup": "/app/signup", 
+  "/signup": "/app/signup",
   "/forgot-password": "/app/forgot-password",
   "/reset-password": "/app/reset-password",
 };
@@ -90,17 +118,23 @@ const rewriteTo = (url: string, baseUrl: string): NextResponse => {
 // Path checking
 const isPublicPath = (path: string): boolean => {
   if (path.startsWith("/api/")) return true;
-  return PUBLIC_ROUTES.has(path) || PUBLIC_PREFIXES.some(prefix => path.startsWith(prefix));
+  return (
+    PUBLIC_ROUTES.has(path) ||
+    PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix))
+  );
 };
 
 const isFastApiRoute = (pathname: string): boolean => {
-  return FAST_API_PATTERNS.some(pattern => pattern.test(pathname));
+  return FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
 };
 
 // Hostname normalization
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
-  return host.toLowerCase().replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`).trim();
+  return host
+    .toLowerCase()
+    .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
+    .trim();
 };
 
 // Main middleware function
@@ -154,7 +188,10 @@ export async function middleware(req: NextRequest) {
         return handleCustomDomain(url, hostname, req.url);
     }
   } catch (error: unknown) {
-    console.error("Middleware error:", error instanceof Error ? error.message : String(error));
+    console.error(
+      "Middleware error:",
+      error instanceof Error ? error.message : String(error),
+    );
     return redirectTo("/login");
   }
 }
@@ -219,13 +256,18 @@ async function handleRootDomain(
   // Short link redirection - delegate to API
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode) {
     try {
-      const response = await fetch(`${req.nextUrl.origin}/api/link/${shortCode}`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(req.headers.get("cookie") && { "Cookie": req.headers.get("cookie")! }),
+      const response = await fetch(
+        `${req.nextUrl.origin}/api/link/${shortCode}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(req.headers.get("cookie") && {
+              Cookie: req.headers.get("cookie")!,
+            }),
+          },
         },
-      });
+      );
 
       if (response.ok) {
         const linkData = await response.json();
@@ -234,16 +276,18 @@ async function handleRootDomain(
           const ua = userAgent(req);
           if (linkData.linkId) {
             const analyticsData = {
-              ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+              ipAddress:
+                req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+                "Unknown",
               country: req.headers.get("x-vercel-ip-country") ?? undefined,
               city: req.headers.get("x-vercel-ip-city") ?? undefined,
               continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
               referer: req.headers.get("referer") ?? undefined,
-              device: ua.device.type ?? "unknown",
+              device: ua.device.type ?? "Desktop",
               browser: ua.browser.name ?? "unknown",
               os: ua.os.name ?? "unknown",
             };
-            
+
             fetch(`${req.nextUrl.origin}/api/analytics/track`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -252,15 +296,21 @@ async function handleRootDomain(
                 slug: shortCode,
                 analyticsData,
               }),
-            }).then(response => {
-              if (!response.ok) {
-                console.error("Analytics tracking failed:", response.status, response.statusText);
-              }
-            }).catch((error) => {
-              console.error("Analytics tracking failed:", error);
-            });
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  console.error(
+                    "Analytics tracking failed:",
+                    response.status,
+                    response.statusText,
+                  );
+                }
+              })
+              .catch((error) => {
+                console.error("Analytics tracking failed:", error);
+              });
           }
-          
+
           return NextResponse.redirect(new URL(linkData.url), 302);
         }
       }

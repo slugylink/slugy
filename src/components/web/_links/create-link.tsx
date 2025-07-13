@@ -152,8 +152,40 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       }
     } catch (error) {
       console.error("Error creating link:", error);
-      if (axios.isAxiosError(error) && error.response?.data?.message) {
-        toast.error(error.response.data.message);
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 403) {
+          // Handle link limit reached error
+          const errorData = error.response.data as { 
+            error: string; 
+            limitInfo?: { 
+              currentLinks: number; 
+              maxLinks: number; 
+              planType: string; 
+            } 
+          };
+          
+          if (errorData.limitInfo) {
+            toast.error(
+              `Link limit reached! You have ${errorData.limitInfo.currentLinks}/${errorData.limitInfo.maxLinks} links. Upgrade to Pro for more links.`,
+              {
+                duration: 5000,
+                action: {
+                  label: "Upgrade",
+                  onClick: () => {
+                    // Navigate to upgrade page
+                    window.open("/upgrade", "_blank");
+                  },
+                },
+              }
+            );
+          } else {
+            toast.error(errorData.error || "Link limit reached. Upgrade to Pro.");
+          }
+        } else if (error.response?.data?.message) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error("An error occurred while creating the link.");
+        }
       } else {
         toast.error("An unexpected error occurred.");
       }
