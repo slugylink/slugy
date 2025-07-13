@@ -3,7 +3,6 @@ import { getSessionCookie } from "better-auth/cookies";
 import { checkRateLimit, normalizeIp } from "./lib/middleware/rate-limit";
 import { URLRedirects } from "./lib/middleware/redirection";
 import { headers } from "next/headers";
-import { geolocation } from "@vercel/functions";
 
 // Route configurations
 export const PUBLIC_ROUTES = new Set([
@@ -193,10 +192,6 @@ export async function middleware(req: NextRequest) {
     const url = req.nextUrl.clone();
     const pathname = url.pathname;
     const headersList = await headers();
-    const { city, country, region } = geolocation(req);
-    console.log("city", city);
-    console.log("country", country);
-    console.log("region", region);
 
 
     // Ultra-fast early return for static assets

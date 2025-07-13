@@ -286,6 +286,11 @@ model Link {
   @@index([userId])
   @@index([workspaceId])
   @@index([description])
+  @@index([workspaceId, isArchived])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, clicks])
+  @@index([workspaceId, lastClicked])
+  @@index([workspaceId, isArchived, createdAt])
   @@map("links")
 }
 
