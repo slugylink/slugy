@@ -1,25 +1,24 @@
-import { type NextRequest, NextResponse, userAgent } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
+import { URLRedirects } from "@/lib/middleware/redirection";
+import {
+  AUTH_PATHS,
+  AUTH_REWRITES,
+  FAST_API_PATTERNS,
+  IS_PRODUCTION,
+  PUBLIC_PREFIXES,
+  PUBLIC_ROUTES,
+  ROOT_DOMAIN,
+  SECURITY_HEADERS,
+  SUBDOMAINS,
+} from "@/lib/middleware/routes";
 
-// Environment variables
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() ?? "";
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
-
-// Validate critical environment variables
 if (!ROOT_DOMAIN) {
   throw new Error(
     "Missing required environment variable: NEXT_PUBLIC_ROOT_DOMAIN",
   );
 }
 
-// Subdomains
-const SUBDOMAINS = {
-  bio: `bio.${ROOT_DOMAIN}`,
-  app: `app.${ROOT_DOMAIN}`,
-  admin: `admin.${ROOT_DOMAIN}`,
-} as const;
-
-// Optimize matcher configuration for faster routing
 export const config = {
   matcher: [
     "/api/:path*",
@@ -27,77 +26,6 @@ export const config = {
     "/",
   ],
 };
-
-// Public routes
-const PUBLIC_ROUTES = new Set([
-  "/login",
-  "/test",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/verify-email",
-  "/terms",
-  "/privacy",
-  "/404",
-  "/500",
-  "/not-found",
-  "/onboarding",
-  "/onboarding/welcome",
-  "/pricing",
-  "/features",
-  "/about",
-  "/contact",
-  "/blog",
-]);
-
-const PUBLIC_PREFIXES = [
-  "/api/",
-  "/api/auth",
-  "/api/public",
-  "/_next",
-  "/static",
-  "/favicon.ico",
-  "/robots.txt",
-  "/sitemap.xml",
-];
-
-// Auth paths
-const AUTH_PATHS = new Set([
-  "/login",
-  "/signup",
-  "/forgot-password",
-  "/reset-password",
-  "/app/login",
-  "/app/signup",
-  "/app/forgot-password",
-  "/app/reset-password",
-]);
-
-const AUTH_REWRITES: Record<string, string> = {
-  "/login": "/app/login",
-  "/signup": "/app/signup",
-  "/forgot-password": "/app/forgot-password",
-  "/reset-password": "/app/reset-password",
-};
-
-// Security headers
-const SECURITY_HEADERS = {
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
-  "X-DNS-Prefetch-Control": "on",
-  "Cross-Origin-Opener-Policy": "same-origin",
-} as const;
-
-// Fast API route patterns
-const FAST_API_PATTERNS = [
-  /^\/api\/link\/[^\/]+$/,
-  /^\/api\/analytics\/track$/,
-  /^\/api\/redirect\/[^\/]+$/,
-  /^\/api\/metadata$/,
-  /^\/api\/rate-limit$/,
-];
 
 // Helper functions
 const addSecurityHeaders = (response: NextResponse): NextResponse => {
@@ -128,7 +56,7 @@ const isFastApiRoute = (pathname: string): boolean => {
   return FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
 };
 
-// Hostname normalization
+// Hostname:
 const normalizeHostname = (host: string | null): string => {
   if (!host) return "";
   return host
@@ -137,7 +65,6 @@ const normalizeHostname = (host: string | null): string => {
     .trim();
 };
 
-// Main middleware function
 export async function middleware(req: NextRequest) {
   try {
     const url = req.nextUrl.clone();
@@ -148,7 +75,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.next();
     }
 
-    // Fast path for API routes
     if (pathname.startsWith("/api/")) {
       if (isFastApiRoute(pathname)) {
         return addSecurityHeaders(NextResponse.next());
@@ -156,7 +82,6 @@ export async function middleware(req: NextRequest) {
       return addSecurityHeaders(NextResponse.next());
     }
 
-    // Get session cookie
     const sessionCookie = getSessionCookie(req);
 
     // Enforce HTTPS in production
@@ -168,7 +93,6 @@ export async function middleware(req: NextRequest) {
 
     const hostname = normalizeHostname(req.headers.get("host"));
 
-    // Handle different subdomains
     switch (hostname) {
       case SUBDOMAINS.bio:
         const bioPath = pathname === "/" ? "/bio" : `/bio${pathname}`;
@@ -196,7 +120,7 @@ export async function middleware(req: NextRequest) {
   }
 }
 
-// Handle app subdomain
+// app subdomain
 async function handleAppSubdomain(
   url: URL,
   token: unknown,
@@ -229,7 +153,7 @@ async function handleAppSubdomain(
   return addSecurityHeaders(NextResponse.next());
 }
 
-// Handle root domain
+// root domain
 async function handleRootDomain(
   url: URL,
   token: unknown,
@@ -253,76 +177,18 @@ async function handleRootDomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Short link redirection - delegate to API
+  // short link redirection:
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
-    try {
-      const response = await fetch(
-        `${req.nextUrl.origin}/api/link/${shortCode}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...(req.headers.get("cookie") && {
-              Cookie: req.headers.get("cookie")!,
-            }),
-          },
-        },
-      );
-
-      if (response.ok) {
-        const linkData = await response.json();
-        if (linkData.success && linkData.url && !linkData.requiresPassword) {
-          // Track analytics in background for successful redirects
-          const ua = userAgent(req);
-          if (linkData.linkId) {
-            const analyticsData = {
-              ipAddress:
-                req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-                "Unknown",
-              country: req.headers.get("x-vercel-ip-country") ?? undefined,
-              city: req.headers.get("x-vercel-ip-city") ?? undefined,
-              continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
-              referer: req.headers.get("referer") ?? undefined,
-              device: ua.device.type ?? "Desktop",
-              browser: ua.browser.name ?? "unknown",
-              os: ua.os.name ?? "unknown",
-            };
-
-            fetch(`${req.nextUrl.origin}/api/analytics/track`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                linkId: linkData.linkId,
-                slug: shortCode,
-                analyticsData,
-              }),
-            })
-              .then((response) => {
-                if (!response.ok) {
-                  console.error(
-                    "Analytics tracking failed:",
-                    response.status,
-                    response.statusText,
-                  );
-                }
-              })
-              .catch((error) => {
-                console.error("Analytics tracking failed:", error);
-              });
-          }
-
-          return NextResponse.redirect(new URL(linkData.url), 302);
-        }
-      }
-    } catch (error) {
-      console.error("Link redirect error:", error);
+    const redirectResponse = await URLRedirects(req, shortCode);
+    if (redirectResponse) {
+      return redirectResponse;
     }
   }
 
   return addSecurityHeaders(NextResponse.next());
 }
 
-// Handle custom domains
+// custom domains
 function handleCustomDomain(
   url: URL,
   hostname: string,

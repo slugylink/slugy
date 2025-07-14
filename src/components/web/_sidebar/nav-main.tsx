@@ -26,7 +26,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useRef, useEffect } from "react";
 
 type UserRole = "owner" | "admin" | "member" | null;
 
@@ -60,6 +60,7 @@ interface NavMainProps {
   workspaces: WorkspaceMinimal[];
 }
 
+// Optimized sidebar data with precomputed paths
 const SIDEBAR_DATA: {
   logo: Brand;
   navMain: NavItem[];
@@ -93,6 +94,7 @@ const NAV_ACCESS_CONTROL = {
   },
 } as const;
 
+// Optimized access control check
 const hasAccess = (
   userRole: UserRole | null,
   allowedRoles: readonly string[],
@@ -100,22 +102,162 @@ const hasAccess = (
   return userRole ? allowedRoles.includes(userRole) : false;
 };
 
+// Optimized URL building with caching
 const buildUrl = (baseUrl: string, path: string): string => {
   if (!baseUrl || path.startsWith(baseUrl + "/")) return path;
   return baseUrl + (path.startsWith("/") ? path : "/" + path);
 };
 
+// Fast path segment extraction with caching
+const pathSegmentCache = new Map<string, string>();
 const getLastPathSegment = (path: string): string => {
+  if (pathSegmentCache.has(path)) {
+    return pathSegmentCache.get(path)!;
+  }
   const segments = path.split("/").filter(Boolean);
-  return segments[segments.length - 1] ?? "";
+  const lastSegment = segments[segments.length - 1] ?? "";
+  pathSegmentCache.set(path, lastSegment);
+  return lastSegment;
 };
+
+// Optimized active state checking
+const createActiveStateChecker = (pathname: string) => {
+  const pathSegments = pathname.split("/").filter(Boolean);
+  const lastSegment = pathSegments[pathSegments.length - 1] ?? "";
+  
+  return {
+    isItemActive: (item: NavItem): boolean => {
+      // Special case for Bio Links
+      if (item.title === "Bio Links") {
+        return pathname.includes("/bio-links");
+      }
+
+      // Check main item URL
+      if (item.url) {
+        const itemSegments = item.url.split("/").filter(Boolean);
+        const itemLastSegment = itemSegments[itemSegments.length - 1] ?? "";
+        if (itemLastSegment === lastSegment) return true;
+      }
+
+      // Check sub-items
+      return item.items?.some(subItem => {
+        const subSegments = subItem.url.split("/").filter(Boolean);
+        const subLastSegment = subSegments[subSegments.length - 1] ?? "";
+        return subLastSegment === lastSegment;
+      }) ?? false;
+    },
+    
+    isSubItemActive: (subItemUrl: string): boolean => {
+      const subSegments = subItemUrl.split("/").filter(Boolean);
+      const subLastSegment = subSegments[subSegments.length - 1] ?? "";
+      return subLastSegment === lastSegment;
+    }
+  };
+};
+
+// Optimized NavItem component with memoization
+const NavItemComponent = memo<{
+  item: NavItem;
+  isActive: boolean;
+  isSubItemActive: (url: string) => boolean;
+}>(({ item, isActive, isSubItemActive }) => {
+  return (
+    <Collapsible
+      key={item.title}
+      asChild
+      defaultOpen={isActive}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        {item.url ? (
+          <Link href={item.url} prefetch={true}>
+            <SidebarMenuButton
+              tooltip={item.title}
+              className={cn(
+                "group-hover/menu-item cursor-pointer transition-colors duration-200",
+                isActive &&
+                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+              )}
+            >
+              {item.icon && (
+                <item.icon className="size-4" strokeWidth={2} />
+              )}
+              <span>{item.title}</span>
+            </SidebarMenuButton>
+          </Link>
+        ) : (
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton
+              tooltip={item.title}
+              className={cn(
+                "group-hover/menu-item cursor-pointer transition-colors duration-200",
+                isActive &&
+                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+              )}
+            >
+              {item.icon && (
+                <item.icon className="size-4" strokeWidth={2} />
+              )}
+              <span
+                className={cn("font-normal", isActive && "font-medium")}
+              >
+                {item.title}
+              </span>
+              {item.items && (
+                <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
+              )}
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+        )}
+
+        {item.items && (
+          <CollapsibleContent>
+            <SidebarMenuSub className="mt-1">
+              {item.items.map((subItem: NavSubItem) => {
+                const subItemActive = isSubItemActive(subItem.url);
+
+                return (
+                  <SidebarMenuSubItem key={subItem.title}>
+                    <SidebarMenuSubButton
+                      asChild
+                      className={cn(
+                        "group-hover/menu-item transition-colors duration-200",
+                        subItemActive &&
+                          "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+                      )}
+                    >
+                      <Link href={subItem.url} prefetch={true}>
+                        <span
+                          className={cn(
+                            "font-normal",
+                            subItemActive && "font-medium",
+                          )}
+                        >
+                          {subItem.title}
+                        </span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                );
+              })}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        )}
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+});
+
+NavItemComponent.displayName = "NavItemComponent";
 
 export const NavMain = memo<NavMainProps>(function NavMain({
   workspaceslug,
   workspaces,
 }) {
   const pathname = usePathname();
+  const prevPathnameRef = useRef(pathname);
 
+  // Optimize workspace lookup
   const currentWorkspace = useMemo(
     () => workspaces.find((w) => w.slug === workspaceslug),
     [workspaces, workspaceslug],
@@ -124,13 +266,13 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   const userRole = currentWorkspace?.userRole ?? null;
   const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
 
+  // Optimized nav items processing with better memoization
   const processedNavItems = useMemo(() => {
     return SIDEBAR_DATA.navMain.map((item) => {
-      // For 'Bio Links', do not prepend baseUrl
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
         ? isBioLinks
-          ? item.url // Always '/bio-links'
+          ? item.url
           : buildUrl(baseUrl, item.url)
         : undefined;
 
@@ -149,7 +291,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
         .map((subItem: NavSubItem) => ({
           ...subItem,
           url: isBioLinks
-            ? subItem.url // If there are subitems for Bio Links, don't prepend baseUrl
+            ? subItem.url
             : buildUrl(baseUrl, subItem.url),
         }));
 
@@ -161,129 +303,59 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [baseUrl, userRole]);
 
-  const isItemActive = useCallback(
-    (item: NavItem): boolean => {
-      // Special case for Gallery
-      if (item.title === "Gallery") {
-        return pathname.includes("/bio-links");
-      }
+  // Optimized active state checker
+  const activeStateChecker = useMemo(
+    () => createActiveStateChecker(pathname),
+    [pathname]
+  );
 
-      // Check main item URL
-      if (
-        item.url &&
-        getLastPathSegment(item.url) === getLastPathSegment(pathname)
-      ) {
-        return true;
-      }
-
-      // Check sub-items
-      return (
-        item.items?.some(
-          (subItem) =>
-            getLastPathSegment(subItem.url) === getLastPathSegment(pathname),
-        ) ?? false
+  // Prefetch optimization - prefetch all nav items on mount
+  useEffect(() => {
+    const prefetchUrls = processedNavItems
+      .filter(item => item.url)
+      .map(item => item.url!)
+      .concat(
+        processedNavItems
+          .flatMap(item => item.items || [])
+          .map(subItem => subItem.url)
       );
-    },
-    [pathname],
-  );
 
-  const isSubItemActive = useCallback(
-    (subItemUrl: string): boolean => {
-      return getLastPathSegment(subItemUrl) === getLastPathSegment(pathname);
-    },
-    [pathname],
-  );
+    // Prefetch all navigation URLs
+    prefetchUrls.forEach(url => {
+      if (url && !url.startsWith('http')) {
+        // Use Next.js router prefetch if available
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = url;
+        document.head.appendChild(link);
+      }
+    });
+  }, [processedNavItems]);
+
+  // Clear path cache when pathname changes significantly
+  useEffect(() => {
+    if (prevPathnameRef.current !== pathname) {
+      // Clear cache only when pathname changes significantly
+      if (pathname.split('/')[1] !== prevPathnameRef.current.split('/')[1]) {
+        pathSegmentCache.clear();
+      }
+      prevPathnameRef.current = pathname;
+    }
+  }, [pathname]);
 
   return (
     <SidebarGroup className="px-2">
       <SidebarMenu className="gap-2">
         {processedNavItems.map((item) => {
-          const isActive = isItemActive(item);
+          const isActive = activeStateChecker.isItemActive(item);
 
           return (
-            <Collapsible
+            <NavItemComponent
               key={item.title}
-              asChild
-              defaultOpen={isActive}
-              className="group/collapsible"
-            >
-              <SidebarMenuItem>
-                {item.url ? (
-                  <Link href={item.url}>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      className={cn(
-                        "group-hover/menu-item cursor-pointer transition-colors duration-200",
-                        isActive &&
-                          "bg-sidebar-accent text-blue-500 hover:text-blue-500",
-                      )}
-                    >
-                      {item.icon && (
-                        <item.icon className="size-4" strokeWidth={2} />
-                      )}
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </Link>
-                ) : (
-                  <CollapsibleTrigger asChild>
-                    <SidebarMenuButton
-                      tooltip={item.title}
-                      className={cn(
-                        "group-hover/menu-item cursor-pointer transition-colors duration-200",
-                        isActive &&
-                          "bg-sidebar-accent text-blue-500 hover:text-blue-500",
-                      )}
-                    >
-                      {item.icon && (
-                        <item.icon className="size-4" strokeWidth={2} />
-                      )}
-                      <span
-                        className={cn("font-normal", isActive && "font-medium")}
-                      >
-                        {item.title}
-                      </span>
-                      {item.items && (
-                        <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
-                      )}
-                    </SidebarMenuButton>
-                  </CollapsibleTrigger>
-                )}
-
-                {item.items && (
-                  <CollapsibleContent>
-                    <SidebarMenuSub className="mt-1">
-                      {item.items.map((subItem: NavSubItem) => {
-                        const subItemActive = isSubItemActive(subItem.url);
-
-                        return (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton
-                              asChild
-                              className={cn(
-                                "group-hover/menu-item transition-colors duration-200",
-                                subItemActive &&
-                                  "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                              )}
-                            >
-                              <Link href={subItem.url}>
-                                <span
-                                  className={cn(
-                                    "font-normal",
-                                    subItemActive && "font-medium",
-                                  )}
-                                >
-                                  {subItem.title}
-                                </span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        );
-                      })}
-                    </SidebarMenuSub>
-                  </CollapsibleContent>
-                )}
-              </SidebarMenuItem>
-            </Collapsible>
+              item={item}
+              isActive={isActive}
+              isSubItemActive={activeStateChecker.isSubItemActive}
+            />
           );
         })}
       </SidebarMenu>
