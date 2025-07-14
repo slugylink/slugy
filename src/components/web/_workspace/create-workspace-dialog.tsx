@@ -169,7 +169,7 @@ export default function CreateWorkspaceDialog() {
                       </div>
                       <Input
                         id="workspace-slug"
-                        className="flex-1 rounded-l-none"
+                        className="flex-1 rounded-l-none h-full"
                         autoComplete="off"
                         {...field}
                         aria-describedby="workspace-slug-description"
