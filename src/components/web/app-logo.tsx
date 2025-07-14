@@ -6,7 +6,7 @@ const AppLogo = () => {
     <div className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-[7px] bg-black shadow-sm">
       {/* <Link size={16} /> */}
       <Image
-        src="/temp.svg"
+        src="/icon.svg"
         alt="Slugy"
         fill
         className="object-contain p-[2px]"
