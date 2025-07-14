@@ -18,16 +18,16 @@ import {
 } from "@/components/ui/dialog";
 import { formatNumber } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
+// import Image from "next/image";
 import Link from "next/link";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import UrlAvatar from "@/components/web/url-avatar";
 
 // Types
-interface Creator {
-  name: string | null;
-  image: string | null;
-}
+// interface Creator {
+//   name: string | null;
+//   image: string | null;
+// }
 
 // Constants
 const SHORT_URL_BASE = "https://slugy.co/";
@@ -60,69 +60,67 @@ export const AnalyticsIcon = memo(() => (
 AnalyticsIcon.displayName = "AnalyticsIcon";
 
 // Creator Tooltip Component
-export const CreatorTooltip = memo(
-  ({ creator, date }: { creator: Creator | null; date: Date }) => {
-    // If creator is null, don't render anything
-    if (!creator) {
-      return null;
-    }
+// export const CreatorTooltip = memo(
+//   ({ creator, date }: { creator: Creator | null; date: Date }) => {
+//     // If creator is null, don't render anything
+//     if (!creator) {
+//       return null;
+//     }
 
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Image
-            src={creator.image ?? "https://avatar.vercel.sh/demo"}
-            width={16}
-            height={16}
-            quality={75}
-            loading="lazy"
-            className="mt-1 ml-3 hidden cursor-pointer rounded-full border sm:inline"
-            alt={creator.name ?? "Creator"}
-          />
-        </TooltipTrigger>
-        <TooltipContent className="flex items-center gap-2 rounded-lg p-2 shadow-sm">
-          <Image
-            src={creator.image ?? "https://avatar.vercel.sh/demo"}
-            width={24}
-            height={24}
-            quality={85}
-            loading="eager"
-            className="rounded-full"
-            alt={creator.name ?? "Creator"}
-          />
-          <div>
-            <p className="line-clamp-1 font-semibold text-zinc-50 dark:text-zinc-900">
-              {creator.name}
-            </p>
-            <p className="text-xs text-zinc-300 dark:text-zinc-600">
-              {new Date(date).toLocaleDateString()}
-            </p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    );
-  },
-);
+//     return (
+//       <Tooltip>
+//         <TooltipTrigger asChild>
+//           <Image
+//             src={creator.image ?? "https://avatar.vercel.sh/demo"}
+//             width={16}
+//             height={16}
+//             quality={75}
+//             loading="lazy"
+//             className="mt-1 ml-3 hidden cursor-pointer rounded-full border sm:inline"
+//             alt={creator.name ?? "Creator"}
+//           />
+//         </TooltipTrigger>
+//         <TooltipContent className="flex items-center gap-2 rounded-lg p-2 shadow-sm">
+//           <Image
+//             src={creator.image ?? "https://avatar.vercel.sh/demo"}
+//             width={24}
+//             height={24}
+//             quality={85}
+//             loading="eager"
+//             className="rounded-full"
+//             alt={creator.name ?? "Creator"}
+//           />
+//           <div>
+//             <p className="line-clamp-1 font-semibold text-zinc-50 dark:text-zinc-900">
+//               {creator.name}
+//             </p>
+//             <p className="text-xs text-zinc-300 dark:text-zinc-600">
+//               {new Date(date).toLocaleDateString()}
+//             </p>
+//           </div>
+//         </TooltipContent>
+//       </Tooltip>
+//     );
+//   },
+// );
 
-CreatorTooltip.displayName = "CreatorTooltip";
+// CreatorTooltip.displayName = "CreatorTooltip";
 
 // Link Preview Component
-export const LinkPreviewComponent = memo(
-  ({ url, date, creator }: { url: string; date: Date; creator: Creator | null }) => (
-    <div className="flex w-full items-center">
-      <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
-        <CornerDownRight strokeWidth={1.5} size={15} className="mt-0.5" />
-        <LinkPreview
-          url={url}
-          className="text-muted-foreground max-w-[calc(100%-3rem)] cursor-pointer truncate hover:underline"
-        >
-          {cleanUrl(url)}
-        </LinkPreview>
-        <CreatorTooltip creator={creator} date={date} />
-      </div>
+export const LinkPreviewComponent = memo(({ url }: { url: string }) => (
+  <div className="flex w-full items-center">
+    <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
+      <CornerDownRight strokeWidth={1.5} size={15} className="mt-0.5" />
+      <LinkPreview
+        url={url}
+        className="text-muted-foreground max-w-[calc(100%-3rem)] cursor-pointer truncate hover:underline"
+      >
+        {cleanUrl(url)}
+      </LinkPreview>
+      {/* <CreatorTooltip creator={creator} date={date} /> */}
     </div>
-  ),
-);
+  </div>
+));
 
 LinkPreviewComponent.displayName = "LinkPreviewComponent";
 
@@ -186,7 +184,7 @@ export const AnalyticsBadge = memo(
   }) => (
     <Badge
       variant="outline"
-      className="flex cursor-pointer items-center justify-center gap-x-1 bg-zinc-100/50 text-sm font-normal rounded-sm text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+      className="flex cursor-pointer items-center justify-center gap-x-1 rounded-sm bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
     >
       <Tooltip>
         <TooltipTrigger asChild>

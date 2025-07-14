@@ -26,7 +26,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback, useRef, useEffect } from "react";
+import { memo, useMemo, useRef, useEffect } from "react";
 
 type UserRole = "owner" | "admin" | "member" | null;
 
@@ -78,7 +78,6 @@ const SIDEBAR_DATA: {
       icon: Settings,
       items: [
         { title: "General", url: "/settings" },
-        { title: "Billing", url: "/settings/billing" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
       ],
@@ -110,21 +109,12 @@ const buildUrl = (baseUrl: string, path: string): string => {
 
 // Fast path segment extraction with caching
 const pathSegmentCache = new Map<string, string>();
-const getLastPathSegment = (path: string): string => {
-  if (pathSegmentCache.has(path)) {
-    return pathSegmentCache.get(path)!;
-  }
-  const segments = path.split("/").filter(Boolean);
-  const lastSegment = segments[segments.length - 1] ?? "";
-  pathSegmentCache.set(path, lastSegment);
-  return lastSegment;
-};
 
 // Optimized active state checking
 const createActiveStateChecker = (pathname: string) => {
   const pathSegments = pathname.split("/").filter(Boolean);
   const lastSegment = pathSegments[pathSegments.length - 1] ?? "";
-  
+
   return {
     isItemActive: (item: NavItem): boolean => {
       // Special case for Bio Links
@@ -140,18 +130,20 @@ const createActiveStateChecker = (pathname: string) => {
       }
 
       // Check sub-items
-      return item.items?.some(subItem => {
-        const subSegments = subItem.url.split("/").filter(Boolean);
-        const subLastSegment = subSegments[subSegments.length - 1] ?? "";
-        return subLastSegment === lastSegment;
-      }) ?? false;
+      return (
+        item.items?.some((subItem) => {
+          const subSegments = subItem.url.split("/").filter(Boolean);
+          const subLastSegment = subSegments[subSegments.length - 1] ?? "";
+          return subLastSegment === lastSegment;
+        }) ?? false
+      );
     },
-    
+
     isSubItemActive: (subItemUrl: string): boolean => {
       const subSegments = subItemUrl.split("/").filter(Boolean);
       const subLastSegment = subSegments[subSegments.length - 1] ?? "";
       return subLastSegment === lastSegment;
-    }
+    },
   };
 };
 
@@ -179,9 +171,7 @@ const NavItemComponent = memo<{
                   "bg-sidebar-accent text-blue-500 hover:text-blue-500",
               )}
             >
-              {item.icon && (
-                <item.icon className="size-4" strokeWidth={2} />
-              )}
+              {item.icon && <item.icon className="size-4" strokeWidth={2} />}
               <span>{item.title}</span>
             </SidebarMenuButton>
           </Link>
@@ -195,12 +185,8 @@ const NavItemComponent = memo<{
                   "bg-sidebar-accent text-blue-500 hover:text-blue-500",
               )}
             >
-              {item.icon && (
-                <item.icon className="size-4" strokeWidth={2} />
-              )}
-              <span
-                className={cn("font-normal", isActive && "font-medium")}
-              >
+              {item.icon && <item.icon className="size-4" strokeWidth={2} />}
+              <span className={cn("font-normal", isActive && "font-medium")}>
                 {item.title}
               </span>
               {item.items && (
@@ -290,9 +276,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
         })
         .map((subItem: NavSubItem) => ({
           ...subItem,
-          url: isBioLinks
-            ? subItem.url
-            : buildUrl(baseUrl, subItem.url),
+          url: isBioLinks ? subItem.url : buildUrl(baseUrl, subItem.url),
         }));
 
       return {
@@ -306,26 +290,26 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   // Optimized active state checker
   const activeStateChecker = useMemo(
     () => createActiveStateChecker(pathname),
-    [pathname]
+    [pathname],
   );
 
   // Prefetch optimization - prefetch all nav items on mount
   useEffect(() => {
     const prefetchUrls = processedNavItems
-      .filter(item => item.url)
-      .map(item => item.url!)
+      .filter((item) => item.url)
+      .map((item) => item.url!)
       .concat(
         processedNavItems
-          .flatMap(item => item.items || [])
-          .map(subItem => subItem.url)
+          .flatMap((item) => item.items || [])
+          .map((subItem) => subItem.url),
       );
 
     // Prefetch all navigation URLs
-    prefetchUrls.forEach(url => {
-      if (url && !url.startsWith('http')) {
+    prefetchUrls.forEach((url) => {
+      if (url && !url.startsWith("http")) {
         // Use Next.js router prefetch if available
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
+        const link = document.createElement("link");
+        link.rel = "prefetch";
         link.href = url;
         document.head.appendChild(link);
       }
@@ -336,7 +320,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
       // Clear cache only when pathname changes significantly
-      if (pathname.split('/')[1] !== prevPathnameRef.current.split('/')[1]) {
+      if (pathname.split("/")[1] !== prevPathnameRef.current.split("/")[1]) {
         pathSegmentCache.clear();
       }
       prevPathnameRef.current = pathname;

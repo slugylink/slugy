@@ -168,7 +168,6 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
               ? "Link unarchived successfully!"
               : "Link archived successfully!",
           );
-          // Optimistically update the SWR cache for the links list
           void mutate(
             (key) => typeof key === "string" && key.includes("/link/get"),
           );
@@ -192,7 +191,6 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
 
       if (response.status === 200) {
         toast.success("Link deleted successfully!");
-        // Optimistically update the SWR cache for the links list
         void mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
         );
@@ -221,7 +219,7 @@ const createEditFormData = (link: LinkData) => ({
       ? link.expiresAt.toISOString()
       : link.expiresAt
     : null,
-  tags: link.tags ? link.tags.map(t => t.tag.name) : [],
+  tags: link.tags ? link.tags.map((t) => t.tag.name) : [],
   expirationUrl: link.expirationUrl ?? "",
   utm_source: link.utm_source ?? "",
   utm_medium: link.utm_medium ?? "",
@@ -410,8 +408,6 @@ export default function LinkCard({
 
           <LinkPreviewComponent
             url={link.url}
-            date={link.createdAt!}
-            creator={link.creator!}
           />
         </div>
 

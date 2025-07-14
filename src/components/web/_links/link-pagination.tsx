@@ -205,7 +205,6 @@ export default function LinkPagination({
     if (selectedLinks.size > 0) {
       onDelete(Array.from(selectedLinks))
       setShowConfirmation(null)
-      setIsSelectModeOn(false)
     }
   }, [onDelete, selectedLinks, setIsSelectModeOn])
 
