@@ -17,17 +17,17 @@ export default function manifest(): MetadataRoute.Manifest {
 
     icons: [
       {
-        src: "/icon-192.png",
+        src: "/web-app-manifest-192x192.png",
         sizes: "192x192",
         type: "image/png",
       },
       {
-        src: "/icon-512.png",
+        src: "/web-app-manifest-512x512.png",
         sizes: "512x512",
         type: "image/png",
       },
       {
-        src: "/icon.png",
+        src: "/web-app-manifest-192x192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
@@ -43,23 +43,6 @@ export default function manifest(): MetadataRoute.Manifest {
         sizes: "48x48",
         type: "image/x-icon",
         purpose: "any",
-      },
-    ],
-
-    screenshots: [
-      {
-        src: "/screenshots/desktop-home.png",
-        sizes: "1280x720",
-        type: "image/png",
-        form_factor: "wide",
-        label: "Slugy Dashboard - Desktop View",
-      },
-      {
-        src: "/screenshots/mobile-home.png",
-        sizes: "375x667",
-        type: "image/png",
-        form_factor: "narrow",
-        label: "Slugy Dashboard - Mobile View",
       },
     ],
 
