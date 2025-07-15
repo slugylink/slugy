@@ -93,7 +93,7 @@ export const metadata: Metadata = {
   },
 
   // Web app manifest
-  manifest: "/manifest.ts",
+  manifest: "/site.webmanifest",
 
   // Enhanced Open Graph
   openGraph: {
