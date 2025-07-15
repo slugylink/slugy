@@ -73,8 +73,16 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
-      { url: "/web-app-manifest-192x192.png", sizes: "192x192", type: "image/png" },
-      { url: "/web-app-manifest-512x512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: "/web-app-manifest-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/web-app-manifest-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
@@ -100,16 +108,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
-        width: 1200,
-        height: 630,
+        width: 1139,
+        height: 712,
         alt: "Slugy - Open Source URL Shortener Platform",
-        type: "image/png",
-      },
-      {
-        url: "https://slugy.co/og-square.png",
-        width: 400,
-        height: 400,
-        alt: "Slugy Logo",
         type: "image/png",
       },
     ],
@@ -126,8 +127,8 @@ export const metadata: Metadata = {
     images: {
       url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
       alt: "Slugy - Open Source URL Shortener Platform",
-      width: 1200,
-      height: 630,
+      width: 1139,
+      height: 712,
     },
   },
 
