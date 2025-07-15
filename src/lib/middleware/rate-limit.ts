@@ -7,7 +7,6 @@ const redis = new Redis({
 
 // In-memory cache for rate limiting to reduce Redis calls
 const rateLimitCache = new Map<string, { count: number; reset: number; ttl: number }>();
-const CACHE_TTL = 30; // 30 seconds cache
 const CACHE_CLEANUP_INTERVAL = 60000; // 1 minute
 
 // Cleanup cache periodically

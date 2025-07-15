@@ -94,8 +94,8 @@ function UrlAvatar({
       <picture>
         <source srcSet={src} type="image/png" />
         <Image
-          alt={`Favicon for ${domain}`}
-          src={src ?? "/temp.svg"}
+          alt={`${domain}`}
+          src={src ?? "/logo.svg"}
           width={imageSize}
           height={imageSize}
           quality={quality}

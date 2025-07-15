@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-   "build": "next build",
+    "build": "next build",
     "db:generate": "prisma migrate dev",
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@better-auth/stripe": "^1.2.9",
     "@google/generative-ai": "^0.24.1",
+    "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^5.1.1",
     "@neondatabase/serverless": "^1.0.1",
     "@polar-sh/better-auth": "^1.0.1",

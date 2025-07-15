@@ -1,3 +1,5 @@
-export default async function Bio() {
-    return <div>bio page</div>;
+import { redirect } from "next/navigation";
+
+export default function BioLinks() {
+  return redirect("https://slugy.co");
 }

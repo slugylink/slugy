@@ -29,10 +29,6 @@ interface UrlClickData {
 }
 
 const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
-  const [activeTab, setActiveTab] = useState<
-    "short-links" | "destination-links"
-  >("short-links");
-
   const { data, error, isLoading } = useSWR<UrlClickData[], Error>(
     ["url-clicks", workspaceslug, searchParams],
     () => fetchUrlClicksData(workspaceslug, searchParams),
@@ -43,6 +39,8 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
     [data],
   );
+
+  const [activeTab, setActiveTab] = useState<"short-links" | "destination-links">("short-links");
 
   if (error) {
     return (
@@ -58,7 +56,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     <Card className="shadow-none border">
       <CardHeader className="pb-2">
         <Tabs
-          defaultValue="short-links"
+          value={activeTab}
           onValueChange={(value) => setActiveTab(value as typeof activeTab)}
         >
           <TabsList className="grid w-full grid-cols-2">

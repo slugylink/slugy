@@ -3,7 +3,10 @@ import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
 
 //* Optimized function to check workspace access and link limits in one query
-export async function checkWorkspaceAccessAndLimits(userId: string, workspaceslug: string) {
+export async function checkWorkspaceAccessAndLimits(
+  userId: string,
+  workspaceslug: string,
+) {
   try {
     // Get user's subscription with plan details
     const subscriptionResult = await getSubscriptionWithPlan(userId);
@@ -210,6 +213,78 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
     return {
       canCreate: false,
       message: "Error checking link limits",
+      currentCount: 0,
+      maxLimit: 0,
+    };
+  }
+}
+
+export async function checkBioGalleryLimit(userId: string) {
+  try {
+    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      return {
+        canCreate: false,
+        message: "No active subscription found",
+        currentCount: 0,
+        maxLimit: 0,
+      };
+    }
+    const { subscription } = subscriptionResult;
+    const maxGalleries = subscription.plan.maxGalleries;
+    const currentGalleryCount = await db.bio.count({ where: { userId } });
+    const canCreate = currentGalleryCount < maxGalleries;
+    return {
+      canCreate,
+      message: canCreate
+        ? "Can create bio gallery"
+        : `Bio gallery limit reached. Upgrade to Pro.`,
+      currentCount: currentGalleryCount,
+      maxLimit: maxGalleries,
+      planType: subscription.plan.planType,
+    };
+  } catch (error) {
+    console.error("Error checking bio gallery limit:", error);
+    return {
+      canCreate: false,
+      message: "Error checking bio gallery limits",
+      currentCount: 0,
+      maxLimit: 0,
+    };
+  }
+}
+
+export async function checkBioGalleryLinkLimit(userId: string, bioId: string) {
+  try {
+    // Get user's subscription with plan details
+    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      return {
+        canCreate: false,
+        message: "No active subscription found",
+        currentCount: 0,
+        maxLimit: 0,
+      };
+    }
+    const { subscription } = subscriptionResult;
+    const maxLinks = subscription.plan.maxLinksPerBio;
+    // Count current links for this bio gallery
+    const currentLinkCount = await db.bioLinks.count({ where: { bioId } });
+    const canCreate = currentLinkCount < maxLinks;
+    return {
+      canCreate,
+      message: canCreate
+        ? "Can create link in bio gallery"
+        : `Link limit reached for this bio gallery. Upgrade to Pro for more links.`,
+      currentCount: currentLinkCount,
+      maxLimit: maxLinks,
+      planType: subscription.plan.planType,
+    };
+  } catch (error) {
+    console.error("Error checking bio gallery link limit:", error);
+    return {
+      canCreate: false,
+      message: "Error checking bio gallery link limits",
       currentCount: 0,
       maxLimit: 0,
     };

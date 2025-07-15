@@ -25,7 +25,7 @@ const nextConfig: import("next").NextConfig = {
 
       // Icon and favicon services
       { hostname: "img.icons8.com" },
-      { hostname: "icons.duckduckgo.com" },
+      { hostname: "twenty-icons.com" },
       { hostname: "favicone.com" },
       { hostname: "biological-zinc-xerinae.faviconkit.com" },
 

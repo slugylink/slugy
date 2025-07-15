@@ -13,6 +13,8 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { createBioGallery } from "@/server/actions/bio-gallery/bio-gallery";
+import { LoaderCircle } from "@/utils/icons/loader-circle";
 
 const usernameSchema = z.object({
   username: z
@@ -41,11 +43,20 @@ export default function CreateBioGallery() {
 
   async function onSubmit(data: UsernameForm) {
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      toast.success("Gallery created!");
-      router.push(`/bio-links/${data.username}`);
-    } catch (err) {
+      const result = await createBioGallery({ username: data.username });
+      if (result.success) {
+        toast.success("Gallery created!");
+        router.push(`/bio-links/${data.username}`);
+      } else if (result.usernameExists) {
+        toast.error("Username exists. Please choose another.");
+      } else if (result.limitInfo) {
+        toast.error(result.error || "Gallery limit reached.");
+      } else {
+        toast.error(
+          result.error || "Failed to create gallery. Please try again.",
+        );
+      }
+    } catch {
       toast.error("Failed to create gallery. Please try again.");
     }
   }
@@ -89,7 +100,8 @@ export default function CreateBioGallery() {
               className="w-full"
               disabled={!isValid || isSubmitting || !isDirty}
             >
-              {isSubmitting ? "Creating..." : "Create Bio Gallery"}
+              {isSubmitting && <LoaderCircle className="mr-1 h-2.5 w-2.5" />}
+              Create Bio Gallery
             </Button>
           </form>
         </Form>
