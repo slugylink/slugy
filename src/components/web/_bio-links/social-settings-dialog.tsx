@@ -13,7 +13,6 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import { useRouter } from "next/navigation";
 import {
   RiFacebookFill,
   RiInstagramLine,
@@ -63,7 +62,6 @@ export function SocialSettingsDialog({
   username,
   initialData,
 }: SocialSettingsDialogProps) {
-  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({

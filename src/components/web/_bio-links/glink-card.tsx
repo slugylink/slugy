@@ -31,6 +31,7 @@ import {
 import axios from "axios";
 import { type KeyedMutator } from "swr";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { cn } from "@/lib/utils";
 
 interface Link {
   id: string;
@@ -215,7 +216,7 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
       </div>
       <div className="flex h-full w-auto items-center justify-end gap-2">
         <div className="cursor-pointer">
-          <Switch checked={isPublic} onCheckedChange={handleTogglePublic} />
+          <Switch className="" checked={isPublic} onCheckedChange={handleTogglePublic} />
         </div>
         <DropdownMenu
           open={dialogs.dropdown}
@@ -242,8 +243,8 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
                   className={`flex cursor-pointer items-center gap-2 px-3 py-2 ${item.color ?? ""}`}
                   onClick={item.onClick}
                 >
-                  {item.icon && <item.icon className="h-4 w-4" />}
-                  <span className="text-sm">{item.label}</span>
+                  {item.icon && <item.icon className={cn("h-4 w-4", item.color)} />}
+                  <span className={cn("text-sm", item.color)}>{item.label}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>

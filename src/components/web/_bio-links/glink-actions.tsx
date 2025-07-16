@@ -198,18 +198,18 @@ const Actions = ({ gallery, username }: ActionsProps) => {
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
               <Settings className="mr-2 h-4 w-4" />
-              <span>Edit Gallery</span>
+              <span>Edit Bio</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSocialOpen(true)}>
               <Share2 className="mr-2 h-4 w-4" />
               <span>Social Links</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              className="text-destructive focus:bg-destructive/10"
+              className=""
               onClick={() => setDeleteDialogOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete Gallery</span>
+              <span>Delete Bio</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -233,18 +233,20 @@ const Actions = ({ gallery, username }: ActionsProps) => {
 
       {/* Theme Selection Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="left" className="w-full max-w-2xl">
+        <SheetContent side="left" className="w-full max-w-md">
           <SheetHeader>
-            <SheetTitle>Choose a Theme</SheetTitle>
+            <SheetTitle className="text-xl font-medium">
+              Choose a Theme
+            </SheetTitle>
           </SheetHeader>
-          <div className="grid max-h-[calc(100vh-8rem)] grid-cols-3 gap-4 overflow-y-auto py-8 pr-2 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 overflow-y-auto py-4 pr-2 sm:grid-cols-3">
             {themes.map((t) => (
               <button
                 key={t.id}
                 className={cn(
-                  "group relative aspect-[9/16] overflow-hidden rounded-lg border-2 transition-all hover:border-primary",
+                  "group hover:border-primary relative aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all mb-10",
                   t.id === theme
-                    ? "border-primary ring-2 ring-primary ring-offset-2"
+                    ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
                 )}
                 onClick={() => handleThemeClick(t.id, theme)}
@@ -254,20 +256,20 @@ const Actions = ({ gallery, username }: ActionsProps) => {
                 {/* Theme Preview */}
                 <div className={cn("h-full w-full", t.background)}>
                   {/* Mock Content */}
-                  <div className="flex flex-col items-center gap-2 p-4">
-                    <div className="h-8 w-8 rounded-full bg-zinc-300/20" />
-                    <div className="h-4 w-16 rounded-full bg-zinc-300/20" />
-                    <div className="mt-4 space-y-2">
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
+                  <div className="flex flex-col items-center gap-0.5 p-1.5">
+                    <div className="h-4 w-4 rounded-full bg-zinc-300/20" />
+                    <div className="h-2 w-8 rounded-full bg-zinc-300/20" />
+                    <div className="mt-1 space-y-0.5">
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
                     </div>
                   </div>
                 </div>
                 {/* Theme Name */}
                 <div
                   className={cn(
-                    "absolute bottom-2 left-2 rounded bg-black/80 px-2 py-1 text-xs text-white",
+                    "absolute bottom-0.5 left-0.5 rounded bg-black/80 px-1 py-0.5 text-xs text-white",
                     t.id === theme && "bg-primary",
                   )}
                 >
@@ -275,8 +277,8 @@ const Actions = ({ gallery, username }: ActionsProps) => {
                 </div>
                 {/* Selected Check */}
                 {t.id === theme && (
-                  <div className="absolute right-2 top-2 rounded-full bg-primary p-1">
-                    <Check className="h-4 w-4 text-primary-foreground" />
+                  <div className="bg-primary absolute top-0.5 right-0.5 rounded-full p-0.5">
+                    <Check className="text-primary-foreground h-2.5 w-2.5" />
                   </div>
                 )}
               </button>
@@ -290,11 +292,11 @@ const Actions = ({ gallery, username }: ActionsProps) => {
         open={isDialogOpen}
         onOpenChange={(open) => !isSaving && setIsDialogOpen(open)}
       >
-        <DialogContent>
+        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
           <DialogHeader>
             <DialogTitle>Change Theme?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Are you sure you want to change your theme to{" "}
             <strong>
               {pendingTheme && themes.find((t) => t.id === pendingTheme)?.name}
@@ -349,7 +351,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
       </AlertDialog>
 
       {/* Mobile Preview Button */}
-      <div className="fixed bottom-3 right-3 z-50 block sm:hidden">
+      <div className="fixed right-3 bottom-3 z-50 block sm:hidden">
         <Button
           className="size-12 rounded-full shadow-lg transition-all hover:shadow-xl"
           onClick={() => setPreviewOpen(true)}

@@ -31,8 +31,8 @@ export default function SidebarHeader() {
         if (parts[parts.length - 2] === "library") {
           return "Library";
         }
-        if (parts[parts.length - 2] === "gallery") {
-          return "Links Gallery";
+        if (parts[parts.length - 2] === "bio-links") {
+          return "Bio Links";
         }
         return "Links";
     }

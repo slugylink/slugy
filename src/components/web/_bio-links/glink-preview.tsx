@@ -106,15 +106,15 @@ const GalleryLinkPreview = ({
         {/* iPhone Frame Container */}
         <div className="relative mx-auto w-[305px]">
           {/* iPhone Notch */}
-          <div className="absolute left-1/2 top-0 z-10 h-[30px] w-[118px] -translate-x-1/2 overflow-hidden rounded-b-xl bg-black"></div>
+          <div className="absolute left-1/2 top-0 z-10 h-[30px] w-[118px] -translate-x-1/2 overflow-hidden rounded-b-xl bg-zinc-900"></div>
 
           {/* Device Frame */}
-          <div className="relative w-full rounded-[50px] bg-black p-[11px] shadow-[0_0_30px_rgba(0,0,0,0.3)] dark:shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+          <div className="relative w-full rounded-[45px] bg-zinc-900 p-[9px] shadow-[0_0_30px_rgba(0,0,0,0.3)] dark:shadow-[0_0_30px_rgba(255,255,255,0.2)]">
             {/* Screen Border */}
 
             {/* Screen Content */}
             <div
-              className={`relative h-[585px] w-full rounded-[40px] ${currentTheme.background}`}
+              className={`relative h-[585px] w-full rounded-[35px] ${currentTheme.background}`}
             >
               {/* Scrollable Content Container */}
               <div className="absolute inset-0 overflow-y-auto rounded-[40px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -159,25 +159,25 @@ const GalleryLinkPreview = ({
 
                       switch (social.platform) {
                         case "facebook":
-                          icon = <RiFacebookFill size={20} />;
+                          icon = <RiFacebookFill size={18} />;
                           break;
                         case "instagram":
-                          icon = <RiInstagramLine size={20} />;
+                          icon = <RiInstagramLine size={18} />;
                           break;
                         case "twitter":
-                          icon = <RiTwitterXFill size={20} />;
+                          icon = <RiTwitterXFill size={18} />;
                           break;
                         case "linkedin":
-                          icon = <RiLinkedinFill size={21} />;
+                          icon = <RiLinkedinFill size={19} />;
                           break;
                         case "youtube":
-                          icon = <RiYoutubeFill size={20} />;
+                          icon = <RiYoutubeFill size={18} />;
                           break;
                         case "mail":
-                          icon = <LuMail size={20} />;
+                          icon = <LuMail size={18} />;
                           break;
                         case "snapchat":
-                          icon = <RiSnapchatFill size={20} />;
+                          icon = <RiSnapchatFill size={18} />;
                           break;
                         default:
                           return null;
@@ -235,18 +235,18 @@ const GalleryLinkPreview = ({
       </div>
 
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="left" className="w-full max-w-2xl">
+        <SheetContent side="left" className="w-full max-w-md">
           <SheetHeader>
-            <SheetTitle>Choose a Theme</SheetTitle>
+            <SheetTitle className="text-xl font-medium">Choose a Theme</SheetTitle>
           </SheetHeader>
-          <div className="grid max-h-[90vh] grid-cols-3 gap-4 overflow-y-auto py-8 pr-2 md:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 overflow-y-auto py-4 pr-2 sm:grid-cols-3">
             {themes.map((t) => (
               <button
                 key={t.id}
                 className={cn(
-                  "group relative aspect-[9/16] overflow-hidden rounded-lg border-2 transition-all hover:border-primary",
+                  "group hover:border-primary relative aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all mb-10",
                   t.id === theme
-                    ? "border-primary ring-2 ring-primary ring-offset-2"
+                    ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
                 )}
                 onClick={() => handleThemeClick(t.id, theme)}
@@ -254,20 +254,20 @@ const GalleryLinkPreview = ({
                 {/* Theme Preview */}
                 <div className={cn("h-full w-full", t.background)}>
                   {/* Mock Content */}
-                  <div className="flex flex-col items-center gap-2 p-4">
-                    <div className="h-8 w-8 rounded-full bg-zinc-300/20" />
-                    <div className="h-4 w-16 rounded-full bg-zinc-300/20" />
-                    <div className="mt-4 space-y-2">
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-8 w-full rounded-full bg-zinc-300/20" />
+                  <div className="flex flex-col items-center gap-0.5 p-1.5">
+                    <div className="h-4 w-4 rounded-full bg-zinc-300/20" />
+                    <div className="h-2 w-8 rounded-full bg-zinc-300/20" />
+                    <div className="mt-1 space-y-0.5">
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
+                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
                     </div>
                   </div>
                 </div>
                 {/* Theme Name */}
                 <div
                   className={cn(
-                    "absolute bottom-2 left-2 rounded bg-black/80 px-2 py-1 text-xs text-white",
+                    "absolute bottom-0.5 left-0.5 rounded bg-black/80 px-1 py-0.5 text-xs text-white",
                     t.id === theme && "bg-primary",
                   )}
                 >
@@ -275,8 +275,8 @@ const GalleryLinkPreview = ({
                 </div>
                 {/* Selected Check */}
                 {t.id === theme && (
-                  <div className="absolute right-2 top-2 rounded-full bg-primary p-1">
-                    <Check className="h-4 w-4 text-primary-foreground" />
+                  <div className="bg-primary absolute top-0.5 right-0.5 rounded-full p-0.5">
+                    <Check className="text-primary-foreground h-2.5 w-2.5" />
                   </div>
                 )}
               </button>
@@ -286,7 +286,7 @@ const GalleryLinkPreview = ({
       </Sheet>
       {/* Confirm Theme Change Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
           <DialogHeader>
             <DialogTitle>Change Theme?</DialogTitle>
           </DialogHeader>
