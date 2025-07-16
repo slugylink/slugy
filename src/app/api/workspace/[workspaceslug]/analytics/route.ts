@@ -28,6 +28,8 @@ export async function GET(
       browser_key: searchParams.get("browser_key"),
       os_key: searchParams.get("os_key"),
       referrer_key: searchParams.get("referrer_key"),
+      device_key: searchParams.get("device_key"),
+      destination_key: searchParams.get("destination_key"),
     });
 
     return NextResponse.json(analyticsData);

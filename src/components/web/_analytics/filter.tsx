@@ -59,6 +59,18 @@ interface OsAnalytics extends BaseOption {
   os: string;
 }
 
+interface DeviceAnalytics extends BaseOption {
+  device: string;
+}
+
+interface ReferrerAnalytics extends BaseOption {
+  referrer: string;
+}
+
+interface DestinationAnalytics extends BaseOption {
+  destination: string;
+}
+
 // Union type for all possible option types
 type FilterOption =
   | LinkAnalytics
@@ -66,16 +78,22 @@ type FilterOption =
   | CountryAnalytics
   | CityAnalytics
   | BrowserAnalytics
-  | OsAnalytics;
+  | OsAnalytics
+  | DeviceAnalytics
+  | ReferrerAnalytics
+  | DestinationAnalytics;
 
 // Literal type for category IDs
 export type CategoryId =
   | "slug_key"
+  | "destination_key"
+  | "city_key"
   | "continent_key"
   | "country_key"
-  | "city_key"
+  | "device_key"
   | "browser_key"
-  | "os_key";
+  | "os_key"
+  | "referrer_key";
 
 // Interface for filter categories
 export interface FilterCategory {
@@ -187,15 +205,50 @@ FilterOptionItem.displayName = "FilterOptionItem";
 
 const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
   // Use nuqs for each filter category and time_period
-  const [timePeriod, setTimePeriod] = useQueryState("time_period", parseAsString.withDefault("24h"));
-  const [slugFilter, setSlugFilter] = useQueryState("slug_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
-  const [continentFilter, setContinentFilter] = useQueryState("continent_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
-  const [countryFilter, setCountryFilter] = useQueryState("country_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
-  const [cityFilter, setCityFilter] = useQueryState("city_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
-  const [browserFilter, setBrowserFilter] = useQueryState("browser_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
-  const [osFilter, setOsFilter] = useQueryState("os_key", parseAsArrayOf(parseAsString, ",").withDefault([]));
+  const [timePeriod, setTimePeriod] = useQueryState(
+    "time_period",
+    parseAsString.withDefault("24h"),
+  );
+  const [slugFilter, setSlugFilter] = useQueryState(
+    "slug_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [continentFilter, setContinentFilter] = useQueryState(
+    "continent_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [countryFilter, setCountryFilter] = useQueryState(
+    "country_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [cityFilter, setCityFilter] = useQueryState(
+    "city_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [browserFilter, setBrowserFilter] = useQueryState(
+    "browser_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [osFilter, setOsFilter] = useQueryState(
+    "os_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [deviceFilter, setDeviceFilter] = useQueryState(
+    "device_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [referrerFilter, setReferrerFilter] = useQueryState(
+    "referrer_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
+  const [destinationFilter, setDestinationFilter] = useQueryState(
+    "destination_key",
+    parseAsArrayOf(parseAsString, ",").withDefault([]),
+  );
 
-  const [activeCategory, setActiveCategory] = React.useState<CategoryId | null>(null);
+  const [activeCategory, setActiveCategory] = React.useState<CategoryId | null>(
+    null,
+  );
   const [searchQuery, setSearchQuery] = React.useState("");
 
   // Compose selectedFilters from nuqs state
@@ -207,8 +260,21 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
       city_key: cityFilter,
       browser_key: browserFilter,
       os_key: osFilter,
+      device_key: deviceFilter,
+      referrer_key: referrerFilter,
+      destination_key: destinationFilter,
     }),
-    [slugFilter, continentFilter, countryFilter, cityFilter, browserFilter, osFilter]
+    [
+      slugFilter,
+      continentFilter,
+      countryFilter,
+      cityFilter,
+      browserFilter,
+      osFilter,
+      deviceFilter,
+      referrerFilter,
+      destinationFilter,
+    ],
   );
 
   // Handlers using nuqs setters
@@ -248,9 +314,29 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
         case "os_key":
           void setOsFilter(updated.length ? updated : null);
           break;
+        case "device_key":
+          void setDeviceFilter(updated.length ? updated : null);
+          break;
+        case "referrer_key":
+          void setReferrerFilter(updated.length ? updated : null);
+          break;
+        case "destination_key":
+          void setDestinationFilter(updated.length ? updated : null);
+          break;
       }
     },
-    [selectedFilters, setSlugFilter, setContinentFilter, setCountryFilter, setCityFilter, setBrowserFilter, setOsFilter],
+    [
+      selectedFilters,
+      setSlugFilter,
+      setContinentFilter,
+      setCountryFilter,
+      setCityFilter,
+      setBrowserFilter,
+      setOsFilter,
+      setDeviceFilter,
+      setReferrerFilter,
+      setDestinationFilter,
+    ],
   );
 
   const removeFilter = React.useCallback(
@@ -276,6 +362,12 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
           return (option as BrowserAnalytics).browser;
         case "os_key":
           return (option as OsAnalytics).os;
+        case "device_key":
+          return (option as DeviceAnalytics).device;
+        case "referrer_key":
+          return (option as ReferrerAnalytics).referrer;
+        case "destination_key":
+          return (option as DestinationAnalytics).destination;
         default:
           return "";
       }
@@ -298,6 +390,12 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
           return (option as BrowserAnalytics).browser;
         case "os_key":
           return (option as OsAnalytics).os;
+        case "device_key":
+          return (option as DeviceAnalytics).device;
+        case "referrer_key":
+          return (option as ReferrerAnalytics).referrer;
+        case "destination_key":
+          return (option as DestinationAnalytics).destination;
         default:
           return "";
       }
@@ -323,6 +421,12 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
           return `https://slugylink.github.io/slugy-assets/dist/colorful/browser/${formatNameForUrl((option as BrowserAnalytics).browser)}.svg`;
         case "os_key":
           return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl((option as OsAnalytics).os)}.svg`;
+        case "device_key":
+          return undefined;
+        case "referrer_key":
+          return undefined;
+        case "destination_key":
+          return undefined;
         default:
           return undefined;
       }
@@ -357,17 +461,23 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
 
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
+  console.log("filteredCategories", filteredCategories);
+
   return (
     <div className="flex w-full flex-col items-start justify-between space-y-2">
       <div className="flex w-full items-center justify-between space-x-2">
         <div className="relative">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="flex items-center font-normal">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center font-normal"
+              >
                 <Filter strokeWidth={1.5} className="mr-1 h-4 w-4" />
                 Filter
                 {selectedFilterCount > 0 && (
-                  <span className="ml-1 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground">
+                  <span className="bg-primary text-primary-foreground ml-1 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px]">
                     {selectedFilterCount}
                   </span>
                 )}
@@ -379,7 +489,10 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
               align="start"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
-              <div className="mb-2 font-normal" onMouseDown={(e) => e.stopPropagation()}>
+              <div
+                className="mb-2 font-normal"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
                 <input
                   type="text"
                   placeholder="Filter..."
@@ -392,7 +505,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                     e.stopPropagation();
                     setSearchQuery(e.target.value);
                   }}
-                  className="w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-[1px] focus:ring-primary"
+                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:ring-[1px] focus:outline-none"
                 />
               </div>
               {activeCategory ? (
@@ -401,24 +514,26 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                     .filter((category) => category.id === activeCategory)
                     .map((category, index) => (
                       <DropdownMenuGroup key={index}>
-                        <div 
-                          className="sticky top-0 z-50  mb-2"
-                          style={{ position: 'sticky', top: 0 }}
+                        <div
+                          className="sticky top-0 z-50 mb-2"
+                          style={{ position: "sticky", top: 0 }}
                         >
                           <DropdownMenuLabel
-                            className="flex cursor-pointer items-center rounded-md px-3 py-2 font-medium  transition-colors duration-200 bg-primary-foreground"
+                            className="bg-primary-foreground flex cursor-pointer items-center rounded-md px-3 py-2 font-medium transition-colors duration-200"
                             onClick={() => setActiveCategory(null)}
                           >
                             {category.icon}
-                            <span className="ml-2 font-normal">{category.label}</span>
+                            <span className="ml-2 font-normal">
+                              {category.label}
+                            </span>
                           </DropdownMenuLabel>
                         </div>
-                        <div 
+                        <div
                           className="custom-scrollbar overflow-y-auto"
-                          style={{ 
+                          style={{
                             maxHeight: "320px",
                             scrollbarWidth: "thin",
-                            scrollbarColor: "rgb(203 213 225) transparent"
+                            scrollbarColor: "rgb(203 213 225) transparent",
                           }}
                         >
                           <div className="space-y-1">
@@ -435,14 +550,14 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                                   key={index}
                                   category={category}
                                   option={option}
-                                  isSelected={selectedFilters[category.id]?.includes(
-                                    getOptionValue(category, option)
-                                  )}
+                                  isSelected={selectedFilters[
+                                    category.id
+                                  ]?.includes(getOptionValue(category, option))}
                                   onSelect={(e) => {
                                     e.preventDefault();
                                     handleFilterChange(
                                       category.id,
-                                      getOptionValue(category, option)
+                                      getOptionValue(category, option),
                                     );
                                   }}
                                   getOptionValue={getOptionValue}
@@ -456,22 +571,24 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                     ))}
                 </div>
               ) : (
-                <div 
+                <div
                   className="custom-scrollbar overflow-y-auto"
-                  style={{ 
+                  style={{
                     maxHeight: "400px",
                     scrollbarWidth: "thin",
-                    scrollbarColor: "rgb(203 213 225) transparent"
+                    scrollbarColor: "rgb(203 213 225) transparent",
                   }}
                 >
                   {filteredCategories.map((category, index) => (
                     <DropdownMenuGroup key={index}>
                       <DropdownMenuLabel
-                        className="flex cursor-pointer items-center rounded-md px-3 py-2 font-medium  transition-colors duration-200 "
+                        className="flex cursor-pointer items-center rounded-md px-3 py-2 font-medium transition-colors duration-200"
                         onClick={() => setActiveCategory(category.id)}
                       >
                         {category.icon}
-                        <span className="ml-2 font-normal">{category.label}</span>
+                        <span className="ml-2 font-normal">
+                          {category.label}
+                        </span>
                       </DropdownMenuLabel>
                     </DropdownMenuGroup>
                   ))}
@@ -480,10 +597,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <Select
-          value={timePeriod}
-          onValueChange={handleTimePeriodChange}
-        >
+        <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>

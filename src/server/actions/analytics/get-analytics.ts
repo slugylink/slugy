@@ -24,6 +24,8 @@ const AnalyticsPropsSchema = z.object({
   browser_key: z.string().nullable().optional(),
   os_key: z.string().nullable().optional(),
   referrer_key: z.string().nullable().optional(),
+  device_key: z.string().nullable().optional(),
+  destination_key: z.string().nullable().optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
 });
@@ -60,6 +62,7 @@ export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsR
             ],
           },
           ...(safeProps.slug_key ? { slug: safeProps.slug_key } : {}),
+          ...(safeProps.destination_key ? { url: safeProps.destination_key } : {}),
         },
         clickedAt: { gte: startDate },
         ...(safeProps.country_key ? { country: safeProps.country_key } : {}),
@@ -68,6 +71,7 @@ export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsR
         ...(safeProps.browser_key ? { browser: safeProps.browser_key } : {}),
         ...(safeProps.os_key ? { os: safeProps.os_key } : {}),
         ...(safeProps.referrer_key ? { referer: safeProps.referrer_key } : {}),
+        ...(safeProps.device_key ? { device: safeProps.device_key } : {}),
       },
       _count: true,
     });
@@ -96,7 +100,7 @@ export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsR
       ),
     ]);
 
-    const aggregationMaps = processAnalyticsData(analyticsData, safeProps.timePeriod);
+    const aggregationMaps = processAnalyticsData(analyticsData, safeProps.timePeriod, links);
     return formatAnalyticsResponse(aggregationMaps, links, linkClicksMap);
   } catch (error) {
     // Log error for observability

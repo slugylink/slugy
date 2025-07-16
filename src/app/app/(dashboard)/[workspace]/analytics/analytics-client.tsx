@@ -3,7 +3,7 @@ import dynamic from "next/dynamic";
 import FilterActions, {
   type CategoryId,
 } from "@/components/web/_analytics/filter";
-import { Box, Chrome, Flag, LinkIcon, Map, MapPinned } from "lucide-react";
+import { Box, Chrome, Flag, LinkIcon, Map, MapPinned, Smartphone, Share2, ExternalLink } from "lucide-react";
 import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
 import { type AnalyticsResponse } from "@/server/actions/analytics/analytics";
@@ -107,6 +107,24 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
         label: "OS",
         icon: <Box className="h-4 w-4" strokeWidth={1.3} />,
         options: res?.oses ?? [],
+      },
+      {
+        id: "device_key" as CategoryId,
+        label: "Device",
+        icon: <Smartphone className="h-4 w-4" strokeWidth={1.3} />,
+        options: res?.devices ?? [],
+      },
+      {
+        id: "referrer_key" as CategoryId,
+        label: "Referrer",
+        icon: <Share2 className="h-4 w-4" strokeWidth={1.3} />,
+        options: res?.referrers ?? [],
+      },
+      {
+        id: "destination_key" as CategoryId,
+        label: "Destination",
+        icon: <ExternalLink className="h-4 w-4" strokeWidth={1.3} />,
+        options: res?.destinations ?? [],
       },
     ],
     [res],

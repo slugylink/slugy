@@ -28,6 +28,7 @@ export interface AnalyticsResponse {
   browsers: Array<{ browser: string; clicks: number }>;
   oses: Array<{ os: string; clicks: number }>;
   referrers: Array<{ referrer: string; clicks: number }>;
+  destinations: Array<{ destination: string; clicks: number }>;
 }
 
 /**
@@ -42,6 +43,8 @@ export interface BaseAnalyticsProps {
   browser_key?: string | null;
   os_key?: string | null;
   referrer_key?: string | null;
+  device_key?: string | null;
+  destination_key?: string | null;
 }
 
 /**
@@ -84,6 +87,9 @@ export function getStartDate(timePeriod: TimePeriod): Date {
 
 /**
  * Aggregates analytics data into various metrics/maps for response formatting.
+ * @param analyticsData Array of analytics records (from groupBy)
+ * @param timePeriod The time period for aggregation
+ * @param links Array of link objects ({id, slug, url}) for mapping linkId to url
  */
 export function processAnalyticsData(
   analyticsData: Array<{
@@ -99,19 +105,19 @@ export function processAnalyticsData(
     _count: number;
   }>,
   timePeriod: TimePeriod,
+  links: Array<{ id: string; slug: string; url: string }>,
 ) {
+  const linkIdToUrl = new Map(links.map(link => [link.id, link.url]));
   const aggregationMaps = {
     clicksOverTime: new Map<string, number>(),
-    cities: new Map<
-      string,
-      { city: string; country: string; clicks: number }
-    >(),
+    cities: new Map<string, { city: string; country: string; clicks: number }>(),
     countries: new Map<string, number>(),
     continents: new Map<string, number>(),
     devices: new Map<string, number>(),
     browsers: new Map<string, number>(),
     oses: new Map<string, number>(),
     referrers: new Map<string, number>(),
+    destinations: new Map<string, number>(),
   };
 
   for (const record of analyticsData) {
@@ -154,6 +160,9 @@ export function processAnalyticsData(
     updateMetric(aggregationMaps.browsers, record.browser ?? "Unknown");
     updateMetric(aggregationMaps.oses, record.os ?? "Unknown");
     updateMetric(aggregationMaps.referrers, record.referer ?? "Unknown");
+    // Use linkId to url mapping for destination aggregation
+    const url = linkIdToUrl.get(record.linkId) ?? "Unknown";
+    updateMetric(aggregationMaps.destinations, url);
   }
 
   return aggregationMaps;
@@ -203,6 +212,9 @@ export function formatAnalyticsResponse(
     })),
     referrers: Array.from(aggregationMaps.referrers.entries()).map(
       ([referrer, clicks]) => ({ referrer, clicks }),
+    ),
+    destinations: Array.from(aggregationMaps.destinations.entries()).map(
+      ([destination, clicks]) => ({ destination, clicks }),
     ),
   };
 }

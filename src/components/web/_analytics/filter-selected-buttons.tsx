@@ -16,6 +16,9 @@ import type {
   BrowserAnalytics,
   OsAnalytics,
   FilterOption,
+  DeviceAnalytics,
+  ReferrerAnalytics,
+  DestinationAnalytics,
 } from "@/types/filter-actions";
 
 interface FilterSelectedButtonsProps {  
@@ -60,6 +63,12 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
           return "browser" in option && option.browser === value;
         case "os_key":
           return "os" in option && option.os === value;
+        case "device_key":
+          return "device" in option && option.device === value;
+        case "referrer_key":
+          return "referrer" in option && option.referrer === value;
+        case "destination_key":
+          return "destination" in option && option.destination === value;
         default:
           return false;
       }
@@ -94,6 +103,18 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
       case "os_key": {
         const typedOption = option as OsAnalytics;
         return typedOption.os || value;
+      }
+      case "device_key": {
+        const typedOption = option as DeviceAnalytics;
+        return typedOption.device || value;
+      }
+      case "referrer_key": {
+        const typedOption = option as ReferrerAnalytics;
+        return typedOption.referrer || value;
+      }
+      case "destination_key": {
+        const typedOption = option as DestinationAnalytics;
+        return typedOption.destination || value;
       }
       default:
         return value;

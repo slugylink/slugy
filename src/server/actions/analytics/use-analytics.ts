@@ -19,6 +19,8 @@ export const getAnalyticsData = cache(
       browser_key: params.browser_key || null,
       os_key: params.os_key || null,
       referrer_key: params.referrer_key || null,
+      device_key: params.device_key || null,
+      destination_key: params.destination_key || null,
     });
   },
 );

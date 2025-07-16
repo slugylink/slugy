@@ -33,6 +33,18 @@ export interface OsAnalytics extends BaseOption {
   os: string;
 }
 
+export interface DeviceAnalytics extends BaseOption {
+  device: string;
+}
+
+export interface ReferrerAnalytics extends BaseOption {
+  referrer: string;
+}
+
+export interface DestinationAnalytics extends BaseOption {
+  destination: string;
+}
+
 // Union type for all possible option types
 export type FilterOption =
   | LinkAnalytics
@@ -40,7 +52,10 @@ export type FilterOption =
   | CountryAnalytics
   | CityAnalytics
   | BrowserAnalytics
-  | OsAnalytics;
+  | OsAnalytics
+  | DeviceAnalytics
+  | ReferrerAnalytics
+  | DestinationAnalytics;
 
 // Literal type for category IDs
 export type CategoryId =
@@ -49,7 +64,10 @@ export type CategoryId =
   | "country_key"
   | "city_key"
   | "browser_key"
-  | "os_key";
+  | "os_key"
+  | "device_key"
+  | "referrer_key"
+  | "destination_key";
 
 // Interface for filter categories
 export interface FilterCategory {
