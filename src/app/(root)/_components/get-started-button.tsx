@@ -4,13 +4,22 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Session } from "@/lib/auth";
+import { createAuthClient } from "better-auth/react";
 
 type GetStartedButtonProps = {
-  session: Session | null;
+  session?: Session | null;
   className?: string;
 };
 
-const GetStartedButton = ({ session, className }: GetStartedButtonProps) => {
+const { useSession } = createAuthClient({
+  baseURL: "http://localhost:3000"
+});
+
+const GetStartedButton = ({ className }: GetStartedButtonProps) => {
+  const { data: session } = useSession();
+
+  console.log("Session:", session); 
+
   // Use environment variables for the base URL
   const baseUrl =
     process.env.NODE_ENV === "production"

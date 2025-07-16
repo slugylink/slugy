@@ -12,7 +12,7 @@ import {
   QrCode,
   LinkIcon,
   Trash,
-  Forward,
+  // Forward,
   Archive,
   Pencil,
 } from "lucide-react";
@@ -54,12 +54,12 @@ const EditLinkForm = dynamic(
   },
 );
 
-const ShareAnalyticsModal = dynamic(
-  () => import("@/components/web/_links/link-analytics-share"),
-  {
-    ssr: false,
-  },
-);
+// const ShareAnalyticsModal = dynamic(
+//   () => import("@/components/web/_links/link-analytics-share"),
+//   {
+//     ssr: false,
+//   },
+// );
 
 // Types - More precise and organized
 interface Creator {
@@ -105,12 +105,12 @@ interface LinkCardProps {
   onSelect?: () => void;
 }
 
-interface ShareResponse {
-  isPublic: boolean;
-  allowIndexing: boolean;
-  password?: string | null;
-  publicId?: string;
-}
+// interface ShareResponse {
+//   isPublic: boolean;
+//   allowIndexing: boolean;
+//   password?: string | null;
+//   publicId?: string;
+// }
 
 type DialogType = "dropdown" | "edit" | "qrCode" | "delete" | "shareAnalytics";
 
@@ -287,9 +287,9 @@ export default function LinkCard({
     }
   }, [shortUrl]);
 
-  const handleShareAnalytics = useCallback((updatedSettings: ShareResponse) => {
-    console.log("Share settings updated:", updatedSettings);
-  }, []);
+  // const handleShareAnalytics = useCallback((updatedSettings: ShareResponse) => {
+  //   console.log("Share settings updated:", updatedSettings);
+  // }, []);
 
   // Action handlers with dialog management
   const actionHandlers = useMemo(
@@ -328,11 +328,11 @@ export default function LinkCard({
       { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
       { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
       { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
-      {
-        icon: Forward,
-        label: "Share Analytics",
-        onClick: actionHandlers.shareAnalytics,
-      },
+      // {
+      //   icon: Forward,
+      //   label: "Share Analytics",
+      //   onClick: actionHandlers.shareAnalytics,
+      // },
       { type: "separator" as const },
       {
         icon: Archive,
@@ -406,9 +406,7 @@ export default function LinkCard({
             </div>
           </div>
 
-          <LinkPreviewComponent
-            url={link.url}
-          />
+          <LinkPreviewComponent url={link.url} />
         </div>
 
         {/* Actions */}
@@ -509,7 +507,7 @@ export default function LinkCard({
         isDeleting={isDeleting}
       />
 
-      {isDialogOpen("shareAnalytics") && (
+      {/* {isDialogOpen("shareAnalytics") && (
         <ShareAnalyticsModal
           open={isDialogOpen("shareAnalytics")}
           onOpenChange={(open) => toggleDialog("shareAnalytics", open)}
@@ -518,7 +516,7 @@ export default function LinkCard({
           url={link.url}
           onSettingsUpdated={handleShareAnalytics}
         />
-      )}
+      )} */}
     </TooltipProvider>
   );
 }

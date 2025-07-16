@@ -29,6 +29,7 @@ import { authClient } from "@/lib/auth-client";
 import { createAuthClient } from "better-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
+import { useEffect } from "react";
 
 interface User {
   name: string;
@@ -52,24 +53,27 @@ export function NavUser() {
     image: session?.user.image ?? "",
   };
 
+  // Correct signout handler
   const handleSignout = async () => {
     try {
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            router.push("/login"); // redirect to login page
-            router.refresh();
-          },
-        },
-      });
+      await authClient.signOut();
+      router.push("/login");
+      router.refresh();
     } catch (err) {
       console.error("Logout error:", err);
     }
   };
+
+  // If not pending and not logged in, redirect to login (side effect)
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/login");
+      router.refresh();
+    }
+  }, [isPending, session, router]);
+
   if (isPending) return loadingSkeleton;
-  if (!session) {
-    handleSignout();
-  }
+  if (!session) return null; // Don't render anything while redirecting
 
   return (
     <SidebarMenu>
