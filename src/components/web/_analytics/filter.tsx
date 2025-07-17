@@ -136,7 +136,6 @@ const FilterOptionItem = memo(
     option,
     isSelected,
     onSelect,
-    getOptionValue,
     getOptionLabel,
     getOptionIcon,
   }: {

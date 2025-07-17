@@ -112,6 +112,7 @@ const getLinksWithCount = async (
           qrCode: true,
           lastClicked: true,
           createdAt: true,
+          expirationUrl: true,
           tags: {
             select: {
               tag: {

@@ -26,6 +26,7 @@ interface ImportResponse {
       path: string[];
     }>;
   }>;
+  error?: string; // Added for API errors
 }
 
 interface LinkImportCSVProps {
@@ -92,8 +93,13 @@ export default function LinkImportCSV({
             )
             .join("\n");
           throw new Error(`Validation errors:\n${errorMessage}`);
+        } else if (data.error) {
+          // Handle API error with 'error' property (e.g., link limit)
+          throw new Error(data.error);
+        } else if (data.message) {
+          throw new Error(data.message);
         } else {
-          throw new Error(data.message || "Failed to import CSV");
+          throw new Error("Failed to import CSV");
         }
       }
 
@@ -111,7 +117,10 @@ export default function LinkImportCSV({
     toast.promise(promise, {
       loading: "Importing links from CSV...",
       success: (message: string) => message,
-      error: (error: Error) => error.message || "Failed to import CSV",
+      error: (error: Error) => {
+        // Show error toast with correct message
+        return error.message || "Failed to import CSV";
+      },
     });
 
     promise.finally(() => {

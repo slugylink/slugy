@@ -19,7 +19,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import QRCodeDesign from "@/components/web/qr-code-design";
 import {
@@ -144,6 +144,7 @@ const useDialogState = () => {
 
 const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
   const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const mutateLinks = useCallback(() => {
     return mutate(
@@ -194,6 +195,7 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
         void mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
         );
+        router.refresh()
       }
     } catch (error) {
       console.error("Delete error:", error);

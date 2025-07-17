@@ -128,7 +128,8 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
   // Check if link settings are dirty
   const isLinkSettingsDirty =
     linkSettings.expiresAt !== initialLinkSettings.expiresAt ||
-    linkSettings.password !== initialLinkSettings.password;
+    linkSettings.password !== initialLinkSettings.password ||
+    linkSettings.expirationUrl !== initialLinkSettings.expirationUrl;
 
   const isAnythingDirty = isDirty || isParamsDirty || isLinkSettingsDirty;
 

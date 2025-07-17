@@ -5,6 +5,7 @@ import { customAlphabet } from "nanoid";
 import { parse as csvParse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
+import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 
 export async function GET(
   req: Request,
@@ -184,28 +185,27 @@ export async function POST(
 
     const context = await params;
 
-    // Validate workspace access
-    const workspace = await db.workspace.findFirst({
-      where: {
-        slug: context.workspaceslug,
-        OR: [
-          { userId: session.user.id },
-          {
-            members: {
-              some: {
-                userId: session.user.id,
-              },
-            },
-          },
-        ],
-      },
-      select: { id: true },
-    });
+    // Validate workspace access and limits
+    const workspaceCheck = await checkWorkspaceAccessAndLimits(
+      session.user.id,
+      context.workspaceslug,
+    );
 
-    if (!workspace) {
+    if (!workspaceCheck.success || !workspaceCheck.workspace) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (!workspaceCheck.canCreateLinks) {
       return NextResponse.json(
-        { message: "Workspace not found" },
-        { status: 404 },
+        {
+          error: "Link limit reached. Upgrade to Pro.",
+          limitInfo: {
+            currentLinks: workspaceCheck.currentLinks,
+            maxLinks: workspaceCheck.maxLinks,
+            planType: workspaceCheck.planType,
+          },
+        },
+        { status: 403 },
       );
     }
 
@@ -240,6 +240,24 @@ export async function POST(
       return NextResponse.json(
         { message: "CSV file is empty or has no valid data" },
         { status: 400 },
+      );
+    }
+
+    // Check if importing these links would exceed the allowed limit
+    const allowedToCreate = workspaceCheck.maxLinks - workspaceCheck.currentLinks;
+    if (records.length > allowedToCreate) {
+      return NextResponse.json(
+        {
+          error: "Link limit would be exceeded by this import. Please reduce the number of links or upgrade your plan.",
+          limitInfo: {
+            currentLinks: workspaceCheck.currentLinks,
+            maxLinks: workspaceCheck.maxLinks,
+            planType: workspaceCheck.planType,
+            attemptedToImport: records.length,
+            allowedToImport: allowedToCreate,
+          },
+        },
+        { status: 403 },
       );
     }
 
@@ -328,7 +346,7 @@ export async function POST(
         });
       } else {
         linksToCreate.push({
-          workspaceId: workspace.id,
+          workspaceId: workspaceCheck.workspace.id,
           userId: session.user.id,
           slug,
           url: url.trim(),
