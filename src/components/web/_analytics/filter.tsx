@@ -107,7 +107,6 @@ interface FilterActionsProps {
   fillterCategory: FilterCategory[];
 }
 
-// Memoized OptimizedImage component
 const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -129,16 +128,15 @@ const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
     />
   );
 });
-
 OptimizedImage.displayName = "OptimizedImage";
 
-// Memoized FilterOption component
 const FilterOptionItem = memo(
   ({
     category,
     option,
     isSelected,
     onSelect,
+    getOptionValue,
     getOptionLabel,
     getOptionIcon,
   }: {
@@ -165,7 +163,7 @@ const FilterOptionItem = memo(
         <div className="flex cursor-pointer items-center gap-2">
           {category.id === "slug_key" && (
             <span className="line-clamp-1 flex items-center gap-x-2">
-              <UrlAvatar size={4} url={(option as LinkAnalytics).url} />
+              <UrlAvatar size={5} url={(option as LinkAnalytics).url} />
               {label}
             </span>
           )}
@@ -195,12 +193,35 @@ const FilterOptionItem = memo(
               <span className="line-clamp-1">{label}</span>
             </>
           )}
+          {category.id === "device_key" && (
+            <>
+              <OptimizedImage src={icon ?? ""} alt={label} />
+              <span className="line-clamp-1">{label}</span>
+            </>
+          )}
+          {category.id === "referrer_key" && (
+            <>
+              <UrlAvatar
+                size={5}
+                url={(option as ReferrerAnalytics).referrer}
+              />
+              <span className="line-clamp-1">{label}</span>
+            </>
+          )}
+          {category.id === "destination_key" && (
+            <>
+              <UrlAvatar
+                size={5}
+                url={(option as DestinationAnalytics).destination}
+              />
+              <span className="line-clamp-1">{label}</span>
+            </>
+          )}
         </div>
       </DropdownMenuCheckboxItem>
     );
   },
 );
-
 FilterOptionItem.displayName = "FilterOptionItem";
 
 const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
@@ -277,7 +298,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     ],
   );
 
-  // Handlers using nuqs setters
   const handleTimePeriodChange = React.useCallback(
     (newTimePeriod: string) => {
       void setTimePeriod(newTimePeriod);
@@ -294,7 +314,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
       } else {
         updated = [...current, value];
       }
-      // Set using the correct setter
       switch (categoryId) {
         case "slug_key":
           void setSlugFilter(updated.length ? updated : null);
@@ -346,7 +365,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     [handleFilterChange],
   );
 
-  // Memoized utility functions
   const getOptionValue = React.useCallback(
     (category: FilterCategory, option: FilterOption): string => {
       switch (category.id) {
@@ -422,11 +440,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
         case "os_key":
           return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl((option as OsAnalytics).os)}.svg`;
         case "device_key":
-          return undefined;
-        case "referrer_key":
-          return undefined;
-        case "destination_key":
-          return undefined;
+          return `https://slugylink.github.io/slugy-assets/dist/colorful/device/${formatNameForUrl((option as DeviceAnalytics).device)}.svg`;
         default:
           return undefined;
       }
@@ -434,7 +448,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     [formatNameForUrl],
   );
 
-  // Memoized filtered categories
   const filteredCategories = React.useMemo(() => {
     return fillterCategory.filter((category) => {
       if (activeCategory && category.id !== activeCategory) return false;
@@ -460,8 +473,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
   }, [fillterCategory, activeCategory, searchQuery, getOptionLabel]);
 
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
-
-  console.log("filteredCategories", filteredCategories);
 
   return (
     <div className="flex w-full flex-col items-start justify-between space-y-2">
