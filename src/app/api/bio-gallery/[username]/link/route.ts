@@ -58,7 +58,8 @@ export async function POST(
     if (!limitResult.canCreate) {
       return NextResponse.json(
         {
-          error: "You have reached the maximum number of links for this bio gallery",
+          error: "You have reached the maximum number of links for this bio gallery.",
+          code: "limit_exceeded",
           limitInfo: {
             currentLinks: limitResult.currentCount,
             maxLinks: limitResult.maxLimit,
@@ -82,7 +83,7 @@ export async function POST(
   } catch (error) {
     console.error("Error creating link:", error);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: error instanceof Error ? error.message : "Internal server error" },
       { status: 500 },
     );
   }

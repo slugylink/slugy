@@ -123,17 +123,34 @@ export function GLinkDialogBox({
       }
     } catch (error: unknown) {
       if (error instanceof AxiosError && error.response) {
+        const apiError = error.response.data;
         if (error.response.status === 400) {
-          toast.error("Invalid link data.");
+          if (Array.isArray(apiError?.errors)) {
+            apiError.errors.forEach((err: { message?: string }) => {
+              toast.error(err.message || "Invalid link data.");
+            });
+          } else if (apiError?.error) {
+            toast.error(apiError.error);
+          } else if (apiError?.message) {
+            toast.error(apiError.message);
+          } else {
+            toast.error("Invalid link data.");
+          }
         } else if (error.response.status === 401) {
-          toast.error("You are not authorized.");
+          toast.error(apiError?.error || "You are not authorized.");
         } else if (error.response.status === 404) {
-          toast.error("Gallery not found.");
+          toast.error(apiError?.error || "Gallery not found.");
+        } else if (error.response.status === 403) {
+          if (apiError?.code === "limit_exceeded") {
+            toast.error("You have reached the maximum number of links for this bio gallery.");
+          } else {
+            toast.error(apiError?.error || "Action not allowed.");
+          }
         } else {
           toast.error(
             isEditMode
-              ? "Error updating link. Please try again."
-              : "Error adding link. Please try again.",
+              ? apiError?.error || "Error updating link. Please try again."
+              : apiError?.error || "Error adding link. Please try again.",
           );
         }
       } else {
