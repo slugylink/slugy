@@ -24,6 +24,10 @@ export interface Link {
   isArchived?: boolean;
   isPublic: boolean;
   creator: { name: string | null; image: string | null } | null;
+  qrCode: {
+    id: string;
+    customization?: string;
+  };
 }
 
 export interface ApiResponse {

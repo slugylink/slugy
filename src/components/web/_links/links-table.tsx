@@ -27,6 +27,10 @@ interface Link {
   isArchived?: boolean;
   isPublic: boolean;
   creator: { name: string | null; image: string | null } | null;
+  qrCode: {
+    id: string;
+    customization?: string;
+  };
 }
 
 interface ApiResponse {
@@ -78,6 +82,14 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     totalLinks: 0,
     totalPages: 0,
   };
+
+  // Ensure all links have a qrCode property for LinkList/LinkCard compatibility
+  const linksWithQrCode = useMemo(() =>
+    links.map((link) => ({
+      ...link,
+      qrCode: link.qrCode || { id: '', customization: '' },
+    })),
+  [links]);
 
   // Selection handlers
   const handleSelectLink = useCallback((linkId: string) => {
@@ -134,7 +146,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
         <LinkCardSkeleton />
       ) : links.length > 0 ? (
         <LinkList
-          links={links}
+          links={linksWithQrCode}
           isGridLayout={isGridLayout}
           isLoading={isLoading}
           isSelectModeOn={isSelectModeOn}
