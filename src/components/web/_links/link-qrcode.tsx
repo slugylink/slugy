@@ -1,12 +1,22 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useMemo } from "react";
 import QRCode from "react-qr-code";
-import QRCodeStyling, { type Options } from "qr-code-styling";
-import { QrCode as QrCodeIcon } from "lucide-react"; // Assuming you have a fallback QrCode icon
+import { QrCode as QrCodeIcon } from "lucide-react";
+import type { Options } from "qr-code-styling";
 
-const qrOptions: Options = {
-  width: 200,
-  height: 200,
+type DotType = NonNullable<Options["dotsOptions"]>["type"];
+const DOT_TYPES: DotType[] = [
+  "square",
+  "dots",
+  "rounded",
+  "classy",
+  "classy-rounded",
+  "extra-rounded",
+];
+
+const DEFAULT_OPTIONS: Options = {
+  width: 220,
+  height: 220,
   type: "svg",
   data: "",
   image: "",
@@ -24,10 +34,10 @@ const qrOptions: Options = {
   },
   dotsOptions: {
     type: "rounded",
-    color: "#4267B2",
+    color: "#000",
   },
   backgroundOptions: {
-    color: "#ffffff",
+    color: "#fff",
   },
   cornersSquareOptions: {
     type: "extra-rounded",
@@ -41,40 +51,84 @@ const qrOptions: Options = {
 
 interface LinkQrCodeProps {
   code?: string;
+  /**
+   * Customization can be a JSON string or a partial Options object.
+   */
+  customization?: Partial<Options> | string;
 }
 
-const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code }) => {
-  const [qrCode, setQrCode] = useState<QRCodeStyling | null>(null);
-  const qrRef = useRef<HTMLDivElement>(null);
+function isDotType(val: unknown): val is DotType {
+  return typeof val === "string" && DOT_TYPES.includes(val as DotType);
+}
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setQrCode(new QRCodeStyling(qrOptions));
+const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code, customization }) => {
+  const mergedOptions = useMemo(() => {
+    let custom: Partial<Options> = {};
+    if (customization) {
+      if (typeof customization === "string") {
+        try {
+          custom = JSON.parse(customization);
+        } catch {
+          // ignore parse error
+        }
+      } else {
+        custom = customization;
+      }
     }
-  }, []);
-
-  useEffect(() => {
-    if (qrCode && qrRef.current && code) {
-      qrRef.current.innerHTML = "";
-      qrCode.update({
-        data: `https://slugy.co/${code}`,
-      });
-      qrCode.append(qrRef.current);
-    }
-  }, [qrCode, code]);
+    const customObj = custom as Record<string, unknown>;
+    const dotsOptions = {
+      ...DEFAULT_OPTIONS.dotsOptions,
+      ...(custom.dotsOptions || {}),
+      ...(typeof customObj.fgColor === "string"
+        ? { color: customObj.fgColor }
+        : {}),
+      ...(isDotType(customObj.dotStyle) ? { type: customObj.dotStyle } : {}),
+    };
+    return {
+      ...DEFAULT_OPTIONS,
+      ...custom,
+      width:
+        typeof customObj.size === "number"
+          ? customObj.size
+          : typeof customObj.width === "number"
+          ? customObj.width
+          : DEFAULT_OPTIONS.width,
+      height:
+        typeof customObj.size === "number"
+          ? customObj.size
+          : typeof customObj.height === "number"
+          ? customObj.height
+          : DEFAULT_OPTIONS.height,
+      dotsOptions,
+      cornersSquareOptions: {
+        ...DEFAULT_OPTIONS.cornersSquareOptions,
+        ...(custom.cornersSquareOptions || {}),
+      },
+      cornersDotOptions: {
+        ...DEFAULT_OPTIONS.cornersDotOptions,
+        ...(custom.cornersDotOptions || {}),
+      },
+      backgroundOptions: {
+        ...DEFAULT_OPTIONS.backgroundOptions,
+        ...(custom.backgroundOptions || {}),
+      },
+    };
+  }, [customization]);
 
   return (
     <div className="flex aspect-[16/7] items-center justify-center rounded-lg border">
       {code ? (
-        <div className="aspect-video">
-          <QRCode value={`https://slugy.co/${code}`} size={90} />
+        <div>
+          <QRCode
+            value={`https://slugy.co/${code}`}
+            size={90}
+            fgColor={mergedOptions.dotsOptions?.color}
+            bgColor={mergedOptions.backgroundOptions?.color}
+          />
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
-          <QrCodeIcon
-            strokeWidth={1.8}
-            className="text-muted-foreground h-10 w-10"
-          />
+          <QrCodeIcon strokeWidth={1.8} className="text-muted-foreground h-10 w-10" />
           <p className="text-muted-foreground text-center text-sm">
             Enter a short link to generate <br /> a QR code
           </p>

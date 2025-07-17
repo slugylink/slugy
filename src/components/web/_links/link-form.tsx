@@ -41,6 +41,7 @@ import { Tag, Check, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import useSWR, { mutate } from "swr";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
+import type { LinkData } from "@/types/link-form";
 
 interface LinkFormFieldsProps {
   form: UseFormReturn<LinkFormValues>;
@@ -212,6 +213,11 @@ export default function LinkFormFields({
       // You can add toast notification here
     }
   };
+
+  // Type guard to check if defaultValues is LinkData
+  function isLinkData(obj: unknown): obj is LinkData {
+    return !!obj && typeof obj === "object" && "qrCode" in obj;
+  }
 
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -481,7 +487,14 @@ export default function LinkFormFields({
             <Label>QR Code</Label>
           </div>
 
-          <LinkQrCode code={currentCode} />
+          <LinkQrCode
+            code={currentCode}
+            customization={
+              isLinkData(form.formState.defaultValues)
+                ? form.formState.defaultValues.qrCode?.customization
+                : undefined
+            }
+          />
         </div>
 
         <div className="space-y-2">

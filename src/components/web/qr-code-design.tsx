@@ -13,13 +13,13 @@ import QRCodeStyling, { type Options } from "qr-code-styling";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+// import {
+//   Select,
+//   SelectContent,
+//   SelectItem,
+//   SelectTrigger,
+//   SelectValue,
+// } from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -57,14 +57,14 @@ const QR_CONFIG = {
 } as const;
 
 // Memoize the dot styles
-const DOT_STYLES: { label: string; value: DotType }[] = [
-  { label: "Square", value: "square" },
-  { label: "Dots", value: "dots" },
-  { label: "Rounded", value: "rounded" },
-  { label: "Classy", value: "classy" },
-  { label: "Classy Rounded", value: "classy-rounded" },
-  { label: "Extra Rounded", value: "extra-rounded" },
-] as const;
+// const DOT_STYLES: { label: string; value: DotType }[] = [
+//   { label: "Square", value: "square" },
+//   { label: "Dots", value: "dots" },
+//   { label: "Rounded", value: "rounded" },
+//   { label: "Classy", value: "classy" },
+//   { label: "Classy Rounded", value: "classy-rounded" },
+//   { label: "Extra Rounded", value: "extra-rounded" },
+// ] as const;
 
 // Memoize the color options
 const COLORS = [
@@ -220,7 +220,7 @@ export default function QRCodeDesigner({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
-    dotStyle: "rounded",
+    dotStyle: "square",
   });
 
   const [options, setOptions] = useState<Options>(() => ({
@@ -514,7 +514,7 @@ export default function QRCodeDesigner({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label className="text-sm font-medium" htmlFor="dotStyle">
             Dot Style
@@ -537,7 +537,7 @@ export default function QRCodeDesigner({
             </SelectContent>
           </Select>
         </div>
-      </div>
+      </div> */}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button

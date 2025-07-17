@@ -28,25 +28,25 @@ const validateInput = (params: {
   limit?: string | null;
 }) => {
   const errors: string[] = [];
-  
+
   // Validate sortBy
   const validSortOptions = ["date-created", "total-clicks", "last-clicked"];
   if (params.sortBy && !validSortOptions.includes(params.sortBy)) {
     errors.push("Invalid sortBy parameter");
   }
-  
+
   // Validate offset
   const offset = parseInt(params.offset ?? "0", 10);
   if (isNaN(offset) || offset < 0) {
     errors.push("Invalid offset parameter");
   }
-  
+
   // Validate limit
   const limit = parseInt(params.limit ?? String(DEFAULT_LIMIT), 10);
   if (isNaN(limit) || limit < 1 || limit > 100) {
     errors.push("Invalid limit parameter (must be between 1 and 100)");
   }
-  
+
   return { errors, offset, limit };
 };
 
@@ -60,7 +60,9 @@ const getSearchConditions = (
   // Use more efficient search for short queries
   if (trimmedSearch.length <= 3) {
     return [
-      { description: { contains: trimmedSearch, mode: "insensitive" as const } },
+      {
+        description: { contains: trimmedSearch, mode: "insensitive" as const },
+      },
       { url: { contains: trimmedSearch, mode: "insensitive" as const } },
     ];
   }
@@ -109,7 +111,12 @@ const getLinksWithCount = async (
           password: true,
           expiresAt: true,
           isArchived: true,
-          qrCode: true,
+          qrCode: {
+            select: {
+              id: true,
+              customization: true,
+            },
+          },
           lastClicked: true,
           createdAt: true,
           expirationUrl: true,
@@ -150,22 +157,19 @@ export async function GET(
     const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" }, 
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse and validate parameters
     const context = await params;
     const searchParams = request.nextUrl.searchParams;
     const workspaceslug = context.workspaceslug;
-    
+
     // Validate workspace slug
     if (!workspaceslug || workspaceslug.length < 1) {
       return NextResponse.json(
         { error: "Invalid workspace slug" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -187,7 +191,7 @@ export async function GET(
     if (errors.length > 0) {
       return NextResponse.json(
         { error: "Invalid parameters", details: errors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -206,7 +210,7 @@ export async function GET(
     if (!workspace) {
       return NextResponse.json(
         { error: "Workspace not found or access denied" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -257,7 +261,7 @@ export async function GET(
             "X-Total-Count": totalLinks.toString(),
             "X-Page-Count": totalPages.toString(),
           },
-        }
+        },
       );
     }
 
@@ -282,24 +286,24 @@ export async function GET(
           "X-Total-Count": totalLinks.toString(),
           "X-Page-Count": totalPages.toString(),
         },
-      }
+      },
     );
   } catch (error) {
     console.error("Error fetching links:", error);
-    
+
     // Provide more specific error messages
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(
           { error: "Database connection error" },
-          { status: 503 }
+          { status: 503 },
         );
       }
     }
-    
+
     return NextResponse.json(
       { error: "Failed to fetch links" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -94,6 +94,10 @@ interface LinkData {
   utm_content?: string | null;
   utm_term?: string | null;
   image?: string | null;
+  qrCode: {
+    id: string;
+    customization?: string;
+  };
 }
 
 interface LinkCardProps {
@@ -195,7 +199,7 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
         void mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
         );
-        router.refresh()
+        router.refresh();
       }
     } catch (error) {
       console.error("Delete error:", error);
@@ -230,6 +234,7 @@ const createEditFormData = (link: LinkData) => ({
   utm_term: link.utm_term ?? "",
   creatorId: typeof link.creatorId === "string" ? link.creatorId : undefined,
   image: link.image ?? "",
+  qrCode: link.qrCode, // <-- Add this line
 });
 
 // Main LinkCard Component
@@ -273,6 +278,7 @@ export default function LinkCard({
       link.utm_term,
       link.creatorId,
       link.image,
+      link.qrCode,
     ],
   );
 

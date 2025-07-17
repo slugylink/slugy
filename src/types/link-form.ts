@@ -48,4 +48,8 @@ export interface LinkData extends LinkFormValues {
   utm_content?: string | null;
   utm_term?: string | null;
   image?: string | null;
+  qrCode: {
+    id: string;
+    customization?: string;
+  };
 }

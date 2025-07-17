@@ -95,7 +95,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
       tags: initialData.tags || [],
     },
   });
-
+  
   const {
     handleSubmit,
     formState: { isSubmitting, isValid, isDirty },
@@ -165,7 +165,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
       if (response.status === 200) {
         const updatedLink = response.data;
         // Optimistically update the SWR cache for the links list
-        void mutate(`/api/workspace/${workspaceslug}/tags`); 
+        void mutate(`/api/workspace/${workspaceslug}/tags`);
         void mutate(
           (key) => typeof key === "string" && key.includes(`/link/get`),
           (currentData: SWRLinksList | undefined) => {
@@ -221,7 +221,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                 workspaceslug={workspaceslug!}
               />
             </div>
-            <div className="text-muted-foreground px-4 text-xs font-light sm:px-6 flex items-center gap-1.5">
+            <div className="text-muted-foreground flex items-center gap-1.5 px-4 text-xs font-light sm:px-6">
               {creator?.image && (
                 <Image
                   src={creator.image}
@@ -229,15 +229,15 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                   height={16}
                   quality={75}
                   loading="lazy"
-                  className=" hidden cursor-pointer rounded-full border sm:inline"
+                  className="hidden cursor-pointer rounded-full border sm:inline"
                   alt={creator.name ?? "Creator"}
                 />
               )}
               Created by{" "}
-              <span className="font-normal text-primary">{creator?.name ?? "Unknown"}</span>{" "}•{" "}
-              <span>
-                {new Date(date).toDateString()}
-              </span>
+              <span className="text-primary font-normal">
+                {creator?.name ?? "Unknown"}
+              </span>{" "}
+              • <span>{new Date(date).toDateString()}</span>
             </div>
             <div className="mt-3 border-t border-zinc-100 bg-zinc-50 p-5 py-3.5 dark:bg-zinc-900">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
