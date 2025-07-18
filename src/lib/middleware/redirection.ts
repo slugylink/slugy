@@ -8,6 +8,7 @@ interface LinkData {
   linkId?: string;
   requiresPassword?: boolean;
   expired?: boolean;
+  workspaceId: string;
 }
 
 interface AnalyticsData {
@@ -23,7 +24,7 @@ interface AnalyticsData {
 
 export async function URLRedirects(
   req: NextRequest,
-  shortCode: string
+  shortCode: string,
 ): Promise<NextResponse | null> {
   try {
     // Fetch link data from API
@@ -37,7 +38,7 @@ export async function URLRedirects(
             Cookie: req.headers.get("cookie")!,
           }),
         },
-      }
+      },
     );
 
     if (!linkResponse.ok) {
@@ -48,7 +49,12 @@ export async function URLRedirects(
 
     if (linkData.success && linkData.url && !linkData.requiresPassword) {
       if (linkData.linkId) {
-        void trackAnalytics(req, linkData.linkId, shortCode);
+        void trackAnalytics(
+          req,
+          linkData.linkId,
+          shortCode,
+          linkData.workspaceId,
+        );
       }
 
       return NextResponse.redirect(new URL(linkData.url), 302);
@@ -64,23 +70,23 @@ export async function URLRedirects(
 function trackAnalytics(
   req: NextRequest,
   linkId: string,
-  slug: string
+  slug: string,
+  workspaceId: string,
 ): void {
   const ua = userAgent(req);
-  
+
   const analyticsData: AnalyticsData = {
     ipAddress:
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
-    country: req.headers.get("x-vercel-ip-country") ?? undefined,
-    city: req.headers.get("x-vercel-ip-city") ?? undefined,
-    continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
-    referer: req.headers.get("referer") ?? undefined,
-    device: ua.device.type ?? "Desktop",
-    browser: ua.browser.name ?? "unknown",
-    os: ua.os.name ?? "unknown",
+    country: req.headers.get("x-vercel-ip-country")?.toLowerCase() ?? undefined,
+    city: req.headers.get("x-vercel-ip-city")?.toLowerCase() ?? undefined,
+    continent: req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? undefined,
+    referer: req.headers.get("referer")?.toLowerCase() ?? undefined,
+    device: ua.device.type ? ua.device.type.toLowerCase() : "desktop",
+    browser: ua.browser.name ? ua.browser.name.toLowerCase() : "unknown",
+    os: ua.os.name ? ua.os.name.toLowerCase() : "unknown",
   };
 
-  // Use waitUntil to ensure analytics tracking doesn't block the response
   waitUntil(
     fetch(`${req.nextUrl.origin}/api/analytics/track`, {
       method: "POST",
@@ -88,6 +94,7 @@ function trackAnalytics(
       body: JSON.stringify({
         linkId,
         slug,
+        workspaceId,
         analyticsData,
       }),
     })
@@ -96,12 +103,12 @@ function trackAnalytics(
           console.error(
             "Analytics tracking failed:",
             response.status,
-            response.statusText
+            response.statusText,
           );
         }
       })
       .catch((error) => {
         console.error("Analytics tracking failed:", error);
-      })
+      }),
   );
 }

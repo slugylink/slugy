@@ -1,4 +1,3 @@
-"use client";
 import * as React from "react";
 import { NavMain } from "@/components/web/_sidebar/nav-main";
 import { NavUser } from "@/components/web/_sidebar/nav-user";
@@ -9,6 +8,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import WorkspaceSwitch from "@/components/web/_workspace/workspace-switch";
+import UsageStats from "./usage-stats";
 
 export interface WorkspaceMinimal {
   id: string;
@@ -23,7 +23,7 @@ interface AppSidebarProps
   workspaceslug: string;
 }
 
-export function AppSidebar({
+export default async function AppSidebar({
   workspaceslug,
   workspaces,
   ...props
@@ -40,6 +40,7 @@ export function AppSidebar({
         <NavMain workspaces={workspaces} workspaceslug={workspaceslug} />
       </SidebarContent>
       <SidebarFooter>
+        <UsageStats workspaceslug={workspaceslug} />
         <NavUser />
       </SidebarFooter>
     </Sidebar>

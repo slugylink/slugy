@@ -15,12 +15,13 @@ const getCachedLink = unstable_cache(
         expiresAt: true,
         expirationUrl: true,
         password: true,
+        workspaceId: true,
       },
     });
   },
   ["link-by-slug"],
   {
-    revalidate: 60 * 30,
+    revalidate: 60 * 30, // 30 minutes
     tags: ["link"],
   },
 );
@@ -96,6 +97,7 @@ export async function GET(
       success: true,
       url: link.url,
       linkId: link.id,
+      workspaceId: link.workspaceId,
     });
   } catch (error) {
     console.error("Error getting link:", error);

@@ -3,16 +3,31 @@ import { db } from "@/server/db";
 
 export async function POST(req: NextRequest) {
   try {
-    const { linkId, slug, analyticsData } = await req.json();
+    const { linkId, slug, workspaceId, analyticsData } = await req.json();
 
     if (!linkId || !slug || !analyticsData) {
-      console.error("Analytics tracking: Missing required fields", { linkId, slug, analyticsData });
+      console.error("Analytics tracking: Missing required fields", {
+        linkId,
+        slug,
+        analyticsData,
+      });
       return NextResponse.json(
         { error: "Missing linkId, slug, or analyticsData" },
         { status: 400 },
       );
     }
 
+    // Find the usage record by workspaceId
+    const usageRecord = await db.usage.findFirst({
+      where: { workspaceId },
+      select: { id: true },
+    });
+    if (!usageRecord) {
+      return NextResponse.json(
+        { error: "Usage record not found for workspaceId: " + workspaceId },
+        { status: 404 }
+      );
+    }
 
     await db.$transaction(async (tx) => {
       await Promise.all([
@@ -23,6 +38,12 @@ export async function POST(req: NextRequest) {
             lastClicked: new Date(),
           },
         }),
+        tx.usage.update({
+          where: { id: usageRecord.id },
+          data: {
+            clicksTracked: { increment: 1 },
+          },
+        }),
         tx.analytics.create({
           data: {
             linkId,
@@ -31,9 +52,11 @@ export async function POST(req: NextRequest) {
             country: analyticsData.country,
             city: analyticsData.city,
             continent: analyticsData.continent,
-            browser: analyticsData.browser?.name || analyticsData.browser || "unknown",
+            browser:
+              analyticsData.browser?.name || analyticsData.browser || "unknown",
             os: analyticsData.os?.name || analyticsData.os || "unknown",
-            device: analyticsData.device?.type || analyticsData.device || "desktop",
+            device:
+              analyticsData.device?.type || analyticsData.device || "desktop",
             referer: analyticsData.referer || "direct",
           },
         }),

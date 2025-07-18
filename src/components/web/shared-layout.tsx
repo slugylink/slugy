@@ -1,6 +1,5 @@
-"use client";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/web/_sidebar/app-sidebar";
+import AppSidebar from "@/components/web/_sidebar/app-sidebar";
 import { Suspense, memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import SidebarHeader from "./_sidebar/sidebar-header";
