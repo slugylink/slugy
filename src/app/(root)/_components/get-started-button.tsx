@@ -11,9 +11,7 @@ type GetStartedButtonProps = {
   className?: string;
 };
 
-const { useSession } = createAuthClient({
-  baseURL: "http://localhost:3000"
-});
+const { useSession } = createAuthClient();
 
 const GetStartedButton = ({ className }: GetStartedButtonProps) => {
   const { data: session } = useSession();
