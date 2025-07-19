@@ -18,6 +18,7 @@ import type {
   ReferrerAnalytics,
   DestinationAnalytics,
 } from "@/types/filter-actions";
+import { Button } from "@/components/ui/button";
 
 interface FilterSelectedButtonsProps {
   filterCategories: FilterCategory[];
@@ -69,7 +70,7 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
     if (!option) return value;
     switch (category.id) {
       case "slug_key":
-        return (option as LinkAnalytics).slug ? `slugy.co/${(option as LinkAnalytics).slug}` : value;
+        return (option as LinkAnalytics).slug || value;
       case "continent_key":
         return (option as ContinentAnalytics).continent || value;
       case "country_key":
@@ -107,19 +108,27 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
       <ScrollArea className="max-w-full pb-2">
         <div className="flex flex-wrap gap-2">
           {filtersByCategory.map(({ category, values }) => (
-            <div key={category.id} className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="bg-muted/50 py-1 font-normal">
+            <div
+              key={category.id}
+              className="flex flex-wrap items-center gap-2"
+            >
+              <Button
+                size={"sm"}
+                variant="outline"
+                className="bg-muted/50 font-normal"
+              >
                 <span className="mr-1 flex items-center">{category.icon}</span>
                 {category.label}
-              </Badge>
+              </Button>
               {values.map((value) => {
                 const optionLabel = getOptionLabel(category, value);
                 return (
-                  <Badge
+                  <Button
+                    size={"sm"}
                     key={`${category.id}-${value}`}
                     variant="secondary"
                     className={cn(
-                      "flex items-center font-normal gap-1.5 py-1 pl-2 pr-1 transition-all",
+                      "flex items-center gap-1.5 py-1 pr-1 pl-2 font-normal transition-all",
                       {
                         "bg-blue-100 hover:bg-blue-200 dark:bg-blue-950 dark:hover:bg-blue-900":
                           category.id === "slug_key",
@@ -136,15 +145,17 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
                       },
                     )}
                   >
-                    <span className="max-w-[150px] truncate">{optionLabel}</span>
+                    <span className="max-w-[150px] truncate">
+                      {optionLabel}
+                    </span>
                     <button
                       onClick={() => onRemoveFilter(category.id, value)}
-                      className="ml-1 rounded-full p-0.5 hover:bg-muted/20"
+                      className="hover:bg-muted/20 ml-1 rounded-full p-0.5 cursor-pointer"
                       aria-label={`Remove ${optionLabel} filter`}
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3 w-3 cursor-pointer text-muted-foreground" />
                     </button>
-                  </Badge>
+                  </Button>
                 );
               })}
             </div>

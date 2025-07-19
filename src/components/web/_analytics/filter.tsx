@@ -16,8 +16,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { ChevronDown, Filter } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, Filter } from "lucide-react";
 import Image from "next/image";
 import ContinentFlag from "./continent-flag";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
@@ -87,9 +88,9 @@ type FilterOption =
 export type CategoryId =
   | "slug_key"
   | "destination_key"
-  | "city_key"
-  | "continent_key"
   | "country_key"
+  | "continent_key"
+  | "city_key"
   | "device_key"
   | "browser_key"
   | "os_key"
@@ -175,7 +176,7 @@ const FilterOptionItem = memo(
                 allowCountry={false}
                 code={(option as CityAnalytics).country}
               />
-              <span className="line-clamp-1">
+              <span className="line-clamp-1 capitalize">
                 {(option as CityAnalytics).city}
               </span>
             </>
@@ -189,13 +190,13 @@ const FilterOptionItem = memo(
           {(category.id === "browser_key" || category.id === "os_key") && (
             <>
               <OptimizedImage src={icon ?? ""} alt={label} />
-              <span className="line-clamp-1">{label}</span>
+              <span className="line-clamp-1 capitalize">{label}</span>
             </>
           )}
           {category.id === "device_key" && (
             <>
               <OptimizedImage src={icon ?? ""} alt={label} />
-              <span className="line-clamp-1">{label}</span>
+              <span className="line-clamp-1 capitalize">{label}</span>
             </>
           )}
           {category.id === "referrer_key" && (
@@ -519,7 +520,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                 />
               </div>
               {activeCategory ? (
-                <div className="relative">
+                <div className="animate-in slide-in-from-top-2 relative duration-200">
                   {filteredCategories
                     .filter((category) => category.id === activeCategory)
                     .map((category, index) => (
@@ -529,17 +530,22 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                           style={{ position: "sticky", top: 0 }}
                         >
                           <DropdownMenuLabel
-                            className="bg-primary-foreground flex cursor-pointer items-center rounded-md px-3 py-2 font-medium transition-colors duration-200"
+                            className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-colors duration-200"
                             onClick={() => setActiveCategory(null)}
                           >
-                            {category.icon}
-                            <span className="ml-2 font-normal">
-                              {category.label}
-                            </span>
+                            <div className="flex items-center">
+                              {category.icon}
+                              <span className="ml-2 font-normal">
+                                {category.label}
+                              </span>
+                            </div>
+                            <div>
+                              <ChevronsUpDown className="text-muted-foreground ml-auto h-4 w-4" />
+                            </div>
                           </DropdownMenuLabel>
                         </div>
                         <div
-                          className="custom-scrollbar overflow-y-auto"
+                          className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200"
                           style={{
                             maxHeight: "320px",
                             scrollbarWidth: "thin",
@@ -582,26 +588,136 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                 </div>
               ) : (
                 <div
-                  className="custom-scrollbar overflow-y-auto"
+                  className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200"
                   style={{
                     maxHeight: "400px",
                     scrollbarWidth: "thin",
                     scrollbarColor: "rgb(203 213 225) transparent",
                   }}
                 >
-                  {filteredCategories.map((category, index) => (
-                    <DropdownMenuGroup key={index}>
-                      <DropdownMenuLabel
-                        className="flex cursor-pointer items-center rounded-md px-3 py-2 font-medium transition-colors duration-200"
-                        onClick={() => setActiveCategory(category.id)}
-                      >
-                        {category.icon}
-                        <span className="ml-2 font-normal">
-                          {category.label}
-                        </span>
-                      </DropdownMenuLabel>
-                    </DropdownMenuGroup>
-                  ))}
+                  {/* Group 1: Short Link, Destination URL */}
+                  <DropdownMenuGroup>
+                    {filteredCategories
+                      .filter(
+                        (category) =>
+                          category.id === "slug_key" ||
+                          category.id === "destination_key",
+                      )
+                      .map((category, index) => (
+                        <DropdownMenuLabel
+                          key={index}
+                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
+                          onClick={() => setActiveCategory(category.id)}
+                        >
+                          {category.icon}
+                          <span className="ml-2 font-normal">
+                            {category.label}
+                          </span>
+                        </DropdownMenuLabel>
+                      ))}
+                  </DropdownMenuGroup>
+
+                  {/* Separator */}
+                  {filteredCategories.some(
+                    (category) =>
+                      category.id === "slug_key" ||
+                      category.id === "destination_key",
+                  ) &&
+                    filteredCategories.some(
+                      (category) =>
+                        category.id === "country_key" ||
+                        category.id === "city_key" ||
+                        category.id === "continent_key",
+                    ) && <Separator className="my-1 bg-zinc-200/70" />}
+
+                  {/* Group 2: Country, City, Continent */}
+                  <DropdownMenuGroup>
+                    {filteredCategories
+                      .filter(
+                        (category) =>
+                          category.id === "country_key" ||
+                          category.id === "city_key" ||
+                          category.id === "continent_key",
+                      )
+                      .map((category, index) => (
+                        <DropdownMenuLabel
+                          key={index}
+                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
+                          onClick={() => setActiveCategory(category.id)}
+                        >
+                          {category.icon}
+                          <span className="ml-2 font-normal">
+                            {category.label}
+                          </span>
+                        </DropdownMenuLabel>
+                      ))}
+                  </DropdownMenuGroup>
+
+                  {/* Separator */}
+                  {filteredCategories.some(
+                    (category) =>
+                      category.id === "country_key" ||
+                      category.id === "city_key" ||
+                      category.id === "continent_key",
+                  ) &&
+                    filteredCategories.some(
+                      (category) =>
+                        category.id === "device_key" ||
+                        category.id === "browser_key" ||
+                        category.id === "os_key",
+                    ) && <Separator className="my-1 bg-zinc-200/70" />}
+
+                  {/* Group 3: Device, Browser, OS */}
+                  <DropdownMenuGroup>
+                    {filteredCategories
+                      .filter(
+                        (category) =>
+                          category.id === "device_key" ||
+                          category.id === "browser_key" ||
+                          category.id === "os_key",
+                      )
+                      .map((category, index) => (
+                        <DropdownMenuLabel
+                          key={index}
+                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
+                          onClick={() => setActiveCategory(category.id)}
+                        >
+                          {category.icon}
+                          <span className="ml-2 font-normal">
+                            {category.label}
+                          </span>
+                        </DropdownMenuLabel>
+                      ))}
+                  </DropdownMenuGroup>
+
+                  {/* Separator */}
+                  {filteredCategories.some(
+                    (category) =>
+                      category.id === "device_key" ||
+                      category.id === "browser_key" ||
+                      category.id === "os_key",
+                  ) &&
+                    filteredCategories.some(
+                      (category) => category.id === "referrer_key",
+                    ) && <Separator className="my-1 bg-zinc-200/70" />}
+
+                  {/* Group 4: Referrer */}
+                  <DropdownMenuGroup>
+                    {filteredCategories
+                      .filter((category) => category.id === "referrer_key")
+                      .map((category, index) => (
+                        <DropdownMenuLabel
+                          key={index}
+                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
+                          onClick={() => setActiveCategory(category.id)}
+                        >
+                          {category.icon}
+                          <span className="ml-2 font-normal">
+                            {category.label}
+                          </span>
+                        </DropdownMenuLabel>
+                      ))}
+                  </DropdownMenuGroup>
                 </div>
               )}
             </DropdownMenuContent>
