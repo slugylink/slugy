@@ -39,7 +39,7 @@ export async function DELETE(
     });
 
     // Invalidate cache for the deleted link
-    invalidateLinkCache(linkSlug);
+    await invalidateLinkCache(linkSlug);
 
     return NextResponse.json({ message: "Link deleted successfully" }, { status: 200 });
   } catch (error) {

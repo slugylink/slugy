@@ -261,7 +261,7 @@ export async function POST(
     });
 
     // Invalidate cache for the new link
-    invalidateLinkCache(linkWithTags?.slug);
+    await invalidateLinkCache(linkWithTags?.slug);
 
     return NextResponse.json(linkWithTags, {
       status: 201,

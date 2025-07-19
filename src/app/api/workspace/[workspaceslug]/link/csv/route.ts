@@ -6,6 +6,7 @@ import { parse as csvParse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { invalidateLinkCacheBatch } from "@/lib/cache-utils";
 
 export async function GET(
   req: Request,
@@ -379,6 +380,10 @@ export async function POST(
       data: linksToCreate,
       skipDuplicates: true, // Skip if slug already exists
     });
+
+    // Invalidate cache for all created links
+    const slugs = linksToCreate.map(link => link.slug);
+    await invalidateLinkCacheBatch(slugs);
 
     return NextResponse.json(
       {

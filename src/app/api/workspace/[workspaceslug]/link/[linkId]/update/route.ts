@@ -226,7 +226,7 @@ export async function PATCH(
     });
 
     // Invalidate cache for the updated link
-    invalidateLinkCache(linkWithTags?.slug);
+    await invalidateLinkCache(linkWithTags?.slug);
 
     return NextResponse.json(linkWithTags, { status: 200 });
   } catch (error) {

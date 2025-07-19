@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { invalidateLinkCache } from "@/lib/cache-utils";
 
 const archiveSchema = z.object({
   isArchived: z.boolean(),
@@ -43,6 +44,9 @@ export async function PATCH(
       where: { id: context.linkId },
       data: { isArchived },
     });
+
+    // Invalidate cache for the archived/unarchived link
+    await invalidateLinkCache(link.slug);
 
     return NextResponse.json({ message: isArchived ? "Link archived" : "Link unarchived" }, { status: 200 });
   } catch (error) {

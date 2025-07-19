@@ -1,9 +1,53 @@
 import { db } from "@/server/db";
 import { NextRequest, NextResponse } from "next/server";
-import { unstable_cache } from "next/cache";
+import { getCache, setCache } from "@/lib/redis";
 
-const getCachedLink = unstable_cache(
-  async (slug: string) => {
+const CACHE_PREFIX = "link:";
+const CACHE_EXPIRY = 60 * 30; // 30 minutes
+
+const getCachedLink = async (slug: string) => {
+  const cacheKey = `${CACHE_PREFIX}${slug}`;
+
+  try {
+    const cachedData = await getCache(cacheKey);
+
+    if (cachedData) {
+      return cachedData as {
+        id: string;
+        url: string;
+        expiresAt: string | null;
+        expirationUrl: string | null;
+        password: string | null;
+        workspaceId: string;
+      };
+    }
+
+    const link = await db.link.findUnique({
+      where: {
+        slug: slug,
+        isArchived: false,
+      },
+      select: {
+        id: true,
+        url: true,
+        expiresAt: true,
+        expirationUrl: true,
+        password: true,
+        workspaceId: true,
+      },
+    });
+
+    // Cache the result
+    if (link) {
+      await setCache(cacheKey, link, CACHE_EXPIRY);
+    } else {
+      await setCache(cacheKey, null, 60 * 5); // 5 minutes
+    }
+
+    return link;
+  } catch (error) {
+    console.error("Error in getCachedLink:", error);
+    // Fallback to direct DB query
     return await db.link.findUnique({
       where: {
         slug: slug,
@@ -18,15 +62,10 @@ const getCachedLink = unstable_cache(
         workspaceId: true,
       },
     });
-  },
-  ["link-by-slug"],
-  {
-    revalidate: 60 * 30, // 30 minutes
-    tags: ["link"],
-  },
-);
+  }
+};
 
-// cookie parser
+// Cookie parser utility
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
 
@@ -40,6 +79,11 @@ const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   );
 };
 
+// Validation utility
+const isValidSlug = (slug: string): boolean => {
+  return Boolean(slug && slug.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(slug));
+};
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> },
@@ -47,15 +91,10 @@ export async function GET(
   try {
     const { slug: shortCode } = await params;
 
-    // Validate code format for early exit
-    if (
-      !shortCode ||
-      shortCode.length > 50 ||
-      !/^[a-zA-Z0-9_-]+$/.test(shortCode)
-    ) {
+    if (!isValidSlug(shortCode)) {
       return NextResponse.json({
         success: false,
-        url: `${req.nextUrl.origin}/`,
+        url: `${req.nextUrl.origin}/?status=invalid`,
       });
     }
 
@@ -63,8 +102,8 @@ export async function GET(
 
     if (!link) {
       return NextResponse.json({
-        success: false,
-        url: `${req.nextUrl.origin}/`,
+        success: true,
+        url: `${req.nextUrl.origin}/?status=not-found`,
       });
     }
 
@@ -79,6 +118,7 @@ export async function GET(
       });
     }
 
+    // Handle password protection
     if (link.password) {
       const cookieHeader = req.headers.get("cookie");
       const cookies = parseCookies(cookieHeader);
@@ -103,7 +143,7 @@ export async function GET(
     console.error("Error getting link:", error);
     return NextResponse.json({
       success: false,
-      url: `${req.nextUrl.origin}/`,
+      url: `${req.nextUrl.origin}/?status=error`,
     });
   }
 }
