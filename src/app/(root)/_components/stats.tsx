@@ -21,7 +21,7 @@ interface AnimatedNumberProps {
 const statsData = [
   {
     title: "Active Users",
-    count: 100,
+    count: 10,
     suffix: "+",
     icon: Users,
     iconColor: "text-blue-500",
@@ -29,7 +29,7 @@ const statsData = [
   },
   {
     title: "Links Created",
-    count: 150,
+    count: 50,
     suffix: "+",
     icon: Link,
     iconColor: "text-purple-500",
@@ -37,7 +37,7 @@ const statsData = [
   },
   {
     title: "Clicks Tracked",
-    count: 2000,
+    count: 664,
     suffix: "+",
     icon: BarChart3,
     iconColor: "text-green-500",
@@ -95,10 +95,10 @@ const StatCard = memo(({ stat }: { stat: (typeof statsData)[number] }) => (
           <div className={`rounded-full p-2 ${stat.iconBg}`} />
         </div>
         <div className="text-center">
-          <p className="font-mono text-2xl font-medium text-primary">
+          <p className="text-primary font-mono text-2xl font-medium">
             <AnimatedNumber value={stat.count} suffix={stat.suffix} />
           </p>
-          <h3 className="mt-1 text-sm text-muted-foreground">{stat.title}</h3>
+          <h3 className="text-muted-foreground mt-1 text-sm">{stat.title}</h3>
         </div>
       </div>
     </Card>
@@ -152,7 +152,7 @@ export default function Stats() {
         <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
           Our Growth
         </h2>
-        <p className="mt-3 text-sm text-muted-foreground md:text-base">
+        <p className="text-muted-foreground mt-3 text-sm md:text-base">
           Witness our exponential progress
         </p>
       </motion.div>
@@ -165,7 +165,7 @@ export default function Stats() {
       >
         <Card className="overflow-hidden border-none bg-transparent p-6 shadow-none">
           <div className="relative">
-            <div className="absolute left-0 top-0 z-10 grid w-[80%] grid-cols-2 gap-3 sm:grid-cols-2 lg:w-[35%]">
+            <div className="absolute top-0 left-0 z-10 grid w-[80%] grid-cols-2 gap-3 sm:grid-cols-2 lg:w-[35%]">
               {statsData.map((stat) => (
                 <StatCard key={stat.title} stat={stat} />
               ))}

@@ -52,7 +52,7 @@ const Footer: React.FC = () => {
       links: [
         { href: "", label: "Features" },
         { href: "", label: "Pricing" },
-        { href: "/tools/metadatas", label: "Metadata" },
+        // { href: "/tools/metadatas", label: "Metadata" },
       ],
     },
     {
