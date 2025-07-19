@@ -293,18 +293,13 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     [pathname],
   );
 
-  // Prefetch optimization - prefetch all nav items on mount
+  // Prefetch optimization - prefetch main nav items on mount (excluding settings)
   useEffect(() => {
     const prefetchUrls = processedNavItems
-      .filter((item) => item.url)
-      .map((item) => item.url!)
-      .concat(
-        processedNavItems
-          .flatMap((item) => item.items || [])
-          .map((subItem) => subItem.url),
-      );
+      .filter((item) => item.url && item.title !== "Settings")
+      .map((item) => item.url!);
 
-    // Prefetch all navigation URLs
+    // Prefetch main navigation URLs (excluding settings)
     prefetchUrls.forEach((url) => {
       if (url && !url.startsWith("http")) {
         // Use Next.js router prefetch if available
