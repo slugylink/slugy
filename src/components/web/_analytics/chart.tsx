@@ -13,7 +13,7 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-import { DateTime } from "luxon"; // Use luxon
+
 import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
 import { fetchChartData } from "@/server/actions/analytics/use-analytics";
@@ -92,8 +92,8 @@ const AnalyticsChart = ({
     const dataToProcess = propData ?? swrData?.clicksOverTime;
     if (dataToProcess) {
       const formattedData = dataToProcess.map((item) => {
-        const dateTime = DateTime.fromJSDate(item.time);
-        if (!dateTime.isValid) {
+        const date = new Date(item.time);
+        if (isNaN(date.getTime())) {
           return {
             time: "",
             timestamp: 0,
@@ -101,8 +101,8 @@ const AnalyticsChart = ({
           };
         }
         return {
-          time: dateTime.toISO(),
-          timestamp: dateTime.toMillis(),
+          time: date.toISOString(),
+          timestamp: date.getTime(),
           clicks: item.clicks ?? 0,
         };
       });
@@ -158,24 +158,34 @@ const AnalyticsChart = ({
   const formatTime = (timeStr: string): string => {
     if (!timeStr) return "";
     try {
-      const date = DateTime.fromISO(timeStr);
-      if (!date.isValid) {
+      const date = new Date(timeStr);
+      if (isNaN(date.getTime())) {
         console.warn("Invalid date:", timeStr);
         return "";
       }
 
       // For 24h period, show time
       if (timePeriod === "24h") {
-        return date.toFormat(timeFormatMap[timePeriod].axis);
+        return date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
       }
 
       // For 7d and 30d, show date
       if (timePeriod === "7d" || timePeriod === "30d") {
-        return date.toFormat(timeFormatMap[timePeriod].axis);
+        return date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
       }
 
       // For 3m, 12m, and all, show month and year
-      return date.toFormat(timeFormatMap[timePeriod].axis);
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        year: 'numeric' 
+      });
     } catch (error) {
       console.error("Error formatting time:", error);
       return "";
@@ -201,13 +211,34 @@ const AnalyticsChart = ({
     if (!active || !payload?.length || !label) return null;
 
     try {
-      const date = DateTime.fromISO(label);
-      if (!date.isValid) {
+      const date = new Date(label);
+      if (isNaN(date.getTime())) {
         console.warn("Invalid date in tooltip:", label);
         return null;
       }
 
-      const formattedDate = date.toFormat(timeFormatMap[timePeriod].tooltip);
+      let formattedDate: string;
+      if (timePeriod === "24h") {
+        formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        }) + ', ' + date.toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        });
+      } else if (timePeriod === "7d" || timePeriod === "30d") {
+        formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        });
+      } else {
+        formattedDate = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          year: 'numeric' 
+        });
+      }
+      
       const clicks = payload[0]?.value;
 
       return (

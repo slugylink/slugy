@@ -2,7 +2,6 @@
 
 import type React from "react";
 import { X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,5 @@
 import { getAnalytics } from "@/server/actions/analytics/get-analytics";
 import { type NextRequest, NextResponse } from "next/server";
-import { DateTime } from "luxon";
 
 export async function GET(
   request: NextRequest,
@@ -26,9 +25,8 @@ export async function GET(
 
     // Process the data to get clicks over time with proper date handling
     const clicksOverTime = analyticsData.clicksOverTime.map(item => {
-      const date = DateTime.fromJSDate(item.time);
       return {
-        time: date.toISO(),
+        time: item.time.toISOString(),
         clicks: item.clicks
       };
     });
