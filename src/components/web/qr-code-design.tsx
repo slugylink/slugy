@@ -178,13 +178,13 @@ const ColorButtons = memo(
     selectedColor: string;
     onColorSelect: (color: string) => void;
   }) => (
-    <div className="flex flex-wrap gap-1.5 relative z-[2]">
+    <div className="relative z-[2] flex flex-wrap gap-1.5">
       {colors.map((color) => (
         <button
           key={color}
           type="button"
           aria-label={`Select color ${color}`}
-          className={`flex h-7 w-7 items-center cursor-pointer justify-center rounded-full border-2 transition-all ${
+          className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
             selectedColor === color ? "border-primary" : "border-transparent"
           }`}
           style={{ backgroundColor: color }}
@@ -216,12 +216,30 @@ export default function QRCodeDesigner({
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
 
+  // Track initial state for comparison
+  const [initialState, setInitialState] = useState<FormState>({
+    url,
+    fgColor: "#000000",
+    size: QR_CONFIG.DEFAULT_SIZE,
+    dotStyle: "square",
+  });
+
   const [formState, setFormState] = useState<FormState>({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
     dotStyle: "square",
   });
+
+  // Check if form has been modified
+  const isFormDirty = useMemo(() => {
+    return (
+      formState.fgColor !== initialState.fgColor ||
+      formState.size !== initialState.size ||
+      formState.dotStyle !== initialState.dotStyle ||
+      formState.logo !== initialState.logo
+    );
+  }, [formState, initialState]);
 
   const [options, setOptions] = useState<Options>(() => ({
     ...DEFAULT_QR_OPTIONS,
@@ -315,13 +333,19 @@ export default function QRCodeDesigner({
       setIsFetching(true);
       const qrCodeData = await getQrCode(linkId);
       if (!qrCodeData) return;
-      setFormState((prev) => ({
-        ...prev,
+      
+      const updatedFormState = {
+        url,
         fgColor: qrCodeData.fgColor as string,
         size: qrCodeData.size as number,
         dotStyle: qrCodeData.dotStyle as DotType,
         logo: qrCodeData.logo as string | undefined,
-      }));
+      };
+      
+      // Set both initial and current state
+      setInitialState(updatedFormState);
+      setFormState(updatedFormState);
+      
       setOptions((prev) => ({
         ...prev,
         width: qrCodeData.size as number,
@@ -338,7 +362,7 @@ export default function QRCodeDesigner({
     } finally {
       setIsFetching(false);
     }
-  }, [linkId]);
+  }, [linkId, url]);
 
   // Memoize the handleFormChange function
   const handleFormChange = useCallback(
@@ -437,7 +461,9 @@ export default function QRCodeDesigner({
       }
     } catch (error) {
       console.error("Failed to save QR code:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to save QR code");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to save QR code",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -547,7 +573,7 @@ export default function QRCodeDesigner({
         >
           Cancel
         </Button>
-        <Button disabled={isSaving} onClick={handleSave}>
+        <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
           {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}{" "}
           Save
         </Button>

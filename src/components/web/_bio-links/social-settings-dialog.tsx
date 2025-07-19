@@ -87,6 +87,39 @@ export function SocialSettingsDialog({
   const [isMailPublic, setIsMailPublic] = useState(false);
   const [isSnapchatPublic, setIsSnapchatPublic] = useState(false);
 
+  // Track initial state for comparison
+  const [initialState, setInitialState] = useState<{
+    formData: z.infer<typeof formSchema>;
+    switches: {
+      facebook: boolean;
+      instagram: boolean;
+      linkedin: boolean;
+      twitter: boolean;
+      youtube: boolean;
+      mail: boolean;
+      snapchat: boolean;
+    };
+  }>({
+    formData: {
+      facebook: "",
+      instagram: "",
+      linkedin: "",
+      twitter: "",
+      youtube: "",
+      mail: "",
+      snapchat: "",
+    },
+    switches: {
+      facebook: false,
+      instagram: false,
+      linkedin: false,
+      twitter: false,
+      youtube: false,
+      mail: false,
+      snapchat: false,
+    },
+  });
+
   // Track if form has changed from initial state
   const [isDirty, setIsDirty] = useState(false);
 
@@ -101,7 +134,7 @@ export function SocialSettingsDialog({
       const mail = initialData.find((s) => s.platform === "mail");
       const sc = initialData.find((s) => s.platform === "snapchat");
 
-      form.reset({
+      const formData = {
         facebook: fb?.url ?? "",
         instagram: ig?.url ?? "",
         linkedin: li?.url ?? "",
@@ -109,59 +142,120 @@ export function SocialSettingsDialog({
         youtube: yt?.url ?? "",
         mail: mail?.url ?? "",
         snapchat: sc?.url ?? "",
-      });
+      };
 
-      setIsFacebookPublic(!!fb?.isPublic);
-      setIsInstagramPublic(!!ig?.isPublic);
-      setIsLinkedinPublic(!!li?.isPublic);
-      setIsTwitterPublic(!!tw?.isPublic);
-      setIsYoutubePublic(!!yt?.isPublic);
-      setIsMailPublic(!!mail?.isPublic);
-      setIsSnapchatPublic(!!sc?.isPublic);
+      const switches = {
+        facebook: !!fb?.isPublic,
+        instagram: !!ig?.isPublic,
+        linkedin: !!li?.isPublic,
+        twitter: !!tw?.isPublic,
+        youtube: !!yt?.isPublic,
+        mail: !!mail?.isPublic,
+        snapchat: !!sc?.isPublic,
+      };
+
+      // Set initial state
+      setInitialState({ formData, switches });
+
+      // Reset form and switches
+      form.reset(formData);
+      setIsFacebookPublic(switches.facebook);
+      setIsInstagramPublic(switches.instagram);
+      setIsLinkedinPublic(switches.linkedin);
+      setIsTwitterPublic(switches.twitter);
+      setIsYoutubePublic(switches.youtube);
+      setIsMailPublic(switches.mail);
+      setIsSnapchatPublic(switches.snapchat);
 
       // Reset dirty state when dialog opens with new data
       setIsDirty(false);
     }
   }, [initialData, form, open]);
 
-  // Track changes to form values and switches
+  // Track changes to form values
   useEffect(() => {
-    const subscription = form.watch(() => {
-      setIsDirty(true);
+    if (!open) return;
+
+    const subscription = form.watch((formData) => {
+      const hasFormDataChanged = 
+        formData.facebook !== initialState.formData.facebook ||
+        formData.instagram !== initialState.formData.instagram ||
+        formData.linkedin !== initialState.formData.linkedin ||
+        formData.twitter !== initialState.formData.twitter ||
+        formData.youtube !== initialState.formData.youtube ||
+        formData.mail !== initialState.formData.mail ||
+        formData.snapchat !== initialState.formData.snapchat;
+
+      const currentSwitches = {
+        facebook: isFacebookPublic,
+        instagram: isInstagramPublic,
+        linkedin: isLinkedinPublic,
+        twitter: isTwitterPublic,
+        youtube: isYoutubePublic,
+        mail: isMailPublic,
+        snapchat: isSnapchatPublic,
+      };
+
+      const hasSwitchesChanged =
+        currentSwitches.facebook !== initialState.switches.facebook ||
+        currentSwitches.instagram !== initialState.switches.instagram ||
+        currentSwitches.linkedin !== initialState.switches.linkedin ||
+        currentSwitches.twitter !== initialState.switches.twitter ||
+        currentSwitches.youtube !== initialState.switches.youtube ||
+        currentSwitches.mail !== initialState.switches.mail ||
+        currentSwitches.snapchat !== initialState.switches.snapchat;
+
+      setIsDirty(hasFormDataChanged || hasSwitchesChanged);
     });
+
     return () => subscription.unsubscribe();
-  }, [form]);
+  }, [
+    form,
+    open,
+    initialState,
+    isFacebookPublic,
+    isInstagramPublic,
+    isLinkedinPublic,
+    isTwitterPublic,
+    isYoutubePublic,
+    isMailPublic,
+    isSnapchatPublic,
+  ]);
 
-  // Track changes to switches
+  // Track changes to switches separately
   useEffect(() => {
-    if (open) {
-      const initialFb =
-        initialData?.find((s) => s.platform === "facebook")?.isPublic ?? false;
-      const initialIg =
-        initialData?.find((s) => s.platform === "instagram")?.isPublic ?? false;
-      const initialLi =
-        initialData?.find((s) => s.platform === "linkedin")?.isPublic ?? false;
-      const initialTw =
-        initialData?.find((s) => s.platform === "twitter")?.isPublic ?? false;
-      const initialYt =
-        initialData?.find((s) => s.platform === "youtube")?.isPublic ?? false;
-      const initialMail =
-        initialData?.find((s) => s.platform === "mail")?.isPublic ?? false;
-      const initialSc =
-        initialData?.find((s) => s.platform === "snapchat")?.isPublic ?? false;
+    if (!open) return;
 
-      if (
-        isFacebookPublic !== initialFb ||
-        isInstagramPublic !== initialIg ||
-        isLinkedinPublic !== initialLi ||
-        isTwitterPublic !== initialTw ||
-        isYoutubePublic !== initialYt ||
-        isMailPublic !== initialMail ||
-        isSnapchatPublic !== initialSc
-      ) {
-        setIsDirty(true);
-      }
-    }
+    const currentSwitches = {
+      facebook: isFacebookPublic,
+      instagram: isInstagramPublic,
+      linkedin: isLinkedinPublic,
+      twitter: isTwitterPublic,
+      youtube: isYoutubePublic,
+      mail: isMailPublic,
+      snapchat: isSnapchatPublic,
+    };
+
+    const hasSwitchesChanged =
+      currentSwitches.facebook !== initialState.switches.facebook ||
+      currentSwitches.instagram !== initialState.switches.instagram ||
+      currentSwitches.linkedin !== initialState.switches.linkedin ||
+      currentSwitches.twitter !== initialState.switches.twitter ||
+      currentSwitches.youtube !== initialState.switches.youtube ||
+      currentSwitches.mail !== initialState.switches.mail ||
+      currentSwitches.snapchat !== initialState.switches.snapchat;
+
+    const formData = form.getValues();
+    const hasFormDataChanged = 
+      formData.facebook !== initialState.formData.facebook ||
+      formData.instagram !== initialState.formData.instagram ||
+      formData.linkedin !== initialState.formData.linkedin ||
+      formData.twitter !== initialState.formData.twitter ||
+      formData.youtube !== initialState.formData.youtube ||
+      formData.mail !== initialState.formData.mail ||
+      formData.snapchat !== initialState.formData.snapchat;
+
+    setIsDirty(hasFormDataChanged || hasSwitchesChanged);
   }, [
     isFacebookPublic,
     isInstagramPublic,
@@ -170,8 +264,9 @@ export function SocialSettingsDialog({
     isYoutubePublic,
     isMailPublic,
     isSnapchatPublic,
-    initialData,
     open,
+    initialState,
+    form,
   ]);
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {

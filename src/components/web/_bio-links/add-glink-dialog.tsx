@@ -64,6 +64,13 @@ export function GLinkDialogBox({
 }) {
   const isEditMode = Boolean(initialData);
   const [open, setOpen] = useState(false);
+  
+  // Track initial state for comparison
+  const [initialState, setInitialState] = useState<FormData>({
+    title: initialData?.title ?? "",
+    url: initialData?.url ?? "",
+  });
+  
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -75,15 +82,19 @@ export function GLinkDialogBox({
     handleSubmit,
     reset,
     control,
-    formState: { isSubmitting, isValid },
+    formState: { isSubmitting, isValid, isDirty },
   } = form;
 
   // Sync form with initialData
   useEffect(() => {
     if (initialData) {
-      reset({ title: initialData.title, url: initialData.url });
+      const formData = { title: initialData.title, url: initialData.url };
+      setInitialState(formData);
+      reset(formData);
     } else {
-      reset({ title: "", url: "" });
+      const formData = { title: "", url: "" };
+      setInitialState(formData);
+      reset(formData);
     }
   }, [initialData, reset]);
 
@@ -233,7 +244,7 @@ export function GLinkDialogBox({
             <Button
               type="submit"
               className="w-full"
-              disabled={!isValid || isSubmitting}
+              disabled={!isValid || isSubmitting || (isEditMode && !isDirty)}
             >
               {isSubmitting && (
                 <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />

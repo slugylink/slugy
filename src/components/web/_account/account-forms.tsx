@@ -49,12 +49,18 @@ export default function UserAccountForms({ account }: UserAccountProps) {
   const [isNameSubmitting, setIsNameSubmitting] = useState(false);
   const [isWorkspaceSubmitting, setIsWorkspaceSubmitting] = useState(false);
 
-  const {
-    control,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-  } = useForm<z.infer<typeof UserAccountSchema>>({
+  // Separate form for name
+  const nameForm = useForm<z.infer<typeof UserAccountSchema>>({
+    resolver: zodResolver(UserAccountSchema),
+    defaultValues: {
+      name: account.name ?? "",
+      defaultWorkspaceId:
+        account.ownedWorkspaces.find((ws) => ws.isDefault)?.id ?? "",
+    },
+  });
+
+  // Separate form for workspace
+  const workspaceForm = useForm<z.infer<typeof UserAccountSchema>>({
     resolver: zodResolver(UserAccountSchema),
     defaultValues: {
       name: account.name ?? "",
@@ -136,7 +142,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
     <div className="flex w-full flex-col items-center">
       <div className="w-full space-y-6 py-6">
         {/* Name Card */}
-        <form onSubmit={handleSubmit(onSubmitName)}>
+        <form onSubmit={nameForm.handleSubmit(onSubmitName)}>
           <Card className="bg-background border">
             <CardHeader>
               <CardTitle>Your Name</CardTitle>
@@ -146,14 +152,14 @@ export default function UserAccountForms({ account }: UserAccountProps) {
               <div className="space-y-2">
                 <Controller
                   name="name"
-                  control={control}
+                  control={nameForm.control}
                   render={({ field }) => (
                     <Input {...field} placeholder="Your name" />
                   )}
                 />
-                {errors.name && (
+                {nameForm.formState.errors.name && (
                   <p className="text-destructive text-sm">
-                    {errors.name.message}
+                    {nameForm.formState.errors.name.message}
                   </p>
                 )}
                 <p className="text-muted-foreground text-sm">
@@ -165,7 +171,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
               <Button
                 type="submit"
                 variant="outline"
-                disabled={isNameSubmitting}
+                disabled={isNameSubmitting || !nameForm.formState.isDirty}
               >
                 {isNameSubmitting && (
                   <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
@@ -177,7 +183,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
         </form>
 
         {/* Default Workspace */}
-        <form onSubmit={handleSubmit(onSubmitWorkspace)} className="mt-6">
+        <form onSubmit={workspaceForm.handleSubmit(onSubmitWorkspace)} className="mt-6">
           <Card className="bg-background border">
             <CardHeader>
               <CardTitle>Your Default Workspace</CardTitle>
@@ -188,13 +194,11 @@ export default function UserAccountForms({ account }: UserAccountProps) {
             <CardContent className="bg-background">
               <Controller
                 name="defaultWorkspaceId"
-                control={control}
+                control={workspaceForm.control}
                 render={({ field }) => (
                   <Select
-                    onValueChange={(value) =>
-                      setValue("defaultWorkspaceId", value)
-                    }
-                    defaultValue={field.value}
+                    onValueChange={field.onChange}
+                    value={field.value}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select workspace" />
@@ -214,7 +218,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
               <Button
                 type="submit"
                 variant="outline"
-                disabled={isWorkspaceSubmitting}
+                disabled={isWorkspaceSubmitting || !workspaceForm.formState.isDirty}
               >
                 {isWorkspaceSubmitting && (
                   <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />

@@ -55,7 +55,7 @@ const WorkspaceNameForm = ({
   });
 
   const {
-    formState: { isSubmitting, isValid },
+    formState: { isSubmitting, isValid, isDirty },
   } = form;
 
   const onSubmit = async (data: FormValues) => {
@@ -97,7 +97,7 @@ const WorkspaceNameForm = ({
             variant="outline"
             size="sm"
             type="submit"
-            disabled={!isValid || isSubmitting}
+            disabled={!isValid || isSubmitting || !isDirty}
           >
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
