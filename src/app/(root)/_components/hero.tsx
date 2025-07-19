@@ -1,12 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
-import { Button } from "@/components/ui/button";
 
 const Hero = () => {
   return (
@@ -19,7 +17,7 @@ const Hero = () => {
           priority
           sizes="100vw"
           className="object-cover mix-blend-multiply"
-          quality={80}
+          quality={70}
         />
       </div>
 
@@ -61,31 +59,9 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="animation-delay-300 z-10 mt-6 flex w-full flex-col items-center justify-center gap-2 sm:mt-8">
-          <Link
-            href={`app.${process.env.NODE_ENV === "production" ? process.env.NEXT_PUBLIC_ROOT_DOMAIN : "localhost:3000"}`}
-          >
-            <Button variant={"outline"} className="rounded-lg text-sm">
-              Get Started
-              <ArrowRightIcon className="ml-1 h-4 w-4" />
-            </Button>
-          </Link>
-        </div>
         {/* Form */}
         <HeroLinkForm />
       </div>
-
-      {/* Demo Image */}
-      {/* <motion.div
-        ref={ref}
-        className="relative mt-16 sm:mt-20 md:mt-24 lg:mt-28"
-        initial={{ opacity: 0, y: 50 }}
-        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-      >
-        <HeroImage />
-      </motion.div> */}
     </section>
   );
 };

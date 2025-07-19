@@ -1,7 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { URLRedirects } from "@/lib/middleware/redirection";
-import { checkRateLimit, checkFastRateLimit, normalizeIp } from "@/lib/middleware/rate-limit";
+import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
+import {
+  checkRateLimit,
+  checkFastRateLimit,
+  normalizeIp,
+} from "@/lib/middleware/rate-limit";
 import {
   AUTH_PATHS,
   AUTH_REWRITES,
@@ -40,7 +45,7 @@ const getClientIP = (req: NextRequest): string => {
   const forwarded = req.headers.get("x-forwarded-for");
   const realIP = req.headers.get("x-real-ip");
   const cfConnectingIP = req.headers.get("cf-connecting-ip");
-  
+
   const ip = cfConnectingIP || realIP || forwarded?.split(",")[0] || "unknown";
   return normalizeIp(ip);
 };
@@ -90,52 +95,64 @@ export async function middleware(req: NextRequest) {
       if (process.env.NODE_ENV === "development") {
         return addSecurityHeaders(NextResponse.next());
       }
-      
+
       const clientIP = getClientIP(req);
-      
+
       // Apply rate limiting based on route type
       if (isFastApiRoute(pathname)) {
         const rateLimitResult = checkFastRateLimit(clientIP);
         if (!rateLimitResult.success) {
           return new NextResponse(
-            JSON.stringify({ 
-              error: "Rate limit exceeded", 
-              retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000) 
+            JSON.stringify({
+              error: "Rate limit exceeded",
+              retryAfter: Math.ceil(
+                (rateLimitResult.reset - Date.now()) / 1000,
+              ),
             }),
-            { 
-              status: 429, 
+            {
+              status: 429,
               headers: {
                 "Content-Type": "application/json",
                 "X-RateLimit-Limit": rateLimitResult.limit.toString(),
                 "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
-                "X-RateLimit-Reset": new Date(rateLimitResult.reset).toISOString(),
-                "Retry-After": Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
-              }
-            }
+                "X-RateLimit-Reset": new Date(
+                  rateLimitResult.reset,
+                ).toISOString(),
+                "Retry-After": Math.ceil(
+                  (rateLimitResult.reset - Date.now()) / 1000,
+                ).toString(),
+              },
+            },
           );
         }
       } else {
         const rateLimitResult = await checkRateLimit(clientIP);
         if (!rateLimitResult.success) {
           return new NextResponse(
-            JSON.stringify({ 
-              error: "Rate limit exceeded", 
-              retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000) 
+            JSON.stringify({
+              error: "Rate limit exceeded",
+              retryAfter: Math.ceil(
+                (rateLimitResult.reset - Date.now()) / 1000,
+              ),
             }),
-            { 
-              status: 429, 
+            {
+              status: 429,
               headers: {
                 "Content-Type": "application/json",
                 "X-RateLimit-Limit": rateLimitResult.limit.toString(),
                 "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
-                "X-RateLimit-Reset": new Date(rateLimitResult.reset).toISOString(),
-                "Retry-After": Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
-              }
-            }
+                "X-RateLimit-Reset": new Date(
+                  rateLimitResult.reset,
+                ).toISOString(),
+                "Retry-After": Math.ceil(
+                  (rateLimitResult.reset - Date.now()) / 1000,
+                ).toString(),
+              },
+            },
           );
         }
       }
-      
+
       return addSecurityHeaders(NextResponse.next());
     }
 
@@ -236,6 +253,15 @@ async function handleRootDomain(
 
   // short link redirection:
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
+    // Handle temp link redirection
+    if (shortCode.endsWith("&c")) {
+      const tempRedirectResponse = await handleTempRedirect(req, shortCode);
+      if (tempRedirectResponse) {
+        return tempRedirectResponse;
+      }
+    }
+
+    // Regular link redirection
     const redirectResponse = await URLRedirects(req, shortCode);
     if (redirectResponse) {
       return redirectResponse;

@@ -27,7 +27,7 @@ import UrlAvatar from "@/components/web/url-avatar";
 // Memoize the link preview component
 const LinkPreviewComponent = memo(({ url }: { url: string }) => (
   <div className="flex w-full items-center">
-    <div className="flex w-full items-start gap-1 text-sm text-muted-foreground">
+    <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
       <CornerDownRight
         strokeWidth={1.5}
         className="mt-0.5 size-4 min-h-3.5 min-w-3.5"
@@ -63,7 +63,7 @@ const CopyButton = memo(
         <Copy className="p-[1.5px]" strokeWidth={1.8} />
       )}
     </Button>
-  )
+  ),
 );
 
 CopyButton.displayName = "CopyButton";
@@ -84,7 +84,7 @@ const AnalyticsBadge = memo(
       const now = new Date();
       const expireDate = new Date(expires);
       const diffInMinutes = Math.floor(
-        (expireDate.getTime() - now.getTime()) / (1000 * 60)
+        (expireDate.getTime() - now.getTime()) / (1000 * 60),
       );
 
       if (diffInMinutes <= 0) return "Expired";
@@ -100,7 +100,7 @@ const AnalyticsBadge = memo(
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex flex-col">
-              <div className="flex items-center justify-center gap-x-1 border-b bg-zinc-50 px-1.5 py-0.5 text-[13px]">
+              <div className="flex items-center justify-center gap-x-1 bg-zinc-50 px-1.5 py-0.5 text-[13px]">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   width={24}
@@ -121,7 +121,7 @@ const AnalyticsBadge = memo(
                 <span className="hidden sm:inline">clicks</span>
               </div>
               {timeLeft && (
-                <div className="flex items-center justify-center px-0.5">
+                <div className="flex items-center justify-center px-0.5 border-t">
                   <Timer className="size-3 text-orange-500" strokeWidth={1.5} />
                   <span className="text-[10px] text-orange-500">
                     {timeLeft}
@@ -130,13 +130,11 @@ const AnalyticsBadge = memo(
               )}
             </div>
           </TooltipTrigger>
-          <TooltipContent className="border bg-background font-medium text-black">
-            {clicks} total clicks
-          </TooltipContent>
+          <TooltipContent>{clicks} total clicks</TooltipContent>
         </Tooltip>
       </Badge>
     );
-  }
+  },
 );
 
 AnalyticsBadge.displayName = "AnalyticsBadge";
@@ -147,7 +145,7 @@ const ExpirationBadge = memo(({ expires }: { expires: string }) => {
     const now = new Date();
     const expireDate = new Date(expires);
     const diffInMinutes = Math.floor(
-      (expireDate.getTime() - now.getTime()) / (1000 * 60)
+      (expireDate.getTime() - now.getTime()) / (1000 * 60),
     );
 
     if (diffInMinutes <= 0) return "Expired";
@@ -167,7 +165,7 @@ const ExpirationBadge = memo(({ expires }: { expires: string }) => {
             {timeLeft}
           </div>
         </TooltipTrigger>
-        <TooltipContent className="border bg-background font-medium text-black">
+        <TooltipContent className="bg-background border font-medium text-black">
           Expires at {new Date(expires).toLocaleString()}
         </TooltipContent>
       </Tooltip>
@@ -206,7 +204,7 @@ export default function LinkCard({ link }: LinkCardProps) {
     (dialog: keyof typeof dialogs, value: boolean) => {
       setDialogs((prev) => ({ ...prev, [dialog]: value }));
     },
-    []
+    [],
   );
 
   const handleCopy = useCallback(() => {
@@ -226,7 +224,7 @@ export default function LinkCard({ link }: LinkCardProps) {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "flex w-full flex-row items-center space-x-3 rounded-lg border bg-background p-4 py-3.5"
+          "bg-background flex w-full flex-row items-center space-x-3 rounded-xl border p-4 py-3.5",
         )}
       >
         <div className="rounded-full">
