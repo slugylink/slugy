@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { URLRedirects } from "@/lib/middleware/redirection";
+import { checkRateLimit, checkFastRateLimit, normalizeIp } from "@/lib/middleware/rate-limit";
 import {
   AUTH_PATHS,
   AUTH_REWRITES,
@@ -33,6 +34,15 @@ const addSecurityHeaders = (response: NextResponse): NextResponse => {
     response.headers.set(header, value);
   });
   return response;
+};
+
+const getClientIP = (req: NextRequest): string => {
+  const forwarded = req.headers.get("x-forwarded-for");
+  const realIP = req.headers.get("x-real-ip");
+  const cfConnectingIP = req.headers.get("cf-connecting-ip");
+  
+  const ip = cfConnectingIP || realIP || forwarded?.split(",")[0] || "unknown";
+  return normalizeIp(ip);
 };
 
 const redirectTo = (url: string, status = 307): NextResponse => {
@@ -76,9 +86,56 @@ export async function middleware(req: NextRequest) {
     }
 
     if (pathname.startsWith("/api/")) {
-      if (isFastApiRoute(pathname)) {
+      // Skip rate limiting in development mode
+      if (process.env.NODE_ENV === "development") {
         return addSecurityHeaders(NextResponse.next());
       }
+      
+      const clientIP = getClientIP(req);
+      
+      // Apply rate limiting based on route type
+      if (isFastApiRoute(pathname)) {
+        const rateLimitResult = checkFastRateLimit(clientIP);
+        if (!rateLimitResult.success) {
+          return new NextResponse(
+            JSON.stringify({ 
+              error: "Rate limit exceeded", 
+              retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000) 
+            }),
+            { 
+              status: 429, 
+              headers: {
+                "Content-Type": "application/json",
+                "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+                "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+                "X-RateLimit-Reset": new Date(rateLimitResult.reset).toISOString(),
+                "Retry-After": Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+              }
+            }
+          );
+        }
+      } else {
+        const rateLimitResult = await checkRateLimit(clientIP);
+        if (!rateLimitResult.success) {
+          return new NextResponse(
+            JSON.stringify({ 
+              error: "Rate limit exceeded", 
+              retryAfter: Math.ceil((rateLimitResult.reset - Date.now()) / 1000) 
+            }),
+            { 
+              status: 429, 
+              headers: {
+                "Content-Type": "application/json",
+                "X-RateLimit-Limit": rateLimitResult.limit.toString(),
+                "X-RateLimit-Remaining": rateLimitResult.remaining.toString(),
+                "X-RateLimit-Reset": new Date(rateLimitResult.reset).toISOString(),
+                "Retry-After": Math.ceil((rateLimitResult.reset - Date.now()) / 1000).toString(),
+              }
+            }
+          );
+        }
+      }
+      
       return addSecurityHeaders(NextResponse.next());
     }
 
