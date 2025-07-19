@@ -326,7 +326,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
         open={deleteDialogOpen}
         onOpenChange={(open) => !isDeleting && setDeleteDialogOpen(open)}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white dark:bg-black sm:max-w-[425px] p-4">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Gallery</AlertDialogTitle>
             <AlertDialogDescription>

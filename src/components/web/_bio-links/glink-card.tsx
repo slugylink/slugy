@@ -65,11 +65,11 @@ interface GalleryLinkCardProps {
 
 // Memoize the link preview component
 const LinkPreviewComponent = memo(({ url }: { url: string }) => (
-  <div className="flex items-start gap-1 text-sm text-muted-foreground">
+  <div className="text-muted-foreground flex items-start gap-1 text-sm">
     <CornerDownRight strokeWidth={1.5} size={16} />
     <LinkPreview
       url={url}
-      className="max-w-[calc(100%-3rem)] cursor-pointer truncate text-muted-foreground hover:underline"
+      className="text-muted-foreground max-w-[calc(100%-3rem)] cursor-pointer truncate hover:underline"
     >
       {url.replace("https://", "").replace("http://", "").replace("www.", "")}
     </LinkPreview>
@@ -202,13 +202,13 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
   );
 
   return (
-    <div className="mx-auto flex w-[calc(100vw-1.5rem)] touch-manipulation select-none flex-row items-center space-x-3 space-y-0 rounded-xl border p-2 py-4 transition-shadow hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] sm:w-full sm:p-4">
+    <div className="mx-auto flex w-[calc(100vw-1.5rem)] touch-manipulation flex-row items-center space-y-0 space-x-3 rounded-xl border p-2 py-4 transition-shadow select-none hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] sm:w-full sm:p-4">
       <div className="block cursor-grab p-1">
         <GripVertical size={20} />
       </div>
       <div className="min-w-0 flex-1 space-y-2">
         <div className="flex items-center gap-2 sm:flex-row">
-          <p className="truncate text-sm font-medium leading-none">
+          <p className="truncate text-sm leading-none font-medium">
             {link.title}
           </p>
         </div>
@@ -216,7 +216,11 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
       </div>
       <div className="flex h-full w-auto items-center justify-end gap-2">
         <div className="cursor-pointer">
-          <Switch className="" checked={isPublic} onCheckedChange={handleTogglePublic} />
+          <Switch
+            className=""
+            checked={isPublic}
+            onCheckedChange={handleTogglePublic}
+          />
         </div>
         <DropdownMenu
           open={dialogs.dropdown}
@@ -243,8 +247,12 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
                   className={`flex cursor-pointer items-center gap-2 px-3 py-2 ${item.color ?? ""}`}
                   onClick={item.onClick}
                 >
-                  {item.icon && <item.icon className={cn("h-4 w-4", item.color)} />}
-                  <span className={cn("text-sm", item.color)}>{item.label}</span>
+                  {item.icon && (
+                    <item.icon className={cn("h-4 w-4", item.color)} />
+                  )}
+                  <span className={cn("text-sm", item.color)}>
+                    {item.label}
+                  </span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuGroup>
@@ -269,12 +277,12 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
           open={dialogs.delete}
           onOpenChange={(open) => updateDialog("delete", open)}
         >
-          <DialogContent className="bg-white dark:bg-black sm:max-w-[425px]">
+          <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
             <DialogHeader>
               <DialogTitle>Delete Link</DialogTitle>
             </DialogHeader>
             <div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 Are you sure you want to delete this link? This action cannot be
                 undone.
               </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Area,
@@ -55,14 +55,14 @@ const CHART_THEME = {
 };
 
 // Time format mapping type with strict typing
-interface TimeFormatMap {
-  "24h": { axis: string; tooltip: string };
-  "7d": { axis: string; tooltip: string };
-  "30d": { axis: string; tooltip: string };
-  "3m": { axis: string; tooltip: string };
-  "12m": { axis: string; tooltip: string };
-  all: { axis: string; tooltip: string };
-}
+// interface TimeFormatMap {
+//   "24h": { axis: string; tooltip: string };
+//   "7d": { axis: string; tooltip: string };
+//   "30d": { axis: string; tooltip: string };
+//   "3m": { axis: string; tooltip: string };
+//   "12m": { axis: string; tooltip: string };
+//   all: { axis: string; tooltip: string };
+// }
 
 const AnalyticsChart = ({
   data: propData,
@@ -124,35 +124,35 @@ const AnalyticsChart = ({
   }, [propData, swrData, propTotalClicks]);
 
   // Time format mapping based on time period
-  const timeFormatMap = useMemo<TimeFormatMap>(
-    () => ({
-      "24h": {
-        axis: "h:mm A",
-        tooltip: "MMM DD, h:mm A",
-      },
-      "7d": {
-        axis: "MMM DD",
-        tooltip: "MMM DD",
-      },
-      "30d": {
-        axis: "MMM DD",
-        tooltip: "MMM DD",
-      },
-      "3m": {
-        axis: "MMM YYYY",
-        tooltip: "MMM, YYYY",
-      },
-      "12m": {
-        axis: "MMM YYYY",
-        tooltip: "MMM, YYYY",
-      },
-      all: {
-        axis: "MMM YYYY",
-        tooltip: "MMM, YYYY",
-      },
-    }),
-    [],
-  );
+  // const timeFormatMap = useMemo<TimeFormatMap>(
+  //   () => ({
+  //     "24h": {
+  //       axis: "h:mm A",
+  //       tooltip: "MMM DD, h:mm A",
+  //     },
+  //     "7d": {
+  //       axis: "MMM DD",
+  //       tooltip: "MMM DD",
+  //     },
+  //     "30d": {
+  //       axis: "MMM DD",
+  //       tooltip: "MMM DD",
+  //     },
+  //     "3m": {
+  //       axis: "MMM YYYY",
+  //       tooltip: "MMM, YYYY",
+  //     },
+  //     "12m": {
+  //       axis: "MMM YYYY",
+  //       tooltip: "MMM, YYYY",
+  //     },
+  //     all: {
+  //       axis: "MMM YYYY",
+  //       tooltip: "MMM, YYYY",
+  //     },
+  //   }),
+  //   [],
+  // );
 
   // Format time for axis display
   const formatTime = (timeStr: string): string => {
@@ -166,25 +166,25 @@ const AnalyticsChart = ({
 
       // For 24h period, show time
       if (timePeriod === "24h") {
-        return date.toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          minute: '2-digit',
-          hour12: true 
+        return date.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+          hour12: true,
         });
       }
 
       // For 7d and 30d, show date
       if (timePeriod === "7d" || timePeriod === "30d") {
-        return date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
+        return date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
         });
       }
 
       // For 3m, 12m, and all, show month and year
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        year: 'numeric' 
+      return date.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
       });
     } catch (error) {
       console.error("Error formatting time:", error);
@@ -219,26 +219,29 @@ const AnalyticsChart = ({
 
       let formattedDate: string;
       if (timePeriod === "24h") {
-        formattedDate = date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
-        }) + ', ' + date.toLocaleTimeString('en-US', { 
-          hour: 'numeric', 
-          minute: '2-digit',
-          hour12: true 
-        });
+        formattedDate =
+          date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          }) +
+          ", " +
+          date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
       } else if (timePeriod === "7d" || timePeriod === "30d") {
-        formattedDate = date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: 'numeric' 
+        formattedDate = date.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
         });
       } else {
-        formattedDate = date.toLocaleDateString('en-US', { 
-          month: 'short', 
-          year: 'numeric' 
+        formattedDate = date.toLocaleDateString("en-US", {
+          month: "short",
+          year: "numeric",
         });
       }
-      
+
       const clicks = payload[0]?.value;
 
       return (
@@ -268,20 +271,20 @@ const AnalyticsChart = ({
 
   // Calculate appropriate tick count based on time period
   const getTickCount = (): number => {
-    if (timePeriod === "24h") return 12; // Show every 2 hours
-    if (timePeriod === "7d") return 7; // Show each day
-    if (timePeriod === "30d") return 10; // Show every 3 days
-    if (timePeriod === "3m") return 3; // Show each month
-    if (timePeriod === "12m") return 12; // Show each month
-    return 6; // Default for 'all'
+    if (timePeriod === "24h") return 12;
+    if (timePeriod === "7d") return 7;
+    if (timePeriod === "30d") return 10;
+    if (timePeriod === "3m") return 3;
+    if (timePeriod === "12m") return 12;
+    return 6;
   };
 
   return (
     <Card className="w-full border shadow-none">
-      <CardHeader className="p-4">
-        <CardTitle className="flex items-baseline gap-2 text-2xl font-bold">
+      <CardHeader className="px-4 pt-2">
+        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-3xl font-semibold">
           {formatNumber(totalClicks)}
-          <span className="text-muted-foreground text-sm font-normal">
+          <span className="text-muted-foreground text-base font-normal">
             Clicks
           </span>
         </CardTitle>

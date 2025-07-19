@@ -1,6 +1,7 @@
 import {
   Card,
   CardContent,
+  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -71,16 +72,16 @@ export default async function Settings({
       />
 
       <Card className="border-destructive border shadow-none">
-        <CardHeader>
-          <CardTitle className="text-destructive">Delete Workspace</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">
+        <CardHeader className="">
+          <CardTitle className="text-destructive">
+            Delete Workspace
+          </CardTitle>
+          <CardDescription>
             Permanently delete your workspace, custom domain, and all associated
             links + their stats. This action cannot be undone - please proceed
             with caution.
-          </p>
-        </CardContent>
+          </CardDescription>
+        </CardHeader>
         <CardFooter>
           <AlertDialogBox workspaceslug={context.workspace} />
         </CardFooter>

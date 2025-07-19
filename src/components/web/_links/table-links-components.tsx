@@ -159,7 +159,7 @@ export const BulkOperationDialog = memo(
 
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="bg-white sm:max-w-md dark:bg-black p-4">
+        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
           <DialogHeader>
             <DialogTitle>
               {operation === "delete" ? "Delete" : "Archive"} Links
