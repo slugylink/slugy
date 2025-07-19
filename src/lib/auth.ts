@@ -26,7 +26,6 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      // Extract token from the URL path
       const tokenMatch = url.match(/\/reset-password\/([^?]+)/);
       const token = tokenMatch ? tokenMatch[1] : null;
 
@@ -59,7 +58,6 @@ export const auth = betterAuth({
     github: {
       clientId: process.env.GITHUB_CLIENT_ID!,
       clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-      // redirectUri: `${process.env.BETTER_AUTH_URL}/api/auth/callback/github`,
     },
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -70,17 +68,18 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
     freshAge: 60 * 60 * 24, // 1 day
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 10, // 10 minutes
-    },
   },
   advanced: {
     crossSubDomainCookies: {
       enabled: true,
       domain: ".slugy.co",
     },
-    trustedOrigins: ["https://slugy.co", "https://app.slugy.co"],
+    trustedOrigins: [
+      "https://slugy.co",
+      "https://app.slugy.co",
+      "http://localhost:3000",
+      "http://app.localhost:3000",
+    ],
   },
   plugins: [
     magicLink({
