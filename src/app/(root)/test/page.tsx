@@ -83,7 +83,7 @@ export default function ApiDeviceInfo() {
       <CardContent>
         {loading ? (
           <div className="py-8 text-center">
-            <RefreshCw className="mx-auto mb-2 h-6 w-6 animate-spin" />
+            <RefreshCw className="mx-auto mb-2 h-5 w-5 animate-spin" />
             <p className="text-muted-foreground text-sm">Loading...</p>
           </div>
         ) : deviceInfo ? (

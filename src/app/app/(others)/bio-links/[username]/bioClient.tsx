@@ -77,7 +77,7 @@ export default function GalleryClient({ username, workspaceSlug }: { username: s
   if (isLoading)
     return (
       <div className="flex min-h-[80vh] w-full items-center justify-center">
-        <LoaderCircle className="text-muted-foreground h-6 w-6 animate-spin" />
+        <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
       </div>
     );
   if (!gallery) {

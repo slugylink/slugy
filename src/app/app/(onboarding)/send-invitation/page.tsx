@@ -132,7 +132,7 @@ export default function SendInvitation() {
     return (
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
-          <LoaderCircle className="h-8 w-8 animate-spin" />
+          <LoaderCircle className="h-5 w-5 animate-spin" />
           <p className="text-zinc-600 dark:text-zinc-300">Loading organizations...</p>
         </div>
       </div>

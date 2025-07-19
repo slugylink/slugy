@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
 import NotFound from "../not-found";
@@ -36,7 +36,6 @@ const SlugPassword = () => {
     resolver: zodResolver(passwordSchema),
   });
 
-  // If the slug is 'not-found', show the NotFound page
   if (slug === "not-found") {
     return <NotFound />;
   }
@@ -45,7 +44,7 @@ const SlugPassword = () => {
     try {
       setIsLoading(true);
       setIsSuccess(false);
-      
+
       const response = await fetch(`/api/redirect/${slug}`, {
         method: "POST",
         headers: {
@@ -61,10 +60,7 @@ const SlugPassword = () => {
       if (response.ok && result.success) {
         // Password is correct
         setIsSuccess(true);
-        reset(); // Clear the form
-        toast.success("Password verified successfully!");
-        
-        // Small delay to show success state before redirect
+        reset();
         setTimeout(() => {
           window.location.reload();
         }, 1000);
@@ -81,7 +77,7 @@ const SlugPassword = () => {
           }
         } else if (response.status === 401) {
           toast.error("Invalid password. Please try again.");
-          reset(); // Clear the form for retry
+          reset();
         } else if (response.status === 400) {
           toast.error(result.error || "Invalid request");
         } else {
@@ -98,74 +94,66 @@ const SlugPassword = () => {
 
   return (
     <div className="mt-0 flex min-h-svh items-center justify-center bg-transparent pt-0">
-      <Card className="w-full max-w-md border-none shadow-none">
+      <Card className="w-full max-w-md border-none bg-transparent shadow-none">
         <CardHeader className="space-y-1">
           <CardTitle className="text-center text-xl font-medium">
             {isSuccess ? "Password Verified!" : "Enter Password"}
           </CardTitle>
           <p className="text-muted-foreground text-center text-sm">
-            {isSuccess 
-              ? "Redirecting you to the link..." 
-              : "This link is password protected"
-            }
+            {isSuccess
+              ? "Redirecting you to the link..."
+              : "This link is password protected"}
           </p>
         </CardHeader>
         <CardContent>
-          {isSuccess ? (
-            <div className="flex items-center justify-center space-x-2 text-green-600">
-              <CheckCircle className="h-5 w-5" />
-              <span className="text-sm font-medium">Success! Redirecting...</span>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Enter password"
-                    {...register("password")}
-                    className={cn(
-                      "w-full pr-10",
-                      errors.password &&
-                        "border-red-500 focus-visible:ring-red-500",
-                    )}
-                    required
-                    disabled={isLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50"
-                    disabled={isLoading}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                {errors.password && (
-                  <p className="text-sm text-red-500">
-                    {errors.password.message}
-                  </p>
-                )}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  {...register("password")}
+                  className={cn(
+                    "w-full pr-10",
+                    errors.password &&
+                      "border-red-500 focus-visible:ring-red-500",
+                  )}
+                  required
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50"
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
               </div>
+              {errors.password && (
+                <p className="text-sm text-red-500">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
 
-              <Button
-                type="submit"
-                className="w-full cursor-pointer"
-                disabled={isLoading || isSubmitting}
-              >
-                {isLoading && (
-                  <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
-                )}
-                {isLoading ? "Verifying..." : "Continue"}
-              </Button>
-            </form>
-          )}
+            <Button
+              type="submit"
+              className="w-full cursor-pointer"
+              disabled={isLoading || isSubmitting}
+            >
+              {isLoading && (
+                <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
+              )}
+              {isLoading ? "Verifying..." : "Continue"}
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>

@@ -85,5 +85,5 @@ export default function Home() {
 
 // Memoized loading spinner component
 const LoadingSpinner = () => (
-  <LoaderCircle className="h-6 w-6 animate-spin text-muted-foreground" />
+  <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
 );
