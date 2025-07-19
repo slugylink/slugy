@@ -14,7 +14,7 @@ export const plans = [
     currency: "USD",
     interval: "month",
     maxWorkspaces: 2,
-    maxLinksPerWorkspace: 25,
+    maxLinksPerWorkspace: 30,
     maxClicksPerWorkspace: 1000,
     maxUsers: 1,
     maxCustomDomains: 0,
