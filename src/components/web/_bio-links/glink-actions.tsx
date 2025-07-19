@@ -136,7 +136,6 @@ const Actions = ({ gallery, username }: ActionsProps) => {
 
       if (res.ok) {
         toast.success("Gallery deleted successfully");
-        router.refresh();
       } else {
         const data = (await res.json()) as { error?: string };
         toast.error(data.error ?? "Failed to delete gallery");
@@ -147,6 +146,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
+      router.refresh();
     }
   };
 
@@ -158,7 +158,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
       >
         @{username}
         <button
-          className="flex items-center justify-center focus:outline-none"
+          className="flex items-center justify-center focus:outline-none cursor-pointer"
           onClick={handleCopy}
           disabled={isCopying}
           aria-label="Copy gallery link"
@@ -244,7 +244,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
               <button
                 key={t.id}
                 className={cn(
-                  "group hover:border-primary relative aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all mb-10",
+                  "group hover:border-primary relative mb-10 aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all",
                   t.id === theme
                     ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
@@ -326,7 +326,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
         open={deleteDialogOpen}
         onOpenChange={(open) => !isDeleting && setDeleteDialogOpen(open)}
       >
-        <AlertDialogContent className="bg-white dark:bg-black sm:max-w-[425px] p-4">
+        <AlertDialogContent className="bg-white p-4 sm:max-w-[425px] dark:bg-black">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Gallery</AlertDialogTitle>
             <AlertDialogDescription>

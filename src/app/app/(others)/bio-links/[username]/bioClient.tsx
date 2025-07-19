@@ -5,6 +5,7 @@ import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
+import { useRouter } from "next/navigation";
 
 const GalleryLinkTable = dynamic(
   () => import("@/components/web/_bio-links/glinks-table"),
@@ -42,38 +43,15 @@ interface ApiError extends Error {
     error?: string;
   };
 }
-const ErrorState = ({
-  error,
-  onRetry,
-}: {
-  error: ApiError;
-  onRetry: () => void;
-}) => (
-  <div className="container mx-auto py-8">
-    <div className="text-center">
-      <h2 className="text-lg font-semibold">Error loading gallery</h2>
-      <p className="text-muted-foreground text-sm">
-        {error.info?.error ?? error.message ?? "Please try refreshing the page"}
-      </p>
-      <button
-        onClick={onRetry}
-        className="mt-4 rounded-md bg-black px-4 py-2 text-sm text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
-      >
-        Try Again
-      </button>
-    </div>
-  </div>
-);
 
-export default function GalleryClient({ username, workspaceSlug }: { username: string; workspaceSlug: string }) {
+export default function GalleryClient({ username }: { username: string }) {
+  const router = useRouter();
   const {
     data: gallery,
-    error,
     isLoading,
     mutate,
   } = useSWR<Gallery, ApiError>(`/api/bio-gallery/${username}`, fetcher);
 
-  if (error) return <ErrorState error={error} onRetry={() => mutate()} />;
   if (isLoading)
     return (
       <div className="flex min-h-[80vh] w-full items-center justify-center">
@@ -81,9 +59,7 @@ export default function GalleryClient({ username, workspaceSlug }: { username: s
       </div>
     );
   if (!gallery) {
-    if (typeof window !== "undefined") {
-      window.location.href = `/${workspaceSlug}/bio-gallery/create-gallery`;
-    }
+    router.push("/bio-links");
     return null;
   }
 
@@ -97,4 +73,4 @@ export default function GalleryClient({ username, workspaceSlug }: { username: s
       />
     </div>
   );
-} 
+}

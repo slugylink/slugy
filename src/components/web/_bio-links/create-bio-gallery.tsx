@@ -100,7 +100,7 @@ export default function CreateBioGallery() {
               className="w-full"
               disabled={!isValid || isSubmitting || !isDirty}
             >
-              {isSubmitting && <LoaderCircle className="mr-1 h-2.5 w-2.5" />}
+              {isSubmitting && <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-spin" />}
               Create Bio Gallery
             </Button>
           </form>
