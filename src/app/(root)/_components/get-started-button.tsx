@@ -16,9 +16,6 @@ const { useSession } = createAuthClient();
 const GetStartedButton = ({ className }: GetStartedButtonProps) => {
   const { data: session } = useSession();
 
-  console.log("Session:", session); 
-
-  // Use environment variables for the base URL
   const baseUrl =
     process.env.NODE_ENV === "production"
       ? `https://app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
