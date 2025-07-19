@@ -10,16 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  checkUserExists,
-  authClient,
-} from "@/lib/auth-client";
+import { checkUserExists, authClient } from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import GoogleIcon from "@/utils/icons/google";
-import { FaGithub } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { FaCircleCheck } from "react-icons/fa6";
+import SocialLoginButtons from "./social-login-buttons";
 
 const signupSchema = z.object({
   name: z
@@ -77,47 +73,63 @@ export function SignupForm({
   };
 
   const handleGoogleLogin = async () => {
-    await authClient.signIn.social(
-      {
-        provider: "google",
-      },
-      {
-        onRequest: () => {
-          setIsGoogleLoading(true);
+    try {
+      await authClient.signIn.social(
+        {
+          provider: "google",
         },
-        onSuccess: () => {
-          router.push("/");
-          router.refresh();
+        {
+          onRequest: () => {
+            setIsGoogleLoading(true);
+          },
+          onSuccess: () => {
+            router.push("/?status=success");
+          },
+          onError: (err) => {
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Failed to log in with Google",
+            );
+          },
         },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Failed to log in");
-        },
-      },
-    );
-    setIsGoogleLoading(false);
+      );
+    } catch (err) {
+      toast.error("An unexpected error occurred during Google login");
+      console.error("Google login error:", err);
+    }
   };
 
   const handleGithubLogin = async () => {
-    await authClient.signIn.social(
-      {
-        provider: "github",
-      },
-      {
-        onRequest: () => {
-          setIsGithubLoading(true);
+    try {
+      await authClient.signIn.social(
+        {
+          provider: "github",
         },
-        onSuccess: () => {
-          router.push("/");
-          router.refresh();
+        {
+          onRequest: () => {
+            setIsGithubLoading(true);
+          },
+          onSuccess: () => {
+            router.push("/?status=success");
+          },
+          onError: (err) => {
+            console.error("GitHub login error details:", err);
+            toast.error(
+              err instanceof Error
+                ? err.message
+                : "Failed to log in with GitHub. Please check your GitHub OAuth configuration.",
+            );
+          },
         },
-        onError: (err) => {
-          toast.error(err instanceof Error ? err.message : "Failed to log in");
-        },
-      },
-    );
-    setIsGithubLoading(false);
+      );
+    } catch (err) {
+      console.error("GitHub login error:", err);
+      toast.error(
+        "An unexpected error occurred during GitHub login. Please try again.",
+      );
+    }
   };
-
   const onSubmit = async (data: SignupFormData) => {
     try {
       // First check if user already exists
@@ -126,7 +138,6 @@ export function SignupForm({
         toast.error(
           "An account with this email already exists. Please log in instead.",
         );
-        router.push("/login");
         return;
       }
 
@@ -307,44 +318,14 @@ export function SignupForm({
               </Button>
             </div>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background text-muted-foreground px-2">
-                  Or
-                </span>
-              </div>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGoogleLogin}
-              className="w-full cursor-pointer"
-              disabled={isSubmitting || isGoogleLoading || isGithubLoading}
-            >
-              {isGoogleLoading ? (
-                <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
-              ) : (
-                <GoogleIcon className="mr-1 h-3.5 w-3.5" />
-              )}
-              Continue with Google
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleGithubLogin}
-              className="w-full cursor-pointer"
-              disabled={isSubmitting || isGoogleLoading || isGithubLoading}
-            >
-              {isGithubLoading ? (
-                <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
-              ) : (
-                <FaGithub className="mr-1 h-5 w-5" />
-              )}
-              Continue with GitHub
-            </Button>
+            <SocialLoginButtons
+              handleGoogleLogin={handleGoogleLogin}
+              handleGithubLogin={handleGithubLogin}
+              isLoading={pending}
+              isSubmitting={isSubmitting}
+              isGoogleLoading={isGoogleLoading}
+              isGithubLoading={isGithubLoading}
+            />
 
             <div className="text-center text-sm">
               Already have an account?{" "}

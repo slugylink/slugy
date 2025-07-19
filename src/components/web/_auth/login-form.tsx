@@ -12,10 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { checkUserExists, authClient } from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import GoogleIcon from "@/utils/icons/google";
-import { FaGithub } from "react-icons/fa6";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
+import SocialLoginButtons from "./social-login-buttons";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -46,7 +45,6 @@ export function LoginForm({
 
   const handleGoogleLogin = async () => {
     try {
-      setIsLoading(true);
       await authClient.signIn.social(
         {
           provider: "google",
@@ -56,8 +54,7 @@ export function LoginForm({
             setIsGoogleLoading(true);
           },
           onSuccess: () => {
-            router.push("/");
-            router.refresh();
+            router.push("/?status=success");
           },
           onError: (err) => {
             toast.error(
@@ -71,15 +68,11 @@ export function LoginForm({
     } catch (err) {
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
-    } finally {
-      setIsGoogleLoading(false);
-      setIsLoading(false);
     }
   };
 
   const handleGithubLogin = async () => {
     try {
-      setIsLoading(true);
       await authClient.signIn.social(
         {
           provider: "github",
@@ -89,8 +82,7 @@ export function LoginForm({
             setIsGithubLoading(true);
           },
           onSuccess: () => {
-            router.push("/");
-            router.refresh();
+            router.push("/?status=success");
           },
           onError: (err) => {
             console.error("GitHub login error details:", err);
@@ -104,10 +96,9 @@ export function LoginForm({
       );
     } catch (err) {
       console.error("GitHub login error:", err);
-      toast.error("An unexpected error occurred during GitHub login. Please try again.");
-    } finally {
-      setIsGithubLoading(false);
-      setIsLoading(false);
+      toast.error(
+        "An unexpected error occurred during GitHub login. Please try again.",
+      );
     }
   };
 
@@ -121,8 +112,7 @@ export function LoginForm({
         },
         {
           onSuccess: () => {
-            router.push("/");
-            router.refresh();
+            router.push("/?status=success");
           },
           onError: (err) => {
             toast.error(
@@ -169,12 +159,10 @@ export function LoginForm({
           },
           onError: (err) => {
             toast.error(
-              err instanceof Error
-                ? err.message
-                : "Failed to send magic link"
+              err instanceof Error ? err.message : "Failed to send magic link",
             );
           },
-        }
+        },
       );
     } catch (err) {
       toast.error("An unexpected error occurred while sending magic link");
@@ -226,7 +214,7 @@ export function LoginForm({
 
   const renderPasswordField = (email: string) => {
     if (!isPasswordLogin) return null;
-    
+
     // Don't show password field if we know the user uses a social provider
     // This will be handled by the onSubmit logic
 
@@ -268,51 +256,6 @@ export function LoginForm({
       </div>
     );
   };
-
-  const renderSocialButtons = () => (
-    <>
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background text-muted-foreground px-2">Or</span>
-        </div>
-      </div>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleGoogleLogin}
-        className="w-full cursor-pointer"
-        disabled={
-          isLoading || isSubmitting || isGoogleLoading || isGithubLoading
-        }
-      >
-        {isGoogleLoading ? (
-          <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
-        ) : (
-          <GoogleIcon className="mr-1 h-3.5 w-3.5" />
-        )}
-        Continue with Google
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        onClick={handleGithubLogin}
-        className="w-full cursor-pointer"
-        disabled={
-          isLoading || isSubmitting || isGoogleLoading || isGithubLoading
-        }
-      >
-        {isGithubLoading ? (
-          <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
-        ) : (
-          <FaGithub className="mr-1 h-5 w-5" />
-        )}
-        Continue with GitHub
-      </Button>
-    </>
-  );
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -359,7 +302,14 @@ export function LoginForm({
               </Button>
             </div>
 
-            {renderSocialButtons()}
+                         <SocialLoginButtons
+               handleGoogleLogin={handleGoogleLogin}
+               handleGithubLogin={handleGithubLogin}
+               isLoading={isLoading}
+               isSubmitting={isSubmitting}
+               isGoogleLoading={isGoogleLoading}
+               isGithubLoading={isGithubLoading}
+             />
 
             <div className="text-center text-sm">
               Don&apos;t have an account?{" "}

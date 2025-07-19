@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     if (!usageRecord) {
       return NextResponse.json(
         { error: "Usage record not found for workspaceId: " + workspaceId },
-        { status: 404 }
+        { status: 404 },
       );
     }
 

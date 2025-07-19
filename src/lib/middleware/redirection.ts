@@ -86,7 +86,7 @@ function trackAnalytics(
     browser: ua.browser.name ? ua.browser.name.toLowerCase() : "unknown",
     os: ua.os.name ? ua.os.name.toLowerCase() : "unknown",
   };
-
+  
   waitUntil(
     fetch(`${req.nextUrl.origin}/api/analytics/track`, {
       method: "POST",
