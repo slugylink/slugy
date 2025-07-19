@@ -136,6 +136,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
 
       if (res.ok) {
         toast.success("Gallery deleted successfully");
+        router.push("/bio-links");
       } else {
         const data = (await res.json()) as { error?: string };
         toast.error(data.error ?? "Failed to delete gallery");
@@ -146,7 +147,6 @@ const Actions = ({ gallery, username }: ActionsProps) => {
     } finally {
       setIsDeleting(false);
       setDeleteDialogOpen(false);
-      router.refresh();
     }
   };
 
