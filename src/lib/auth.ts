@@ -75,7 +75,14 @@ export const auth = betterAuth({
       maxAge: 60 * 10, // 10 minutes
     },
   },
-
+  advanced: {
+    crossSubDomainCookies: {
+      enabled: true,
+      domain: process.env
+        .NEXT_BASE_URL!.replace("http://", "")
+        .replace("https://", ""),
+    },
+  },
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {
