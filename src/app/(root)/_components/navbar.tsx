@@ -106,7 +106,7 @@ const DesktopSubmenu: React.FC<{ link: (typeof NAV_LINKS)[0] }> = ({
       <NavigationMenuContent>
         <ul
           className={cn(
-            "grid gap-3 p-4 md:w-[400px] lg:w-[500px]",
+            "grid gap-3 p-0 md:w-[400px] lg:w-[500px]",
             isFeatures ? "lg:grid-cols-[.75fr_1fr]" : "lg:grid-cols-2",
           )}
         >
@@ -115,7 +115,7 @@ const DesktopSubmenu: React.FC<{ link: (typeof NAV_LINKS)[0] }> = ({
               <NavigationMenuLink asChild>
                 <Link
                   href="/"
-                  className="from-muted/50 to-muted flex h-full w-full flex-col justify-end rounded-md bg-gradient-to-b p-6 no-underline outline-none select-none focus:shadow-md"
+                  className="from-muted/50 to-muted flex h-full w-full flex-col justify-end rounded-md bg-gradient-to-b p-3 no-underline outline-none select-none focus:shadow-md"
                 >
                   <div className="mt-4 mb-2 text-lg font-medium">
                     All Features

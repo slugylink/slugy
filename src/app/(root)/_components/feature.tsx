@@ -53,7 +53,7 @@ const Features = () => {
                   <h3 className="mb-2 text-start text-lg font-medium">
                     {item.title}
                   </h3>
-                  <p className="text-muted-foreground text-start leading-relaxed">
+                  <p className="text-muted-foreground text-start leading-relaxed font-normal">
                     {item.description}
                   </p>
                 </CardContent>

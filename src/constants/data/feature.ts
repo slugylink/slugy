@@ -15,8 +15,8 @@ export const data = [
       image: "https://assets.sandipsarkar.dev/workspace_files/analytics.webp",
     },
     {
-      title: "Links Gallery",
-      description: "Your links in one place for easy access.",
+      title: "Bio Links",
+      description: "Your links in one place for easy sharing.",
       image: "https://res.cloudinary.com/dcsouj6ix/image/upload/v1746377363/slugy/Untitled_design_2_nly95b.png",
     },
   ];
