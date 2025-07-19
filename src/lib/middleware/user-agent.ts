@@ -50,7 +50,7 @@ export function appendGeoAndUserAgent(url: URL, req: NextRequest): void {
   params.set("city", data.city ?? "Unknown");
   params.set("region", data.region ?? "Unknown");
   params.set("continent", data.continent ?? "Unknown");
-  params.set("referer", data.referer ?? "direct");
+  params.set("referer", data.referer ?? "Direct");
   params.set("device", data.device?.type ?? "desktop");
   params.set("browser", data.browser?.name ?? "chrome");
   params.set("os", data.os?.name ?? "windows");

@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
             os: analyticsData.os?.name || analyticsData.os || "unknown",
             device:
               analyticsData.device?.type || analyticsData.device || "desktop",
-            referer: analyticsData.referer || "direct",
+            referer: analyticsData.referer || "Direct",
           },
         }),
       ]);

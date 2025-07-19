@@ -55,20 +55,8 @@ const ReferrerClicks = ({
     [sortedData],
   );
 
-  if (error) {
-    return (
-      <Card className="shadow-none border">
-        <CardHeader className="pb-2">
-          <div className="text-destructive text-center">
-            Error loading referrer data
-          </div>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="shadow-none border">
+    <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs defaultValue="referrers">
           <TabsList className="grid w-full grid-cols-2 gap-1">
@@ -128,7 +116,7 @@ const ReferrerClicks = ({
                           </TableRow>
                         );
                       })}
-                      {processedData.length === 0 && (
+                      {(processedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}

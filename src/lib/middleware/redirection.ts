@@ -77,16 +77,17 @@ function trackAnalytics(
 
   const analyticsData: AnalyticsData = {
     ipAddress:
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
     country: req.headers.get("x-vercel-ip-country")?.toLowerCase() ?? undefined,
     city: req.headers.get("x-vercel-ip-city")?.toLowerCase() ?? undefined,
-    continent: req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? undefined,
-    referer: req.headers.get("referer")?.toLowerCase() ?? undefined,
+    continent:
+      req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? undefined,
     device: ua.device.type ? ua.device.type.toLowerCase() : "desktop",
     browser: ua.browser.name ? ua.browser.name.toLowerCase() : "unknown",
     os: ua.os.name ? ua.os.name.toLowerCase() : "unknown",
+    referer: req.headers.get("referer") ?? undefined,
   };
-  
+
   waitUntil(
     fetch(`${req.nextUrl.origin}/api/analytics/track`, {
       method: "POST",

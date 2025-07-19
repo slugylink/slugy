@@ -75,23 +75,11 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
     [data],
   );
 
-  if (error) {
-    return (
-      <Card className="shadow-none border">
-        <CardHeader className="pb-2">
-          <div className="text-center text-destructive">
-            Error loading device data
-          </div>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   // Asset base URLs
   const baseAssetUrl = "https://slugylink.github.io/slugy-assets/dist/colorful";
 
   return (
-    <Card className="shadow-none border">
+    <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           defaultValue="devices"
@@ -118,7 +106,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -155,7 +143,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}
@@ -174,7 +162,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
 
           {/* Browsers Tab */}
           <TabsContent value="browsers" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow className="text-muted-foreground">
@@ -187,7 +175,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -206,7 +194,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                             className="relative border-none"
                           >
                             <TableCell className="relative z-10">
-                              <div className="flex items-center gap-x-2">
+                              <div className="flex items-center gap-x-2 capitalize">
                                 <OptimizedImage
                                   src={`${baseAssetUrl}/browser/${formattedBrowserName}.svg`}
                                   alt={browserName}
@@ -224,7 +212,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}
@@ -243,7 +231,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
 
           {/* OS Tab */}
           <TabsContent value="os" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -256,7 +244,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -274,7 +262,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                             className="relative border-none"
                           >
                             <TableCell className="relative z-10">
-                              <div className="flex items-center gap-x-2">
+                              <div className="flex items-center gap-x-2 capitalize">
                                 <OptimizedImage
                                   src={`${baseAssetUrl}/os/${formattedOsName}.svg`}
                                   alt={osName}
@@ -292,7 +280,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}

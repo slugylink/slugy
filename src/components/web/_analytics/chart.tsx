@@ -18,6 +18,7 @@ import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
 import { fetchChartData } from "@/server/actions/analytics/use-analytics";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { TriangleAlert } from "lucide-react";
 
 interface ChartProps {
   data?: {
@@ -211,7 +212,7 @@ const AnalyticsChart = ({
 
       return (
         <div
-          className="rounded-md border bg-background p-2 shadow-sm"
+          className="bg-background rounded-md border p-2 shadow-sm"
           style={{
             backgroundColor: CHART_THEME.background,
             border: `1px solid ${CHART_THEME.border}`,
@@ -244,33 +245,26 @@ const AnalyticsChart = ({
     return 6; // Default for 'all'
   };
 
-  if (error) {
-    return (
-      <Card className="w-full shadow-sm">
-        <CardHeader className="p-4">
-          <CardTitle className="text-lg font-medium text-destructive">
-            Error loading chart data
-          </CardTitle>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="w-full shadow-none border">
+    <Card className="w-full border shadow-none">
       <CardHeader className="p-4">
         <CardTitle className="flex items-baseline gap-2 text-2xl font-bold">
           {formatNumber(totalClicks)}
-          <span className="text-sm font-normal text-muted-foreground">
+          <span className="text-muted-foreground text-sm font-normal">
             Clicks
           </span>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 pb-2 pr-2">
+      <CardContent className="p-0 pr-2 pb-2">
         <div className="relative h-[300px] w-full sm:h-[400px]">
           {isLoading && (
-            <div className="absolute left-0 top-0 flex h-full w-full items-center justify-center bg-background/10 z-10">
-              <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+            <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
+              <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+            </div>
+          )}
+          {error && (
+            <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
+              <TriangleAlert className="text-muted-foreground h-5 w-5" />
             </div>
           )}
           {localData.length > 0 ? (

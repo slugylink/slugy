@@ -47,20 +47,8 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
     [data],
   );
 
-  if (error) {
-    return (
-      <Card className="shadow-none border">
-        <CardHeader className="pb-2">
-          <div className="text-center text-destructive">
-            Error loading geo data
-          </div>
-        </CardHeader>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="shadow-none border">
+    <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           defaultValue="countries"
@@ -72,6 +60,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
             <TabsTrigger value="continents">Continents</TabsTrigger>
           </TabsList>
 
+          {/* countries */}
           <TabsContent value="countries" className="mt-1 font-normal">
             <ScrollArea className="h-72 w-full">
               <Table>
@@ -86,7 +75,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -99,9 +88,9 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                         return (
                           <TableRow
                             key={`country-${country.country}`}
-                            className="relative border-none bg-background"
+                            className="bg-background relative border-none"
                           >
-                            <TableCell className="relative z-10">
+                            <TableCell className="relative z-10 capitalize">
                               <CountryFlag code={country.country ?? ""} />
                             </TableCell>
                             <TableCell className="relative z-10 text-right">
@@ -114,7 +103,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}
@@ -131,8 +120,9 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
             </ScrollArea>
           </TabsContent>
 
+          {/* City */}
           <TabsContent value="cities" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -145,7 +135,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -157,10 +147,10 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                         return (
                           <TableRow
                             key={`city-${city.city}-${city.country}`}
-                            className="relative border-none bg-background"
+                            className="bg-background relative border-none"
                           >
                             <TableCell className="relative z-10">
-                              <div className="flex items-center gap-x-2">
+                              <div className="flex items-center gap-x-2 capitalize">
                                 <CountryFlag
                                   allowCountry={false}
                                   code={city.country ?? ""}
@@ -178,7 +168,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}
@@ -195,8 +185,9 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
             </ScrollArea>
           </TabsContent>
 
+          {/* Continent */}
           <TabsContent value="continents" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -209,7 +200,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                     <TableRow>
                       <TableCell colSpan={2} className="h-72">
                         <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -222,10 +213,10 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                         return (
                           <TableRow
                             key={`continent-${continent.continent}`}
-                            className="relative border-none bg-background"
+                            className="bg-background relative border-none"
                           >
                             <TableCell className="relative z-10">
-                              <div className="flex items-center gap-x-2">
+                              <div className="flex items-center gap-x-2 capitalize">
                                 <NotoGlobeShowingAmericas />
                                 <ContinentFlag
                                   code={continent.continent ?? ""}
@@ -242,7 +233,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                           </TableRow>
                         );
                       })}
-                      {sortedData.length === 0 && (
+                      {(sortedData.length === 0 || error) && (
                         <TableRow>
                           <TableCell
                             colSpan={2}
