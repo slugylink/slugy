@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/redis";
 
 const CACHE_PREFIX = "link:";
-const CACHE_EXPIRY = 60 * 30; // 30 minutes
+const CACHE_EXPIRY = 60 * 60 * 12; // 12 hours
 
 const getCachedLink = async (slug: string) => {
   const cacheKey = `${CACHE_PREFIX}${slug}`;
