@@ -8,7 +8,7 @@ export async function createUsageCronSchedule() {
   try {
     await client.schedules.create({
       destination: "https://slugy.co/api/cron/usage",
-      cron: "0 0 1 * *", // First day of every month at midnight UTC
+      cron: "0 0 * * *", // Daily at midnight UTC - checks and resets usage when needed
     });
     console.log("Usage cron schedule created successfully");
   } catch (error) {

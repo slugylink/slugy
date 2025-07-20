@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { calculateUsagePeriod } from "@/lib/usage-period";
+import { calculateUsagePeriod, isUsagePeriodExpired } from "@/lib/usage-period";
 
 async function handler() {
   try {
@@ -19,6 +19,8 @@ async function handler() {
     }
 
     const now = new Date();
+    let processedCount = 0;
+    let resetCount = 0;
 
     await Promise.all(
       workspaces.map(async (workspace) => {
@@ -32,25 +34,23 @@ async function handler() {
           },
         });
 
-        // Check if it's time to create a new usage record
-        // If no current usage exists, create one
-        // If current usage period has ended, archive it and create a new one
-        if (!currentUsage || now >= currentUsage.periodEnd) {
-          // Archive the current usage record if it exists
-          if (currentUsage) {
-            await db.usage.update({
-              where: {
-                id: currentUsage.id,
-              },
-              data: {
-                deletedAt: now,
-              },
-            });
-          }
+        processedCount++;
+
+        // Check if current usage period has expired
+        if (currentUsage && isUsagePeriodExpired(currentUsage.periodEnd, now)) {
+          // Archive the current usage record
+          await db.usage.update({
+            where: {
+              id: currentUsage.id,
+            },
+            data: {
+              deletedAt: now,
+            },
+          });
 
           // Calculate the next period using utility function
           const { periodStart, periodEnd } = calculateUsagePeriod(
-            currentUsage?.periodEnd || null,
+            currentUsage.periodEnd,
             now,
           );
 
@@ -73,12 +73,43 @@ async function handler() {
               periodEnd,
             },
           });
+
+          resetCount++;
+        }
+        // If no current usage exists, create one (for new workspaces)
+        else if (!currentUsage) {
+          const { periodStart, periodEnd } = calculateUsagePeriod(null, now);
+
+          const memberCount = await db.member.count({
+            where: {
+              workspaceId: workspace.id,
+            },
+          });
+
+          await db.usage.create({
+            data: {
+              userId: workspace.userId,
+              workspaceId: workspace.id,
+              linksCreated: 0,
+              clicksTracked: 0,
+              addedUsers: memberCount,
+              periodStart,
+              periodEnd,
+            },
+          });
+
+          resetCount++;
         }
       }),
     );
 
     return NextResponse.json(
-      { message: "Usage reset completed" },
+      { 
+        message: "Usage cron job completed",
+        processed: processedCount,
+        reset: resetCount,
+        timestamp: now.toISOString()
+      },
       { status: 200 },
     );
   } catch (error) {

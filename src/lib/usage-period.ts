@@ -66,4 +66,43 @@ export function getRemainingDays(periodEnd: Date, now: Date = new Date()): numbe
   const diffTime = periodEnd.getTime() - now.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
+}
+
+/**
+ * Format usage period for display
+ * @param periodStart - Start date of the period
+ * @param periodEnd - End date of the period
+ * @returns Formatted string representation
+ */
+export function formatUsagePeriod(periodStart: Date, periodEnd: Date): string {
+  const startStr = periodStart.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+  const endStr = periodEnd.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+  return `${startStr} - ${endStr}`;
+}
+
+/**
+ * Get usage period status for debugging
+ * @param periodEnd - End date of the period
+ * @param now - Current date (optional)
+ * @returns Status object with useful information
+ */
+export function getUsagePeriodStatus(periodEnd: Date, now: Date = new Date()) {
+  const expired = isUsagePeriodExpired(periodEnd, now);
+  const remainingDays = getRemainingDays(periodEnd, now);
+  
+  return {
+    expired,
+    remainingDays,
+    periodEnd: periodEnd.toISOString(),
+    now: now.toISOString(),
+    status: expired ? 'EXPIRED' : remainingDays <= 7 ? 'EXPIRING_SOON' : 'ACTIVE'
+  };
 } 
