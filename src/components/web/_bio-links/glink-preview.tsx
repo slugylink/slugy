@@ -239,7 +239,7 @@ const GalleryLinkPreview = ({
           <SheetHeader>
             <SheetTitle className="text-xl font-medium">Choose a Theme</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-2 overflow-y-auto py-4 pr-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 py-4 pr-2 sm:grid-cols-3">
             {themes.map((t) => (
               <button
                 key={t.id}

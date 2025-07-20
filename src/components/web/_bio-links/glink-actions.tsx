@@ -158,7 +158,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
       >
         @{username}
         <button
-          className="flex items-center justify-center focus:outline-none cursor-pointer"
+          className="flex cursor-pointer items-center justify-center focus:outline-none"
           onClick={handleCopy}
           disabled={isCopying}
           aria-label="Copy gallery link"
@@ -233,18 +233,21 @@ const Actions = ({ gallery, username }: ActionsProps) => {
 
       {/* Theme Selection Sheet */}
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent side="left" className="w-full max-w-md">
+        <SheetContent
+          side="left"
+          className="min-h-full w-full max-w-md overflow-y-auto"
+        >
           <SheetHeader>
             <SheetTitle className="text-xl font-medium">
               Choose a Theme
             </SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-2 overflow-y-auto py-4 pr-2 sm:grid-cols-3">
+          <div className="grid gap-2 p-4 py-4 pr-2 grid-cols-3">
             {themes.map((t) => (
               <button
                 key={t.id}
                 className={cn(
-                  "group hover:border-primary relative mb-10 aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all",
+                  "group hover:border-primary relative mb-3 aspect-[9/14] overflow-hidden rounded-lg border-2 transition-all",
                   t.id === theme
                     ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
