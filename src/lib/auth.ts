@@ -8,6 +8,7 @@ import { db } from "@/server/db";
 import { sendEmail, sendOrganizationInvitation } from "@/server/actions/email";
 import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
+import { origins } from "@/constants/origins";
 
 const polarClient = new Polar({
   accessToken: process.env.POLAR_ACCESS_TOKEN!,
@@ -72,14 +73,9 @@ export const auth = betterAuth({
   advanced: {
     crossSubDomainCookies: {
       enabled: true,
-      domain: process.env.NEXT_DOT_URL!,
+      domain: ".slugy.co",
     },
-    trustedOrigins: [
-      "https://slugy.co",
-      "https://app.slugy.co",
-      "http://localhost:3000",
-      "http://app.localhost:3000",
-    ],
+    trustedOrigins: origins,
   },
   plugins: [
     magicLink({

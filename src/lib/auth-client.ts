@@ -1,3 +1,4 @@
+import { origins } from "@/constants/origins";
 import { createAuthClient } from "better-auth/client";
 import { magicLinkClient } from "better-auth/client/plugins";
 import { adminClient } from "better-auth/client/plugins";
@@ -5,12 +6,7 @@ import { organizationClient } from "better-auth/client/plugins";
 
 export const authClient = createAuthClient({
   baseURL: process.env.BETTER_AUTH_URL!,
-  trustedOrigins: [
-    "https://slugy.co",
-    "https://app.slugy.co",
-    "http://localhost:3000",
-    "http://app.localhost:3000",
-  ],
+  trustedOrigins: origins,
   plugins: [magicLinkClient(), adminClient(), organizationClient()],
 });
 
