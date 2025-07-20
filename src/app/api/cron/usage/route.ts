@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { calculateUsagePeriod } from "@/lib/usage-period";
 
-async function handler(req: Request) {
+async function handler() {
   try {
     const workspaces = await db.workspace.findMany({
       include: {
@@ -90,4 +90,10 @@ async function handler(req: Request) {
   }
 }
 
-export const POST = verifySignatureAppRouter(handler);
+// Only use signature verification if QStash keys are configured
+const QSTASH_CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
+const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
+
+export const POST = QSTASH_CURRENT_SIGNING_KEY && QSTASH_NEXT_SIGNING_KEY
+  ? verifySignatureAppRouter(handler)
+  : handler;

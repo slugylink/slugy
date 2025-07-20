@@ -11,7 +11,8 @@
     "dev": "next dev",
     "postinstall": "prisma generate",
     "lint": "next lint",
-    "start": "next start"
+    "start": "next start",
+    "setup:cron": "ts-node src/scripts/setup-cron.ts"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.2.9",
