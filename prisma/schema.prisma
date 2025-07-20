@@ -200,7 +200,7 @@ model Workspace {
   logo             String?
   isDefault        Boolean           @default(true)
   linksUsage       Int               @default(0)
-  maxLinksLimit    Int               @default(25)
+  maxLinksLimit    Int               @default(30)
   clicksUsage      Int               @default(0)
   maxClicksLimit   Int               @default(1000)
   addedUsers       Int               @default(1)
