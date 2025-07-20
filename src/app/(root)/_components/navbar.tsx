@@ -100,7 +100,7 @@ const DesktopSubmenu: React.FC<{ link: (typeof NAV_LINKS)[0] }> = ({
 
   return (
     <>
-      <NavigationMenuTrigger className="font-normal">
+      <NavigationMenuTrigger className="font-normal bg-transparent">
         {link.title}
       </NavigationMenuTrigger>
       <NavigationMenuContent>
