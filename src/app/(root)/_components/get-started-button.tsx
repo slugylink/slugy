@@ -16,7 +16,7 @@ const { useSession } = createAuthClient();
 const GetStartedButton = ({ className }: GetStartedButtonProps) => {
   const { data: session } = useSession();
 
-  console.log("Session:", session);
+  // console.log("Session:", session);
 
   const baseUrl =
     process.env.NODE_ENV === "production"
@@ -24,7 +24,7 @@ const GetStartedButton = ({ className }: GetStartedButtonProps) => {
       : "http://app.localhost:3000";
 
   const destination = session ? baseUrl : `${baseUrl}/login`;
-  const label = session ? "Dashboard" : "Sign in";
+  const label = session ? "Dashboard" : "Get started";
 
   return (
     <div className={className}>
