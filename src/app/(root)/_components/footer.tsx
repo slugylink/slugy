@@ -51,7 +51,7 @@ const Footer: React.FC = () => {
       title: "Product",
       links: [
         { href: "", label: "Features" },
-        { href: "", label: "Pricing" },
+        { href: "/pricing", label: "Pricing" },
         // { href: "/tools/metadatas", label: "Metadata" },
       ],
     },
@@ -73,8 +73,8 @@ const Footer: React.FC = () => {
     {
       title: "Connect",
       links: [
-        { href: "", label: "Twitter" },
-        { href: "", label: "LinkedIn" },
+        { href: "https://x.com/slugydotco", label: "Twitter" },
+        { href: "https://www.linkedin.com/in/sarkar-sandip/", label: "LinkedIn" },
       ],
     },
   ];

@@ -42,7 +42,7 @@ const OpenSource = () => {
               >
                 <Button variant="outline" className="rounded-lg">
                   <Heart className="mr-2 h-5 w-5 text-pink-500" />
-                  Sponsor
+                  Support
                 </Button>
               </Link>
             </div>
