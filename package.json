@@ -46,6 +46,7 @@
     "@radix-ui/react-tooltip": "^1.2.7",
     "@sindresorhus/slugify": "^2.2.1",
     "@stripe/stripe-js": "^7.3.1",
+    "@upstash/qstash": "^2.8.1",
     "@upstash/redis": "^1.35.0",
     "@vercel/functions": "^2.2.0",
     "@vercel/speed-insights": "^1.2.0",

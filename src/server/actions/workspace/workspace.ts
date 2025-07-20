@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
+import { calculateUsagePeriod } from "@/lib/usage-period";
 
 //* Server action to create a workspace
 export async function createWorkspace({
@@ -93,17 +94,20 @@ export async function createWorkspace({
             role: "owner",
           },
         }),
-        db.usage.create({
-          data: {
-            userId,
-            workspaceId: workspace.id,
-            linksCreated: 0,
-            clicksTracked: 0,
-            addedUsers: 1, // Start with 1 user (the creator)
-            periodStart: new Date(),
-            periodEnd: new Date(new Date().setMonth(new Date().getMonth() + 1)), // Set period end to next month
-          },
-        }),
+        (async () => {
+          const { periodStart, periodEnd } = calculateUsagePeriod(null);
+          await db.usage.create({
+            data: {
+              userId,
+              workspaceId: workspace.id,
+              linksCreated: 0,
+              clicksTracked: 0,
+              addedUsers: 1, // Start with 1 user (the creator)
+              periodStart,
+              periodEnd,
+            },
+          });
+        })(),
       ]),
     );
 
