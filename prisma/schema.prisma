@@ -98,7 +98,7 @@ model Plan {
   currency              String                @default("USD")
   interval              Interval              @default(month)
   maxWorkspaces         Int                   @default(2)
-  maxLinksPerWorkspace  Int                   @default(25)
+  maxLinksPerWorkspace  Int                   @default(30)
   maxClicksPerWorkspace Int                   @default(1000)
   maxGalleries          Int                   @default(1)
   maxLinksPerBio        Int                   @default(5)

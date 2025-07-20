@@ -71,7 +71,7 @@ export default function CreateWorkspace() {
       if (res.success) {
         toast.success("Workspace created successfully!");
         form.reset();
-        router.push(`/${res.slug}`);
+        router.push(`/${data.workspaceslug}`);
       } else {
         const errorMessage = res.error || "Failed to create workspace";
 

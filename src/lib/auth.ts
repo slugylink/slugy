@@ -72,6 +72,7 @@ export const auth = betterAuth({
   advanced: {
     crossSubDomainCookies: {
       enabled: true,
+      domain: process.env.NEXT_DOT_URL!,
     },
     trustedOrigins: [
       "https://slugy.co",
