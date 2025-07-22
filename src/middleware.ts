@@ -189,10 +189,10 @@ async function handleAppSubdomain(
   const { pathname, search } = url;
 
   if (token && AUTH_PATHS.has(pathname)) {
-    return redirectTo(new URL("/app", baseUrl).toString());
+    return redirectTo(new URL("/", baseUrl).toString());
   }
 
-  if (!token && !isPublicPath(pathname)) {
+  if (AUTH_PATHS.has(url.pathname) && !token) {
     return redirectTo(new URL("/login", baseUrl).toString());
   }
 
@@ -201,7 +201,7 @@ async function handleAppSubdomain(
       ? rewriteTo("/app", baseUrl)
       : redirectTo(new URL("/login", baseUrl).toString());
   }
-  
+
   if (token && !pathname.startsWith("/app")) {
     return rewriteTo(`/app${pathname}${search}`, baseUrl);
   }
