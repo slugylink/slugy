@@ -57,10 +57,16 @@ const redirectTo = (url: string, status = 307) =>
 const rewriteTo = (url: string, baseUrl: string) =>
   addSecurityHeaders(NextResponse.rewrite(new URL(url, baseUrl)));
 
-const isPublicPath = (path: string): boolean =>
-  path.startsWith("/api/") ||
-  PUBLIC_ROUTES.has(path) ||
-  PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
+const isPublicPath = (path: string): boolean => {
+  const normalized = normalizePath(path);
+  const resolved = AUTH_REWRITES[normalized] ?? normalized;
+
+  return (
+    resolved.startsWith("/api/") ||
+    PUBLIC_ROUTES.has(resolved) ||
+    PUBLIC_PREFIXES.some((prefix) => resolved.startsWith(prefix))
+  );
+};
 
 const isFastApiRoute = (pathname: string): boolean =>
   FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
@@ -184,11 +190,10 @@ export async function middleware(req: NextRequest) {
 const normalizePath = (path: string): string =>
   path === "/" ? path : path.replace(/\/+$/, "");
 
-
 async function handleAppSubdomain(
   url: URL,
   token: unknown,
-  baseUrl: string
+  baseUrl: string,
 ): Promise<NextResponse> {
   const { pathname, search } = url;
   const normalizedPath = normalizePath(pathname);
@@ -208,7 +213,10 @@ async function handleAppSubdomain(
   if (!token && !isPublic) {
     // 👀 Prevent infinite loop
     if (normalizedPath !== "/login" && normalizedPath !== "/app/login") {
-      console.log("🔁 Redirecting unauthenticated user to /login from:", normalizedPath);
+      console.log(
+        "🔁 Redirecting unauthenticated user to /login from:",
+        normalizedPath,
+      );
       return redirectTo(new URL("/login", baseUrl).toString()); // will later rewrite
     } else {
       console.log("✅ Allowing /login to load directly");
@@ -222,6 +230,7 @@ async function handleAppSubdomain(
       ? rewriteTo("/app", baseUrl)
       : redirectTo(new URL("/login", baseUrl).toString());
   }
+  
 
   // 👉 Rewrite known auth routes
   if (AUTH_REWRITES[normalizedPath]) {
