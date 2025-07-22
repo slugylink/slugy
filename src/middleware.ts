@@ -183,31 +183,25 @@ function handleAppSubdomain(
     }
   }
 
-  // Handle login page access
-  if (pathname === "/login") {
-    if (token) {
-      // Redirect authenticated users to dashboard
+  // Handle public auth pages (login, signup, forgot-password, etc.)
+  if (AUTH_PATHS.has(pathname)) {
+    if (token && (pathname === "/login" || pathname === "/signup")) {
+      // Redirect authenticated users away from login/signup to dashboard
       return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
-    } else {
-      // Rewrite to internal login path
+    }
+
+    // For paths like /login, /forgot-password, rewrite to /app/* equivalent
+    if (!pathname.startsWith("/app/")) {
       return addSecurityHeaders(
-        NextResponse.rewrite(new URL(loginPath, baseUrl)),
+        NextResponse.rewrite(new URL(`/app${pathname}${search}`, baseUrl)),
       );
     }
+
+    // For /app/* auth paths, allow access
+    return addSecurityHeaders(NextResponse.next());
   }
 
-  // Handle direct access to /app/login
-  if (pathname === loginPath) {
-    if (token) {
-      // Redirect authenticated users to dashboard
-      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
-    } else {
-      // Allow access to login page
-      return addSecurityHeaders(NextResponse.next());
-    }
-  }
-
-  // Check authentication for protected paths
+  // Check authentication for protected paths (paths that actually require auth)
   if (AUTH_PATHS.has(pathname) && !token) {
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/login", baseUrl)),
