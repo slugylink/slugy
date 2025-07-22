@@ -132,13 +132,6 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
           );
         }
 
-        // Trigger revalidation for links data
-        mutate(
-          (key) => typeof key === "string" && key.includes("/link/get"),
-          undefined,
-          { revalidate: true },
-        );
-
         toast.success("Link created successfully!");
         form.reset();
         setLinkSettings({
@@ -146,6 +139,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
           password: null,
           expirationUrl: null,
         });
+        await mutate(`/api/workspace/${workspaceslug}/link/get`);
         setOpen(false);
       } else {
         const errorData = response.data as { message: string };
