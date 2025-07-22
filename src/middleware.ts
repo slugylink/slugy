@@ -188,6 +188,8 @@ async function handleAppSubdomain(
 ): Promise<NextResponse> {
   const { pathname, search } = url;
 
+  console.log("Middleware Token:", token);
+
   if (token && AUTH_PATHS.has(pathname)) {
     return redirectTo(new URL("/", baseUrl).toString());
   }

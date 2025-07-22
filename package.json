@@ -56,7 +56,6 @@
     "axios": "^1.10.0",
     "better-auth": "^1.2.9",
     "botid": "^1.4.1",
-    "bowser": "^2.11.0",
     "bufferutil": "^4.0.9",
     "canvas-confetti": "^1.9.3",
     "class-variance-authority": "^0.7.1",
