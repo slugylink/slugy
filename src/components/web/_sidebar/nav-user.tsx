@@ -67,7 +67,6 @@ export function NavUser() {
   // If not pending and not logged in, redirect to login (side effect)
   useEffect(() => {
     if (!isPending && !session) {
-      router.push("/login");
       router.refresh();
     }
   }, [isPending, session, router]);
