@@ -25,6 +25,7 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import axios from "axios";
 import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
+import { useRouter } from "next/navigation";
 
 type FormValues = z.infer<typeof linkFormSchema>;
 
@@ -34,14 +35,15 @@ interface LinkSettings {
   expirationUrl: string | null;
 }
 
-interface LinkResponse {
-  id: string;
-  url: string;
-  slug: string;
-  // Add other fields as needed
-}
+// interface LinkResponse {
+//   id: string;
+//   url: string;
+//   slug: string;
+//   // Add other fields as needed
+// }
 
 const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [utmOpen, setUtmOpen] = useState(false);
@@ -119,27 +121,19 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       );
 
       if (response.status === 201) {
-        const newLink = response.data as LinkResponse;
-
-        // Update share settings in the background
-        if (newLink?.id) {
-          void mutate(
-            (key) =>
-              typeof key === "string" &&
-              key.includes(`/link/${newLink.id}/share`),
-            undefined,
-            { revalidate: true },
-          );
-        }
-
         toast.success("Link created successfully!");
+        void mutate(
+          (key) => typeof key === "string" && key.includes("/link/get"),
+          undefined,
+          { revalidate: true },
+        );
         form.reset();
         setLinkSettings({
           expiresAt: null,
           password: null,
           expirationUrl: null,
         });
-        await mutate(`/api/workspace/${workspaceslug}/link/get`);
+        router.refresh();
         setOpen(false);
       } else {
         const errorData = response.data as { message: string };
