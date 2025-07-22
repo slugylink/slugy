@@ -51,8 +51,6 @@ const getClientIP = (req: NextRequest): string => {
   return normalizeIp(ip);
 };
 
-const isAppPath = (path: string): boolean => path.startsWith("/app");
-
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
 
@@ -182,41 +180,30 @@ export async function middleware(req: NextRequest) {
 }
 
 // ───── Domain Handlers ─────────────────────────
-function handleAppSubdomain(
+
+async function handleAppSubdomain(
   url: URL,
   token: unknown,
   baseUrl: string,
-): NextResponse {
-  const loginPath = "/app/login";
+): Promise<NextResponse> {
+  const { pathname, search } = url;
 
-  if (url.pathname === "/login") {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
+  if (token && AUTH_PATHS.has(pathname)) {
+    return redirectTo(new URL("/app", baseUrl).toString());
   }
 
-  if (url.pathname === "/") {
+  if (!token && !isPublicPath(pathname)) {
+    return redirectTo(new URL("/login", baseUrl).toString());
+  }
+
+  if (pathname === "/") {
     return token
-      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
-      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
+      ? rewriteTo("/app", baseUrl)
+      : redirectTo(new URL("/login", baseUrl).toString());
   }
-
-  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
-  }
-
-  // Use AUTH_PATHS from routes instead of hardcoded array
-  if (AUTH_PATHS.has(url.pathname) && !token) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
-  }
-
-  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
-    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
-    );
+  
+  if (token && !pathname.startsWith("/app")) {
+    return rewriteTo(`/app${pathname}${search}`, baseUrl);
   }
 
   return addSecurityHeaders(NextResponse.next());
