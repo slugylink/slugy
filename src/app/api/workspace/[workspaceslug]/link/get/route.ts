@@ -256,11 +256,6 @@ export async function GET(
         },
         {
           status: 200,
-          headers: {
-            "Cache-Control": "private, max-age=30",
-            "X-Total-Count": totalLinks.toString(),
-            "X-Page-Count": totalPages.toString(),
-          },
         },
       );
     }
@@ -281,11 +276,6 @@ export async function GET(
       },
       {
         status: 200,
-        headers: {
-          "Cache-Control": "private, max-age=30",
-          "X-Total-Count": totalLinks.toString(),
-          "X-Page-Count": totalPages.toString(),
-        },
       },
     );
   } catch (error) {
