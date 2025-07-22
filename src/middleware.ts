@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
+
 import {
   checkRateLimit,
   checkFastRateLimit,
   normalizeIp,
 } from "@/lib/middleware/rate-limit";
+
 import {
   AUTH_PATHS,
   FAST_API_PATTERNS,
@@ -19,9 +21,7 @@ import {
 } from "@/lib/middleware/routes";
 
 if (!ROOT_DOMAIN) {
-  throw new Error(
-    "Missing required environment variable: NEXT_PUBLIC_ROOT_DOMAIN",
-  );
+  throw new Error("Missing required env var: NEXT_PUBLIC_ROOT_DOMAIN");
 }
 
 export const config = {
@@ -32,12 +32,12 @@ export const config = {
   ],
 };
 
-// ───── Helpers ────────────────────────────
+//─────────── Helpers ───────────
 
 const addSecurityHeaders = (res: NextResponse): NextResponse => {
-  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
-    res.headers.set(key, value);
-  });
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) =>
+    res.headers.set(key, value),
+  );
   return res;
 };
 
@@ -67,85 +67,65 @@ const isFastApiRoute = (pathname: string): boolean =>
   FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
 
 const normalizeHostname = (host: string | null): string =>
-  host
-    ?.toLowerCase()
-    .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
-    .trim() ?? "";
+  host?.toLowerCase().replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`).trim() ??
+  "";
 
-// ───── Middleware ────────────────────────────
+type RateLimitResult = {
+  success: boolean;
+  limit: number;
+  remaining: number;
+  reset: number;
+};
 
-export async function middleware(req: NextRequest) {
+const rateLimitExceededResponse = (result: RateLimitResult) =>
+  new NextResponse(
+    JSON.stringify({
+      error: "Rate limit exceeded",
+      retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
+    }),
+    {
+      status: 429,
+      headers: {
+        "Content-Type": "application/json",
+        "X-RateLimit-Limit": result.limit.toString(),
+        "X-RateLimit-Remaining": result.remaining.toString(),
+        "X-RateLimit-Reset": new Date(result.reset).toISOString(),
+        "Retry-After": `${Math.ceil((result.reset - Date.now()) / 1000)}`,
+      },
+    },
+  );
+
+//─────────── Main Middleware ───────────
+
+export async function middleware(req: NextRequest): Promise<NextResponse> {
   try {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
 
-    // Skip static content early
     if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
       return NextResponse.next();
     }
 
-    // ───✅ Optimized API Request Pipeline ───
+    const clientIP = getClientIP(req);
+    const isFastUser = isFastApiRoute(pathname);
+
+    // API Routes Rate Limit
     if (pathname.startsWith("/api/")) {
-      if (process.env.NODE_ENV === "development") {
-        return addSecurityHeaders(NextResponse.next());
-      }
+      if (process.env.NODE_ENV !== "development") {
+        const limitResult = isFastUser
+          ? checkFastRateLimit(clientIP)
+          : await checkRateLimit(clientIP);
 
-      const clientIP = getClientIP(req);
-
-      // Fast API routes get lightweight limiter
-      if (isFastApiRoute(pathname)) {
-        const result = checkFastRateLimit(clientIP);
-        if (!result.success) {
-          return new NextResponse(
-            JSON.stringify({
-              error: "Rate limit exceeded",
-              retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
-            }),
-            {
-              status: 429,
-              headers: {
-                "Content-Type": "application/json",
-                "X-RateLimit-Limit": result.limit.toString(),
-                "X-RateLimit-Remaining": result.remaining.toString(),
-                "X-RateLimit-Reset": new Date(result.reset).toISOString(),
-                "Retry-After": `${Math.ceil(
-                  (result.reset - Date.now()) / 1000,
-                )}`,
-              },
-            },
-          );
-        }
-      } else {
-        const result = await checkRateLimit(clientIP);
-        if (!result.success) {
-          return new NextResponse(
-            JSON.stringify({
-              error: "Rate limit exceeded",
-              retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
-            }),
-            {
-              status: 429,
-              headers: {
-                "Content-Type": "application/json",
-                "X-RateLimit-Limit": result.limit.toString(),
-                "X-RateLimit-Remaining": result.remaining.toString(),
-                "X-RateLimit-Reset": new Date(result.reset).toISOString(),
-                "Retry-After": `${Math.ceil(
-                  (result.reset - Date.now()) / 1000,
-                )}`,
-              },
-            },
-          );
+        if (!limitResult.success) {
+          return rateLimitExceededResponse(limitResult);
         }
       }
 
       return addSecurityHeaders(NextResponse.next());
     }
 
-    // ─── Other Middleware Logic for Pages ───
     const token = getSessionCookie(req);
 
-    // ✅ Enforce HTTPS
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsURL = new URL(req.url);
       httpsURL.protocol = "https:";
@@ -169,7 +149,7 @@ export async function middleware(req: NextRequest) {
       }
 
       case ROOT_DOMAIN:
-        return handleRootDomain(url, token, req);
+        return handleRootDomain(url, token, req, clientIP, isFastUser);
 
       default:
         return handleCustomDomain(url, hostname, req.url);
@@ -180,7 +160,7 @@ export async function middleware(req: NextRequest) {
   }
 }
 
-// ───── Domain Handlers ─────────────────────────
+//─────────── Subdomain Handlers ───────────
 
 function handleAppSubdomain(
   url: URL,
@@ -189,34 +169,27 @@ function handleAppSubdomain(
 ): NextResponse {
   const loginPath = "/app/login";
 
-  if (url.pathname === "/login") {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
+  const path = url.pathname;
+  if (path === "/login") {
+    return addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
   }
 
-  if (url.pathname === "/") {
+  if (path === "/") {
     return token
-      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
-      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
+      ? rewriteTo("/app", baseUrl)
+      : rewriteTo(loginPath, baseUrl);
   }
 
-  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+  if ((path === "/login" || path === loginPath) && token) {
+    return redirectTo("/", 302);
   }
 
-  // Use AUTH_PATHS from routes instead of hardcoded array
-  if (AUTH_PATHS.has(url.pathname) && !token) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
+  if (AUTH_PATHS.has(path) && !token) {
+    return rewriteTo(loginPath, baseUrl);
   }
 
-  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
-    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
-    );
+  if (!isAppPath(path) && path !== "/login") {
+    return rewriteTo(`/app${path}${url.search}`, baseUrl);
   }
 
   return addSecurityHeaders(NextResponse.next());
@@ -226,16 +199,20 @@ async function handleRootDomain(
   url: URL,
   token: unknown,
   req: NextRequest,
+  clientIP: string,
+  isFastUser: boolean,
 ): Promise<NextResponse> {
   const { pathname } = url;
   const shortCode = pathname.slice(1);
 
+  // Redirect logged-in root user to app
   if (pathname === "/" && token) {
     const appUrl = new URL(req.url);
     appUrl.hostname = SUBDOMAINS.app;
     return redirectTo(appUrl.toString());
   }
 
+  // Skip assets/static
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
@@ -245,8 +222,18 @@ async function handleRootDomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Short code/temp link redirection
+  // Short Redirection /temp links
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
+    const limitResult = isFastUser
+      ? checkFastRateLimit(clientIP)
+      : await checkRateLimit(clientIP);
+
+    if (!limitResult.success) {
+      // Allow access anyway if it's a fast user accessing root redirection
+      if (!isFastUser) return rateLimitExceededResponse(limitResult);
+    }
+
+    // Handle /abc&c temp redirect
     if (shortCode.endsWith("&c")) {
       const tempRedirect = await handleTempRedirect(req, shortCode);
       if (tempRedirect) return tempRedirect;
