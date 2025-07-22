@@ -3,7 +3,6 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { magicLink, admin, organization } from "better-auth/plugins";
 import { sendMagicLinkEmail } from "@/utils/magiclink";
-import { headers } from "next/headers";
 import { db } from "@/server/db";
 import { sendEmail, sendOrganizationInvitation } from "@/server/actions/email";
 import { polar, checkout } from "@polar-sh/better-auth";
@@ -110,43 +109,6 @@ export const auth = betterAuth({
   ],
 });
 
-export const currentSessionUser = async () => {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    return session;
-  } catch (error) {
-    console.error("Error getting current user:", error);
-    return null;
-  }
-};
-
-export const getCurrentUser = async () => {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user?.id) return null;
-
-    const user = await db.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        image: true,
-      },
-    });
-
-    return user;
-  } catch (error) {
-    console.error("Error getting current user:", error);
-    return null;
-  }
-};
-
 export const getUserByEmail = async (email: string) => {
   try {
     return await db.user.findUnique({
@@ -166,22 +128,6 @@ export const getUserByEmail = async (email: string) => {
   } catch (error) {
     if (process.env.NODE_ENV === "development") {
       console.error("Failed to retrieve user by email:", error);
-    }
-    return null;
-  }
-};
-
-export const getUserById = async (id: string | undefined) => {
-  if (!id) return null;
-
-  try {
-    return await db.user.findUnique({
-      where: { id },
-      select: { id: true, email: true, name: true },
-    });
-  } catch (error) {
-    if (process.env.NODE_ENV === "development") {
-      console.error("Failed to retrieve user by ID:", error);
     }
     return null;
   }

@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import {
   type BaseAnalyticsProps,
@@ -8,6 +8,7 @@ import {
   formatAnalyticsResponse,
 } from "./analytics";
 import { z } from "zod";
+import { headers } from "next/headers";
 
 interface GetAnalyticsProps extends BaseAnalyticsProps {
   workspaceslug: string;
@@ -30,12 +31,16 @@ const AnalyticsPropsSchema = z.object({
   pageSize: z.number().int().min(1).max(100).optional(),
 });
 
-export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsResponse> {
+export async function getAnalytics(
+  props: GetAnalyticsProps,
+): Promise<AnalyticsResponse> {
   try {
     // Validate input
     const safeProps = AnalyticsPropsSchema.parse(props);
-    const user = await getCurrentUser();
-    if (!user) throw new Error("User not authenticated");
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session?.user) throw new Error("User not authenticated");
 
     const startDate = getStartDate(safeProps.timePeriod);
 
@@ -57,17 +62,21 @@ export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsR
           workspace: {
             slug: safeProps.workspaceslug,
             OR: [
-              { userId: user.id },
-              { members: { some: { userId: user.id } } },
+              { userId: session.user.id },
+              { members: { some: { userId: session.user.id } } },
             ],
           },
           ...(safeProps.slug_key ? { slug: safeProps.slug_key } : {}),
-          ...(safeProps.destination_key ? { url: safeProps.destination_key } : {}),
+          ...(safeProps.destination_key
+            ? { url: safeProps.destination_key }
+            : {}),
         },
         clickedAt: { gte: startDate },
         ...(safeProps.country_key ? { country: safeProps.country_key } : {}),
         ...(safeProps.city_key ? { city: safeProps.city_key } : {}),
-        ...(safeProps.continent_key ? { continent: safeProps.continent_key } : {}),
+        ...(safeProps.continent_key
+          ? { continent: safeProps.continent_key }
+          : {}),
         ...(safeProps.browser_key ? { browser: safeProps.browser_key } : {}),
         ...(safeProps.os_key ? { os: safeProps.os_key } : {}),
         ...(safeProps.referrer_key ? { referer: safeProps.referrer_key } : {}),
@@ -100,7 +109,11 @@ export async function getAnalytics(props: GetAnalyticsProps): Promise<AnalyticsR
       ),
     ]);
 
-    const aggregationMaps = processAnalyticsData(analyticsData, safeProps.timePeriod, links);
+    const aggregationMaps = processAnalyticsData(
+      analyticsData,
+      safeProps.timePeriod,
+      links,
+    );
     return formatAnalyticsResponse(aggregationMaps, links, linkClicksMap);
   } catch (error) {
     // Log error for observability

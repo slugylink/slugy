@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { s3Service } from "@/lib/s3-service";
 import { revalidateTag } from "next/cache";
+import { headers } from "next/headers";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
-    const user = await getCurrentUser();
-    if (!user) {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session?.user) {
       return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
@@ -25,7 +28,7 @@ export async function PATCH(
 
     const workspace = await db.workspace.findFirst({
       where: {
-        userId: user.id,
+        userId: session.user.id,
         slug: context.workspaceslug,
       },
     });
