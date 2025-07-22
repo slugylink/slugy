@@ -123,6 +123,8 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
 
         void mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
+          undefined,
+          { revalidate: true },
         );
 
         // Update share settings in the background
@@ -155,15 +157,15 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 403) {
           // Handle link limit reached error
-          const errorData = error.response.data as { 
-            error: string; 
-            limitInfo?: { 
-              currentLinks: number; 
-              maxLinks: number; 
-              planType: string; 
-            } 
+          const errorData = error.response.data as {
+            error: string;
+            limitInfo?: {
+              currentLinks: number;
+              maxLinks: number;
+              planType: string;
+            };
           };
-          
+
           if (errorData.limitInfo) {
             toast.error(
               `Link limit reached! You have ${errorData.limitInfo.currentLinks}/${errorData.limitInfo.maxLinks} links. Upgrade to Pro for more links.`,
@@ -176,10 +178,12 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                     window.open("/upgrade", "_blank");
                   },
                 },
-              }
+              },
             );
           } else {
-            toast.error(errorData.error || "Link limit reached. Upgrade to Pro.");
+            toast.error(
+              errorData.error || "Link limit reached. Upgrade to Pro.",
+            );
           }
         } else if (error.response?.data?.message) {
           toast.error(error.response.data.message);

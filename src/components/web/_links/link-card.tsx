@@ -120,9 +120,7 @@ type DialogType = "dropdown" | "edit" | "qrCode" | "delete" | "shareAnalytics";
 
 // Constants
 const COPY_TIMEOUT = 2000;
-const SWR_MUTATION_KEY = "/link/get-links";
 
-// Custom hooks for better separation of concerns
 const useDialogState = () => {
   const [openDialogs, setOpenDialogs] = useState<Set<DialogType>>(new Set());
 
@@ -152,8 +150,9 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
 
   const mutateLinks = useCallback(() => {
     return mutate(
-      (key: unknown) =>
-        typeof key === "string" && key.includes(SWR_MUTATION_KEY),
+      (key) => typeof key === "string" && key.includes("/link/get"),
+      undefined,
+      { revalidate: true },
     );
   }, []);
 
@@ -198,6 +197,8 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
         toast.success("Link deleted successfully!");
         void mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
+          undefined,
+          { revalidate: true },
         );
         router.refresh();
       }
