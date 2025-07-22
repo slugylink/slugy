@@ -8,7 +8,6 @@ import SearchInput from "./search-input";
 import LinkActions from "./link-actions";
 import LinkPagination from "./link-pagination";
 import { DEFAULT_LIMIT } from "@/constants/links";
-import { fetcher } from "@/lib/fetcher";
 import {
   EmptyState,
   LinkCardSkeleton,
@@ -41,7 +40,6 @@ interface ApiResponse {
 
 const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   const searchParams = useSearchParams();
-  // const { layout, setLayout } = useLayoutPreference();
   const { setworkspaceslug } = useWorkspaceStore();
   const [isSelectModeOn, setIsSelectModeOn] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
@@ -74,15 +72,6 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   // SWR hook
   const { data, isLoading } = useSWR<ApiResponse, Error & { status?: number }>(
     apiUrl,
-    fetcher,
-    {
-      dedupingInterval: 5000,
-      errorRetryCount: 3,
-      revalidateOnMount: true,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: true,
-      keepPreviousData: true,
-    },
   );
 
   const { links, totalLinks, totalPages } = data ?? {

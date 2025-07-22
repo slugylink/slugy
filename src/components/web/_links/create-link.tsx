@@ -121,12 +121,6 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       if (response.status === 201) {
         const newLink = response.data as LinkResponse;
 
-        void mutate(
-          (key) => typeof key === "string" && key.includes("/link/get"),
-          undefined,
-          { revalidate: true },
-        );
-
         // Update share settings in the background
         if (newLink?.id) {
           void mutate(
@@ -137,6 +131,13 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
             { revalidate: true },
           );
         }
+
+        // Trigger revalidation for links data
+        mutate(
+          (key) => typeof key === "string" && key.includes("/link/get"),
+          undefined,
+          { revalidate: true, populateCache: true },
+        );
 
         toast.success("Link created successfully!");
         form.reset();
