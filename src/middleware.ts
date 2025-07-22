@@ -60,7 +60,6 @@ const rewriteTo = (url: string, baseUrl: string) =>
 const isPublicPath = (path: string): boolean => {
   const normalized = normalizePath(path);
   const resolved = AUTH_REWRITES[normalized] ?? normalized;
-
   return (
     resolved.startsWith("/api/") ||
     PUBLIC_ROUTES.has(resolved) ||
@@ -206,7 +205,7 @@ async function handleAppSubdomain(
   // 👉 Authenticated users should not view auth pages
   if (token && AUTH_PATHS.has(normalizedPath)) {
     console.log("🔁 Redirecting logged-in user away from auth path");
-    return redirectTo(new URL("/", baseUrl).toString());
+    return rewriteTo("/app", baseUrl);
   }
 
   // 👉 Not logged in and path isn’t public
@@ -230,7 +229,6 @@ async function handleAppSubdomain(
       ? rewriteTo("/app", baseUrl)
       : redirectTo(new URL("/login", baseUrl).toString());
   }
-  
 
   // 👉 Rewrite known auth routes
   if (AUTH_REWRITES[normalizedPath]) {
