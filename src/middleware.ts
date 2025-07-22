@@ -205,7 +205,8 @@ function handleAppSubdomain(
     return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
   }
 
-  if (!isPublicPath(url.pathname) && !token) {
+  // Use AUTH_PATHS from routes instead of hardcoded array
+  if (AUTH_PATHS.has(url.pathname) && !token) {
     return addSecurityHeaders(
       NextResponse.rewrite(new URL(loginPath, baseUrl)),
     );

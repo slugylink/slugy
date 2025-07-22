@@ -22,7 +22,7 @@ export default async function WorkspaceLayout({
   const session = await auth.api.getSession({
     headers: await headers(),
   });
-  if (!session?.user?.id) return redirect("/fine");
+  if (!session?.user?.id) return redirect("/login");
 
   const awaitedParams = await params;
   const validSlug = await validateworkspaceslug(
