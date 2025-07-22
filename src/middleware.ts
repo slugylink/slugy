@@ -188,43 +188,50 @@ async function handleAppSubdomain(
 ): Promise<NextResponse> {
   const { pathname, search } = url;
 
-  console.log("Middleware Token:", token);
-  console.log("Path:", pathname);
+  console.log("🔹 Path:", pathname);
+  console.log("🔹 Token:", token ? "✅" : "❌");
+  console.log("🔹 Is public:", isPublicPath(pathname));
+  console.log("Redirecting to /login from", pathname);
 
-  // ✅ Prevent redirect loop: if token exists on a public auth route like /login
+
+  // 🛑 Authenticated user should not access public auth routes like /login
   if (token && AUTH_PATHS.has(pathname)) {
     return redirectTo(new URL("/", baseUrl).toString());
   }
 
-  // ✅ If no token and path is not public — redirect to /login,
-  //    BUT avoid redirecting from /login → /login
+  // 🛑 Not authenticated and not public path
+  // BUT ensure we don’t redirect from `/login` → `/login`
   if (!token && !isPublicPath(pathname)) {
     if (pathname !== "/login") {
       return redirectTo(new URL("/login", baseUrl).toString());
     } else {
-      // Already at /login with no token → allow the page to load
+      // ✔ /login is public and we're already there → proceed
       return addSecurityHeaders(NextResponse.next());
     }
   }
 
-  // ✅ On root (/) of the subdomain → redirect or rewrite
+  // 🛑 Special case: visiting "/" unauthenticated
+  // avoid redirect loop if already coming from login
   if (pathname === "/") {
-    return token
-      ? rewriteTo("/app", baseUrl)
-      : redirectTo(new URL("/login", baseUrl).toString());
+    if (!token) {
+      // ✔ handle this explicitly to avoid loops
+      return redirectTo(new URL("/login", baseUrl).toString());
+    }
+    // ✔ token present → go to app
+    return rewriteTo("/app", baseUrl);
   }
 
-  // ✅ Rewrite specific auth routes (/login => /app/login or other restructured paths)
+  // 🔁 Rewrite auth-style internal pages if mapped
   if (AUTH_REWRITES[pathname]) {
     return rewriteTo(AUTH_REWRITES[pathname], baseUrl);
   }
 
-  // ✅ If user is authenticated on a non-app-prefixed route, rewrite to /app/*
+  // 🛑 Authenticated user not on /app → rewrite
   if (token && !pathname.startsWith("/app")) {
     return rewriteTo(`/app${pathname}${search}`, baseUrl);
   }
 
-  // ✅ Default: allow route to continue
+  // ✅ All good
   return addSecurityHeaders(NextResponse.next());
 }
 
