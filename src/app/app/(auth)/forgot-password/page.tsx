@@ -113,22 +113,9 @@ const ForgotPasswordForm = () => {
   );
 };
 
-const LoadingState = () => (
-  <Card className="mx-auto w-full max-w-sm border-none shadow-none">
-    <CardHeader className="space-y-1">
-      <CardTitle className="text-center text-xl font-medium">
-        Forgot your password?
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="flex items-center justify-center py-8">
-      <LoaderCircle className="h-8 w-8 animate-[spin_1.2s_linear_infinite]" />
-    </CardContent>
-  </Card>
-);
-
 const ForgotPasswordPage = () => {
   return (
-    <Suspense fallback={<LoadingState />}>
+    <Suspense fallback={<></>}>
       <ForgotPasswordForm />
     </Suspense>
   );
