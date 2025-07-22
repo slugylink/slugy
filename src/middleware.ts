@@ -189,29 +189,42 @@ async function handleAppSubdomain(
   const { pathname, search } = url;
 
   console.log("Middleware Token:", token);
+  console.log("Path:", pathname);
 
+  // ✅ Prevent redirect loop: if token exists on a public auth route like /login
   if (token && AUTH_PATHS.has(pathname)) {
     return redirectTo(new URL("/", baseUrl).toString());
   }
 
+  // ✅ If no token and path is not public — redirect to /login,
+  //    BUT avoid redirecting from /login → /login
   if (!token && !isPublicPath(pathname)) {
-    return redirectTo(new URL("/login", baseUrl).toString());
+    if (pathname !== "/login") {
+      return redirectTo(new URL("/login", baseUrl).toString());
+    } else {
+      // Already at /login with no token → allow the page to load
+      return addSecurityHeaders(NextResponse.next());
+    }
   }
 
+  // ✅ On root (/) of the subdomain → redirect or rewrite
   if (pathname === "/") {
     return token
       ? rewriteTo("/app", baseUrl)
       : redirectTo(new URL("/login", baseUrl).toString());
   }
 
+  // ✅ Rewrite specific auth routes (/login => /app/login or other restructured paths)
   if (AUTH_REWRITES[pathname]) {
     return rewriteTo(AUTH_REWRITES[pathname], baseUrl);
   }
 
+  // ✅ If user is authenticated on a non-app-prefixed route, rewrite to /app/*
   if (token && !pathname.startsWith("/app")) {
     return rewriteTo(`/app${pathname}${search}`, baseUrl);
   }
 
+  // ✅ Default: allow route to continue
   return addSecurityHeaders(NextResponse.next());
 }
 
