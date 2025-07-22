@@ -181,57 +181,59 @@ export async function middleware(req: NextRequest) {
 
 // ───── Domain Handlers ─────────────────────────
 
+const normalizePath = (path: string): string =>
+  path === "/" ? path : path.replace(/\/+$/, "");
+
+
 async function handleAppSubdomain(
   url: URL,
   token: unknown,
-  baseUrl: string,
+  baseUrl: string
 ): Promise<NextResponse> {
   const { pathname, search } = url;
+  const normalizedPath = normalizePath(pathname);
+  const isPublic = isPublicPath(normalizedPath);
 
-  console.log("🔹 Path:", pathname);
+  console.log("🔹 Path:", normalizedPath);
   console.log("🔹 Token:", token ? "✅" : "❌");
-  console.log("🔹 Is public:", isPublicPath(pathname));
-  console.log("Redirecting to /login from", pathname);
+  console.log("🔹 Public Path?", isPublic);
 
-
-  // 🛑 Authenticated user should not access public auth routes like /login
-  if (token && AUTH_PATHS.has(pathname)) {
+  // 👉 Authenticated users should not view auth pages
+  if (token && AUTH_PATHS.has(normalizedPath)) {
+    console.log("🔁 Redirecting logged-in user away from auth path");
     return redirectTo(new URL("/", baseUrl).toString());
   }
 
-  // 🛑 Not authenticated and not public path
-  // BUT ensure we don’t redirect from `/login` → `/login`
-  if (!token && !isPublicPath(pathname)) {
-    if (pathname !== "/login") {
-      return redirectTo(new URL("/login", baseUrl).toString());
+  // 👉 Not logged in and path isn’t public
+  if (!token && !isPublic) {
+    // 👀 Prevent infinite loop
+    if (normalizedPath !== "/login" && normalizedPath !== "/app/login") {
+      console.log("🔁 Redirecting unauthenticated user to /login from:", normalizedPath);
+      return redirectTo(new URL("/login", baseUrl).toString()); // will later rewrite
     } else {
-      // ✔ /login is public and we're already there → proceed
+      console.log("✅ Allowing /login to load directly");
       return addSecurityHeaders(NextResponse.next());
     }
   }
 
-  // 🛑 Special case: visiting "/" unauthenticated
-  // avoid redirect loop if already coming from login
-  if (pathname === "/") {
-    if (!token) {
-      // ✔ handle this explicitly to avoid loops
-      return redirectTo(new URL("/login", baseUrl).toString());
-    }
-    // ✔ token present → go to app
-    return rewriteTo("/app", baseUrl);
+  // 👉 Redirect / to appropriate place
+  if (normalizedPath === "/") {
+    return token
+      ? rewriteTo("/app", baseUrl)
+      : redirectTo(new URL("/login", baseUrl).toString());
   }
 
-  // 🔁 Rewrite auth-style internal pages if mapped
-  if (AUTH_REWRITES[pathname]) {
-    return rewriteTo(AUTH_REWRITES[pathname], baseUrl);
+  // 👉 Rewrite known auth routes
+  if (AUTH_REWRITES[normalizedPath]) {
+    return rewriteTo(AUTH_REWRITES[normalizedPath], baseUrl);
   }
 
-  // 🛑 Authenticated user not on /app → rewrite
-  if (token && !pathname.startsWith("/app")) {
-    return rewriteTo(`/app${pathname}${search}`, baseUrl);
+  // 👉 Token present, but user not inside /app path? Rewrite
+  if (token && !normalizedPath.startsWith("/app")) {
+    return rewriteTo(`/app${normalizedPath}${search}`, baseUrl);
   }
 
-  // ✅ All good
+  // ✅ Let through
   return addSecurityHeaders(NextResponse.next());
 }
 

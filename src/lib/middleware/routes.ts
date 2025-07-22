@@ -1,4 +1,5 @@
 export const PUBLIC_ROUTES = new Set([
+  "/app/login",
   "/login",
   "/test",
   "/signup",
