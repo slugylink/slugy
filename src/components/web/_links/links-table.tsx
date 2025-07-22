@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState,  useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { Link } from "lucide-react";
@@ -72,10 +72,18 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     [workspaceslug, searchConfig],
   );
   // SWR hook
-  const { data, isLoading } = useSWR<
-    ApiResponse,
-    Error & { status?: number }
-  >(apiUrl, fetcher);
+  const { data, isLoading } = useSWR<ApiResponse, Error & { status?: number }>(
+    apiUrl,
+    fetcher,
+    {
+      dedupingInterval: 5000,
+      errorRetryCount: 3,
+      revalidateOnMount: true,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      keepPreviousData: true,
+    },
+  );
 
   const { links, totalLinks, totalPages } = data ?? {
     links: [],
@@ -84,12 +92,14 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   };
 
   // Ensure all links have a qrCode property for LinkList/LinkCard compatibility
-  const linksWithQrCode = useMemo(() =>
-    links.map((link) => ({
-      ...link,
-      qrCode: link.qrCode || { id: '', customization: '' },
-    })),
-  [links]);
+  const linksWithQrCode = useMemo(
+    () =>
+      links.map((link) => ({
+        ...link,
+        qrCode: link.qrCode || { id: "", customization: "" },
+      })),
+    [links],
+  );
 
   // Selection handlers
   const handleSelectLink = useCallback((linkId: string) => {
@@ -117,24 +127,33 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     setIsSelectModeOn(false);
   }, []);
 
-  const memoizedPagination = useMemo(() => ({
-    total_pages: totalPages,
-    limit: DEFAULT_LIMIT,
-    total_links: totalLinks,
-  }), [totalPages, totalLinks]);
+  const memoizedPagination = useMemo(
+    () => ({
+      total_pages: totalPages,
+      limit: DEFAULT_LIMIT,
+      total_links: totalLinks,
+    }),
+    [totalPages, totalLinks],
+  );
 
   const { layout, setLayout } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
 
-  const handleArchive = useCallback((linkIds: string[]) => {
-    executeOperation("archive", linkIds);
-  }, [executeOperation]);
-  
-  const handleDelete = useCallback((linkIds: string[]) => {
-    executeOperation("delete", linkIds);
-  }, [executeOperation]);
+  const handleArchive = useCallback(
+    (linkIds: string[]) => {
+      executeOperation("archive", linkIds);
+    },
+    [executeOperation],
+  );
 
-  const isGridLayout = layout === "grid-cols-2";  
+  const handleDelete = useCallback(
+    (linkIds: string[]) => {
+      executeOperation("delete", linkIds);
+    },
+    [executeOperation],
+  );
+
+  const isGridLayout = layout === "grid-cols-2";
   return (
     <section>
       <div className="flex w-full items-center justify-between gap-4 pb-8">

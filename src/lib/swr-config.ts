@@ -7,9 +7,9 @@ export const swrConfig = {
   revalidateOnMount: true,
   revalidateOnFocus: false,
   revalidateOnReconnect: true,
-  revalidateIfStale: true,
   shouldRetryOnError: true,
   errorRetryInterval: 2000,
+  keepPreviousData: true,
   onError: (error: Error) => {
     console.error("SWR Error:", error);
   },
