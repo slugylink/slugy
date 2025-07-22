@@ -136,7 +136,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
         mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
           undefined,
-          { revalidate: true, populateCache: true },
+          { revalidate: true },
         );
 
         toast.success("Link created successfully!");

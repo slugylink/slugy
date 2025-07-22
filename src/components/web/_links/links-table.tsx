@@ -15,6 +15,7 @@ import {
 } from "./table-links-components";
 import { useBulkOperation, useLayoutPreference } from "./table-links-hooks";
 import { useWorkspaceStore } from "@/store/workspace";
+import { fetcher } from "@/lib/fetcher";
 
 interface Link {
   id: string;
@@ -72,6 +73,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   // SWR hook
   const { data, isLoading } = useSWR<ApiResponse, Error & { status?: number }>(
     apiUrl,
+    fetcher,
   );
 
   const { links, totalLinks, totalPages } = data ?? {

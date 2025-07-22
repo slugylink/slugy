@@ -1,3 +1,9 @@
-import axios from "axios";
+// fetcher.ts
+import axios, { AxiosRequestConfig } from "axios";
 
-export const fetcher = (url: string) => axios.get(url).then((res) => res.data);
+export const fetcher = <T = unknown>(
+  url: string,
+  config?: AxiosRequestConfig,
+): Promise<T> => {
+  return axios.get<T>(url, config).then((res) => res.data);
+};
