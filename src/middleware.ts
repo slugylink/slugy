@@ -51,21 +51,18 @@ const getClientIP = (req: NextRequest): string => {
   return normalizeIp(ip);
 };
 
+const isAppPath = (path: string): boolean => path.startsWith("/app");
+
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
 
 const rewriteTo = (url: string, baseUrl: string) =>
   addSecurityHeaders(NextResponse.rewrite(new URL(url, baseUrl)));
 
-const isPublicPath = (path: string): boolean => {
-  const normalized = normalizePath(path);
-  const resolved = AUTH_REWRITES[normalized] ?? normalized;
-  return (
-    resolved.startsWith("/api/") ||
-    PUBLIC_ROUTES.has(resolved) ||
-    PUBLIC_PREFIXES.some((prefix) => resolved.startsWith(prefix))
-  );
-};
+const isPublicPath = (path: string): boolean =>
+  path.startsWith("/api/") ||
+  PUBLIC_ROUTES.has(path) ||
+  PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
 
 const isFastApiRoute = (pathname: string): boolean =>
   FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
@@ -185,62 +182,42 @@ export async function middleware(req: NextRequest) {
 }
 
 // ───── Domain Handlers ─────────────────────────
-
-const normalizePath = (path: string): string =>
-  path === "/" ? path : path.replace(/\/+$/, "");
-
-async function handleAppSubdomain(
+function handleAppSubdomain(
   url: URL,
   token: unknown,
   baseUrl: string,
-): Promise<NextResponse> {
-  const { pathname, search } = url;
-  const normalizedPath = normalizePath(pathname);
-  const isPublic = isPublicPath(normalizedPath);
+): NextResponse {
+  const loginPath = "/app/login";
 
-  console.log("🔹 Path:", normalizedPath);
-  console.log("🔹 Token:", token ? "✅" : "❌");
-  console.log("🔹 Public Path?", isPublic);
-
-  // 👉 Authenticated users should not view auth pages
-  if (token && AUTH_PATHS.has(normalizedPath)) {
-    console.log("🔁 Redirecting logged-in user away from auth path");
-    return rewriteTo("/app", baseUrl);
+  if (url.pathname === "/login") {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
+    );
   }
 
-  // 👉 Not logged in and path isn’t public
-  if (!token && !isPublic) {
-    // 👀 Prevent infinite loop
-    if (normalizedPath !== "/login" && normalizedPath !== "/app/login") {
-      console.log(
-        "🔁 Redirecting unauthenticated user to /login from:",
-        normalizedPath,
-      );
-      return redirectTo(new URL("/login", baseUrl).toString()); // will later rewrite
-    } else {
-      console.log("✅ Allowing /login to load directly");
-      return addSecurityHeaders(NextResponse.next());
-    }
-  }
-
-  // 👉 Redirect / to appropriate place
-  if (normalizedPath === "/") {
+  if (url.pathname === "/") {
     return token
-      ? rewriteTo("/app", baseUrl)
-      : redirectTo(new URL("/login", baseUrl).toString());
+      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
+      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
   }
 
-  // 👉 Rewrite known auth routes
-  if (AUTH_REWRITES[normalizedPath]) {
-    return rewriteTo(AUTH_REWRITES[normalizedPath], baseUrl);
+  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
+    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
   }
 
-  // 👉 Token present, but user not inside /app path? Rewrite
-  if (token && !normalizedPath.startsWith("/app")) {
-    return rewriteTo(`/app${normalizedPath}${search}`, baseUrl);
+  if (!isPublicPath(url.pathname) && !token) {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
+    );
   }
 
-  // ✅ Let through
+  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
+    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
+    );
+  }
+
   return addSecurityHeaders(NextResponse.next());
 }
 
