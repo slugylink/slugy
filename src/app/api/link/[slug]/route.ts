@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/redis";
 
 const CACHE_PREFIX = "link:";
-const CACHE_EXPIRY = 60 * 60 * 12; // 12 hours
+const CACHE_EXPIRY = 60 * 60 * 24; // 1 day
 
 const getCachedLink = async (slug: string) => {
   const cacheKey = `${CACHE_PREFIX}${slug}`;
@@ -22,7 +22,7 @@ const getCachedLink = async (slug: string) => {
       };
     }
 
-    const link = await db.link.findUnique({
+    const link = await db.link.findFirst({
       where: {
         slug: slug,
         isArchived: false,

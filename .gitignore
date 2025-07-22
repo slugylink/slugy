@@ -49,3 +49,6 @@ yarn-error.log*
 .idea
 certificates
 .vercel
+
+.tinyb
+.terraform
