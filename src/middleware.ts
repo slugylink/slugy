@@ -9,7 +9,6 @@ import {
 } from "@/lib/middleware/rate-limit";
 import {
   AUTH_PATHS,
-  AUTH_REWRITES,
   FAST_API_PATTERNS,
   IS_PRODUCTION,
   PUBLIC_PREFIXES,
@@ -50,6 +49,8 @@ const getClientIP = (req: NextRequest): string => {
     "unknown";
   return normalizeIp(ip);
 };
+
+const isAppPath = (path: string): boolean => path.startsWith("/app");
 
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
@@ -181,29 +182,41 @@ export async function middleware(req: NextRequest) {
 
 // ───── Domain Handlers ─────────────────────────
 
-async function handleAppSubdomain(
+function handleAppSubdomain(
   url: URL,
   token: unknown,
   baseUrl: string,
-): Promise<NextResponse> {
-  const { pathname, search } = url;
+): NextResponse {
+  const loginPath = "/app/login";
 
-  if (token && AUTH_PATHS.has(pathname)) {
-    return redirectTo(new URL("/", baseUrl).toString());
+  if (url.pathname === "/login") {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
+    );
   }
 
-  if (AUTH_PATHS.has(url.pathname) && !token) {
-    return redirectTo(new URL("/login", baseUrl).toString());
-  }
-
-  if (pathname === "/") {
+  if (url.pathname === "/") {
     return token
-      ? rewriteTo("/app", baseUrl)
-      : redirectTo(new URL("/login", baseUrl).toString());
+      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
+      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
   }
 
-  if (token && !pathname.startsWith("/app")) {
-    return rewriteTo(`/app${pathname}${search}`, baseUrl);
+  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
+    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+  }
+
+  // Use AUTH_PATHS from routes instead of hardcoded array
+  if (AUTH_PATHS.has(url.pathname) && !token) {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
+    );
+  }
+
+  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
+    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
+    );
   }
 
   return addSecurityHeaders(NextResponse.next());
