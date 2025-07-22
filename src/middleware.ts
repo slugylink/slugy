@@ -67,8 +67,10 @@ const isFastApiRoute = (pathname: string): boolean =>
   FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
 
 const normalizeHostname = (host: string | null): string =>
-  host?.toLowerCase().replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`).trim() ??
-  "";
+  host
+    ?.toLowerCase()
+    .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
+    .trim() ?? "";
 
 type RateLimitResult = {
   success: boolean;
@@ -167,31 +169,59 @@ function handleAppSubdomain(
   token: unknown,
   baseUrl: string,
 ): NextResponse {
+  const { pathname, search } = url;
   const loginPath = "/app/login";
 
-  const path = url.pathname;
-  if (path === "/login") {
-    return addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
+  // Handle root path first
+  if (pathname === "/") {
+    if (token) {
+      return addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)));
+    } else {
+      return addSecurityHeaders(
+        NextResponse.rewrite(new URL(loginPath, baseUrl)),
+      );
+    }
   }
 
-  if (path === "/") {
-    return token
-      ? rewriteTo("/app", baseUrl)
-      : rewriteTo(loginPath, baseUrl);
+  // Handle login page access
+  if (pathname === "/login") {
+    if (token) {
+      // Redirect authenticated users to dashboard
+      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+    } else {
+      // Rewrite to internal login path
+      return addSecurityHeaders(
+        NextResponse.rewrite(new URL(loginPath, baseUrl)),
+      );
+    }
   }
 
-  if ((path === "/login" || path === loginPath) && token) {
-    return redirectTo("/", 302);
+  // Handle direct access to /app/login
+  if (pathname === loginPath) {
+    if (token) {
+      // Redirect authenticated users to dashboard
+      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+    } else {
+      // Allow access to login page
+      return addSecurityHeaders(NextResponse.next());
+    }
   }
 
-  if (AUTH_PATHS.has(path) && !token) {
-    return rewriteTo(loginPath, baseUrl);
+  // Check authentication for protected paths
+  if (AUTH_PATHS.has(pathname) && !token) {
+    return addSecurityHeaders(
+      NextResponse.redirect(new URL("/login", baseUrl)),
+    );
   }
 
-  if (!isAppPath(path) && path !== "/login") {
-    return rewriteTo(`/app${path}${url.search}`, baseUrl);
+  // Rewrite paths that don't start with /app to the app namespace
+  if (!isAppPath(pathname)) {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(`/app${pathname}${search}`, baseUrl)),
+    );
   }
 
+  // Path already starts with /app, continue normally
   return addSecurityHeaders(NextResponse.next());
 }
 
