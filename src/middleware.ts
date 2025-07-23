@@ -257,6 +257,7 @@ async function handleRootDomain(
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
     pathname.startsWith("/favicon") ||
+    pathname.startsWith("/manifest.webmanifest") ||
     /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(pathname)
   ) {
     return addSecurityHeaders(NextResponse.next());
