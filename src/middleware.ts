@@ -174,38 +174,41 @@ function handleAppSubdomain(
   token: unknown,
   baseUrl: string,
 ): NextResponse {
-  const loginPath = "/app/login";
+  const isLoggedIn = Boolean(token);
+  const isLoginPage =
+    url.pathname === "/login" || url.pathname === "/app/login";
+  const loginUrl = new URL("/app/login", baseUrl);
+  const appHomeUrl = new URL("/app", baseUrl);
 
+  // 1. Always redirect raw /login path to proper /app/login
   if (url.pathname === "/login") {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
+    return addSecurityHeaders(NextResponse.rewrite(loginUrl));
   }
 
+  // 2. Handle root / path
   if (url.pathname === "/") {
-    return token
-      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
-      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
+    return isLoggedIn
+      ? addSecurityHeaders(NextResponse.rewrite(appHomeUrl))
+      : addSecurityHeaders(NextResponse.rewrite(loginUrl));
   }
 
-  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
-    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+  // 3. Redirect logged-in users from login paths to /app
+  if (isLoginPage && isLoggedIn) {
+    return addSecurityHeaders(NextResponse.redirect(appHomeUrl));
   }
 
-  // Use AUTH_PATHS from routes instead of hardcoded array
-  if (AUTH_PATHS.has(url.pathname) && !token) {
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(loginPath, baseUrl)),
-    );
+  // 4. Redirect guests trying to visit protected routes
+  if (AUTH_PATHS.has(url.pathname) && !isLoggedIn) {
+    return addSecurityHeaders(NextResponse.rewrite(loginUrl));
   }
 
-  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
-    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
-    return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
-    );
+  // 5. Ensure all non-/app prefixed paths on app.* point to their /app equivalent
+  if (!isAppPath(url.pathname) && !isLoginPage) {
+    const newPath = `/app${url.pathname}${url.search}`;
+    return addSecurityHeaders(NextResponse.rewrite(new URL(newPath, baseUrl)));
   }
 
+  // 6. Default: allow to pass through
   return addSecurityHeaders(NextResponse.next());
 }
 
