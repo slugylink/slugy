@@ -75,6 +75,9 @@ export function LoginForm({
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
     }
+    finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const handleGithubLogin = async () => {
@@ -105,6 +108,9 @@ export function LoginForm({
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
+    }
+    finally {
+      setIsGithubLoading(false);
     }
   };
 

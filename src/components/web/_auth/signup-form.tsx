@@ -103,6 +103,8 @@ export function SignupForm({
     } catch (err) {
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -134,6 +136,9 @@ export function SignupForm({
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
+    }
+    finally {
+      setIsGithubLoading(false);
     }
   };
   const onSubmit = async (data: SignupFormData) => {
