@@ -183,11 +183,20 @@ function handleAppSubdomain(
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
 
+  console.log("Middleware:", {
+    pathname,
+    search,
+    isAuthenticated,
+    prefixedPath,
+    isAlreadyInApp,
+    isAuthPage,
+  });
+
   // Handle root path
   if (pathname === "/") {
-    const redirectPath = isAuthenticated ? "/app" : "/app/login";
+    const redirectPath = isAuthenticated ? "/app" : "/login";
     return addSecurityHeaders(
-      NextResponse.rewrite(new URL(redirectPath, baseUrl)),
+      NextResponse.redirect(new URL(redirectPath, baseUrl))
     );
   }
 
