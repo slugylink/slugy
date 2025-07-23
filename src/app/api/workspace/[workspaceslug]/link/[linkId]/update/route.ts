@@ -77,6 +77,17 @@ export async function PATCH(
       }
     }
 
+    // Prevent recursive links: do not allow destination URL to be a slugy.co short link
+    if (typeof validatedData.url === 'string') {
+      const ownDomainPattern = /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
+      if (ownDomainPattern.test(validatedData.url)) {
+        return NextResponse.json(
+          { error: "Recursive links are not allowed. You cannot shorten a slugy.co link." },
+          { status: 400 },
+        );
+      }
+    }
+
     // Use transaction to ensure data consistency
     await db.$transaction(async (tx) => {
       // Prepare update data (only provided fields)
