@@ -23,7 +23,7 @@ const GetStartedButton = ({ className }: GetStartedButtonProps) => {
       ? `https://app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
       : "http://app.localhost:3000";
 
-  const destination = session ? baseUrl : `${baseUrl}/login`;
+  const destination = session ? baseUrl : `${baseUrl}/`;
   const label = session ? "Dashboard" : "Get started";
 
   return (
