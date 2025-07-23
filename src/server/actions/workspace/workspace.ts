@@ -127,6 +127,7 @@ export async function getDefaultWorkspace(userId: string) {
     const workspace = await db.workspace.findFirst({
       where: { userId, isDefault: true },
       select: { id: true, name: true, slug: true, logo: true },
+      orderBy: { createdAt: "asc" }, // Sort by creation date
     });
 
     if (!workspace) {

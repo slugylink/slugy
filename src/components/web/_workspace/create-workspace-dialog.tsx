@@ -56,7 +56,7 @@ export default function CreateWorkspaceDialog() {
     defaultValues: {
       workspaceName: "",
       workspaceslug: "",
-      isDefault: true,
+      isDefault: false,
     },
   });
 
@@ -123,7 +123,7 @@ export default function CreateWorkspaceDialog() {
         </div>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader className="flex flex-col items-center justify-center mb-2">
+        <DialogHeader className="mb-2 flex flex-col items-center justify-center">
           <DialogTitle className="flex flex-col items-center gap-y-3">
             <AppLogo /> Workspace
           </DialogTitle>
@@ -138,7 +138,9 @@ export default function CreateWorkspaceDialog() {
               name="workspaceName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-normal mb-1">Workspace Name</FormLabel>
+                  <FormLabel className="mb-1 font-normal">
+                    Workspace Name
+                  </FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Acme, Inc."
@@ -161,7 +163,9 @@ export default function CreateWorkspaceDialog() {
               name="workspaceslug"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="font-normal mb-1">Workspace Slug</FormLabel>
+                  <FormLabel className="mb-1 font-normal">
+                    Workspace Slug
+                  </FormLabel>
                   <FormControl>
                     <div className="flex">
                       <div className="flex items-center rounded-l-md border border-r-0 px-3 py-2 text-sm text-zinc-500 dark:text-zinc-300">
@@ -169,7 +173,7 @@ export default function CreateWorkspaceDialog() {
                       </div>
                       <Input
                         id="workspace-slug"
-                        className="flex-1 rounded-l-none h-full"
+                        className="h-full flex-1 rounded-l-none"
                         autoComplete="off"
                         {...field}
                         aria-describedby="workspace-slug-description"
