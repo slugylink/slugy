@@ -72,8 +72,8 @@ function trackAnalytics(
     city: req.headers.get("x-vercel-ip-city")?.toLowerCase(),
     continent: req.headers.get("x-vercel-ip-continent")?.toLowerCase(),
     device: ua.device.type?.toLowerCase() ?? "desktop",
-    browser: ua.browser.name?.toLowerCase() ?? "unknown",
-    os: ua.os.name?.toLowerCase() ?? "unknown",
+    browser: ua.browser.name?.toLowerCase() ?? "chrome",
+    os: ua.os.name?.toLowerCase() ?? "windows",
     referer: req.headers.get("referer") ?? "Direct",
   };
 
@@ -93,7 +93,6 @@ function trackAnalytics(
     referer: analytics.referer ?? "Direct",
   };
 
-  // Dispatch analytics tracking jobs asynchronously
   waitUntil(
     Promise.allSettled([
       sendEventsToTinybird(tbEvent),
