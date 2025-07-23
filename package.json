@@ -50,6 +50,7 @@
     "@stripe/stripe-js": "^7.3.1",
     "@upstash/qstash": "^2.8.1",
     "@upstash/redis": "^1.35.0",
+    "@vercel/analytics": "^1.5.0",
     "@vercel/functions": "^2.2.0",
     "@vercel/speed-insights": "^1.2.0",
     "aws-sdk": "^2.1692.0",
