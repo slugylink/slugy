@@ -376,9 +376,27 @@ export async function POST(
     }
 
     // Create links in database
-    const createdLinks = await db.link.createMany({
-      data: linksToCreate,
-      skipDuplicates: true, // Skip if slug already exists
+    let createdLinksCount = 0;
+    await db.$transaction(async (tx) => {
+      const createdLinks = await tx.link.createMany({
+        data: linksToCreate,
+        skipDuplicates: true, // Skip if slug already exists
+      });
+      createdLinksCount = createdLinks.count;
+      // Update usage counters
+      await Promise.all([
+        tx.workspace.update({
+          where: { id: workspaceCheck.workspace.id },
+          data: { linksUsage: { increment: createdLinks.count } },
+        }),
+        tx.usage.updateMany({
+          where: {
+            workspaceId: workspaceCheck.workspace.id,
+            userId: session.user.id,
+          },
+          data: { linksCreated: { increment: createdLinks.count } },
+        }),
+      ]);
     });
 
     // Invalidate cache for all created links
@@ -387,7 +405,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        message: `Successfully imported ${createdLinks.count} links`,
+        message: `Successfully imported ${createdLinksCount} links`,
       },
       { status: 200 },
     );

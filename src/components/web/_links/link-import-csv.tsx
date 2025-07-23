@@ -16,6 +16,13 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface ImportResponse {
   message: string;
@@ -155,8 +162,43 @@ export default function LinkImportCSV({
               </p>
             )}
           </div>
-          <div className="text-muted-foreground text-xs">
-            <p>Maximum file size: 5MB. Only CSV files are supported.</p>
+          <div className="text-muted-foreground text-xs flex items-center gap-1 flex-wrap">
+            <p>Max file size: 5MB. Only CSV files are supported.</p>
+            <div className="">
+              <span className="text-xs text-black">CSV Format</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-muted-foreground ml-2 cursor-pointer">
+                      <Info className="inline h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="">
+                    <div className="text-xs">
+                      <div className="mb-1 font-semibold">
+                        Required CSV columns:
+                      </div>
+                      <table className="border-collapse border text-left text-xs">
+                        <thead>
+                          <tr>
+                            <th className="border px-2 py-1">slug</th>
+                            <th className="border px-2 py-1">url</th>
+                            <th className="border px-2 py-1">description</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td className="border px-2 py-1">optional</td>
+                            <td className="border px-2 py-1">required</td>
+                            <td className="border px-2 py-1">optional</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
         </div>
         <DialogFooter>
