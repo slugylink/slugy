@@ -28,16 +28,18 @@ export async function URLRedirects(
   shortCode: string,
 ): Promise<NextResponse | null> {
   try {
-    // Fetch short link details
-    const linkResponse = await fetch(`${req.nextUrl.origin}/api/link/${shortCode}`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        ...(req.headers.get("cookie") && {
-          Cookie: req.headers.get("cookie")!,
-        }),
+    const linkResponse = await fetch(
+      `${req.nextUrl.origin}/api/link/${shortCode}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...(req.headers.get("cookie") && {
+            Cookie: req.headers.get("cookie")!,
+          }),
+        },
       },
-    });
+    );
 
     if (!linkResponse.ok) return null;
 
@@ -45,7 +47,12 @@ export async function URLRedirects(
 
     if (linkData.success && linkData.url && !linkData.requiresPassword) {
       if (linkData.linkId) {
-        void trackAnalytics(req, linkData.linkId, shortCode, linkData.workspaceId);
+        void trackAnalytics(
+          req,
+          linkData.linkId,
+          shortCode,
+          linkData.workspaceId,
+        );
       }
 
       return NextResponse.redirect(new URL(linkData.url), 302);
@@ -58,60 +65,61 @@ export async function URLRedirects(
   }
 }
 
-function trackAnalytics(
+export function trackAnalytics(
   req: NextRequest,
   linkId: string,
   slug: string,
   workspaceId: string,
 ): void {
-  const ua = userAgent(req);
+  try {
+    const ua = userAgent(req);
 
-  const analytics: AnalyticsData = {
-    ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
-    country: req.headers.get("x-vercel-ip-country")?.toLowerCase(),
-    city: req.headers.get("x-vercel-ip-city")?.toLowerCase(),
-    continent: req.headers.get("x-vercel-ip-continent")?.toLowerCase(),
-    device: ua.device.type?.toLowerCase() ?? "desktop",
-    browser: ua.browser.name?.toLowerCase() ?? "chrome",
-    os: ua.os.name?.toLowerCase() ?? "windows",
-    referer: req.headers.get("referer") ?? "Direct",
-  };
+    const analytics: AnalyticsData = {
+      ipAddress:
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
+      country:
+        req.headers.get("x-vercel-ip-country")?.toLowerCase() ?? "unknown",
+      city: req.headers.get("x-vercel-ip-city")?.toLowerCase() ?? "unknown",
+      continent:
+        req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? "unknown",
+      device: ua.device?.type?.toLowerCase() ?? "desktop",
+      browser: ua.browser?.name?.toLowerCase() ?? "unknown",
+      os: ua.os?.name?.toLowerCase() ?? "unknown",
+      referer: req.headers.get("referer") ?? "Direct",
+    };
 
-  const tbEvent: AnalyticsEvent = {
-    linkId,
-    workspaceId,
-    slug,
-    url: req.nextUrl.href,
-    ip: analytics.ipAddress,
-    country: analytics.country ?? "unknown",
-    city: analytics.city ?? "unknown",
-    continent: analytics.continent ?? "unknown",
-    device: analytics.device,
-    browser: analytics.browser,
-    os: analytics.os,
-    ua: req.headers.get("user-agent") ?? "unknown",
-    referer: analytics.referer ?? "Direct",
-  };
+    const tbEvent: AnalyticsEvent = {
+      linkId,
+      workspaceId,
+      slug,
+      url: req.nextUrl.href,
+      ip: analytics.ipAddress,
+      country: analytics.country ?? "unknown",
+      city: analytics.city ?? "unknown",
+      continent: analytics.continent ?? "unknown",
+      device: analytics.device,
+      browser: analytics.browser,
+      os: analytics.os,
+      ua: req.headers.get("user-agent") ?? "unknown",
+      referer: analytics.referer ?? "Direct",
+    };
 
-  waitUntil(
-    Promise.allSettled([
-      sendEventsToTinybird(tbEvent),
-      fetch(`${req.nextUrl.origin}/api/analytics/track`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          linkId,
-          slug,
-          workspaceId,
-          analyticsData: analytics,
+    waitUntil(
+      Promise.allSettled([
+        sendEventsToTinybird(tbEvent),
+        fetch(`${req.nextUrl.origin}/api/analytics/track`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            linkId,
+            slug,
+            workspaceId,
+            analyticsData: analytics,
+          }),
         }),
-      }).then((res) => {
-        if (!res.ok) {
-          console.error("Analytics tracking failed:", res.status, res.statusText);
-        }
-      }).catch((err) => {
-        console.error("Analytics tracking error:", err);
-      }),
-    ]),
-  );
+      ]),
+    );
+  } catch (err) {
+    console.error("[Analytics Error]", err);
+  }
 }
