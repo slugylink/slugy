@@ -45,7 +45,7 @@ const getClientIP = (req: NextRequest): string => {
   const ip =
     req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-real-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0] ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || // FIXED: Added trim()
     "unknown";
   return normalizeIp(ip);
 };
@@ -80,21 +80,24 @@ type RateLimitResult = {
 };
 
 const rateLimitExceededResponse = (result: RateLimitResult) =>
-  new NextResponse(
-    JSON.stringify({
-      error: "Rate limit exceeded",
-      retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
-    }),
-    {
-      status: 429,
-      headers: {
-        "Content-Type": "application/json",
-        "X-RateLimit-Limit": result.limit.toString(),
-        "X-RateLimit-Remaining": result.remaining.toString(),
-        "X-RateLimit-Reset": new Date(result.reset).toISOString(),
-        "Retry-After": `${Math.ceil((result.reset - Date.now()) / 1000)}`,
+  addSecurityHeaders(
+    // FIXED: Added security headers
+    new NextResponse(
+      JSON.stringify({
+        error: "Rate limit exceeded",
+        retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "X-RateLimit-Limit": result.limit.toString(),
+          "X-RateLimit-Remaining": result.remaining.toString(),
+          "X-RateLimit-Reset": new Date(result.reset).toISOString(),
+          "Retry-After": `${Math.ceil((result.reset - Date.now()) / 1000)}`,
+        },
       },
-    },
+    ),
   );
 
 //─────────── Main Middleware ───────────
@@ -104,6 +107,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
 
+    // Early return for static assets
     if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
       return NextResponse.next();
     }
@@ -128,6 +132,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
     const token = getSessionCookie(req);
 
+    // HTTPS redirect (should be early)
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsURL = new URL(req.url);
       httpsURL.protocol = "https:";
@@ -151,14 +156,16 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       }
 
       case ROOT_DOMAIN:
-        return handleRootDomain(url, token, req, clientIP, isFastUser);
+        return handleRootDomain(url, token, req);
 
       default:
         return handleCustomDomain(url, hostname, req.url);
     }
   } catch (err) {
     console.error("Middleware Error:", err);
-    return redirectTo("/login");
+    return addSecurityHeaders(
+      NextResponse.redirect(new URL("/login", req.url)),
+    ); // FIXED: Better error handling
   }
 }
 
@@ -170,7 +177,6 @@ function handleAppSubdomain(
   baseUrl: string,
 ): NextResponse {
   const { pathname, search } = url;
-  const loginPath = "/app/login";
 
   // Handle root path first
   if (pathname === "/") {
@@ -178,7 +184,7 @@ function handleAppSubdomain(
       return addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)));
     } else {
       return addSecurityHeaders(
-        NextResponse.rewrite(new URL(loginPath, baseUrl)),
+        NextResponse.rewrite(new URL("/app/login", baseUrl)), // FIXED: Consistent path
       );
     }
   }
@@ -201,8 +207,9 @@ function handleAppSubdomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Check authentication for protected paths (paths that actually require auth)
-  if (AUTH_PATHS.has(pathname) && !token) {
+  // FIXED: This logic was flawed - checking AUTH_PATHS twice
+  // Protected paths that require authentication
+  if (!isPublicPath(pathname) && !token) {
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/login", baseUrl)),
     );
@@ -223,8 +230,6 @@ async function handleRootDomain(
   url: URL,
   token: unknown,
   req: NextRequest,
-  clientIP: string,
-  isFastUser: boolean,
 ): Promise<NextResponse> {
   const { pathname } = url;
   const shortCode = pathname.slice(1);
@@ -236,27 +241,18 @@ async function handleRootDomain(
     return redirectTo(appUrl.toString());
   }
 
-  // Skip assets/static
+  // Skip assets/static - FIXED: Better asset detection
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
-    pathname.includes(".")
+    pathname.startsWith("/favicon") ||
+    /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(pathname)
   ) {
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Short Redirection /temp links
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
-    const limitResult = isFastUser
-      ? checkFastRateLimit(clientIP)
-      : await checkRateLimit(clientIP);
-
-    if (!limitResult.success) {
-      // Allow access anyway if it's a fast user accessing root redirection
-      if (!isFastUser) return rateLimitExceededResponse(limitResult);
-    }
-
     // Handle /abc&c temp redirect
     if (shortCode.endsWith("&c")) {
       const tempRedirect = await handleTempRedirect(req, shortCode);
@@ -277,9 +273,10 @@ function handleCustomDomain(
 ): NextResponse {
   const { pathname, search } = url;
 
+  // FIXED: Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}`);
+    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`); // FIXED: Include search params
   }
 
   return rewriteTo(`/${hostname}${pathname}${search}`, baseUrl);
