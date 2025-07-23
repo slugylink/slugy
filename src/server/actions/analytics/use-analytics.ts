@@ -1,17 +1,33 @@
 "use server";
-import { type AnalyticsResponse } from "@/server/actions/analytics/analytics";
+import { type AnalyticsResponse, type AnalyticsMetric, type AnalyticsRequestProps } from "@/server/actions/analytics/analytics";
 import { getAnalytics } from "@/server/actions/analytics/get-analytics";
 import { cache } from "react";
 
-// Server action for fetching analytics data
+// Default metrics (all)
+const ALL_METRICS: AnalyticsMetric[] = [
+  "totalClicks",
+  "clicksOverTime",
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+];
+
+// Server action for fetching analytics data (with selective metrics)
 export const getAnalyticsData = cache(
   async (
     workspaceslug: string,
     params: Record<string, string>,
+    metrics?: AnalyticsMetric[],
   ): Promise<AnalyticsResponse> => {
     return getAnalytics({
       workspaceslug,
-      timePeriod: (params.time_period as "24h" | "7d" | "30d" | "3m" | "12m" | "all") || "24h",
+      timePeriod: (params.time_period as AnalyticsRequestProps["timePeriod"]) || "24h",
       slug_key: params.slug_key || null,
       country_key: params.country_key || null,
       city_key: params.city_key || null,
@@ -21,6 +37,7 @@ export const getAnalyticsData = cache(
       referrer_key: params.referrer_key || null,
       device_key: params.device_key || null,
       destination_key: params.destination_key || null,
+      metrics: metrics ?? ALL_METRICS,
     });
   },
 );
@@ -29,8 +46,9 @@ export const getAnalyticsData = cache(
 export const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
+  metrics?: AnalyticsMetric[],
 ): Promise<AnalyticsResponse> => {
-  return getAnalyticsData(workspaceslug, params);
+  return getAnalyticsData(workspaceslug, params, metrics);
 };
 
 // For chart data, we'll use the same analytics data and format it
@@ -38,33 +56,22 @@ export const fetchChartData = async (
   workspaceslug: string,
   params: Record<string, string>,
 ): Promise<{
-  clicksOverTime: {
-    time: Date;
-    clicks: number;
-  }[];
+  clicksOverTime: { time: Date; clicks: number }[];
   totalClicks: number;
 }> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params);
-  
-  // Format the data for the chart
-  const clicksOverTime = analyticsData.clicksOverTime || [];
-  const totalClicks = analyticsData.totalClicks || 0;
-  
+  const analyticsData = await getAnalyticsData(workspaceslug, params, ["clicksOverTime", "totalClicks"]);
   return {
-    clicksOverTime,
-    totalClicks,
+    clicksOverTime: analyticsData.clicksOverTime || [],
+    totalClicks: analyticsData.totalClicks || 0,
   };
 };
 
-// For other data types, we'll need to implement specific functions
-// For now, let's create placeholder functions that return empty arrays
+// For other data types, implement specific functions with selective metrics
 export const fetchUrlClicksData = async (
   workspaceslug: string,
   params: Record<string, string>,
 ): Promise<Array<{ slug: string; url: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params);
-  
-  // Extract URL clicks data from the analytics response
+  const analyticsData = await getAnalyticsData(workspaceslug, params, ["links"]);
   return analyticsData.links?.map(link => ({
     slug: link.slug,
     url: link.url,
@@ -77,9 +84,11 @@ export const fetchGeoData = async (
   params: Record<string, string>,
   type: "countries" | "cities" | "continents",
 ): Promise<Array<{ country?: string; city?: string; continent?: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params);
-  
-  // Extract geo data based on type
+  let metric: AnalyticsMetric;
+  if (type === "countries") metric = "countries";
+  else if (type === "cities") metric = "cities";
+  else metric = "continents";
+  const analyticsData = await getAnalyticsData(workspaceslug, params, [metric]);
   switch (type) {
     case "countries":
       return analyticsData.countries?.map(country => ({
@@ -107,9 +116,11 @@ export const fetchDeviceData = async (
   params: Record<string, string>,
   type: "devices" | "browsers" | "os",
 ): Promise<Array<{ device?: string; browser?: string; os?: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params);
-  
-  // Extract device data based on type
+  let metric: AnalyticsMetric;
+  if (type === "devices") metric = "devices";
+  else if (type === "browsers") metric = "browsers";
+  else metric = "oses";
+  const analyticsData = await getAnalyticsData(workspaceslug, params, [metric]);
   switch (type) {
     case "devices":
       return analyticsData.devices?.map(device => ({
@@ -135,9 +146,7 @@ export const fetchReferrerData = async (
   workspaceslug: string,
   params: Record<string, string>,
 ): Promise<Array<{ referrer: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params);
-  
-  // Extract referrer data from the analytics response
+  const analyticsData = await getAnalyticsData(workspaceslug, params, ["referrers"]);
   return analyticsData.referrers?.map(referrer => ({
     referrer: referrer.referrer,
     clicks: referrer.clicks || 0,

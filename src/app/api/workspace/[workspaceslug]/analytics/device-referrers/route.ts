@@ -8,10 +8,10 @@ export async function GET(
   try {
     const searchParams = request.nextUrl.searchParams;
     const timePeriod = searchParams.get("time_period") as "24h" | "7d" | "30d" | "3m" | "12m" | "all" || "24h";
-    const type = searchParams.get("type") as "devices" | "browsers" | "os";
-    
+    const deviceType = searchParams.get("deviceType") as "devices" | "browsers" | "os";
+
     const context = await params;
-    
+
     const analyticsData = await getAnalytics({
       workspaceslug: context.workspaceslug,
       timePeriod,
@@ -24,35 +24,50 @@ export async function GET(
       referrer_key: searchParams.get("referrer_key"),
     });
 
-    let deviceData;
-    switch (type) {
+    // device data
+    type DeviceData =
+      | { device: string; clicks: number }
+      | { browser: string; clicks: number }
+      | { os: string; clicks: number };
+    let deviceData: DeviceData[] = [];
+    switch (deviceType) {
       case "devices":
-        deviceData = (analyticsData.devices ?? []).map(item => ({
+        deviceData = (analyticsData.devices ?? []).map((item: { device: string; clicks: number }) => ({
           device: item.device,
           clicks: item.clicks
         }));
         break;
       case "browsers":
-        deviceData = (analyticsData.browsers ?? []).map(item => ({
+        deviceData = (analyticsData.browsers ?? []).map((item: { browser: string; clicks: number }) => ({
           browser: item.browser,
           clicks: item.clicks
         }));
         break;
       case "os":
-        deviceData = (analyticsData.oses ?? []).map(item => ({
+        deviceData = (analyticsData.oses ?? []).map((item: { os: string; clicks: number }) => ({
           os: item.os,
           clicks: item.clicks
         }));
         break;
       default:
-        throw new Error("Invalid device type");
+        deviceData = [];
     }
 
-    return NextResponse.json(deviceData);
+    // referrer data
+    interface ReferrerData {
+      referrer: string;
+      clicks: number;
+    }
+    const referrerData: ReferrerData[] = (analyticsData.referrers ?? []).map((item: ReferrerData) => ({
+      referrer: item.referrer,
+      clicks: item.clicks
+    }));
+
+    return NextResponse.json({ deviceData, referrerData });
   } catch (error) {
-    console.error("[analytics/device] Error:", error);
+    console.error("[analytics/device-referrers] Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch device data" },
+      { error: "Failed to fetch device and referrer data" },
       { status: 500 }
     );
   }

@@ -1,18 +1,15 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import {
-  type BaseAnalyticsProps,
+  type AnalyticsRequestProps,
   type AnalyticsResponse,
   getStartDate,
   processAnalyticsData,
   formatAnalyticsResponse,
+  AnalyticsMetric,
 } from "./analytics";
 import { z } from "zod";
 import { headers } from "next/headers";
-
-interface GetAnalyticsProps extends BaseAnalyticsProps {
-  workspaceslug: string;
-}
 
 // Input validation schema
 const AnalyticsPropsSchema = z.object({
@@ -29,10 +26,26 @@ const AnalyticsPropsSchema = z.object({
   destination_key: z.string().nullable().optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
+  metrics: z.array(z.string()).optional(),
 });
 
+// All metrics (default)
+const ALL_METRICS: AnalyticsMetric[] = [
+  "totalClicks",
+  "clicksOverTime",
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+];
+
 export async function getAnalytics(
-  props: GetAnalyticsProps,
+  props: AnalyticsRequestProps,
 ): Promise<AnalyticsResponse> {
   try {
     // Validate input
@@ -43,6 +56,8 @@ export async function getAnalytics(
     if (!session?.user) throw new Error("User not authenticated");
 
     const startDate = getStartDate(safeProps.timePeriod);
+    const metrics: AnalyticsMetric[] =
+      (safeProps.metrics as AnalyticsMetric[]) ?? ALL_METRICS;
 
     // Combined query to get all analytics data at once
     const analyticsData = await db.analytics.groupBy({
@@ -113,8 +128,9 @@ export async function getAnalytics(
       analyticsData,
       safeProps.timePeriod,
       links,
+      metrics,
     );
-    return formatAnalyticsResponse(aggregationMaps, links, linkClicksMap);
+    return formatAnalyticsResponse(aggregationMaps, links, linkClicksMap, metrics);
   } catch (error) {
     // Log error for observability
     console.error("[getAnalytics] Error:", error);

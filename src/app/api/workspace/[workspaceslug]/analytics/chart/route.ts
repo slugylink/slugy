@@ -24,7 +24,7 @@ export async function GET(
     });
 
     // Process the data to get clicks over time with proper date handling
-    const clicksOverTime = analyticsData.clicksOverTime.map(item => {
+    const clicksOverTime = (analyticsData.clicksOverTime ?? []).map(item => {
       return {
         time: item.time.toISOString(),
         clicks: item.clicks
@@ -33,7 +33,7 @@ export async function GET(
 
     return NextResponse.json({
       clicksOverTime,
-      totalClicks: analyticsData.totalClicks
+      totalClicks: analyticsData.totalClicks ?? 0
     });
   } catch (error) {
     console.error("[analytics/chart] Error:", error);

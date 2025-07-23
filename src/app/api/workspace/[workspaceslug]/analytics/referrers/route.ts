@@ -23,7 +23,7 @@ export async function GET(
       referrer_key: searchParams.get("referrer_key"),
     });
 
-    const referrerData = analyticsData.referrers.map(item => ({
+    const referrerData = (analyticsData.referrers ?? []).map(item => ({
       referrer: item.referrer,
       clicks: item.clicks
     }));

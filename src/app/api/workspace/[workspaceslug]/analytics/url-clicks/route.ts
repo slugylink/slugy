@@ -31,7 +31,7 @@ export async function GET(
     });
 
     // Process the data based on type
-    const urlData = analyticsData.links.map((item) => ({
+    const urlData = (analyticsData.links ?? []).map((item) => ({
       slug: item.slug,
       url: item.url,
       clicks: item.clicks,

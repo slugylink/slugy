@@ -8,10 +8,10 @@ export async function GET(
   try {
     const searchParams = request.nextUrl.searchParams;
     const timePeriod = searchParams.get("time_period") as "24h" | "7d" | "30d" | "3m" | "12m" | "all" || "24h";
-    const type = searchParams.get("type") as "countries" | "cities" | "continents";
-    
+    const geoType = searchParams.get("geoType") as "countries" | "cities" | "continents";
+
     const context = await params;
-    
+
     const analyticsData = await getAnalytics({
       workspaceslug: context.workspaceslug,
       timePeriod,
@@ -24,36 +24,53 @@ export async function GET(
       referrer_key: searchParams.get("referrer_key"),
     });
 
-    let geoData;
-    switch (type) {
+    // url-clicks data
+    interface UrlClick {
+      slug: string;
+      url: string;
+      clicks: number;
+    }
+    const urlData: UrlClick[] = (analyticsData.links ?? []).map((item: UrlClick) => ({
+      slug: item.slug,
+      url: item.url,
+      clicks: item.clicks,
+    }));
+
+    // geo data
+    type GeoData =
+      | { country: string; clicks: number }
+      | { city: string; country: string; clicks: number }
+      | { continent: string; clicks: number };
+    let geoData: GeoData[] = [];
+    switch (geoType) {
       case "countries":
-        geoData = (analyticsData.countries ?? []).map(item => ({
+        geoData = (analyticsData.countries ?? []).map((item: { country: string; clicks: number }) => ({
           country: item.country,
           clicks: item.clicks
         }));
         break;
       case "cities":
-        geoData = (analyticsData.cities ?? []).map(item => ({
+        geoData = (analyticsData.cities ?? []).map((item: { city: string; country: string; clicks: number }) => ({
           city: item.city,
           country: item.country,
           clicks: item.clicks
         }));
         break;
       case "continents":
-        geoData = (analyticsData.continents ?? []).map(item => ({
+        geoData = (analyticsData.continents ?? []).map((item: { continent: string; clicks: number }) => ({
           continent: item.continent,
           clicks: item.clicks
         }));
         break;
       default:
-        throw new Error("Invalid geo type");
+        geoData = [];
     }
 
-    return NextResponse.json(geoData);
+    return NextResponse.json({ urlData, geoData });
   } catch (error) {
-    console.error("[analytics/geo] Error:", error);
+    console.error("[analytics/url-geo] Error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch geo data" },
+      { error: "Failed to fetch url and geo data" },
       { status: 500 }
     );
   }
