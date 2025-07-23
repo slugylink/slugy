@@ -174,50 +174,38 @@ function handleAppSubdomain(
   token: unknown,
   baseUrl: string,
 ): NextResponse {
-  const { pathname, search } = url;
+  const loginPath = "/app/login";
 
-  if (pathname === "/") {
-    if (token) {
-      return addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)));
-    } else {
-      return addSecurityHeaders(
-        NextResponse.rewrite(new URL("/app/login", baseUrl)),
-      );
-    }
-  }
-
-  // Handle public auth pages (login, signup, forgot-password, etc.)
-  if (AUTH_PATHS.has(pathname)) {
-    if (token && (pathname === "/login" || pathname === "/signup")) {
-      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
-    }
-
-    if (!pathname.startsWith("/app/")) {
-      return addSecurityHeaders(
-        NextResponse.rewrite(new URL(`/app${pathname}${search}`, baseUrl)),
-      );
-    }
-
-    // For /app/* auth paths, allow access
-    return addSecurityHeaders(NextResponse.next());
-  }
-
-  // FIXED: This logic was flawed - checking AUTH_PATHS twice
-  // Protected paths that require authentication
-  if (!AUTH_PATHS.has(pathname) && !token) {
+  if (url.pathname === "/login") {
     return addSecurityHeaders(
-      NextResponse.redirect(new URL("/login", baseUrl)),
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
     );
   }
 
-  // Rewrite paths that don't start with /app to the app namespace
-  if (!isAppPath(pathname)) {
+  if (url.pathname === "/") {
+    return token
+      ? addSecurityHeaders(NextResponse.rewrite(new URL("/app", baseUrl)))
+      : addSecurityHeaders(NextResponse.rewrite(new URL(loginPath, baseUrl)));
+  }
+
+  if ((url.pathname === "/login" || url.pathname === loginPath) && token) {
+    return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+  }
+
+  // Use AUTH_PATHS from routes instead of hardcoded array
+  if (AUTH_PATHS.has(url.pathname) && !token) {
     return addSecurityHeaders(
-      NextResponse.rewrite(new URL(`/app${pathname}${search}`, baseUrl)),
+      NextResponse.rewrite(new URL(loginPath, baseUrl)),
     );
   }
 
-  // Path already starts with /app, continue normally
+  if (!isAppPath(url.pathname) && url.pathname !== "/login") {
+    const pathPrefix = url.pathname === "/" ? "" : url.pathname;
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(`/app${pathPrefix}${url.search}`, baseUrl)),
+    );
+  }
+
   return addSecurityHeaders(NextResponse.next());
 }
 
