@@ -70,12 +70,13 @@ export const auth = betterAuth({
     freshAge: 60 * 60 * 24, // 1 day
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 30, // 30 minutes
+      maxAge: 60 * 10, // 10 minutes
     },
   },
   advanced: {
     crossSubDomainCookies: {
       enabled: true,
+      domain: process.env.NODE_ENV === "development" ? "localhost" : ".slugy.co",
     },
     trustedOrigins: origins,
   },
