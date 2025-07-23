@@ -204,8 +204,8 @@ export async function generateMetadata(context: { params: Promise<{ username: st
   const description =
     "Discover and share curated links in this gallery. Powered by Slugy.";
   const imageUrl =
-    "https://res.cloudinary.com/dcsouj6ix/image/upload/v1746276698/Dev%20Alpha/We_build._You_grow._1_hsagbw.png";
-  const canonicalUrl = `https://go.slugy.co/${username}`;
+    "https://opengraph.b-cdn.net/production/images/1160136e-9ad9-49c3-832c-80392cf860d7.png?token=Tk-p0tmXKfat-A7zU1aov_tcgG82lYmfeLr-zxR1LpI&height=630&width=1200&expires=33289246448";
+  const canonicalUrl = `https://bio.slugy.co/${username}`;
 
   return {
     title,
