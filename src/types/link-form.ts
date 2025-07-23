@@ -28,7 +28,11 @@ export const linkFormSchema = z.object({
       /^[a-zA-Z0-9_-]*$/,
       "Slug can only contain letters, numbers, dashes (-), and underscores (_)",
     )
-    .optional(),
+    .optional()
+    .refine(
+      (val) => !val || val.length === 0 || val.length >= 3,
+      { message: "Slug must be at least 3 characters if provided" }
+    ),
   description: z.string().optional(),
   password: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),

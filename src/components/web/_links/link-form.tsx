@@ -24,6 +24,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import { Loader2, Shuffle, TriangleAlert } from "lucide-react";
 import { BsStars } from "react-icons/bs";
@@ -237,6 +238,7 @@ export default function LinkFormFields({
                   autoComplete="off"
                 />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -351,6 +353,7 @@ export default function LinkFormFields({
                       />
                     </FormControl>
                   </div>
+                  <FormMessage />
                 </FormItem>
               )}
             />
