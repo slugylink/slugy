@@ -42,13 +42,6 @@ export const AUTH_PATHS = new Set([
   "/app/reset-password",
 ]);
 
-export const AUTH_REWRITES: Record<string, string> = {
-  "/login": "/app/login",
-  "/signup": "/app/signup",
-  "/forgot-password": "/app/forgot-password",
-  "/reset-password": "/app/reset-password",
-};
-
 export const SECURITY_HEADERS = {
   "X-Frame-Options": "DENY",
   "X-Content-Type-Options": "nosniff",

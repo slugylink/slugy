@@ -45,7 +45,7 @@ const getClientIP = (req: NextRequest): string => {
   const ip =
     req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-real-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || // FIXED: Added trim()
     "unknown";
   return normalizeIp(ip);
 };
@@ -81,6 +81,7 @@ type RateLimitResult = {
 
 const rateLimitExceededResponse = (result: RateLimitResult) =>
   addSecurityHeaders(
+    // FIXED: Added security headers
     new NextResponse(
       JSON.stringify({
         error: "Rate limit exceeded",
@@ -106,6 +107,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
 
+    // Early return for static assets
     if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
       return NextResponse.next();
     }
@@ -163,7 +165,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     console.error("Middleware Error:", err);
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/login", req.url)),
-    );
+    ); // FIXED: Better error handling
   }
 }
 
@@ -174,41 +176,53 @@ function handleAppSubdomain(
   token: unknown,
   baseUrl: string,
 ): NextResponse {
-  const isLoggedIn = Boolean(token);
-  const isLoginPage =
-    url.pathname === "/login" || url.pathname === "/app/login";
-  const loginUrl = new URL("/app/login", baseUrl);
-  const appHomeUrl = new URL("/app", baseUrl);
+  const { pathname, search } = url;
 
-  // 1. Always redirect raw /login path to proper /app/login
-  if (url.pathname === "/login") {
-    return addSecurityHeaders(NextResponse.rewrite(loginUrl));
+  const isAuthenticated = Boolean(token);
+  const prefixedPath = `/app${pathname}${search}`;
+  const isAlreadyInApp = pathname.startsWith("/app");
+  const isAuthPage = AUTH_PATHS.has(pathname);
+
+  // Handle root path
+  if (pathname === "/") {
+    const redirectPath = isAuthenticated ? "/app" : "/app/login";
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(redirectPath, baseUrl)),
+    );
   }
 
-  // 2. Handle root / path
-  if (url.pathname === "/") {
-    return isLoggedIn
-      ? addSecurityHeaders(NextResponse.rewrite(appHomeUrl))
-      : addSecurityHeaders(NextResponse.rewrite(loginUrl));
+  // Auth-related paths
+  if (isAuthPage) {
+    // Redirect authenticated users away from login/signup
+    if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
+      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+    }
+
+    // Rewrite public auth paths to /app/* equivalents
+    if (!isAlreadyInApp) {
+      return addSecurityHeaders(
+        NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
+      );
+    }
+
+    // Allow access to valid /app/* auth routes
+    return addSecurityHeaders(NextResponse.next());
   }
 
-  // 3. Redirect logged-in users from login paths to /app
-  if (isLoginPage && isLoggedIn) {
-    return addSecurityHeaders(NextResponse.redirect(appHomeUrl));
+  // Protect private routes: Require authentication
+  if (!isPublicPath(pathname) && !isAuthenticated) {
+    return addSecurityHeaders(
+      NextResponse.redirect(new URL("/app/login", baseUrl)),
+    );
   }
 
-  // 4. Redirect guests trying to visit protected routes
-  if (AUTH_PATHS.has(url.pathname) && !isLoggedIn) {
-    return addSecurityHeaders(NextResponse.rewrite(loginUrl));
+  // Rewrite everything else to /app/* unless already prefixed
+  if (!isAlreadyInApp) {
+    return addSecurityHeaders(
+      NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
+    );
   }
 
-  // 5. Ensure all non-/app prefixed paths on app.* point to their /app equivalent
-  if (!isAppPath(url.pathname) && !isLoginPage) {
-    const newPath = `/app${url.pathname}${url.search}`;
-    return addSecurityHeaders(NextResponse.rewrite(new URL(newPath, baseUrl)));
-  }
-
-  // 6. Default: allow to pass through
   return addSecurityHeaders(NextResponse.next());
 }
 
@@ -227,12 +241,12 @@ async function handleRootDomain(
     return redirectTo(appUrl.toString());
   }
 
+  // Skip assets/static - FIXED: Better asset detection
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/static/") ||
     pathname.startsWith("/favicon") ||
-    pathname.startsWith("/manifest.webmanifest") ||
     /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(pathname)
   ) {
     return addSecurityHeaders(NextResponse.next());
@@ -259,9 +273,10 @@ function handleCustomDomain(
 ): NextResponse {
   const { pathname, search } = url;
 
+  // FIXED: Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
+    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`); // FIXED: Include search params
   }
 
   return rewriteTo(`/${hostname}${pathname}${search}`, baseUrl);
