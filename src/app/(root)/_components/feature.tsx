@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 const Features = () => {
   return (
-    <div className="dark:bg-background mx-auto mt-10 max-w-[80rem] px-4 py-12 text-center sm:mt-0 sm:py-16 md:py-20 lg:py-24">
+    <div className="dark:bg-background mx-auto mt-10 max-w-[80rem] px-2 py-12 text-center sm:mt-0 sm:py-16 md:py-20 lg:py-24">
       {/* Heading */}
       <div className="mb-6 space-y-4 text-2xl font-semibold sm:text-3xl md:text-4xl">
         <h2 className="text-balance">Elevate your brand</h2>
@@ -26,7 +26,7 @@ const Features = () => {
           <div
             key={item.title}
             className={cn(
-              "w-full p-4 sm:p-6 lg:p-8",
+              "w-full  sm:p-4",
               index % 2 === 0 ? "sm:border-r dark:border-zinc-100/20" : "",
               index > 1 ? "rounf border-t dark:border-zinc-100/20" : "",
               index === 1 ? "border-t sm:border-t-0" : "",

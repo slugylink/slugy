@@ -47,7 +47,7 @@ export default function Home() {
     <main className="min-h-screen">
       {/* Hero section - Render immediately */}
       <div className="relative w-full">
-        <div className="z-20 mx-auto max-w-6xl p-4">
+        <div className="z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
         {/* <GradientBackground /> */}

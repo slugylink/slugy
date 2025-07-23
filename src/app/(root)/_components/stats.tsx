@@ -142,7 +142,7 @@ export default function Stats() {
   const growthData = useMemo(generateGrowthData, []);
 
   return (
-    <section className="relative mx-auto mt-20 max-w-6xl px-4 md:mt-16">
+    <section className="relative mx-auto mt-20 max-w-6xl md:mt-16">
       <motion.div
         className="text-center"
         initial={{ opacity: 0, y: 20 }}
@@ -163,7 +163,7 @@ export default function Stats() {
         initial="hidden"
         animate="show"
       >
-        <Card className="overflow-hidden border-none bg-transparent p-6 shadow-none">
+        <Card className="overflow-hidden border-none bg-transparent p-4 shadow-none">
           <div className="relative">
             <div className="absolute top-0 left-0 z-10 grid w-[80%] grid-cols-2 gap-3 sm:grid-cols-2 lg:w-[35%]">
               {statsData.map((stat) => (
