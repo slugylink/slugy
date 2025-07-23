@@ -204,7 +204,7 @@ function handleAppSubdomain(
 
   // FIXED: This logic was flawed - checking AUTH_PATHS twice
   // Protected paths that require authentication
-  if (!isPublicPath(pathname) && !token) {
+  if (!AUTH_PATHS.has(pathname) && !token) {
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/login", baseUrl)),
     );
