@@ -45,12 +45,12 @@ const getClientIP = (req: NextRequest): string => {
   const ip =
     req.headers.get("cf-connecting-ip") ||
     req.headers.get("x-real-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || // FIXED: Added trim()
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown";
   return normalizeIp(ip);
 };
 
-const isAppPath = (path: string): boolean => path.startsWith("/app");
+// const isAppPath = (path: string): boolean => path.startsWith("/app");
 
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
@@ -183,20 +183,21 @@ function handleAppSubdomain(
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
 
-  console.log("Middleware:", {
-    pathname,
-    search,
-    isAuthenticated,
-    prefixedPath,
-    isAlreadyInApp,
-    isAuthPage,
-  });
+  console.info(
+    "Middleware:",
+    JSON.stringify({
+      isAuthenticated,
+      prefixedPath,
+      isAuthPage,
+      isAlreadyInApp,
+    }),
+  );
 
   // Handle root path
   if (pathname === "/") {
     const redirectPath = isAuthenticated ? "/app" : "/login";
     return addSecurityHeaders(
-      NextResponse.redirect(new URL(redirectPath, baseUrl))
+      NextResponse.redirect(new URL(redirectPath, baseUrl)),
     );
   }
 
