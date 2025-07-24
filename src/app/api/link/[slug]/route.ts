@@ -1,70 +1,52 @@
-import { db } from "@/server/db";
 import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/redis";
+import { sql } from "@/server/neon";
+
+interface Link {
+  id: string;
+  url: string;
+  expiresAt: string | null;
+  expirationUrl: string | null;
+  password: string | null;
+  workspaceId: string;
+}
 
 const CACHE_PREFIX = "link:";
 const CACHE_EXPIRY = 60 * 60 * 24; // 1 day
 
-const getCachedLink = async (slug: string) => {
+const getCachedLink = async (slug: string): Promise<Link | null> => {
   const cacheKey = `${CACHE_PREFIX}${slug}`;
-
   try {
-    const cachedData = await getCache(cacheKey);
+    const cached = await getCache(cacheKey);
+    if (cached) return cached as Link;
 
-    if (cachedData) {
-      return cachedData as {
-        id: string;
-        url: string;
-        expiresAt: string | null;
-        expirationUrl: string | null;
-        password: string | null;
-        workspaceId: string;
-      };
+    const result = await sql`
+      SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
+      FROM "links"
+      WHERE slug = ${slug} AND "isArchived" = false
+      LIMIT 1
+    `;
+    if (!result[0]) {
+      await setCache(cacheKey, null, 60 * 5); // Cache null for 5 mins
+      return null;
     }
 
-    const link = await db.link.findFirst({
-      where: {
-        slug: slug,
-        isArchived: false,
-      },
-      select: {
-        id: true,
-        url: true,
-        expiresAt: true,
-        expirationUrl: true,
-        password: true,
-        workspaceId: true,
-      },
-    });
+    const link: Link = {
+      id: result[0].id,
+      url: result[0].url,
+      expiresAt: result[0].expiresAt ?? null,
+      expirationUrl: result[0].expirationUrl ?? null,
+      password: result[0].password ?? null,
+      workspaceId: result[0].workspaceId,
+    };
 
-    // Cache the result
-    if (link) {
-      await setCache(cacheKey, link, CACHE_EXPIRY);
-    } else {
-      await setCache(cacheKey, null, 60 * 5); // 5 minutes
-    }
-
+    await setCache(cacheKey, link, CACHE_EXPIRY);
     return link;
   } catch (error) {
-    console.error("Error in getCachedLink:", error);
-    // Fallback to direct DB query
-    return await db.link.findUnique({
-      where: {
-        slug: slug,
-        isArchived: false,
-      },
-      select: {
-        id: true,
-        url: true,
-        expiresAt: true,
-        expirationUrl: true,
-        password: true,
-        workspaceId: true,
-      },
-    });
+    console.error("getCachedLink error:", error);
+    return null;
   }
 };
-
 // Cookie parser utility
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
@@ -89,16 +71,16 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
-    const { slug: shortCode } = await params;
+    const { slug } = await params;
 
-    if (!isValidSlug(shortCode)) {
+    if (!isValidSlug(slug)) {
       return NextResponse.json({
         success: false,
         url: `${req.nextUrl.origin}/?status=invalid`,
       });
     }
 
-    const link = await getCachedLink(shortCode);
+    const link = await getCachedLink(slug);
 
     if (!link) {
       return NextResponse.json({
@@ -107,23 +89,18 @@ export async function GET(
       });
     }
 
-    // expiration
+    // Check expiration
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      const expirationUrl =
-        link.expirationUrl || `${req.nextUrl.origin}/?status=expired`;
       return NextResponse.json({
         success: true,
-        url: expirationUrl,
+        url: link.expirationUrl ?? `${req.nextUrl.origin}/?status=expired`,
         expired: true,
       });
     }
-
-    // Handle password protection
+    // Password Protected
     if (link.password) {
-      const cookieHeader = req.headers.get("cookie");
-      const cookies = parseCookies(cookieHeader);
-      const passwordVerified = cookies[`password_verified_${shortCode}`];
-
+      const cookies = parseCookies(req.headers.get("cookie"));
+      const passwordVerified = cookies[`password_verified_${slug}`] === "true";
       if (!passwordVerified) {
         return NextResponse.json({
           success: true,
