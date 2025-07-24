@@ -53,8 +53,8 @@ export async function POST(req: NextRequest) {
             city: analyticsData.city,
             continent: analyticsData.continent,
             browser:
-              analyticsData.browser?.name || analyticsData.browser || "unknown",
-            os: analyticsData.os?.name || analyticsData.os || "unknown",
+              analyticsData.browser?.name || analyticsData.browser || "chrome",
+            os: analyticsData.os?.name || analyticsData.os || "windows",
             device:
               analyticsData.device?.type || analyticsData.device || "desktop",
             referer: analyticsData.referer || "Direct",
