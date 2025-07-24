@@ -67,7 +67,7 @@ interface GetLinksResponse {
 const defaultLink: Link = {
   short: "slugy.co/git",
   original: "https://github.com/slugylink/slugy",
-  clicks: 326,
+  clicks: 150,
   expires: null,
 };
 
