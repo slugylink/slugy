@@ -1,6 +1,5 @@
 import { geolocation, ipAddress } from "@vercel/functions";
-import { after, NextRequest, NextResponse } from "next/server";
-import { userAgent } from "next/server";
+import { after, NextRequest, NextResponse, userAgent } from "next/server";
 import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
 
 interface LinkData {
@@ -84,7 +83,7 @@ export function trackAnalytics(
         req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? "unknown",
       device: ua.device?.type?.toLowerCase() ?? "desktop",
       browser: ua.browser?.name?.toLowerCase() ?? "chrome",
-      os: ua.os?.name?.toLowerCase() ?? "ios",
+      os: ua.os?.name?.toLowerCase() ?? "windows",
       referer: req.headers.get("referer") ?? "Direct",
     };
 
