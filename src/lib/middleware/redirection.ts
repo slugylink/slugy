@@ -1,5 +1,5 @@
-import { geolocation, ipAddress } from "@vercel/functions";
-import { after, NextRequest, NextResponse, userAgent } from "next/server";
+import { geolocation, ipAddress, waitUntil } from "@vercel/functions";
+import { NextRequest, NextResponse, userAgent } from "next/server";
 import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
 
 interface LinkData {
@@ -64,7 +64,7 @@ export async function URLRedirects(
   }
 }
 
-export function trackAnalytics(
+function trackAnalytics(
   req: NextRequest,
   linkId: string,
   slug: string,
@@ -103,7 +103,7 @@ export function trackAnalytics(
       referer: analytics.referer ?? "Direct",
     };
 
-    after(
+    waitUntil(
       Promise.allSettled([
         sendEventsToTinybird(tbEvent),
         fetch(`${req.nextUrl.origin}/api/analytics/track`, {
