@@ -65,8 +65,8 @@ interface GetLinksResponse {
 
 // Default link for demonstration
 const defaultLink: Link = {
-  short: "slugy.co/try",
-  original: "https://app.slugy.co/login",
+  short: "slugy.co/git",
+  original: "https://github.com/slugylink/slugy",
   clicks: 326,
   expires: null,
 };
