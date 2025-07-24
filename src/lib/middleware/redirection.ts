@@ -1,15 +1,7 @@
 import { geolocation, ipAddress, waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
-
-interface LinkData {
-  success: boolean;
-  url?: string;
-  linkId?: string;
-  requiresPassword?: boolean;
-  expired?: boolean;
-  workspaceId: string;
-}
+import { getLink } from "./get-link";
 
 interface AnalyticsData {
   ipAddress: string;
@@ -27,25 +19,12 @@ export async function URLRedirects(
   shortCode: string,
 ): Promise<NextResponse | null> {
   try {
-    const linkResponse = await fetch(
-      `${req.nextUrl.origin}/api/link/${shortCode}`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(req.headers.get("cookie") && {
-            Cookie: req.headers.get("cookie")!,
-          }),
-        },
-      },
-    );
-
-    if (!linkResponse.ok) return null;
-
-    const linkData: LinkData = await linkResponse.json();
+    const cookieHeader = req.headers.get("cookie");
+    const origin = req.nextUrl.origin;
+    const linkData = await getLink(shortCode, cookieHeader, origin);
 
     if (linkData.success && linkData.url && !linkData.requiresPassword) {
-      if (linkData.linkId) {
+      if (linkData.linkId && linkData.workspaceId) {
         void trackAnalytics(
           req,
           linkData.linkId,
@@ -53,7 +32,6 @@ export async function URLRedirects(
           linkData.workspaceId,
         );
       }
-
       return NextResponse.redirect(new URL(linkData.url), 302);
     }
 
