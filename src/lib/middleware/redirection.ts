@@ -1,5 +1,5 @@
-import { waitUntil } from "@vercel/functions";
-import { NextRequest, NextResponse } from "next/server";
+import { geolocation, ipAddress } from "@vercel/functions";
+import { after, NextRequest, NextResponse } from "next/server";
 import { userAgent } from "next/server";
 import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
 
@@ -73,13 +73,13 @@ export function trackAnalytics(
 ): void {
   try {
     const ua = userAgent(req);
+    const ip = ipAddress(req);
+    const { country, city } = geolocation(req);
 
     const analytics: AnalyticsData = {
-      ipAddress:
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown",
-      country:
-        req.headers.get("x-vercel-ip-country")?.toLowerCase() ?? "unknown",
-      city: req.headers.get("x-vercel-ip-city")?.toLowerCase() ?? "unknown",
+      ipAddress: ip ?? "unknown",
+      country: country?.toLowerCase() ?? "unknown",
+      city: city?.toLowerCase() ?? "unknown",
       continent:
         req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? "unknown",
       device: ua.device?.type?.toLowerCase() ?? "desktop",
@@ -104,7 +104,7 @@ export function trackAnalytics(
       referer: analytics.referer ?? "Direct",
     };
 
-    waitUntil(
+    after(
       Promise.allSettled([
         sendEventsToTinybird(tbEvent),
         fetch(`${req.nextUrl.origin}/api/analytics/track`, {
