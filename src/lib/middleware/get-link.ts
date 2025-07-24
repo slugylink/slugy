@@ -54,7 +54,7 @@ export async function getLink(
   // Try to get from cache
   try {
     const cached = await redis.get(cacheKey);
-    console.log("Redis GET result (cache read) 🔥:", cached);
+    // console.log("Redis GET result (cache read) 🔥:", cached);
     if (cached) {
       link = typeof cached === "string" ? JSON.parse(cached) : cached;
     }

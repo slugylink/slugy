@@ -14,10 +14,13 @@ const nanoid = customAlphabet(
 // Updated input validation schema
 const createLinkSchema = z.object({
   url: z.string().url(),
-  slug: z.string().max(50).optional().refine(
-    (val) => !val || val.length === 0 || val.length >= 3,
-    { message: "Slug must be at least 3 characters if provided" }
-  ),
+  slug: z
+    .string()
+    .max(50)
+    .optional()
+    .refine((val) => !val || val.length === 0 || val.length >= 3, {
+      message: "Slug must be at least 3 characters if provided",
+    }),
   image: z.string().url().optional().nullable(),
   title: z.string().max(100).optional().nullable(),
   description: z.string().max(500).optional().nullable(),
@@ -67,7 +70,7 @@ export async function POST(
       expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
     };
     const validatedData = createLinkSchema.parse(preprocessedBody);
-    
+
     const context = await params;
 
     const workspaceCheck = await checkWorkspaceAccessAndLimits(
@@ -93,10 +96,14 @@ export async function POST(
     }
 
     // Prevent recursive links: do not allow destination URL to be a slugy.co short link
-    const ownDomainPattern = /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
+    const ownDomainPattern =
+      /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
     if (ownDomainPattern.test(validatedData.url)) {
       return NextResponse.json(
-        { error: "Recursive links are not allowed. You cannot shorten a slugy.co link." },
+        {
+          error:
+            "Recursive links are not allowed. You cannot shorten a slugy.co link.",
+        },
         { status: 400 },
       );
     }
@@ -168,9 +175,9 @@ export async function POST(
         });
 
         // Find tags that don't exist yet
-        const existingTagNames = existingTags.map(tag => tag.name);
+        const existingTagNames = existingTags.map((tag) => tag.name);
         const newTagNames = validatedData.tags.filter(
-          tagName => !existingTagNames.includes(tagName)
+          (tagName) => !existingTagNames.includes(tagName),
         );
 
         // Create new tags if needed
@@ -186,14 +193,14 @@ export async function POST(
 
           const canCreateCount = Math.min(
             newTagNames.length,
-            5 - currentTagCount
+            5 - currentTagCount,
           );
 
           if (canCreateCount > 0) {
             const tagsToCreate = newTagNames.slice(0, canCreateCount);
-            
+
             const createdTags = await Promise.all(
-              tagsToCreate.map(tagName =>
+              tagsToCreate.map((tagName) =>
                 tx.tag.create({
                   data: {
                     name: tagName,
@@ -201,8 +208,8 @@ export async function POST(
                     color: null, // Default color
                   },
                   select: { id: true, name: true },
-                })
-              )
+                }),
+              ),
             );
 
             allTags = [...existingTags, ...createdTags];
@@ -212,7 +219,7 @@ export async function POST(
         // Create link-tag relationships for all tags
         if (allTags.length > 0) {
           await tx.linkTag.createMany({
-            data: allTags.map(tag => ({
+            data: allTags.map((tag) => ({
               linkId: link.id,
               tagId: tag.id,
             })),
@@ -273,6 +280,9 @@ export async function POST(
     });
 
     // Invalidate cache for the new link
+    if (!linkWithTags) {
+      return NextResponse.json({ message: "Link not found" }, { status: 404 });
+    }
     await invalidateLinkCache(linkWithTags?.slug);
 
     return NextResponse.json(linkWithTags, {

@@ -1,27 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCache, setCache } from "@/lib/redis";
 import { sql } from "@/server/neon";
 
-const CACHE_PREFIX = "link:";
-const CACHE_EXPIRY = 60 * 60 * 24; // 1 day
-
 const getCachedLink = async (slug: string) => {
-  const cacheKey = `${CACHE_PREFIX}${slug}`;
-
   try {
-    const cachedData = await getCache(cacheKey);
-
-    if (cachedData) {
-      return cachedData as {
-        id: string;
-        url: string;
-        expiresAt: string | null;
-        expirationUrl: string | null;
-        password: string | null;
-        workspaceId: string;
-      };
-    }
-
     // Use SQL query instead of Prisma
     const result = await sql`
       SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
@@ -39,13 +20,6 @@ const getCachedLink = async (slug: string) => {
           workspaceId: result[0].workspaceId,
         }
       : null;
-
-    // Cache the result
-    if (link) {
-      await setCache(cacheKey, link, CACHE_EXPIRY);
-    } else {
-      await setCache(cacheKey, null, 60 * 5); // 5 minutes
-    }
 
     return link;
   } catch (error) {
