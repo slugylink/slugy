@@ -1,10 +1,10 @@
 "use client";
+
 import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import Hero from "./_components/hero";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
-// Constants for loading states
 const LOADING_HEIGHT = {
   features: "h-[400px]",
   stats: "h-[300px]",
@@ -12,7 +12,6 @@ const LOADING_HEIGHT = {
   openSource: "h-[300px]",
 };
 
-// Lightweight loading component with configurable height
 function LoadingSection({ height = "h-[200px]" }: { height?: string }) {
   return (
     <div className={`flex w-full items-center justify-center ${height}`}>
@@ -21,7 +20,10 @@ function LoadingSection({ height = "h-[200px]" }: { height?: string }) {
   );
 }
 
-// Optimized dynamic imports with proper loading states and caching
+const LoadingSpinner = () => (
+  <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+);
+
 const Features = dynamic(() => import("./_components/feature"), {
   loading: () => <LoadingSection height={LOADING_HEIGHT.features} />,
   ssr: true,
@@ -45,15 +47,13 @@ const OpenSource = dynamic(() => import("./_components/open-source"), {
 export default function Home() {
   return (
     <main className="min-h-screen">
-      {/* Hero section - Render immediately */}
+      {/* Hero section rendered immediately */}
       <div className="relative w-full">
         <div className="z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
-        {/* <GradientBackground /> */}
       </div>
 
-      {/* Below the fold sections - Load when in viewport */}
       <Suspense fallback={<LoadingSection height={LOADING_HEIGHT.features} />}>
         <section id="features" className="scroll-mt-20">
           <Features />
@@ -66,6 +66,7 @@ export default function Home() {
         </section>
       </Suspense>
 
+      {/* Pricing section commented out */}
       {/* <Suspense fallback={<LoadingSection height={LOADING_HEIGHT.pricing} />}>
         <section id="pricing" className="scroll-mt-20">
           <Pricing />
@@ -82,8 +83,3 @@ export default function Home() {
     </main>
   );
 }
-
-// Memoized loading spinner component
-const LoadingSpinner = () => (
-  <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
-);
