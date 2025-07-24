@@ -38,7 +38,7 @@ const OpenSource = () => {
               </Link>
               <Link
                 target="_blank"
-                href="https://slugy.co/supportk"
+                href="https://slugy.co/support"
               >
                 <Button variant="outline" className="rounded-lg">
                   <Heart className="mr-2 h-5 w-5 text-pink-500" />
