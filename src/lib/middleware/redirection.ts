@@ -83,8 +83,8 @@ export function trackAnalytics(
       continent:
         req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? "unknown",
       device: ua.device?.type?.toLowerCase() ?? "desktop",
-      browser: ua.browser?.name?.toLowerCase() ?? "unknown",
-      os: ua.os?.name?.toLowerCase() ?? "unknown",
+      browser: ua.browser?.name?.toLowerCase() ?? "chrome",
+      os: ua.os?.name?.toLowerCase() ?? "ios",
       referer: req.headers.get("referer") ?? "Direct",
     };
 
