@@ -1,17 +1,17 @@
-import { getCache, setCache } from "@/lib/redis";
 import { sql } from "@/server/neon";
-
-const CACHE_PREFIX = "link:";
-const CACHE_EXPIRY = 60 * 60 * 24; // 1 day
+import { redis } from "@/lib/redis";
 
 // Cookie parser utility
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
-  return cookieHeader.split(";").reduce((acc, cookie) => {
-    const [key, value] = cookie.trim().split("=");
-    if (key && value) acc[key] = value;
-    return acc;
-  }, {} as Record<string, string>);
+  return cookieHeader.split(";").reduce(
+    (acc, cookie) => {
+      const [key, value] = cookie.trim().split("=");
+      if (key && value) acc[key] = value;
+      return acc;
+    },
+    {} as Record<string, string>,
+  );
 };
 
 // Validation utility
@@ -40,8 +40,8 @@ export async function getLink(
     };
   }
 
-  // Try cache first
-  const cacheKey = `${CACHE_PREFIX}${slug}`;
+  const cacheKey = `link:${slug}`;
+
   let link: {
     id: string;
     url: string;
@@ -51,15 +51,21 @@ export async function getLink(
     workspaceId: string;
   } | null = null;
 
+  // Try to get from cache
   try {
-    link = await getCache(cacheKey);
-  } catch (error) {
-    console.error("Error in getCache (getLink):", error);
+    const cached = await redis.get(cacheKey);
+    console.log("Redis GET result (cache read) 🔥:", cached);
+    if (cached) {
+      link = typeof cached === "string" ? JSON.parse(cached) : cached;
+    }
+  } catch (err) {
+    console.error("Redis GET error (cache read):", err);
   }
 
+  //If miss, load from SQL
   if (!link) {
-    // Fallback to SQL
     try {
+      // console.log("SQL GET result (cache miss) 🔥:");
       const result = await sql`
         SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
         FROM "links"
@@ -76,11 +82,12 @@ export async function getLink(
             workspaceId: result[0].workspaceId,
           }
         : null;
-      // Cache the result
+
+      // If found, set in cache
       if (link) {
-        await setCache(cacheKey, link, CACHE_EXPIRY);
-      } else {
-        await setCache(cacheKey, null, 60 * 5); // 5 minutes
+        await redis.set(cacheKey, JSON.stringify(link), {
+          ex: 60 * 60 * 23, // 23 hours
+        });
       }
     } catch (error) {
       console.error("Error in SQL (getLink):", error);
@@ -91,6 +98,7 @@ export async function getLink(
     }
   }
 
+  // not found
   if (!link) {
     return {
       success: true,
@@ -98,7 +106,7 @@ export async function getLink(
     };
   }
 
-  // expiration
+  //Check expiration
   if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
     const expirationUrl =
       link.expirationUrl || (origin ? `${origin}/?status=expired` : undefined);
@@ -109,7 +117,7 @@ export async function getLink(
     };
   }
 
-  // Handle password protection
+  // Password protection
   if (link.password) {
     const cookies = parseCookies(cookieHeader ?? null);
     const passwordVerified = cookies[`password_verified_${slug}`];
@@ -122,6 +130,7 @@ export async function getLink(
     }
   }
 
+  // Final result
   return {
     success: true,
     url: link.url,

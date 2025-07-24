@@ -237,7 +237,10 @@ export async function PATCH(
     });
 
     // Invalidate cache for the updated link
-    await invalidateLinkCache(linkWithTags?.slug);
+    if (!linkWithTags) {
+      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+    }
+    await invalidateLinkCache(linkWithTags.slug!);
 
     return NextResponse.json(linkWithTags, { status: 200 });
   } catch (error) {

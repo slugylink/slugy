@@ -41,7 +41,10 @@ export async function DELETE(
     // Invalidate cache for the deleted link
     await invalidateLinkCache(linkSlug);
 
-    return NextResponse.json({ message: "Link deleted successfully" }, { status: 200 });
+    return NextResponse.json(
+      { message: "Link deleted successfully" },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error deleting link:", error);
     if (error instanceof Error) {
