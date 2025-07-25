@@ -1,5 +1,5 @@
 import { sql } from "@/server/neon";
-import { redis } from "@/lib/redis";
+import { CACHE_BASE_TTL, CACHE_TTL_JITTER, redis } from "@/lib/redis";
 
 // Cookie parser utility
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
@@ -15,9 +15,8 @@ const parseCookies = (cookieHeader: string | null): Record<string, string> => {
 };
 
 // Validation utility
-const isValidSlug = (slug: string): boolean => {
-  return Boolean(slug && slug.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(slug));
-};
+const isValidSlug = (slug: string): boolean =>
+  Boolean(slug && slug.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(slug));
 
 export interface GetLinkResult {
   success: boolean;
@@ -27,6 +26,15 @@ export interface GetLinkResult {
   requiresPassword?: boolean;
   expired?: boolean;
 }
+
+type LinkCacheType = {
+  id: string;
+  url: string;
+  expiresAt: string | null;
+  expirationUrl: string | null;
+  password: string | null;
+  workspaceId: string;
+} | null;
 
 export async function getLink(
   slug: string,
@@ -41,31 +49,17 @@ export async function getLink(
   }
 
   const cacheKey = `link:${slug}`;
+  let link: LinkCacheType = null;
 
-  let link: {
-    id: string;
-    url: string;
-    expiresAt: string | null;
-    expirationUrl: string | null;
-    password: string | null;
-    workspaceId: string;
-  } | null = null;
-
-  // Try to get from cache
+  // Cache read (fail silently if redis unavailable)
   try {
     const cached = await redis.get(cacheKey);
-    // console.log("Redis GET result (cache read) 🔥:", cached);
-    if (cached) {
-      link = typeof cached === "string" ? JSON.parse(cached) : cached;
-    }
-  } catch (err) {
-    console.error("Redis GET error (cache read):", err);
-  }
+    if (cached) link = typeof cached === "string" ? JSON.parse(cached) : cached;
+  } catch {}
 
-  //If miss, load from SQL
+  // Cache miss: fetch from SQL and set cache
   if (!link) {
     try {
-      // console.log("SQL GET result (cache miss) 🔥:");
       const result = await sql`
         SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
         FROM "links"
@@ -82,15 +76,12 @@ export async function getLink(
             workspaceId: result[0].workspaceId,
           }
         : null;
-
-      // If found, set in cache
       if (link) {
         await redis.set(cacheKey, JSON.stringify(link), {
-          ex: 60 * 60 * 23, // 23 hours
+          ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,
         });
       }
-    } catch (error) {
-      console.error("Error in SQL (getLink):", error);
+    } catch {
       return {
         success: false,
         url: origin ? `${origin}/?status=error` : undefined,
@@ -98,7 +89,6 @@ export async function getLink(
     }
   }
 
-  // not found
   if (!link) {
     return {
       success: true,
@@ -106,15 +96,11 @@ export async function getLink(
     };
   }
 
-  //Check expiration
+  // Check expiration
   if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
     const expirationUrl =
       link.expirationUrl || (origin ? `${origin}/?status=expired` : undefined);
-    return {
-      success: true,
-      url: expirationUrl,
-      expired: true,
-    };
+    return { success: true, url: expirationUrl, expired: true };
   }
 
   // Password protection
@@ -130,7 +116,7 @@ export async function getLink(
     }
   }
 
-  // Final result
+  // Success
   return {
     success: true,
     url: link.url,

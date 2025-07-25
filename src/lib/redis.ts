@@ -13,3 +13,5 @@ export const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
+export const CACHE_BASE_TTL = 60 * 60 * 23; // 23 hours, in seconds
+export const CACHE_TTL_JITTER = 60 * Math.floor(Math.random() * 10); // [0, 9] minutes jitter
