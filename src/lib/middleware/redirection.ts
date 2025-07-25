@@ -71,7 +71,7 @@ function trackAnalytics(
       url: req.nextUrl.href,
       ip: analytics.ipAddress,
       country: analytics.country ?? "unknown",
-      city: analytics.city ?? "unknown",
+      city: analytics.city ?? "Unknown",
       continent: analytics.continent ?? "unknown",
       device: analytics.device,
       browser: analytics.browser,

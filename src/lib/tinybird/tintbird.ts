@@ -23,20 +23,20 @@ export interface AnalyticsEvent {
 export async function sendEventsToTinybird(event: AnalyticsEvent) {
   try {
     const sanitizedEvent = {
-      linkId: event.linkId ?? "unknown",
-      clickId: event.clickId ?? null,
-      slug: event.slug ?? "unknown",
-      url: event.url ?? "unknown",
-      workspaceId: event.workspaceId ?? "unknown",
-      ip: event.ip ?? "unknown",
-      country: event.country ?? "unknown",
-      city: event.city ?? "unknown",
-      continent: event.continent ?? "unknown",
-      browser: event.browser ?? "unknown",
-      os: event.os ?? "unknown",
-      device: event.device ?? "unknown",
-      ua: event.ua ?? "unknown",
-      referer: event.referer ?? "Direct",
+      linkId: event.linkId,
+      clickId: event.clickId,
+      slug: event.slug,
+      url: event.url,
+      workspaceId: event.workspaceId,
+      ip: event.ip,
+      country: event.country,
+      city: event.city,
+      continent: event.continent,
+      browser: event.browser,
+      os: event.os,
+      device: event.device,
+      ua: event.ua,
+      referer: event.referer,
       timestamp: new Date().toISOString(),
     };
 
@@ -50,9 +50,9 @@ export async function sendEventsToTinybird(event: AnalyticsEvent) {
     });
 
     if (!response.ok) {
-      console.error("❌ Tinybird error:", await response.text());
+      console.error("[Tinybird] error:", await response.text());
     }
   } catch (error) {
-    console.error("❌ Tinybird analytics error:", error);
+    console.error("[Tinybird] analytics error:", error);
   }
 }

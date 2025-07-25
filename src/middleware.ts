@@ -183,16 +183,6 @@ function handleAppSubdomain(
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
 
-  console.info(
-    "Middleware:",
-    JSON.stringify({
-      isAuthenticated,
-      prefixedPath,
-      isAuthPage,
-      isAlreadyInApp,
-    }),
-  );
-
   // Handle root path
   if (pathname === "/") {
     const redirectPath = isAuthenticated ? "/app" : "/login";
