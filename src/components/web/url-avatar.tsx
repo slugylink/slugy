@@ -22,18 +22,17 @@ function UrlAvatar({
   const [loading, setLoading] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
 
-  // Define image sources in order of fallback with optimized sizes
   const sources = useMemo(
     () => [
       `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       `https://avatar.vercel.sh/${domain}?size=32`,
+      "/logo.svg", // explicit fallback
     ],
     [domain],
   );
 
   const [src, setSrc] = useState(sources[0]);
 
-  // Reset when URL changes
   useEffect(() => {
     setLoading(true);
     setErrorCount(0);
@@ -43,8 +42,6 @@ function UrlAvatar({
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setLoading(false);
     const target = e.target as HTMLImageElement;
-
-    // If the image is too small, try the next source
     if (
       target.naturalWidth <= 16 &&
       target.naturalHeight <= 16 &&
@@ -56,18 +53,15 @@ function UrlAvatar({
   };
 
   const handleError = () => {
-    // Try the next source in the array
     const nextIndex = errorCount + 1;
     if (nextIndex < sources.length) {
       setErrorCount(nextIndex);
       setSrc(sources[nextIndex]);
     } else {
-      // All sources failed, fall back to temp.svg
       setLoading(false);
     }
   };
 
-  // Map size prop to Tailwind classes
   const sizeClasses = {
     4: "h-4 w-4",
     5: "h-[18px] w-[18px]",
@@ -78,9 +72,8 @@ function UrlAvatar({
     16: "h-16 w-16",
   };
 
-  // Calculate optimal image dimensions
   const imageSize = size * imgSize;
-  const quality = size <= 6 ? 75 : 85; // Lower quality for smaller sizes
+  const quality = size <= 6 ? 75 : 85;
 
   return (
     <div
@@ -94,8 +87,9 @@ function UrlAvatar({
       <picture>
         <source srcSet={src} type="image/png" />
         <Image
-          alt={`${domain}`}
-          src={src ?? "/logo.svg"}
+          alt={domain}
+          title={domain}
+          src={src}
           width={imageSize}
           height={imageSize}
           quality={quality}

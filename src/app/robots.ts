@@ -14,10 +14,9 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
           "/api/",
           "/admin/",
           "/app/",
-          "/bio-links/",
           "/_next/",
           "/private/",
-          "/*.json$",
+          "/*.json", // note: this disallows any URL ending with ".json"
           "/temp/",
         ],
       },

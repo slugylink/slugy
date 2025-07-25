@@ -27,6 +27,75 @@ interface ReferrerData {
   clicks: number;
 }
 
+interface RefTableProps<T> {
+  data: T[];
+  loading: boolean;
+  error?: Error;
+  keyPrefix: string;
+  renderName: (item: T) => React.ReactNode;
+}
+
+function RefTable<T extends ReferrerData>({
+  data,
+  loading,
+  error,
+  keyPrefix,
+  renderName,
+}: RefTableProps<T>) {
+  const maxClicks = data[0]?.clicks ?? 1;
+
+  if (loading) {
+    return (
+      <TableBody>
+        <TableRow>
+          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
+            <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin mx-auto" />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  if (error || data.length === 0) {
+    return (
+      <TableBody>
+        <TableRow>
+          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
+            No data available
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  return (
+    <TableBody className="space-y-1">
+      {data.map((item, index) => {
+        const widthPercentage = (item.clicks / maxClicks) * 100;
+        const keyId = item.referrer ?? `${keyPrefix}-${index}`;
+        return (
+          <TableRow
+            key={`${keyPrefix}-${keyId}`}
+            className="bg-background relative border-none"
+          >
+            <TableCell className="relative z-10 flex items-center gap-x-2">
+              {renderName(item)}
+            </TableCell>
+            <TableCell className="relative z-10 text-right">
+              {formatNumber(item.clicks)}
+            </TableCell>
+            <div
+              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-red-200/40 dark:bg-red-950/50"
+              style={{ width: `${widthPercentage}%` }}
+              aria-hidden="true"
+            />
+          </TableRow>
+        );
+      })}
+    </TableBody>
+  );
+}
+
 const ReferrerClicks = ({
   workspaceslug,
   searchParams,
@@ -73,62 +142,28 @@ const ReferrerClicks = ({
                     <TableHead className="text-right">Clicks</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={2} className="h-72">
-                        <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
+                <RefTable
+                  data={processedData}
+                  loading={isLoading}
+                  error={error}
+                  keyPrefix="referrer"
+                  renderName={(item) => (
                     <>
-                      {processedData.map((item) => {
-                        const maxClicks = processedData[0]?.clicks ?? 1;
-                        const widthPercentage = (item.clicks / maxClicks) * 100;
-                        return (
-                          <TableRow
-                            key={`referrer-${item.safeKey}`}
-                            className="bg-background relative border-none"
-                          >
-                            <TableCell className="relative z-10 flex items-center gap-x-2">
-                              <UrlAvatar
-                                className="rounded-sm"
-                                size={5}
-                                imgSize={4}
-                                url={item.referrer}
-                              />
-                              <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-                                {item.referrer
-                                  .replace("https://", "")
-                                  .replace("http://", "")
-                                  .replace("www.", "")}
-                              </span>
-                            </TableCell>
-                            <TableCell className="relative z-10 text-right">
-                              {formatNumber(item.clicks)}
-                            </TableCell>
-                            <div
-                              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-red-200/40 dark:bg-red-950/50"
-                              style={{ width: `${widthPercentage}%` }}
-                            />
-                          </TableRow>
-                        );
-                      })}
-                      {(processedData.length === 0 || error) && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={2}
-                            className="py-4 text-center text-gray-500"
-                          >
-                            No referrer data available
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      <UrlAvatar
+                        className="rounded-sm"
+                        size={5}
+                        imgSize={4}
+                        url={item.referrer}
+                      />
+                      <span className="line-clamp-1 max-w-[220px] text-ellipsis">
+                        {item.referrer
+                          .replace("https://", "")
+                          .replace("http://", "")
+                          .replace("www.", "")}
+                      </span>
                     </>
                   )}
-                </TableBody>
+                />
               </Table>
             </ScrollArea>
           </TabsContent>

@@ -28,6 +28,75 @@ interface UrlClickData {
   clicks: number;
 }
 
+interface UrlTableProps<T> {
+  data: T[];
+  loading: boolean;
+  error?: Error;
+  keyPrefix: string;
+  renderName: (item: T) => React.ReactNode;
+}
+
+function UrlTable<T extends UrlClickData>({
+  data,
+  loading,
+  error,
+  keyPrefix,
+  renderName,
+}: UrlTableProps<T>) {
+  const maxClicks = data[0]?.clicks ?? 1;
+
+  if (loading) {
+    return (
+      <TableBody>
+        <TableRow>
+          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
+            <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin mx-auto" />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  if (error || data.length === 0) {
+    return (
+      <TableBody>
+        <TableRow>
+          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
+            No data available
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  return (
+    <TableBody className="space-y-1">
+      {data.map((item, index) => {
+        const widthPercentage = (item.clicks / maxClicks) * 100;
+        const keyId = item.slug ?? item.url ?? `${keyPrefix}-${index}`;
+        return (
+          <TableRow
+            key={`${keyPrefix}-${keyId}`}
+            className="relative border-none"
+          >
+            <TableCell className="relative z-10">
+              {renderName(item)}
+            </TableCell>
+            <TableCell className="relative z-10 text-right">
+              {formatNumber(item.clicks)}
+            </TableCell>
+            <div
+              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-orange-200/40 dark:bg-orange-950/50"
+              style={{ width: `${widthPercentage}%` }}
+              aria-hidden="true"
+            />
+          </TableRow>
+        );
+      })}
+    </TableBody>
+  );
+}
+
 const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
   const { data, error, isLoading } = useSWR<UrlClickData[], Error>(
     ["url-clicks", workspaceslug, searchParams],
@@ -75,62 +144,25 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
                     <TableHead className="text-right">Clicks</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={2} className="h-72">
-                        <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {sortedData.map((item) => {
-                        const maxClicks = sortedData[0]?.clicks ?? 1;
-                        const widthPercentage = (item.clicks / maxClicks) * 100;
-
-                        return (
-                          <TableRow
-                            key={`short-${item.slug}`}
-                            className="relative border-none"
-                          >
-                            <TableCell className="relative z-10 line-clamp-1 border-none">
-                              <div className="flex items-center gap-x-2">
-                                <UrlAvatar
-                                  className="rounded-sm"
-                                  size={5}
-                                  imgSize={4}
-                                  url={item.url}
-                                />
-                                <p className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-                                  slugy.co/{item.slug}
-                                </p>
-                              </div>
-                            </TableCell>
-                            <TableCell className="relative z-10 text-right">
-                              {formatNumber(item.clicks)}
-                            </TableCell>
-                            <div
-                              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-orange-200/40 dark:bg-orange-950/50"
-                              style={{ width: `${widthPercentage}%` }}
-                            />
-                          </TableRow>
-                        );
-                      })}
-                      {sortedData.length === 0 && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={2}
-                            className="py-4 text-center text-gray-500"
-                          >
-                            No short links available
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
+                <UrlTable
+                  data={sortedData}
+                  loading={isLoading}
+                  error={error}
+                  keyPrefix="short"
+                  renderName={(item) => (
+                    <div className="flex items-center gap-x-2">
+                      <UrlAvatar
+                        className="rounded-sm"
+                        size={5}
+                        imgSize={4}
+                        url={item.url}
+                      />
+                      <p className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+                        slugy.co/{item.slug}
+                      </p>
+                    </div>
                   )}
-                </TableBody>
+                />
               </Table>
             </ScrollArea>
           </TabsContent>
@@ -144,64 +176,28 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
                     <TableHead className="text-right">Clicks</TableHead>
                   </TableRow>
                 </TableHeader>
-                <TableBody>
-                  {isLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={2} className="h-72">
-                        <div className="flex h-full items-center justify-center">
-                          <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    <>
-                      {sortedData.map((item) => {
-                        const maxClicks = sortedData[0]?.clicks ?? 1;
-                        const widthPercentage = (item.clicks / maxClicks) * 100;
-                        return (
-                          <TableRow
-                            key={`dest-${item.url}`}
-                            className="relative border-none"
-                          >
-                            <TableCell className="relative z-10 line-clamp-1">
-                              <div className="flex items-center gap-x-2">
-                                <UrlAvatar
-                                  className="rounded-sm"
-                                  size={5}
-                                  imgSize={4}
-                                  url={item.url}
-                                />
-                                <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-                                  {item.url
-                                    .replace("https://", "")
-                                    .replace("http://", "")
-                                    .replace("www.", "")}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell className="relative z-10 text-right">
-                              {formatNumber(item.clicks)}
-                            </TableCell>
-                            <div
-                              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-orange-200/40 dark:bg-orange-950/50"
-                              style={{ width: `${widthPercentage}%` }}
-                            />
-                          </TableRow>
-                        );
-                      })}
-                      {sortedData.length === 0 && (
-                        <TableRow>
-                          <TableCell
-                            colSpan={2}
-                            className="py-4 text-center text-gray-500"
-                          >
-                            No destination URLs available
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
+                <UrlTable
+                  data={sortedData}
+                  loading={isLoading}
+                  error={error}
+                  keyPrefix="dest"
+                  renderName={(item) => (
+                    <div className="flex items-center gap-x-2">
+                      <UrlAvatar
+                        className="rounded-sm"
+                        size={5}
+                        imgSize={4}
+                        url={item.url}
+                      />
+                      <span className="line-clamp-1 max-w-[220px] text-ellipsis">
+                        {item.url
+                          .replace("https://", "")
+                          .replace("http://", "")
+                          .replace("www.", "")}
+                      </span>
+                    </div>
                   )}
-                </TableBody>
+                />
               </Table>
             </ScrollArea>
           </TabsContent>

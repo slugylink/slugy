@@ -1,5 +1,5 @@
 "use client";
-import React, { memo } from "react";
+import React, { memo, useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronsUpDown, Filter } from "lucide-react";
+import { ChevronDown, ChevronsUp, Filter } from "lucide-react";
 import Image from "next/image";
 import ContinentFlag from "./continent-flag";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
@@ -105,7 +105,7 @@ export interface FilterCategory {
 }
 
 interface FilterActionsProps {
-  fillterCategory: FilterCategory[];
+  filterCategories: FilterCategory[];
 }
 
 const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
@@ -143,7 +143,7 @@ const FilterOptionItem = memo(
     category: FilterCategory;
     option: FilterOption;
     isSelected: boolean;
-    onSelect: (e: Event) => void;
+    onSelect: (event: Event) => void;
     getOptionValue: (category: FilterCategory, option: FilterOption) => string;
     getOptionLabel: (category: FilterCategory, option: FilterOption) => string;
     getOptionIcon: (
@@ -187,13 +187,9 @@ const FilterOptionItem = memo(
               <ContinentFlag code={(option as ContinentAnalytics).continent} />
             </>
           )}
-          {(category.id === "browser_key" || category.id === "os_key") && (
-            <>
-              <OptimizedImage src={icon ?? ""} alt={label} />
-              <span className="line-clamp-1 capitalize">{label}</span>
-            </>
-          )}
-          {category.id === "device_key" && (
+          {(category.id === "browser_key" ||
+            category.id === "os_key" ||
+            category.id === "device_key") && (
             <>
               <OptimizedImage src={icon ?? ""} alt={label} />
               <span className="line-clamp-1 capitalize">{label}</span>
@@ -224,7 +220,7 @@ const FilterOptionItem = memo(
 );
 FilterOptionItem.displayName = "FilterOptionItem";
 
-const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
+const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   // Use nuqs for each filter category and time_period
   const [timePeriod, setTimePeriod] = useQueryState(
     "time_period",
@@ -267,13 +263,11 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     parseAsArrayOf(parseAsString, ",").withDefault([]),
   );
 
-  const [activeCategory, setActiveCategory] = React.useState<CategoryId | null>(
-    null,
-  );
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Compose selectedFilters from nuqs state
-  const selectedFilters = React.useMemo(
+  const selectedFilters = useMemo(
     () => ({
       slug_key: slugFilter,
       continent_key: continentFilter,
@@ -298,22 +292,21 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     ],
   );
 
-  const handleTimePeriodChange = React.useCallback(
+  const handleTimePeriodChange = useCallback(
     (newTimePeriod: string) => {
       void setTimePeriod(newTimePeriod);
     },
     [setTimePeriod],
   );
 
-  const handleFilterChange = React.useCallback(
+  const handleFilterChange = useCallback(
     (categoryId: CategoryId, value: string) => {
       const current: string[] = selectedFilters[categoryId] ?? [];
-      let updated: string[];
-      if (current.includes(value)) {
-        updated = current.filter((v) => v !== value);
-      } else {
-        updated = [...current, value];
-      }
+      const updated = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+
+      // Set or clear (null clears the filter)
       switch (categoryId) {
         case "slug_key":
           void setSlugFilter(updated.length ? updated : null);
@@ -358,14 +351,14 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     ],
   );
 
-  const removeFilter = React.useCallback(
+  const removeFilter = useCallback(
     (categoryId: CategoryId, value: string) => {
       handleFilterChange(categoryId, value);
     },
     [handleFilterChange],
   );
 
-  const getOptionValue = React.useCallback(
+  const getOptionValue = useCallback(
     (category: FilterCategory, option: FilterOption): string => {
       switch (category.id) {
         case "slug_key":
@@ -393,7 +386,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     [],
   );
 
-  const getOptionLabel = React.useCallback(
+  const getOptionLabel = useCallback(
     (category: FilterCategory, option: FilterOption): string => {
       switch (category.id) {
         case "slug_key":
@@ -421,11 +414,11 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     [],
   );
 
-  const formatNameForUrl = React.useCallback((name: string): string => {
+  const formatNameForUrl = useCallback((name: string): string => {
     return name.toLowerCase().replace(/\s+/g, "-");
   }, []);
 
-  const getOptionIcon = React.useCallback(
+  const getOptionIcon = useCallback(
     (category: FilterCategory, option: FilterOption): string | undefined => {
       switch (category.id) {
         case "slug_key":
@@ -434,13 +427,21 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
         case "city_key":
           return `https://flagcdn.com/w20/${(option as CountryAnalytics).country.toLowerCase()}.png`;
         case "continent_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/continent/${formatNameForUrl((option as ContinentAnalytics).continent)}.svg`;
+          return `https://slugylink.github.io/slugy-assets/dist/colorful/continent/${formatNameForUrl(
+            (option as ContinentAnalytics).continent,
+          )}.svg`;
         case "browser_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/browser/${formatNameForUrl((option as BrowserAnalytics).browser)}.svg`;
+          return `https://slugylink.github.io/slugy-assets/dist/colorful/browser/${formatNameForUrl(
+            (option as BrowserAnalytics).browser,
+          )}.svg`;
         case "os_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl((option as OsAnalytics).os)}.svg`;
+          return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl(
+            (option as OsAnalytics).os,
+          )}.svg`;
         case "device_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/device/${formatNameForUrl((option as DeviceAnalytics).device)}.svg`;
+          return `https://slugylink.github.io/slugy-assets/dist/colorful/device/${formatNameForUrl(
+            (option as DeviceAnalytics).device,
+          )}.svg`;
         default:
           return undefined;
       }
@@ -448,29 +449,30 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
     [formatNameForUrl],
   );
 
-  const filteredCategories = React.useMemo(() => {
-    return fillterCategory.filter((category) => {
+  const filteredCategories = useMemo(() => {
+    return filterCategories.filter((category) => {
       if (activeCategory && category.id !== activeCategory) return false;
+
       if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+
         if (activeCategory) {
           return category.options.some((option) =>
-            getOptionLabel(category, option)
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()),
+            getOptionLabel(category, option).toLowerCase().includes(q),
           );
         }
+
         return (
-          category.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          category.label.toLowerCase().includes(q) ||
           category.options.some((option) =>
-            getOptionLabel(category, option)
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase()),
+            getOptionLabel(category, option).toLowerCase().includes(q),
           )
         );
       }
+
       return true;
     });
-  }, [fillterCategory, activeCategory, searchQuery, getOptionLabel]);
+  }, [filterCategories, activeCategory, searchQuery, getOptionLabel]);
 
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
@@ -482,7 +484,6 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                size="sm"
                 className="flex items-center font-normal"
               >
                 <Filter strokeWidth={1.5} className="mr-1 h-4 w-4" />
@@ -517,18 +518,18 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                     setSearchQuery(e.target.value);
                   }}
                   className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:ring-[1px] focus:outline-none"
+                  autoComplete="off"
+                  aria-label="Filter options"
                 />
               </div>
+
               {activeCategory ? (
                 <div className="animate-in slide-in-from-top-2 relative duration-200">
                   {filteredCategories
-                    .filter((category) => category.id === activeCategory)
-                    .map((category, index) => (
-                      <DropdownMenuGroup key={index}>
-                        <div
-                          className="sticky top-0 z-50 mb-2"
-                          style={{ position: "sticky", top: 0 }}
-                        >
+                    .filter((cat) => cat.id === activeCategory)
+                    .map((category) => (
+                      <DropdownMenuGroup key={category.id}>
+                        <div className="sticky top-0 z-50 mb-2">
                           <DropdownMenuLabel
                             className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-colors duration-200"
                             onClick={() => setActiveCategory(null)}
@@ -539,9 +540,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                                 {category.label}
                               </span>
                             </div>
-                            <div>
-                              <ChevronsUpDown className="text-muted-foreground ml-auto h-4 w-4" />
-                            </div>
+                            <ChevronsUp className="text-muted-foreground ml-auto h-4 w-4" />
                           </DropdownMenuLabel>
                         </div>
                         <div
@@ -561,26 +560,26 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                                       .includes(searchQuery.toLowerCase())
                                   : true,
                               )
-                              .map((option, index) => (
-                                <FilterOptionItem
-                                  key={index}
-                                  category={category}
-                                  option={option}
-                                  isSelected={selectedFilters[
-                                    category.id
-                                  ]?.includes(getOptionValue(category, option))}
-                                  onSelect={(e) => {
-                                    e.preventDefault();
-                                    handleFilterChange(
-                                      category.id,
-                                      getOptionValue(category, option),
-                                    );
-                                  }}
-                                  getOptionValue={getOptionValue}
-                                  getOptionLabel={getOptionLabel}
-                                  getOptionIcon={getOptionIcon}
-                                />
-                              ))}
+                              .map((option) => {
+                                const val = getOptionValue(category, option);
+                                return (
+                                  <FilterOptionItem
+                                    key={val}
+                                    category={category}
+                                    option={option}
+                                    isSelected={selectedFilters[
+                                      category.id
+                                    ]?.includes(val)}
+                                    onSelect={(event) => {
+                                      event.preventDefault();
+                                      handleFilterChange(category.id, val);
+                                    }}
+                                    getOptionValue={getOptionValue}
+                                    getOptionLabel={getOptionLabel}
+                                    getOptionIcon={getOptionIcon}
+                                  />
+                                );
+                              })}
                           </div>
                         </div>
                       </DropdownMenuGroup>
@@ -595,19 +594,26 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
                     scrollbarColor: "rgb(203 213 225) transparent",
                   }}
                 >
-                  {/* Group 1: Short Link, Destination URL */}
+                  {/* Group 1 */}
                   <DropdownMenuGroup>
                     {filteredCategories
                       .filter(
-                        (category) =>
-                          category.id === "slug_key" ||
-                          category.id === "destination_key",
+                        (cat) =>
+                          cat.id === "slug_key" || cat.id === "destination_key",
                       )
-                      .map((category, index) => (
+                      .map((category) => (
                         <DropdownMenuLabel
-                          key={index}
+                          key={category.id}
                           className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
                           onClick={() => setActiveCategory(category.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveCategory(category.id);
+                            }
+                          }}
                         >
                           {category.icon}
                           <span className="ml-2 font-normal">
@@ -619,31 +625,38 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
 
                   {/* Separator */}
                   {filteredCategories.some(
-                    (category) =>
-                      category.id === "slug_key" ||
-                      category.id === "destination_key",
+                    (cat) =>
+                      cat.id === "slug_key" || cat.id === "destination_key",
                   ) &&
                     filteredCategories.some(
-                      (category) =>
-                        category.id === "country_key" ||
-                        category.id === "city_key" ||
-                        category.id === "continent_key",
+                      (cat) =>
+                        cat.id === "country_key" ||
+                        cat.id === "city_key" ||
+                        cat.id === "continent_key",
                     ) && <Separator className="my-1 bg-zinc-200/70" />}
 
-                  {/* Group 2: Country, City, Continent */}
+                  {/* Group 2 */}
                   <DropdownMenuGroup>
                     {filteredCategories
                       .filter(
-                        (category) =>
-                          category.id === "country_key" ||
-                          category.id === "city_key" ||
-                          category.id === "continent_key",
+                        (cat) =>
+                          cat.id === "country_key" ||
+                          cat.id === "city_key" ||
+                          cat.id === "continent_key",
                       )
-                      .map((category, index) => (
+                      .map((category) => (
                         <DropdownMenuLabel
-                          key={index}
+                          key={category.id}
                           className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
                           onClick={() => setActiveCategory(category.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveCategory(category.id);
+                            }
+                          }}
                         >
                           {category.icon}
                           <span className="ml-2 font-normal">
@@ -655,32 +668,40 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
 
                   {/* Separator */}
                   {filteredCategories.some(
-                    (category) =>
-                      category.id === "country_key" ||
-                      category.id === "city_key" ||
-                      category.id === "continent_key",
+                    (cat) =>
+                      cat.id === "country_key" ||
+                      cat.id === "city_key" ||
+                      cat.id === "continent_key",
                   ) &&
                     filteredCategories.some(
-                      (category) =>
-                        category.id === "device_key" ||
-                        category.id === "browser_key" ||
-                        category.id === "os_key",
+                      (cat) =>
+                        cat.id === "device_key" ||
+                        cat.id === "browser_key" ||
+                        cat.id === "os_key",
                     ) && <Separator className="my-1 bg-zinc-200/70" />}
 
-                  {/* Group 3: Device, Browser, OS */}
+                  {/* Group 3 */}
                   <DropdownMenuGroup>
                     {filteredCategories
                       .filter(
-                        (category) =>
-                          category.id === "device_key" ||
-                          category.id === "browser_key" ||
-                          category.id === "os_key",
+                        (cat) =>
+                          cat.id === "device_key" ||
+                          cat.id === "browser_key" ||
+                          cat.id === "os_key",
                       )
-                      .map((category, index) => (
+                      .map((category) => (
                         <DropdownMenuLabel
-                          key={index}
+                          key={category.id}
                           className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
                           onClick={() => setActiveCategory(category.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveCategory(category.id);
+                            }
+                          }}
                         >
                           {category.icon}
                           <span className="ml-2 font-normal">
@@ -692,24 +713,32 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
 
                   {/* Separator */}
                   {filteredCategories.some(
-                    (category) =>
-                      category.id === "device_key" ||
-                      category.id === "browser_key" ||
-                      category.id === "os_key",
+                    (cat) =>
+                      cat.id === "device_key" ||
+                      cat.id === "browser_key" ||
+                      cat.id === "os_key",
                   ) &&
                     filteredCategories.some(
-                      (category) => category.id === "referrer_key",
+                      (cat) => cat.id === "referrer_key",
                     ) && <Separator className="my-1 bg-zinc-200/70" />}
 
-                  {/* Group 4: Referrer */}
+                  {/* Group 4 */}
                   <DropdownMenuGroup>
                     {filteredCategories
-                      .filter((category) => category.id === "referrer_key")
-                      .map((category, index) => (
+                      .filter((cat) => cat.id === "referrer_key")
+                      .map((category) => (
                         <DropdownMenuLabel
-                          key={index}
+                          key={category.id}
                           className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
                           onClick={() => setActiveCategory(category.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveCategory(category.id);
+                            }
+                          }}
                         >
                           {category.icon}
                           <span className="ml-2 font-normal">
@@ -727,7 +756,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
           <SelectTrigger className="w-[140px]">
             <SelectValue placeholder="Select time range" />
           </SelectTrigger>
-          <SelectContent className="w-fit">
+          <SelectContent className="w-fit cursor-pointer">
             <SelectItem value="24h">Last 24 hours</SelectItem>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
@@ -740,7 +769,7 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
 
       {selectedFilterCount > 0 && (
         <FilterSelectedButtons
-          filterCategories={fillterCategory}
+          filterCategories={filterCategories}
           selectedFilters={selectedFilters}
           onRemoveFilter={removeFilter}
         />
@@ -750,16 +779,13 @@ const FilterActions = ({ fillterCategory }: FilterActionsProps) => {
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
-
         .custom-scrollbar::-webkit-scrollbar-track {
           background: transparent;
         }
-
         .custom-scrollbar::-webkit-scrollbar-thumb {
           background-color: rgb(203 213 225);
           border-radius: 20px;
         }
-
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background-color: rgb(148 163 184);
         }

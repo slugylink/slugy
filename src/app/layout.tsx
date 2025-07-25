@@ -48,7 +48,7 @@ export const metadata: Metadata = {
 
   // Author and publication info
   authors: [
-    { name: "Slugy Team", url: "https://slugy.co/" },
+    { name: "Sandip Sarkar", url: "https://slugy.co/" },
     { name: "Sandip Sarkar", url: "https://sandipsarkar.dev/" },
   ],
   creator: "Slugy Team",

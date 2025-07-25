@@ -64,16 +64,37 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
     });
   };
 
+  // Mapping from continent code to full name
+  const CONTINENT_NAMES: Record<string, string> = {
+    af: "Africa",
+    an: "Antarctica",
+    as: "Asia",
+    eu: "Europe",
+    na: "North America",
+    oc: "Oceania",
+    sa: "South America",
+    unknown: "Unknown",
+  };
+
   const getOptionLabel = (category: FilterCategory, value: string): string => {
     const option = getOptionByValue(category, value);
     if (!option) return value;
     switch (category.id) {
       case "slug_key":
         return (option as LinkAnalytics).slug || value;
-      case "continent_key":
-        return (option as ContinentAnalytics).continent || value;
-      case "country_key":
-        return (option as CountryAnalytics).country || value;
+      case "continent_key": {
+        const code = ((option as ContinentAnalytics).continent || value).toLowerCase();
+        return CONTINENT_NAMES[code] || code;
+      }
+      case "country_key": {
+        const code = (option as CountryAnalytics).country || value;
+        try {
+          const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
+          return displayNames.of(code.toUpperCase()) || code;
+        } catch {
+          return code;
+        }
+      }
       case "city_key":
         return (option as CityAnalytics).city || value;
       case "browser_key":
@@ -91,14 +112,12 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
     }
   };
 
-  // Group filters by category for better organization
+  // Group filters by category for display
   const filtersByCategory = filterCategories.reduce<
     Array<{ category: FilterCategory; values: string[] }>
   >((acc, category) => {
     const values = selectedFilters[category.id] || [];
-    if (values.length > 0) {
-      acc.push({ category, values });
-    }
+    if (values.length > 0) acc.push({ category, values });
     return acc;
   }, []);
 
@@ -112,7 +131,7 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
               className="flex flex-wrap items-center gap-2"
             >
               <Button
-                size={"sm"}
+                size="sm"
                 variant="outline"
                 className="bg-muted/50 font-normal"
               >
@@ -123,7 +142,7 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
                 const optionLabel = getOptionLabel(category, value);
                 return (
                   <Button
-                    size={"sm"}
+                    size="sm"
                     key={`${category.id}-${value}`}
                     variant="secondary"
                     className={cn(
@@ -149,10 +168,11 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
                     </span>
                     <button
                       onClick={() => onRemoveFilter(category.id, value)}
-                      className="hover:bg-muted/20 ml-1 rounded-full p-0.5 cursor-pointer"
+                      className="hover:bg-muted/20 ml-1 cursor-pointer rounded-full p-0.5"
                       aria-label={`Remove ${optionLabel} filter`}
+                      type="button"
                     >
-                      <X className="h-3 w-3 cursor-pointer text-muted-foreground" />
+                      <X className="text-muted-foreground h-3 w-3 cursor-pointer" />
                     </button>
                   </Button>
                 );

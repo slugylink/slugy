@@ -42,14 +42,14 @@ const GeoClicks = dynamic(
 const DeviceClicks = dynamic(
   () => import("@/components/web/_analytics/deviceclicks-card"),
   {
-    ssr: false,
+    ssr: true,
   },
 );
 
 const ReferrerClicks = dynamic(
   () => import("@/components/web/_analytics/referrerclicks-card"),
   {
-    ssr: false,
+    ssr: true,
   },
 );
 
@@ -156,7 +156,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     <div className="container mx-auto mt-8 flex h-full max-w-6xl flex-col">
       {/* Header with filter actions */}
       <div className="flex items-center justify-start">
-        <FilterActions fillterCategory={filterCategories} />
+        <FilterActions filterCategories={filterCategories} />
       </div>
       <div className="my-6 space-y-4">
         {/* Analytics Chart */}
@@ -172,7 +172,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
           <UrlClicks workspaceslug={workspace} searchParams={searchParamsObj} />
           {/* Geo Clicks */}
           <GeoClicks workspaceslug={workspace} searchParams={searchParamsObj} />
-          {/* Device Clicks */}{" "}
+          {/* Device Clicks */}
           <DeviceClicks
             workspaceslug={workspace}
             searchParams={searchParamsObj}
