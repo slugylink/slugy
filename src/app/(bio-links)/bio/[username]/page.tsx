@@ -1,4 +1,3 @@
-import { cn } from "@/lib/utils";
 import { db } from "@/server/db";
 import { themes } from "@/constants/theme";
 import type { Bio, BioLinks, BioSocials } from "@prisma/client";
@@ -18,32 +17,8 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 
-// Type for social media platform mapping
-type SocialIcon = Record<string, ReactElement>;
-
-// Improved database query function with proper typing
-async function getGallery(
-  username: string,
-  options?: { select?: object; include?: object },
-): Promise<
-  | (Partial<Bio> & { links?: BioLinks[]; socials?: BioSocials[] })
-  | null
-> {
-  try {
-    const gallery = await db.bio.findUnique({
-      where: { username },
-      ...(options?.select ? { select: options.select } : {}),
-      ...(options?.include ? { include: options.include } : {}),
-    });
-    return gallery ?? null;
-  } catch (error) {
-    console.error("Error fetching gallery:", error);
-    return null;
-  }
-}
-
-// Social media icons mapping
-const socialIcons: SocialIcon = {
+//--- Social Icons ---
+const SOCIAL_ICONS: Record<string, ReactElement> = {
   facebook: <RiFacebookFill size={20} />,
   instagram: <RiInstagramLine size={20} />,
   twitter: <RiTwitterXFill size={20} />,
@@ -53,20 +28,30 @@ const socialIcons: SocialIcon = {
   snapchat: <RiSnapchatFill size={20} />,
 };
 
-export default async function GalleryLinksProfile(context: { params: Promise<{ username: string }> }) {
-  const params = await context.params;
-  const gallery = await getGallery(params.username, {
-    include: {
-      links: {
-        where: { isPublic: true },
-        orderBy: { position: "asc" },
+//--- Data fetching helper ---
+async function getGallery(username: string) {
+  try {
+    return (await db.bio.findUnique({
+      where: { username },
+      include: {
+        links: { where: { isPublic: true }, orderBy: { position: "asc" } },
+        socials: { where: { isPublic: true }, orderBy: { platform: "asc" } },
       },
-      socials: {
-        where: { isPublic: true },
-        orderBy: { platform: "asc" },
-      },
-    },
-  });
+    })) as (Bio & { links: BioLinks[]; socials: BioSocials[] }) | null;
+  } catch (e) {
+    console.error("Gallery fetch error:", e);
+    return null;
+  }
+}
+
+//--- Main Server Component ---
+export default async function GalleryLinksProfile({
+  params,
+}: {
+  params: { username: string };
+}) {
+  const { username } = await params;
+  const gallery = await getGallery(username);
 
   if (!gallery) {
     return (
@@ -76,93 +61,73 @@ export default async function GalleryLinksProfile(context: { params: Promise<{ u
     );
   }
 
-  // Find theme or use default
   const theme =
-    themes.find((t) => t.id === gallery.theme) ??
+    themes.find((t) => t.id === gallery.theme) ||
     themes.find((t) => t.id === "default")!;
-
+  const socials = (gallery.socials ?? []).filter((s) => s.platform && s.url);
   const links = gallery.links ?? [];
-  const socials = (gallery.socials ?? [])
-    .filter((s) => s.platform)
-    .map((s) => ({
-      platform: s.platform ?? "",
-      url: s.url ?? "",
-    }));
 
   return (
     <div className="h-full min-h-screen w-full bg-transparent">
       <div
-        className={`fixed left-0 top-0 h-screen w-full ${theme.background} z-0`}
+        className={`fixed top-0 left-0 h-screen w-full ${theme.background} z-0`}
       />
-      <div className="container relative z-10 mx-auto h-full min-h-[90vh] px-4 py-8">
-        {/* Share Actions */}
+      <div className="relative z-10 container mx-auto h-full min-h-[90vh] px-4 py-8">
         <div className="mx-auto flex max-w-md justify-end px-0">
           <ShareActions color={theme.textColor} />
         </div>
-
         <div className="flex flex-col items-center space-y-4">
           {/* Profile Image */}
           <div className="relative mt-4">
             <Image
               src={
-                gallery.logo
-                  ? gallery.logo
-                  : `https://avatar.vercel.sh/${gallery.username}`
+                gallery.logo || `https://avatar.vercel.sh/${gallery.username}`
               }
-              alt={gallery.username ? gallery.username : "Profile"}
+              alt={gallery.username || "Profile"}
               width={96}
               height={96}
               className="h-24 w-24 rounded-full border-2 border-zinc-200 bg-white object-cover"
             />
           </div>
-
-          {/* Profile Info */}
+          {/* Info */}
           <div className={`text-center ${theme.textColor}`}>
             <h2 className="text-xl font-semibold">
-              {gallery.name ? gallery.name : `@${gallery.username}`}
+              {gallery.name || `@${gallery.username}`}
             </h2>
             {gallery.bio && (
-              <p className={cn(theme.accentColor, "text-sm")}>{gallery.bio}</p>
+              <p className={`${theme.accentColor} text-sm`}>{gallery.bio}</p>
             )}
           </div>
-
-          {/* Social Media Icons */}
-          {socials.length > 0 && (
+          {/* Socials */}
+          {!!socials.length && (
             <div className={`flex space-x-4 ${theme.textColor}`}>
-              {socials.map((social) => {
-                if (!social.url || !social.platform) return null;
-
-                const icon = socialIcons[social.platform];
-                if (!icon) return null;
-
-                // Format href for mail links
+              {socials.map(({ platform, url }) => {
+                if (!platform || !url) return null;
+                const Icon = SOCIAL_ICONS[platform];
+                if (!Icon) return null;
                 const href =
-                  social.platform === "mail" &&
-                  !social.url.startsWith("mailto:")
-                    ? `mailto:${social.url}`
-                    : social.url;
-
-                const isMailLink = social.platform === "mail";
-
+                  platform === "mail" && !url.startsWith("mailto:")
+                    ? `mailto:${url}`
+                    : url;
+                const isMail = platform === "mail";
                 return (
                   <a
-                    key={social.platform}
+                    key={platform}
                     href={href}
-                    target={isMailLink ? "_self" : "_blank"}
-                    rel={isMailLink ? "" : "noopener noreferrer"}
+                    target={isMail ? "_self" : "_blank"}
+                    rel={isMail ? undefined : "noopener noreferrer"}
                     className="transition hover:opacity-80"
-                    aria-label={`${social.platform} profile`}
+                    aria-label={`${platform} profile`}
                   >
-                    {icon}
+                    {Icon}
                   </a>
                 );
               })}
             </div>
           )}
-
-          {/* Navigation Link Buttons */}
+          {/* Links */}
           <div className="w-full max-w-md space-y-3 pt-4 text-sm">
-            {links.length > 0 ? (
+            {links.length ? (
               links.map((link) => (
                 <a
                   key={link.id}
@@ -171,7 +136,7 @@ export default async function GalleryLinksProfile(context: { params: Promise<{ u
                   rel="noopener noreferrer"
                   className={`block w-full rounded-full px-4 py-[10px] text-center transition ${theme.buttonStyle}`}
                 >
-                  {link.title ? link.title : link.url}
+                  {link.title || link.url}
                 </a>
               ))
             ) : (
@@ -182,8 +147,7 @@ export default async function GalleryLinksProfile(context: { params: Promise<{ u
           </div>
         </div>
       </div>
-
-      {/* Footer Logo */}
+      {/* Footer */}
       <div
         className={`relative bottom-0 z-10 flex items-center justify-center gap-1 py-6 pt-10 ${theme.textColor}`}
       >
@@ -194,12 +158,18 @@ export default async function GalleryLinksProfile(context: { params: Promise<{ u
   );
 }
 
-export async function generateMetadata(context: { params: Promise<{ username: string }> }): Promise<Metadata> {
-  const params = await context.params;
-  const username = params.username;
-  const gallery = await getGallery(username, { select: { name: true } });
-  const displayName = gallery?.name ? gallery.name : username;
-
+//--- Metadata (SEO/Open Graph) ---
+export async function generateMetadata({
+  params,
+}: {
+  params: { username: string };
+}): Promise<Metadata> {
+  const { username } = await params;
+  const gallery = await db.bio.findUnique({
+    where: { username },
+    select: { name: true },
+  });
+  const displayName = gallery?.name || username;
   const title = `${displayName} - Links Gallery | Slugy`;
   const description =
     "Discover and share curated links in this gallery. Powered by Slugy.";
@@ -231,8 +201,6 @@ export async function generateMetadata(context: { params: Promise<{ username: st
       description,
       images: [{ url: imageUrl, alt: "Links Gallery Preview" }],
     },
-    alternates: {
-      canonical: canonicalUrl,
-    },
+    alternates: { canonical: canonicalUrl },
   };
 }
