@@ -50,7 +50,7 @@ export default async function GalleryLinksProfile({
 }: {
   params: { username: string };
 }) {
-  const { username } = await params;
+  const { username } = params;
   const gallery = await getGallery(username);
 
   if (!gallery) {
@@ -164,7 +164,7 @@ export async function generateMetadata({
 }: {
   params: { username: string };
 }): Promise<Metadata> {
-  const { username } = await params;
+  const { username } = params;
   const gallery = await db.bio.findUnique({
     where: { username },
     select: { name: true },
