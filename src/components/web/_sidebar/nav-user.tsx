@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import {
   BadgeCheck,
   ChevronsUpDown,
@@ -18,18 +19,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { createAuthClient } from "better-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { useEffect } from "react";
 
 interface User {
   name: string;
@@ -37,42 +39,40 @@ interface User {
   image: string | null;
 }
 
+// Create auth client once outside component to maintain consistent state
 const { useSession } = createAuthClient();
 
-export function NavUser() {
+export const NavUser: React.FC = () => {
   const { isMobile } = useSidebar();
   const router = useRouter();
-  const {
-    data: session,
-    isPending, //loading state
-  } = useSession();
+
+  const { data: session, isPending } = useSession();
 
   const user: User = {
     name: session?.user.name ?? "Anonymous",
     email: session?.user.email ?? "",
-    image: session?.user.image ?? "",
+    image: session?.user.image ?? null,
   };
 
-  // Correct signout handler
   const handleSignout = async () => {
     try {
       await authClient.signOut();
+      // Redirect explicitly to login page
       router.push("/login");
-      router.refresh();
     } catch (err) {
       console.error("Logout error:", err);
     }
   };
 
-  // If not pending and not logged in, redirect to login (side effect)
+  // Redirect to login if not authenticated and not loading
   useEffect(() => {
     if (!isPending && !session) {
-      router.refresh();
+      router.push("/login");
     }
   }, [isPending, session, router]);
 
   if (isPending) return loadingSkeleton;
-  if (!session) return null; // Don't render anything while redirecting
+  if (!session) return null;
 
   return (
     <SidebarMenu>
@@ -84,7 +84,7 @@ export function NavUser() {
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-md">
-                <AvatarImage src={user.image!} alt={user.name} />
+                <AvatarImage src={user.image || undefined} alt={user.name} />
                 <AvatarFallback className="rounded-lg">CN</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -95,7 +95,7 @@ export function NavUser() {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
@@ -103,7 +103,7 @@ export function NavUser() {
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={user.image!} alt={user.name} />
+                  <AvatarImage src={user.image || undefined} alt={user.name} />
                   <AvatarFallback className="rounded-lg">CN</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -114,32 +114,40 @@ export function NavUser() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <Sparkles />
-                Upgrade to Pro
+              <DropdownMenuItem asChild>
+                <Link href="/upgrade">
+                  <span>
+                    <Sparkles className="mr-2 inline-block" />
+                    Upgrade to Pro
+                  </span>
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <Link href="/account">
-                <DropdownMenuItem>
-                  <BadgeCheck />
-                  Account
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/billing">
-                <DropdownMenuItem>
-                  <CreditCard />
-                  Billing
-                </DropdownMenuItem>
-              </Link>
+              <DropdownMenuItem asChild>
+                <Link href="/account">
+                  <span>
+                    <BadgeCheck className="mr-2 inline-block" />
+                    Account
+                  </span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/billing">
+                  <span>
+                    <CreditCard className="mr-2 inline-block" />
+                    Billing
+                  </span>
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="cursor-pointer"
               onClick={handleSignout}
+              className="cursor-pointer"
             >
-              <LogOut />
+              <LogOut className="mr-2 inline-block" />
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -147,7 +155,7 @@ export function NavUser() {
       </SidebarMenuItem>
     </SidebarMenu>
   );
-}
+};
 
 const loadingSkeleton = (
   <DropdownMenu>
