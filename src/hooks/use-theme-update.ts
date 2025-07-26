@@ -1,31 +1,27 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
 
-export function useThemeUpdate(
-  username: string,
-  initialTheme: string,
-  onThemeChange?: (theme: string) => void
-) {
+export function useThemeUpdate(username: string, initialTheme: string, onThemeChange?: (theme: string) => void) {
   const [isSaving, setIsSaving] = useState(false);
   const [pendingTheme, setPendingTheme] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const router = useRouter();
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
-  const previousTheme = useRef(initialTheme);
 
-  // Immediately apply the theme and show toast for confirmation/cancellation
+  // Initialize theme from initialTheme if needed
+  // (optional: only if you want to sync with server on mount)
+  // React.useEffect(() => { setTheme(initialTheme); }, [initialTheme, setTheme]);
+
   const handleThemeClick = (themeId: string, currentTheme: string) => {
     if (themeId === currentTheme) return;
-    previousTheme.current = currentTheme;
-    setTheme(themeId);
     setPendingTheme(themeId);
-    onThemeChange?.(themeId);
+    setIsDialogOpen(true);
   };
 
-  // Confirm theme change: persist to server
   const handleConfirmTheme = async () => {
     if (!pendingTheme) return;
     setIsSaving(true);
@@ -48,10 +44,13 @@ export function useThemeUpdate(
         }
         throw new Error(errorMsg);
       }
+      if (typeof pendingTheme === "string") {
+        setTheme(pendingTheme);
+        onThemeChange?.(pendingTheme);
+      }
       toast.success("Theme updated successfully");
       router.refresh();
       setIsSheetOpen(false);
-      setPendingTheme(null);
     } catch (err: unknown) {
       let message = "Failed to update theme";
       if (err instanceof Error) {
@@ -60,25 +59,20 @@ export function useThemeUpdate(
       toast.error(message);
     } finally {
       setIsSaving(false);
+      setIsDialogOpen(false);
+      setPendingTheme(null);
     }
-  };
-
-  // Cancel theme change: revert to previous theme
-  const handleCancelTheme = () => {
-    setTheme(previousTheme.current);
-    setPendingTheme(null);
-    onThemeChange?.(previousTheme.current);
   };
 
   return {
     isSaving,
     pendingTheme,
+    isDialogOpen,
+    setIsDialogOpen,
     isSheetOpen,
     setIsSheetOpen,
     theme,
     handleThemeClick,
     handleConfirmTheme,
-    handleCancelTheme,
-    previousTheme: previousTheme.current,
   };
 } 
