@@ -149,7 +149,7 @@ interface MobileMenuProps {
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ session }) => (
   <div className="flex items-center gap-2">
-    <GetStartedButton className="flex" />
+    <GetStartedButton isGitVisible={true} className="flex" />
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="lg:hidden">
@@ -226,7 +226,7 @@ const MobileMenuContent: React.FC<MobileMenuContentProps> = () => (
     </div>
     <hr className="mx-auto my-4 flex w-[90%] items-center justify-center" />
     <div className="p-4">
-      <GetStartedButton className="flex w-full" />
+      <GetStartedButton isGitVisible={false} className="flex w-full" />
     </div>
   </div>
 );

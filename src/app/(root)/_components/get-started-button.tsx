@@ -10,6 +10,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
 type GetStartedButtonProps = {
+  isGitVisible: boolean;
   className?: string;
 };
 
@@ -37,7 +38,10 @@ const useGitHubStars = () => {
   };
 };
 
-const GetStartedButton: React.FC<GetStartedButtonProps> = ({ className }) => {
+const GetStartedButton: React.FC<GetStartedButtonProps> = ({
+  isGitVisible,
+  className,
+}) => {
   const { data: session } = useSession();
   const { stars, isLoading } = useGitHubStars();
 
@@ -51,18 +55,20 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({ className }) => {
 
   return (
     <div className={cn(className, "flex gap-2")}>
-      <Link
-        href="https://slugy.co/git"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="View Slugy on GitHub"
-        className="w-fit"
-      >
-        <Button variant="ghost" className="group w-fit">
-          <FaGithub className="h-5 w-5" />
-          <span className="text-xs">{isLoading ? 0 : (stars ?? 0)}</span>
-        </Button>
-      </Link>
+      {isGitVisible && (
+        <Link
+          href="https://slugy.co/git"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View Slugy on GitHub"
+          className="w-fit"
+        >
+          <Button variant="ghost" className="group w-fit">
+            <FaGithub className="h-5 w-5" />
+            <span className="text-xs">{isLoading ? 0 : (stars ?? 0)}</span>
+          </Button>
+        </Link>
+      )}
 
       <Link href={destination} className="w-full sm:w-fit">
         <Button variant="outline" className="group w-full sm:w-fit">
