@@ -17,6 +17,18 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
 
+//--- UTM Parameter Helper ---
+function addUTMParams(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    parsedUrl.searchParams.set("utm_source", "slugy.co");
+    return parsedUrl.toString();
+  } catch {
+    // fallback
+    return url;
+  }
+}
+
 //--- Social Icons ---
 const SOCIAL_ICONS: Record<string, ReactElement> = {
   facebook: <RiFacebookFill size={20} />,
@@ -131,7 +143,7 @@ export default async function GalleryLinksProfile({
               links.map((link) => (
                 <a
                   key={link.id}
-                  href={`${link.url}/?ref=slugy.co`}
+                  href={addUTMParams(link.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`block w-full rounded-full px-4 py-[10px] text-center transition ${theme.buttonStyle}`}
