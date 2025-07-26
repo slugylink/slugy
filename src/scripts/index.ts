@@ -33,7 +33,7 @@ async function main() {
           maxCustomDomains: 0,
           features: [
             "2 workspaces",
-            "25 links/workspace",
+            "30 links/workspace",
             "1k tracked clicks/month",
             "Advanced analytics",
             "Basic QR codes",
@@ -110,10 +110,10 @@ main();
 //   'Get started with basic link shortening for personal use.',
 //   0, '', 0, '', 0,
 //   'free', 'USD', 'month',
-//   2, 25, 1000, 1, 5, 1, 0,
+//   2, 30, 1000, 1, 5, 1, 0,
 //   '[
 //     "2 workspaces",
-//     "25 links/workspace",
+//     "30 links/workspace",
 //     "1k tracked clicks/month",
 //     "Advanced analytics",
 //     "Basic QR codes",

@@ -24,7 +24,7 @@ function UrlAvatar({
 
   const sources = useMemo(
     () => [
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=  64`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
       `https://${domain}/favicon.ico`,
       `https://avatar.vercel.sh/${domain}?size=32`,
     ],

@@ -7,18 +7,18 @@ import ws from "ws";
 neonConfig.webSocketConstructor = ws;
 neonConfig.poolQueryViaFetch = true;
 
+declare global {
+  var prisma: PrismaClient | undefined;
+}
+
 function createPrismaClient() {
   const adapter = new PrismaNeon({
     connectionString: process.env.DATABASE_URL!,
   });
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+    log: ["error"],
   });
-}
-
-declare global {
-  var prisma: PrismaClient | undefined;
 }
 
 export const db = globalThis.prisma ?? createPrismaClient();
