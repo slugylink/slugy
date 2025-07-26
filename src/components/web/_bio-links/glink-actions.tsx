@@ -31,13 +31,6 @@ import {
 } from "@/components/ui/sheet";
 import { themes } from "@/constants/theme";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useThemeUpdate } from "@/hooks/use-theme-update";
 import { useRouter } from "next/navigation";
@@ -91,13 +84,13 @@ const Actions = ({ gallery, username }: ActionsProps) => {
   const {
     isSaving,
     pendingTheme,
-    isDialogOpen,
-    setIsDialogOpen,
     isSheetOpen,
     setIsSheetOpen,
     theme,
     handleThemeClick,
     handleConfirmTheme,
+    handleCancelTheme,
+    previousTheme,
   } = useThemeUpdate(username, gallery.theme ?? "music");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -205,7 +198,6 @@ const Actions = ({ gallery, username }: ActionsProps) => {
               <span>Social Links</span>
             </DropdownMenuItem>
             <DropdownMenuItem
-              className=""
               onClick={() => setDeleteDialogOpen(true)}
             >
               <Trash2 className="mr-2 h-4 w-4" />
@@ -252,7 +244,43 @@ const Actions = ({ gallery, username }: ActionsProps) => {
                     ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
                 )}
-                onClick={() => handleThemeClick(t.id, theme)}
+                onClick={() => {
+                  handleThemeClick(t.id, theme);
+                  setIsSheetOpen(false);
+                  const toastId = toast.custom(
+                    (tToast) => (
+                      <div className="flex flex-col gap-2 p-2">
+                        <span>
+                          Change theme to <strong>{t.name}</strong>?
+                        </span>
+                        <div className="flex gap-2 justify-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              handleCancelTheme();
+                              toast.dismiss(toastId);
+                            }}
+                            disabled={isSaving}
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              await handleConfirmTheme();
+                              toast.dismiss(toastId);
+                            }}
+                            disabled={isSaving}
+                          >
+                            Confirm
+                          </Button>
+                        </div>
+                      </div>
+                    ),
+                    { duration: Infinity }
+                  );
+                }}
                 aria-label={`Select ${t.name} theme`}
                 aria-pressed={t.id === theme}
               >
@@ -290,40 +318,6 @@ const Actions = ({ gallery, username }: ActionsProps) => {
         </SheetContent>
       </Sheet>
 
-      {/* Confirm Theme Change Dialog */}
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => !isSaving && setIsDialogOpen(open)}
-      >
-        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
-          <DialogHeader>
-            <DialogTitle>Change Theme?</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            Are you sure you want to change your theme to{" "}
-            <strong>
-              {pendingTheme && themes.find((t) => t.id === pendingTheme)?.name}
-            </strong>
-            ?
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmTheme} disabled={isSaving}>
-              {isSaving && (
-                <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-              )}{" "}
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Delete Gallery AlertDialog */}
       <AlertDialog
         open={deleteDialogOpen}
@@ -333,8 +327,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Gallery</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this gallery? This action cannot
-              be undone.
+              Are you sure you want to delete this gallery? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -390,4 +383,5 @@ const Actions = ({ gallery, username }: ActionsProps) => {
     </div>
   );
 };
+
 export default Actions;
