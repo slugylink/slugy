@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
 import { FaGithub } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
-import { getGitHubStars } from "@/server/actions/get-github-stats";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
 
 type GetStartedButtonProps = {
   className?: string;
@@ -15,34 +16,30 @@ type GetStartedButtonProps = {
 const { useSession } = createAuthClient();
 
 const useGitHubStars = () => {
-  const [stars, setStars] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  const repo = "slugylink/slugy";
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchStars = async () => {
-      try {
-        const starCount = await getGitHubStars();
-        if (isMounted) setStars(starCount);
-      } catch (error) {
-        console.error("Error fetching GitHub stars:", error);
-        if (isMounted) setStars(0);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-    fetchStars();
-    return () => {
-      isMounted = false; // Cancel setting state if unmounted
-    };
-  }, []);
+  const { data, error } = useSWR<{ stargazers_count: number }>(
+    `https://api.github.com/repos/${repo}`,
+    fetcher,
+    {
+      dedupingInterval: 3600000,
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      refreshInterval: 0,
+      fallbackData: { stargazers_count: 0 },
+    },
+  );
 
-  return { stars, loading };
+  return {
+    stars: data?.stargazers_count,
+    isLoading: !error && !data,
+    isError: !!error,
+  };
 };
 
 const GetStartedButton: React.FC<GetStartedButtonProps> = ({ className }) => {
   const { data: session } = useSession();
-  const { stars, loading } = useGitHubStars();
+  const { stars, isLoading } = useGitHubStars();
 
   const baseUrl =
     process.env.NODE_ENV === "production"
@@ -61,9 +58,9 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({ className }) => {
         aria-label="View Slugy on GitHub"
         className="w-fit"
       >
-        <Button variant="ghost" className="group w-fit" aria-busy={loading}>
+        <Button variant="ghost" className="group w-fit">
           <FaGithub className="h-5 w-5" />
-          <span className="text-xs">{loading ? 0 : (stars ?? 0)}</span>
+          <span className="text-xs">{isLoading ? 0 : (stars ?? 0)}</span>
         </Button>
       </Link>
 
