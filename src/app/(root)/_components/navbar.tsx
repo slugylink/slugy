@@ -100,7 +100,7 @@ const DesktopSubmenu: React.FC<{ link: (typeof NAV_LINKS)[0] }> = ({
 
   return (
     <>
-      <NavigationMenuTrigger className="font-normal bg-transparent">
+      <NavigationMenuTrigger className="bg-transparent font-normal">
         {link.title}
       </NavigationMenuTrigger>
       <NavigationMenuContent>
@@ -149,7 +149,7 @@ interface MobileMenuProps {
 
 const MobileMenu: React.FC<MobileMenuProps> = ({ session }) => (
   <div className="flex items-center gap-2">
-    <GetStartedButton session={session} className="flex" />
+    <GetStartedButton className="flex" />
     <Sheet>
       <SheetTrigger asChild>
         <Button variant="ghost" size="icon" className="lg:hidden">
@@ -177,7 +177,7 @@ interface MobileMenuContentProps {
   session: Session | null;
 }
 
-const MobileMenuContent: React.FC<MobileMenuContentProps> = ({ session }) => (
+const MobileMenuContent: React.FC<MobileMenuContentProps> = () => (
   <div className="flex flex-col">
     <div className="flex-1 overflow-auto">
       <Accordion type="single" collapsible className="w-full border-none">
@@ -226,7 +226,7 @@ const MobileMenuContent: React.FC<MobileMenuContentProps> = ({ session }) => (
     </div>
     <hr className="mx-auto my-4 flex w-[90%] items-center justify-center" />
     <div className="p-4">
-      <GetStartedButton session={session} className="flex w-full" />
+      <GetStartedButton className="flex w-full" />
     </div>
   </div>
 );
