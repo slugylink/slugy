@@ -24,9 +24,9 @@ function UrlAvatar({
 
   const sources = useMemo(
     () => [
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=  64`,
+      `https://${domain}/favicon.ico`,
       `https://avatar.vercel.sh/${domain}?size=32`,
-      "/logo.svg", // explicit fallback
     ],
     [domain],
   );
@@ -42,9 +42,9 @@ function UrlAvatar({
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setLoading(false);
     const target = e.target as HTMLImageElement;
+    // Check if either width or height is too small instead of both
     if (
-      target.naturalWidth <= 16 &&
-      target.naturalHeight <= 16 &&
+      (target.naturalWidth <= 16 || target.naturalHeight <= 16) &&
       errorCount === 0
     ) {
       setErrorCount(1);
