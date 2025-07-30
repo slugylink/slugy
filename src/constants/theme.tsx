@@ -30,7 +30,7 @@ export const themes = [
     id: "ocean",
     name: "Ocean",
     background: "bg-gradient-to-t from-orange-400 to-sky-400",
-    buttonStyle: "bg-white hover:bg-white/90 text-zinc-900 rounded-sm",
+    buttonStyle: "bg-white hover:bg-white/90 text-zinc-900 rounded-lg",
     textColor: "text-white",
     accentColor: "text-zinc-100",
   },
@@ -125,4 +125,12 @@ export const themes = [
     textColor: "text-amber-900",
     accentColor: "text-amber-700",
   },
+  {
+    id: "prism",
+    name: "Prism",
+    background: "bg-animated-rainbow",
+    buttonStyle: "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-md transition-all duration-300",
+    textColor: "text-white",
+    accentColor: "text-white",
+  }
 ] as const;

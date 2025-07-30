@@ -121,6 +121,12 @@ export default function GradientShowcase() {
       type: "Conic",
       className: "bg-conic-bottom-sky-pink-red",
     },
+    {
+      title: "Prism",
+      description: "Animated Rainbow with Noise",
+      type: "Animated",
+      className: "bg-animated-rainbow",
+    },
   ];
 
   const copyToClipboard = async (text: string) => {
