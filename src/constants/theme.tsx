@@ -30,7 +30,7 @@ export const themes = [
     id: "ocean",
     name: "Ocean",
     background: "bg-gradient-to-t from-orange-400 to-sky-400",
-    buttonStyle: "bg-white hover:bg-white/90 text-zinc-900 rounded-none",
+    buttonStyle: "bg-white hover:bg-white/90 text-zinc-900 rounded-sm",
     textColor: "text-white",
     accentColor: "text-zinc-100",
   },
