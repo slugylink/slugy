@@ -23,11 +23,18 @@ function UrlAvatar({
   const [errorCount, setErrorCount] = useState(0);
 
   const sources = useMemo(
-    () => [
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-      `https://${domain}/favicon.ico`,
-      `https://avatar.vercel.sh/${domain}?size=32`,
-    ],
+    () => {
+      // Skip localhost domains to avoid Next.js image configuration issues
+      if (domain === 'localhost' || domain.includes('localhost') || domain.includes('127.0.0.1')) {
+        return [`https://avatar.vercel.sh/${domain}?size=32`];
+      }
+      
+      return [
+        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+        `https://${domain}/favicon.ico`,
+        `https://avatar.vercel.sh/${domain}?size=32`,
+      ];
+    },
     [domain],
   );
 

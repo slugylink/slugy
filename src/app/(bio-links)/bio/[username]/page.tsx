@@ -21,7 +21,7 @@ import type { ReactElement } from "react";
 function addUTMParams(url: string) {
   try {
     const parsedUrl = new URL(url);
-    parsedUrl.searchParams.set("utm_source", "slugy.co");
+    parsedUrl.searchParams.set("ref", "slugy.co");
     return parsedUrl.toString();
   } catch {
     // fallback
@@ -84,8 +84,8 @@ export default async function GalleryLinksProfile({
       <div
         className={`fixed top-0 left-0 h-screen w-full ${theme.background} z-0`}
       />
-      <div className="relative z-10 container mx-auto h-full min-h-[90vh] px-4 py-8">
-        <div className="mx-auto flex max-w-md justify-end px-0">
+      <div className="relative z-10 max-w-md container mx-auto h-full min-h-[90vh] px-4 py-8">
+        <div className="mx-auto flex justify-end px-0">
           <ShareActions color={theme.textColor} />
         </div>
         <div className="flex flex-col items-center space-y-4">
@@ -98,12 +98,12 @@ export default async function GalleryLinksProfile({
               alt={gallery.username || "Profile"}
               width={96}
               height={96}
-              className="h-24 w-24 rounded-full border-2 border-zinc-200 bg-white object-cover"
+              className="h-24 w-24 rounded-full object-cover"
             />
           </div>
           {/* Info */}
-          <div className={`text-center ${theme.textColor}`}>
-            <h2 className="text-xl font-semibold">
+          <div className={`text-center space-y-2 ${theme.textColor}`}>
+            <h2 className="text-xl font-medium">
               {gallery.name || `@${gallery.username}`}
             </h2>
             {gallery.bio && (
@@ -138,7 +138,7 @@ export default async function GalleryLinksProfile({
             </div>
           )}
           {/* Links */}
-          <div className="w-full max-w-md space-y-3 pt-4 text-sm">
+          <div className="w-full space-y-3 pt-4 mt-4 text-sm">
             {links.length ? (
               links.map((link) => (
                 <a

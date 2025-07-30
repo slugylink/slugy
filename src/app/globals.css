@@ -121,6 +121,128 @@
   }
 }
 
+@layer utilities {
+  /* Custom gradient utilities */
+  .bg-radial-ellipse-bottom-amber-violet-sky {
+    background: radial-gradient(ellipse at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #fef3c7;
+    --tw-gradient-to: #0c4a6e;
+    --tw-gradient-stops: var(--tw-gradient-from), #7c3aed, var(--tw-gradient-to);
+  }
+  
+  .bg-radial-ellipse-bottom-amber-yellow {
+    background: radial-gradient(ellipse at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #78350f;
+    --tw-gradient-to: #fde047;
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+  }
+  
+  .bg-conic-bottom-white-green {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #ffffff;
+    --tw-gradient-to: #84cc16;
+    --tw-gradient-stops: var(--tw-gradient-from), #84cc16, var(--tw-gradient-to);
+  }
+  
+  .bg-conic-top-gray {
+    background: conic-gradient(at top, var(--tw-gradient-stops));
+    --tw-gradient-from: #111827;
+    --tw-gradient-to: #111827;
+    --tw-gradient-stops: var(--tw-gradient-from), #f3f4f6, var(--tw-gradient-to);
+  }
+  
+  .bg-conic-top-sky-orange-yellow {
+    background: conic-gradient(at top, var(--tw-gradient-stops));
+    --tw-gradient-from: #0ea5e9;
+    --tw-gradient-to: #ca8a04;
+    --tw-gradient-stops: var(--tw-gradient-from), #fed7aa, var(--tw-gradient-to);
+  }
+
+  /* New gradient utilities */
+  .bg-radial-bottom-teal-stone-cyan {
+    background: radial-gradient(ellipse at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #0f766e;
+    --tw-gradient-to: #0891b2;
+    --tw-gradient-stops: var(--tw-gradient-from), #e7e5e4, var(--tw-gradient-to);
+  }
+  
+  .bg-conic-center-slate-violet-pink {
+    background: conic-gradient(at center, var(--tw-gradient-stops));
+    --tw-gradient-from: #64748b;
+    --tw-gradient-to: #ec4899;
+    --tw-gradient-stops: var(--tw-gradient-from), #f3e8ff, var(--tw-gradient-to);
+  }
+  
+  .bg-conic-center-blue-gray-zinc {
+    background: conic-gradient(at center, var(--tw-gradient-stops));
+    --tw-gradient-from: #84cc16;
+    --tw-gradient-to: #f1f5f9;
+    --tw-gradient-stops: var(--tw-gradient-from), #f3f4f6, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-rose-slate-lime {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #ffe4e6;
+    --tw-gradient-to: #84cc16;
+    --tw-gradient-stops: var(--tw-gradient-from), #f1f5f9, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-neutral-gray-red {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #f5f5f5;
+    --tw-gradient-to: #fecaca;
+    --tw-gradient-stops: var(--tw-gradient-from), #374151, var(--tw-gradient-to);
+  }
+
+  .bg-conic-center-slate-neutral-gray {
+    background: conic-gradient(at center, var(--tw-gradient-stops));
+    --tw-gradient-from: #64748b;
+    --tw-gradient-to: #e5e7eb;
+    --tw-gradient-stops: var(--tw-gradient-from), #737373, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-slate-fuchsia-amber {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #64748b;
+    --tw-gradient-to: #fbbf24;
+    --tw-gradient-stops: var(--tw-gradient-from), #fdf4ff, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-amber-red-zinc {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #d97706;
+    --tw-gradient-to: #18181b;
+    --tw-gradient-stops: var(--tw-gradient-from), #fee2e2, var(--tw-gradient-to);
+  }
+
+  .bg-conic-top-right-emerald-green-neutral {
+    background: conic-gradient(at top right, var(--tw-gradient-stops));
+    --tw-gradient-from: #047857;
+    --tw-gradient-to: #404040;
+    --tw-gradient-stops: var(--tw-gradient-from), #dcfce7, var(--tw-gradient-to);
+  }
+
+  .bg-conic-center-indigo-gray-lime {
+    background: conic-gradient(at center, var(--tw-gradient-stops));
+    --tw-gradient-from: #c7d2fe;
+    --tw-gradient-to: #84cc16;
+    --tw-gradient-stops: var(--tw-gradient-from), #e5e7eb, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-purple-neutral-lime {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #581c87;
+    --tw-gradient-to: #f7fee7;
+    --tw-gradient-stops: var(--tw-gradient-from), #171717, var(--tw-gradient-to);
+  }
+
+  .bg-conic-bottom-sky-pink-red {
+    background: conic-gradient(at bottom, var(--tw-gradient-stops));
+    --tw-gradient-from: #0284c7;
+    --tw-gradient-to: #fee2e2;
+    --tw-gradient-stops: var(--tw-gradient-from), #f9a8d4, var(--tw-gradient-to);
+  }
+}
 
 /* Custom 3D flip utilities */
 .perspective-1000 {

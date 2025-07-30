@@ -93,7 +93,7 @@ function DeviceTable<T extends DeviceData>({
             <TableCell className="relative z-10 text-right">
               {formatNumber(item.clicks)}
             </TableCell>
-            <div
+            <span
               className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-sky-200/40 dark:bg-sky-950/50"
               style={{ width: `${widthPercentage}%` }}
               aria-hidden="true"

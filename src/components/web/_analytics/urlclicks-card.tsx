@@ -49,8 +49,11 @@ function UrlTable<T extends UrlClickData>({
     return (
       <TableBody>
         <TableRow>
-          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
-            <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin mx-auto" />
+          <TableCell
+            colSpan={2}
+            className="h-60 py-4 text-center text-gray-500"
+          >
+            <LoaderCircle className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
           </TableCell>
         </TableRow>
       </TableBody>
@@ -61,7 +64,10 @@ function UrlTable<T extends UrlClickData>({
     return (
       <TableBody>
         <TableRow>
-          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
+          <TableCell
+            colSpan={2}
+            className="h-60 py-4 text-center text-gray-500"
+          >
             No data available
           </TableCell>
         </TableRow>
@@ -79,13 +85,11 @@ function UrlTable<T extends UrlClickData>({
             key={`${keyPrefix}-${keyId}`}
             className="relative border-none"
           >
-            <TableCell className="relative z-10">
-              {renderName(item)}
-            </TableCell>
+            <TableCell className="relative z-10">{renderName(item)}</TableCell>
             <TableCell className="relative z-10 text-right">
               {formatNumber(item.clicks)}
             </TableCell>
-            <div
+            <span
               className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-orange-200/40 dark:bg-orange-950/50"
               style={{ width: `${widthPercentage}%` }}
               aria-hidden="true"
@@ -109,11 +113,13 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     [data],
   );
 
-  const [activeTab, setActiveTab] = useState<"short-links" | "destination-links">("short-links");
+  const [activeTab, setActiveTab] = useState<
+    "short-links" | "destination-links"
+  >("short-links");
 
   if (error) {
     return (
-      <Card className="shadow-none border">
+      <Card className="border shadow-none">
         <CardHeader className="pb-2">
           <div className="text-destructive">Error loading URL clicks data</div>
         </CardHeader>
@@ -122,7 +128,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
   }
 
   return (
-    <Card className="shadow-none border">
+    <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           value={activeTab}
@@ -136,7 +142,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
           </TabsList>
 
           <TabsContent value="short-links" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -168,7 +174,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
           </TabsContent>
 
           <TabsContent value="destination-links" className="mt-1">
-            <ScrollArea className="h-72 w-full  ">
+            <ScrollArea className="h-72 w-full">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -31,13 +31,6 @@ import {
 } from "@/components/ui/sheet";
 import { themes } from "@/constants/theme";
 import { cn } from "@/lib/utils";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useThemeUpdate } from "@/hooks/use-theme-update";
 import { useRouter } from "next/navigation";
@@ -88,17 +81,8 @@ const Actions = ({ gallery, username }: ActionsProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const {
-    isSaving,
-    pendingTheme,
-    isDialogOpen,
-    setIsDialogOpen,
-    isSheetOpen,
-    setIsSheetOpen,
-    theme,
-    handleThemeClick,
-    handleConfirmTheme,
-  } = useThemeUpdate(username, gallery.theme ?? "music");
+  const { isSheetOpen, setIsSheetOpen, theme, handleThemeClick } =
+    useThemeUpdate(username, gallery.theme ?? "music");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -242,7 +226,7 @@ const Actions = ({ gallery, username }: ActionsProps) => {
               Choose a Theme
             </SheetTitle>
           </SheetHeader>
-          <div className="grid gap-2 p-4 py-4 pr-2 grid-cols-3">
+          <div className="grid grid-cols-3 gap-2 p-4 py-4 pr-2">
             {themes.map((t) => (
               <button
                 key={t.id}
@@ -289,40 +273,6 @@ const Actions = ({ gallery, username }: ActionsProps) => {
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* Confirm Theme Change Dialog */}
-      <Dialog
-        open={isDialogOpen}
-        onOpenChange={(open) => !isSaving && setIsDialogOpen(open)}
-      >
-        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
-          <DialogHeader>
-            <DialogTitle>Change Theme?</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-sm">
-            Are you sure you want to change your theme to{" "}
-            <strong>
-              {pendingTheme && themes.find((t) => t.id === pendingTheme)?.name}
-            </strong>
-            ?
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmTheme} disabled={isSaving}>
-              {isSaving && (
-                <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-              )}{" "}
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Delete Gallery AlertDialog */}
       <AlertDialog

@@ -2,34 +2,54 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
+import { ThemeConfirmToast } from "@/components/ui/theme-confirm-toast";
 
 export function useThemeUpdate(username: string, initialTheme: string, onThemeChange?: (theme: string) => void) {
   const [isSaving, setIsSaving] = useState(false);
-  const [pendingTheme, setPendingTheme] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const router = useRouter();
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
-
-  // Initialize theme from initialTheme if needed
-  // (optional: only if you want to sync with server on mount)
-  // React.useEffect(() => { setTheme(initialTheme); }, [initialTheme, setTheme]);
-
+  
   const handleThemeClick = (themeId: string, currentTheme: string) => {
     if (themeId === currentTheme) return;
-    setPendingTheme(themeId);
-    setIsDialogOpen(true);
+    
+    // Update theme store immediately to show in preview
+    setTheme(themeId);
+    
+    // Close the sheet
+    setIsSheetOpen(false);
+    
+    // Show toast with confirm/cancel buttons
+    toast.custom(
+      (t) => (
+        <ThemeConfirmToast
+          themeId={themeId}
+          onCancel={() => {
+            // Revert theme on cancel
+            setTheme(currentTheme);
+            toast.dismiss(t);
+          }}
+          onConfirm={() => {
+            handleConfirmTheme(themeId);
+            toast.dismiss(t);
+          }}
+        />
+      ),
+      {
+        duration: 8000,
+      }
+    );
   };
 
-  const handleConfirmTheme = async () => {
-    if (!pendingTheme) return;
+  const handleConfirmTheme = async (themeId: string) => {
+    if (!themeId) return;
     setIsSaving(true);
     try {
       const res = await fetch(`/api/bio-gallery/${username}/update/theme`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme: pendingTheme }),
+        body: JSON.stringify({ theme: themeId }),
       });
       if (!res.ok) {
         const data: unknown = await res.json();
@@ -44,31 +64,23 @@ export function useThemeUpdate(username: string, initialTheme: string, onThemeCh
         }
         throw new Error(errorMsg);
       }
-      if (typeof pendingTheme === "string") {
-        setTheme(pendingTheme);
-        onThemeChange?.(pendingTheme);
-      }
-      toast.success("Theme updated successfully");
+      onThemeChange?.(themeId);
       router.refresh();
-      setIsSheetOpen(false);
     } catch (err: unknown) {
       let message = "Failed to update theme";
       if (err instanceof Error) {
         message = err.message;
       }
       toast.error(message);
+      // Revert theme on error
+      setTheme(initialTheme);
     } finally {
       setIsSaving(false);
-      setIsDialogOpen(false);
-      setPendingTheme(null);
     }
   };
 
   return {
     isSaving,
-    pendingTheme,
-    isDialogOpen,
-    setIsDialogOpen,
     isSheetOpen,
     setIsSheetOpen,
     theme,

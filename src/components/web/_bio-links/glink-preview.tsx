@@ -9,7 +9,6 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { themes } from "@/constants/theme";
 import Image from "next/image";
 import {
@@ -21,14 +20,6 @@ import {
   RiSnapchatFill,
 } from "react-icons/ri";
 import { LuMail } from "react-icons/lu";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { useThemeUpdate } from "@/hooks/use-theme-update";
 import { useThemeStore } from "@/store/theme-store";
 
@@ -39,7 +30,6 @@ type Theme = {
   buttonStyle: string;
   textColor: string;
   accentColor: string;
-  preview: string;
 };
 
 interface Link {
@@ -83,15 +73,10 @@ const GalleryLinkPreview = ({
   logo,
 }: GalleryLinkPreviewProps) => {
   const {
-    isSaving,
-    pendingTheme,
-    isDialogOpen,
-    setIsDialogOpen,
     isSheetOpen,
     setIsSheetOpen,
     theme,
     handleThemeClick,
-    handleConfirmTheme,
   } = useThemeUpdate(username, initialTheme, onThemeChange);
   const setTheme = useThemeStore((state) => state.setTheme);
   // Sync Zustand store with initialTheme from props
@@ -106,7 +91,7 @@ const GalleryLinkPreview = ({
         {/* iPhone Frame Container */}
         <div className="relative mx-auto w-[305px]">
           {/* iPhone Notch */}
-          <div className="absolute left-1/2 top-0 z-10 h-[30px] w-[118px] -translate-x-1/2 overflow-hidden rounded-b-xl bg-zinc-900"></div>
+          <div className="absolute top-0 left-1/2 z-10 h-[30px] w-[118px] -translate-x-1/2 overflow-hidden rounded-b-xl bg-zinc-900"></div>
 
           {/* Device Frame */}
           <div className="relative w-full rounded-[45px] bg-zinc-900 p-[9px] shadow-[0_0_30px_rgba(0,0,0,0.3)] dark:shadow-[0_0_30px_rgba(255,255,255,0.2)]">
@@ -118,7 +103,7 @@ const GalleryLinkPreview = ({
             >
               {/* Scrollable Content Container */}
               <div className="absolute inset-0 overflow-y-auto rounded-[40px] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                <div className="flex flex-col items-center space-y-4 px-4 pb-8 pt-8">
+                <div className="flex flex-col items-center space-y-4 px-4 pt-8 pb-8">
                   {/* Profile Image */}
                   <div className="relative mt-4">
                     <Image
@@ -126,7 +111,7 @@ const GalleryLinkPreview = ({
                       alt={name ?? username}
                       width={70}
                       height={70}
-                      className="h-20 w-20 rounded-full border-2 border-zinc-200 bg-white object-cover"
+                      className="h-20 w-20 rounded-full object-cover"
                     />
                   </div>
 
@@ -237,14 +222,16 @@ const GalleryLinkPreview = ({
       <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <SheetContent side="left" className="w-full max-w-md">
           <SheetHeader>
-            <SheetTitle className="text-xl font-medium">Choose a Theme</SheetTitle>
+            <SheetTitle className="text-xl font-medium">
+              Choose a Theme
+            </SheetTitle>
           </SheetHeader>
           <div className="grid grid-cols-2 gap-2 py-4 pr-2 sm:grid-cols-3">
             {themes.map((t) => (
               <button
                 key={t.id}
                 className={cn(
-                  "group hover:border-primary relative aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all mb-10",
+                  "group hover:border-primary relative mb-10 aspect-[3/4] overflow-hidden rounded-lg border-2 transition-all",
                   t.id === theme
                     ? "border-primary ring-primary ring-2 ring-offset-2"
                     : "border-muted-foreground/20",
@@ -284,33 +271,6 @@ const GalleryLinkPreview = ({
           </div>
         </SheetContent>
       </Sheet>
-      {/* Confirm Theme Change Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
-          <DialogHeader>
-            <DialogTitle>Change Theme?</DialogTitle>
-          </DialogHeader>
-          <p>
-            Are you sure you want to change your theme to{" "}
-            <b>
-              {pendingTheme && themes.find((t) => t.id === pendingTheme)?.name}
-            </b>
-            ?
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleConfirmTheme} disabled={isSaving}>
-              {isSaving ? "Saving..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };

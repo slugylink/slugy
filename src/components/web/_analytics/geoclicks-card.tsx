@@ -98,7 +98,7 @@ function GeoTable<T extends GeoData>({
             <TableCell className="relative z-10 text-right">
               {formatNumber(item.clicks)}
             </TableCell>
-            <div
+            <span
               className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-emerald-200/40 dark:bg-emerald-950/50"
               style={{ width: `${widthPercentage}%` }}
               aria-hidden="true"
