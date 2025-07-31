@@ -1,5 +1,5 @@
 import { sql } from "@/server/neon";
-import { CACHE_BASE_TTL, CACHE_TTL_JITTER, redis } from "@/lib/redis";
+import { getLinkCache, setLinkCache } from "@/lib/cache-utils/link-cache";
 
 // Cookie parser utility
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
@@ -48,14 +48,10 @@ export async function getLink(
     };
   }
 
-  const cacheKey = `link:${slug}`;
   let link: LinkCacheType = null;
 
   // Cache read (fail silently if redis unavailable)
-  try {
-    const cached = await redis.get(cacheKey);
-    if (cached) link = typeof cached === "string" ? JSON.parse(cached) : cached;
-  } catch {}
+  link = await getLinkCache(slug);
 
   // Cache miss: fetch from SQL and set cache
   if (!link) {
@@ -77,9 +73,7 @@ export async function getLink(
           }
         : null;
       if (link) {
-        await redis.set(cacheKey, JSON.stringify(link), {
-          ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,
-        });
+        await setLinkCache(slug, link);
       }
     } catch {
       return {

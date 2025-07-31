@@ -5,7 +5,7 @@ import { customAlphabet } from "nanoid";
 import { z } from "zod"; // Import zod for input validation
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
-import { invalidateLinkCache } from "@/lib/cache-utils";
+import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,

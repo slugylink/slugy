@@ -36,7 +36,11 @@ export default async function WorkspaceLayout({
   return (
     <SharedLayout
       workspaceslug={awaitedParams.workspace}
-      workspaces={allWorkspaces.success ? allWorkspaces.workspaces : []}
+      workspaces={
+        allWorkspaces.success && allWorkspaces.workspaces
+          ? allWorkspaces.workspaces.filter((workspace): workspace is NonNullable<typeof workspace> => workspace !== null)
+          : []
+      }
     >
       {children}
     </SharedLayout>

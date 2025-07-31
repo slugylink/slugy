@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
+import { invalidateWorkspaceCache, invalidateWorkspaceBySlug } from "@/lib/cache-utils/workspace-cache";
 
 interface UpdateWorkspace {
   name?: string;
@@ -80,6 +81,12 @@ export async function PATCH(
   await Promise.all([
     revalidateTag("workspace"),
     revalidateTag("all-workspaces"),
+    // Invalidate workspace cache for the user
+    invalidateWorkspaceCache(session.user.id),
+    // Invalidate specific workspace validation cache if slug changed
+    slug && slug !== context.workspaceslug 
+      ? invalidateWorkspaceBySlug(session.user.id, context.workspaceslug)
+      : Promise.resolve(),
   ]);
 
   return NextResponse.json(updatedWorkspace);
@@ -140,9 +147,16 @@ export async function DELETE(
       },
     });
 
-    revalidateTag("workspace");
-    revalidateTag("all-workspaces");
-    revalidateTag("links");
+    // Invalidate caches
+    await Promise.all([
+      revalidateTag("workspace"),
+      revalidateTag("all-workspaces"),
+      revalidateTag("links"),
+      // Invalidate workspace cache for the user
+      invalidateWorkspaceCache(session.user.id),
+      // Invalidate specific workspace validation cache
+      invalidateWorkspaceBySlug(session.user.id, context.workspaceslug),
+    ]);
 
     return NextResponse.json({ message: "Workspace deleted successfully" });
   } catch (error) {

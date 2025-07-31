@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { s3Service } from "@/lib/s3-service";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
+import { invalidateWorkspaceCache, invalidateWorkspaceBySlug } from "@/lib/cache-utils/workspace-cache";
 
 export async function PATCH(
   req: Request,
@@ -94,6 +95,8 @@ export async function PATCH(
     await Promise.all([
       revalidateTag("workspace"),
       revalidateTag("all-workspaces"),
+      invalidateWorkspaceCache(session.user.id),
+      invalidateWorkspaceBySlug(session.user.id, context.workspaceslug),
     ]);
 
     return NextResponse.json(updatedWorkspace);

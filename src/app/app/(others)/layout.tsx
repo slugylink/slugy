@@ -15,7 +15,9 @@ export default async function OthersLayout({
   }
 
   const allWorkspaces = await fetchAllWorkspaces(session.user.id);
-  const workspaces = allWorkspaces.success ? allWorkspaces.workspaces : [];
+  const workspaces = allWorkspaces.success && allWorkspaces.workspaces
+    ? allWorkspaces.workspaces.filter((workspace): workspace is NonNullable<typeof workspace> => workspace !== null)
+    : [];
   const workspaceslug = workspaces.length > 0 ? workspaces[0].slug : "";
 
   return (

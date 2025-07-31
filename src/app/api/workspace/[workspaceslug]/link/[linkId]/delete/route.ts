@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
-import { invalidateLinkCache } from "@/lib/cache-utils";
+import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 
 export async function DELETE(
   req: Request,

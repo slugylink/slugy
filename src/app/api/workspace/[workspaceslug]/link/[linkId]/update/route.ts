@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
-import { invalidateLinkCache } from "@/lib/cache-utils";
+import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),

@@ -5,6 +5,15 @@ import { headers } from "next/headers";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
+import { 
+  getDefaultWorkspaceCache, 
+  setDefaultWorkspaceCache,
+  getAllWorkspacesCache,
+  setAllWorkspacesCache,
+  getWorkspaceValidationCache,
+  setWorkspaceValidationCache,
+  invalidateWorkspaceCache
+} from "@/lib/cache-utils/workspace-cache";
 
 //* Server action to create a workspace
 export async function createWorkspace({
@@ -59,7 +68,6 @@ export async function createWorkspace({
     }
 
     const workspace = await db.$transaction(async (tx) => {
-      // If this workspace is being set as default, remove default from all other workspaces
       if (isDefault) {
         await tx.workspace.updateMany({
           where: { userId, isDefault: true },
@@ -84,7 +92,6 @@ export async function createWorkspace({
       };
     });
 
-    // Create member and usage record as background tasks
     waitUntil(
       Promise.all([
         db.member.create({
@@ -108,6 +115,8 @@ export async function createWorkspace({
             },
           });
         })(),
+        // Invalidate workspace caches after creation
+        invalidateWorkspaceCache(userId),
       ]),
     );
 
@@ -124,18 +133,33 @@ export async function createWorkspace({
 //* Get current default workspace with more details
 export async function getDefaultWorkspace(userId: string) {
   try {
+    // Try to get from cache first
+    const cachedWorkspace = await getDefaultWorkspaceCache(userId);
+    if (cachedWorkspace) {
+      return {
+        success: true,
+        workspace: cachedWorkspace,
+      };
+    }
+
+    // Cache miss: fetch from database
     const workspace = await db.workspace.findFirst({
       where: { userId, isDefault: true },
       select: { id: true, name: true, slug: true, logo: true },
-      orderBy: { createdAt: "asc" }, // Sort by creation date
+      orderBy: { createdAt: "asc" },
     });
 
     if (!workspace) {
+      // Cache null result to avoid repeated DB queries
+      await setDefaultWorkspaceCache(userId, null);
       return {
         success: false,
         workspace: null,
       };
     }
+
+    // Cache the result
+    await setDefaultWorkspaceCache(userId, workspace);
 
     return {
       success: true,
@@ -153,6 +177,16 @@ export async function getDefaultWorkspace(userId: string) {
 //* fetch all workspaces
 export async function fetchAllWorkspaces(userId: string) {
   try {
+    // Try to get from cache first
+    const cachedWorkspaces = await getAllWorkspacesCache(userId);
+    if (cachedWorkspaces) {
+      return {
+        success: true,
+        workspaces: cachedWorkspaces,
+      };
+    }
+
+    // Cache miss: fetch from database
     const workspaces = await db.workspace.findMany({
       where: {
         OR: [
@@ -199,6 +233,9 @@ export async function fetchAllWorkspaces(userId: string) {
       };
     });
 
+    // Cache the result
+    await setAllWorkspacesCache(userId, workspacesWithRoles);
+
     return {
       success: true,
       workspaces: workspacesWithRoles,
@@ -215,6 +252,16 @@ export async function fetchAllWorkspaces(userId: string) {
 //* validate workspace slug
 export async function validateworkspaceslug(userId: string, slug: string) {
   try {
+    // Try to get from cache first
+    const cachedWorkspace = await getWorkspaceValidationCache(userId, slug);
+    if (cachedWorkspace !== null) {
+      return {
+        success: !!cachedWorkspace,
+        workspace: cachedWorkspace,
+      };
+    }
+
+    // Cache miss: fetch from database
     const workspace = await db.workspace.findUnique({
       where: {
         slug: slug,
@@ -229,9 +276,18 @@ export async function validateworkspaceslug(userId: string, slug: string) {
           },
         ],
       },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, logo: true },
     });
-    if (!workspace) return { success: false, workspace: null };
+    
+    if (!workspace) {
+      // Cache null result to avoid repeated DB queries
+      await setWorkspaceValidationCache(userId, slug, null);
+      return { success: false, workspace: null };
+    }
+    
+    // Cache the result
+    await setWorkspaceValidationCache(userId, slug, workspace);
+    
     return {
       success: true,
       workspace,

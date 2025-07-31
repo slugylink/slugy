@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
 
 const updateRoleSchema = z.object({
   role: z.enum(["owner", "admin", "member"]),
@@ -71,6 +72,12 @@ export async function PATCH(
         role,
       },
     });
+
+    // Invalidate workspace cache for both the workspace owner and the member
+    await Promise.all([
+      invalidateWorkspaceCache(session.user.id),
+      invalidateWorkspaceCache(context.userId),
+    ]);
 
     return NextResponse.json({ message: "Role updated successfully" }, { status: 200 });
   } catch (error) {
@@ -154,6 +161,12 @@ export async function DELETE(
         id: member.id,
       },
     });
+
+    // Invalidate workspace cache for both the workspace owner and the removed member
+    await Promise.all([
+      invalidateWorkspaceCache(session.user.id),
+      invalidateWorkspaceCache(context.userId),
+    ]);
 
     return NextResponse.json({ message: "Member removed successfully" }, { status: 200 });
   } catch (error) {

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
-import { invalidateLinkCacheBatch } from "@/lib/cache-utils";
+import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 
 const bulkArchiveSchema = z.object({
   linkIds: z.array(z.string()).min(1, "At least one link ID is required"),

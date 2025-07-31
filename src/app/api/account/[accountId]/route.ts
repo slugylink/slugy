@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { headers } from "next/headers";
+import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
 
 // * Delete an account
 export async function DELETE(
@@ -34,6 +35,8 @@ export async function DELETE(
       revalidateTag("workspace"),
       revalidateTag("all-workspaces"),
       revalidateTag("dbuser"),
+      // Invalidate workspace cache for the deleted user
+      invalidateWorkspaceCache(context.accountId),
     ]);
 
     // Create a response
@@ -125,6 +128,8 @@ export async function PATCH(
     await Promise.all([
       revalidateTag("workspace"),
       revalidateTag("all-workspaces"),
+      // Invalidate workspace cache when default workspace changes
+      invalidateWorkspaceCache(context.accountId),
     ]);
 
     return NextResponse.json(updatedAccount);

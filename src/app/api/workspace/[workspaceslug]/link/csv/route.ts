@@ -6,7 +6,7 @@ import { parse as csvParse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
-import { invalidateLinkCacheBatch } from "@/lib/cache-utils";
+import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 
 export async function GET(
   req: Request,
