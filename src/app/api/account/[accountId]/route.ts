@@ -5,6 +5,7 @@ import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
 
 // * Delete an account
 export async function DELETE(
@@ -37,6 +38,8 @@ export async function DELETE(
       revalidateTag("dbuser"),
       // Invalidate workspace cache for the deleted user
       invalidateWorkspaceCache(context.accountId),
+      // Invalidate bio cache for the deleted user
+      invalidateBioCache(context.accountId),
     ]);
 
     // Create a response

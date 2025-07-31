@@ -47,7 +47,7 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
-
+    
     // Upsert each social
     const results = await Promise.all(
       parsed.data.socials.map(async (social) => {

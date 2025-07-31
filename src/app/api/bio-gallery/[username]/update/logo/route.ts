@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { s3Service } from "@/lib/s3-service";
 import { headers } from "next/headers";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 export async function PATCH(
   req: Request,
@@ -77,6 +78,9 @@ export async function PATCH(
       where: { id: gallery.id },
       data: { logo: logoUrl },
     });
+
+    // Invalidate bio cache
+    await invalidateBioByUsernameAndUser(params.username, session.user.id);
 
     return NextResponse.json(updatedGallery);
   } catch (error) {

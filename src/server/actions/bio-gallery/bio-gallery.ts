@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { checkBioGalleryLimit } from "../limit";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
 
 //* Server action to create bio gallery
 export async function createBioGallery({
@@ -65,6 +66,10 @@ export async function createBioGallery({
         username: bio.username,
       };
     });
+
+    // Invalidate bio cache after creation
+    await invalidateBioCache(userId);
+
     return { success: true, username: bio.username };
   } catch (error) {
     console.error("Error creating bio gallery:", error);

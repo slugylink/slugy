@@ -129,7 +129,7 @@ export const themes = [
     id: "prism",
     name: "Prism",
     background: "bg-animated-rainbow",
-    buttonStyle: "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-md transition-all duration-300",
+    buttonStyle: "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-lg transition-all duration-300",
     textColor: "text-white",
     accentColor: "text-white",
   }

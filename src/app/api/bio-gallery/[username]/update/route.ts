@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 // Updated schema to allow empty strings
 const updateGallerySchema = z.object({
@@ -70,6 +71,9 @@ export async function PATCH(
       data: updateData,
     });
 
+    // Invalidate bio cache
+    await invalidateBioByUsernameAndUser(params.username, session.user.id);
+
     return NextResponse.json(updatedGallery);
   } catch (error) {
     console.error("Error updating gallery:", error);
@@ -107,6 +111,9 @@ export async function DELETE(
         id: gallery.id,
       },
     });
+
+    // Invalidate bio cache
+    await invalidateBioByUsernameAndUser(params.username, session.user.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
