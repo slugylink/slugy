@@ -123,37 +123,6 @@ const AnalyticsChart = ({
     }
   }, [propData, swrData, propTotalClicks]);
 
-  // Time format mapping based on time period
-  // const timeFormatMap = useMemo<TimeFormatMap>(
-  //   () => ({
-  //     "24h": {
-  //       axis: "h:mm A",
-  //       tooltip: "MMM DD, h:mm A",
-  //     },
-  //     "7d": {
-  //       axis: "MMM DD",
-  //       tooltip: "MMM DD",
-  //     },
-  //     "30d": {
-  //       axis: "MMM DD",
-  //       tooltip: "MMM DD",
-  //     },
-  //     "3m": {
-  //       axis: "MMM YYYY",
-  //       tooltip: "MMM, YYYY",
-  //     },
-  //     "12m": {
-  //       axis: "MMM YYYY",
-  //       tooltip: "MMM, YYYY",
-  //     },
-  //     all: {
-  //       axis: "MMM YYYY",
-  //       tooltip: "MMM, YYYY",
-  //     },
-  //   }),
-  //   [],
-  // );
-
   // Format time for axis display
   const formatTime = (timeStr: string): string => {
     if (!timeStr) return "";

@@ -1,6 +1,11 @@
 export const getRootDomain = (url: string): string => {
   try {
-    const hostname = new URL(url).hostname;
+    // If URL doesn't have a protocol, prepend https://
+    const normalizedUrl = url.startsWith('http://') || url.startsWith('https://') 
+      ? url 
+      : `https://${url}`;
+    
+    const hostname = new URL(normalizedUrl).hostname;
     const parts = hostname.split(".");
     return parts.slice(-2).join(".");
   } catch {

@@ -159,8 +159,16 @@ export const getRelativeUrl = (
 export const isValidUrl = (str: string): boolean => {
   if (!str?.trim()) return false;
   try {
-    new URL(str);
-    return true;
+    // If URL has a protocol, validate it as is
+    if (str.startsWith('http://') || str.startsWith('https://')) {
+      new URL(str);
+      return true;
+    }
+    
+    // If no protocol, check if it looks like a domain
+    // Allow domains like "example.com", "www.example.com", "example.com/path"
+    const domainPattern = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/;
+    return domainPattern.test(str);
   } catch {
     return false;
   }
@@ -203,12 +211,17 @@ const extractMetadata = (
 };
 
 export const getMetaTags = async (url: string): Promise<MetadataResult> => {
-  if (!isValidUrl(url)) {
+  // Normalize URL by prepending https:// if no protocol is present
+  const normalizedUrl = url.startsWith('http://') || url.startsWith('https://') 
+    ? url 
+    : `https://${url}`;
+    
+  if (!isValidUrl(normalizedUrl)) {
     throw new Error("Invalid URL provided");
   }
 
   // Check cache first
-  const cacheKey = url.toLowerCase();
+  const cacheKey = normalizedUrl.toLowerCase();
   if (metadataCache.has(cacheKey)) {
     return metadataCache.get(cacheKey)!;
   }
@@ -253,17 +266,17 @@ export const getMetaTags = async (url: string): Promise<MetadataResult> => {
 
   try {
     // First try with the provided URL
-    const metadata = await fetchMetadata(url);
+    const metadata = await fetchMetadata(normalizedUrl);
 
     // If no meaningful metadata is found, try the root domain
     if (
-      metadata.title === new URL(url).hostname &&
+      metadata.title === new URL(normalizedUrl).hostname &&
       metadata.description === "No description available" &&
       !metadata.image
     ) {
-      const rootDomain = new URL(url).origin;
-      if (rootDomain !== url) {
-        console.warn(`No metadata found for ${url}. Trying root domain.`);
+      const rootDomain = new URL(normalizedUrl).origin;
+      if (rootDomain !== normalizedUrl) {
+        console.warn(`No metadata found for ${normalizedUrl}. Trying root domain.`);
         const rootMetadata = await fetchMetadata(rootDomain);
 
         // Cache both results
@@ -281,7 +294,7 @@ export const getMetaTags = async (url: string): Promise<MetadataResult> => {
   } catch (error) {
     console.error("Error in getMetaTags:", error);
     const fallbackMetadata = {
-      title: new URL(url).hostname,
+      title: new URL(normalizedUrl).hostname,
       description: "No description available",
       image: null,
     };

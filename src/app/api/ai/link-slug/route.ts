@@ -404,11 +404,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 });
     }
 
-    // Check URL format
-    if (!/^https?:\/\//i.test(url)) {
+    // Normalize URL by prepending https:// if no protocol is present
+    const normalizedUrl = url.startsWith('http://') || url.startsWith('https://') 
+      ? url 
+      : `https://${url}`;
+    
+    // Validate the normalized URL
+    try {
+      new URL(normalizedUrl);
+    } catch {
       return NextResponse.json(
         {
-          error: "Invalid URL format. URL must start with http:// or https://",
+          error: "Invalid URL format. Please provide a valid URL.",
         },
         { status: 400 },
       );
@@ -419,10 +426,10 @@ export async function POST(req: Request) {
 
     // Start URL check and slug generation in parallel for better performance
     const [urlExists, slug] = await Promise.all([
-      checkUrlExists(url),
+      checkUrlExists(normalizedUrl),
       usingGemini
-        ? generateSeoSlugWithGemini(url)
-        : generateSeoSlugFallback(url),
+        ? generateSeoSlugWithGemini(normalizedUrl)
+        : generateSeoSlugFallback(normalizedUrl),
     ]);
 
     // Return successful response

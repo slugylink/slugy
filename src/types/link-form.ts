@@ -5,19 +5,26 @@ const urlPattern = /^https?:\/\//;
 export const linkFormSchema = z.object({
   url: z
     .string()
-    .url("Please enter a valid URL")
     .min(1, "Destination URL is required")
     .refine(
       (url) => {
-        try {
-          new URL(url);
-          return urlPattern.test(url);
-        } catch {
-          return false;
+        // If URL has a protocol, validate it as a proper URL
+        if (urlPattern.test(url)) {
+          try {
+            new URL(url);
+            return true;
+          } catch {
+            return false;
+          }
         }
+        
+        // If no protocol, check if it looks like a domain
+        // Allow domains like "example.com", "www.example.com", "example.com/path"
+        const domainPattern = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/;
+        return domainPattern.test(url);
       },
       {
-        message: "Please enter a valid URL (e.g., https://example.com)",
+        message: "Please enter a valid URL (e.g., https://example.com or example.com)",
       },
     ),
   domain: z.string().min(1, "Domain is required"),

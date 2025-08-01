@@ -89,14 +89,32 @@ export default function LinkFormFields({
     setCurrentCode(slug ? `${domain}/${slug}` : "");
   }, [domain, slug]);
 
+  // Function to auto-prepend https:// if no protocol is present
+  const normalizeUrl = (url: string): string => {
+    if (!url) return url;
+    
+    // If URL already has a protocol, return as is
+    if (/^https?:\/\//.test(url)) {
+      return url;
+    }
+    
+    // If URL starts with www. or has a domain-like structure, prepend https://
+    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(url) || url.startsWith('www.')) {
+      return `https://${url}`;
+    }
+    
+    return url;
+  };
+
   const handleAiRandomize = async (url: string) => {
     try {
       if (!url) return;
 
       setIsAiLoading(true);
 
+      const normalizedUrl = normalizeUrl(url);
       const res = await axios.post("/api/ai/link-slug", {
-        url,
+        url: normalizedUrl,
       });
 
       const data = res.data as { slug: string };
@@ -236,6 +254,10 @@ export default function LinkFormFields({
                   {...field}
                   placeholder="https://slugy.co/blogs/project-x"
                   autoComplete="off"
+                  onBlur={(e) => {
+                    const normalizedUrl = normalizeUrl(e.target.value);
+                    setValue("url", normalizedUrl, { shouldDirty: true });
+                  }}
                 />
               </FormControl>
               <FormMessage />
@@ -505,7 +527,7 @@ export default function LinkFormFields({
             <Label>Link Preview</Label>
           </div>
 
-          <LinkPreview url={getValues("url")} />
+          <LinkPreview url={normalizeUrl(getValues("url"))} />
         </div>
       </div>
     </div>
