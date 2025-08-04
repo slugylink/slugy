@@ -26,7 +26,7 @@ export async function getDefaultBioCache(userId: string): Promise<BioCacheType> 
         ? JSON.parse(cached)
         : cached
       : null;
-      console.log("fetched default bio ✨");
+      // console.log("fetched default bio ✨");
     if (isBioCacheType(parsed)) return parsed;
   } catch {}
   return null;

@@ -56,7 +56,7 @@ export async function getDefaultWorkspaceCache(userId: string): Promise<Workspac
         ? JSON.parse(cached)
         : cached
       : null;
-      console.log("fetched default workspace ✨");
+      // console.log("fetched default workspace ✨");
     if (isWorkspaceCacheType(parsed)) return parsed;
   } catch {}
   return null;
@@ -85,7 +85,7 @@ export async function getAllWorkspacesCache(userId: string): Promise<WorkspacesL
         ? JSON.parse(cached)
         : cached
       : null;
-      console.log("fetched all workspaces ✨");
+      // console.log("fetched all workspaces ✨");
     if (isWorkspacesListCacheType(parsed)) return parsed;
   } catch {}
   return null;

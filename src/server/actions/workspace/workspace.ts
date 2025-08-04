@@ -5,14 +5,14 @@ import { headers } from "next/headers";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
-import { 
-  getDefaultWorkspaceCache, 
+import {
+  getDefaultWorkspaceCache,
   setDefaultWorkspaceCache,
   getAllWorkspacesCache,
   setAllWorkspacesCache,
   getWorkspaceValidationCache,
   setWorkspaceValidationCache,
-  invalidateWorkspaceCache
+  invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
 
 //* Server action to create a workspace
@@ -102,7 +102,10 @@ export async function createWorkspace({
           },
         }),
         (async () => {
-          const { periodStart, periodEnd } = calculateUsagePeriod(null);
+          const { periodStart, periodEnd } = calculateUsagePeriod(
+            null,
+            new Date(),
+          );
           await db.usage.create({
             data: {
               userId,
@@ -278,16 +281,16 @@ export async function validateworkspaceslug(userId: string, slug: string) {
       },
       select: { id: true, name: true, slug: true, logo: true },
     });
-    
+
     if (!workspace) {
       // Cache null result to avoid repeated DB queries
       await setWorkspaceValidationCache(userId, slug, null);
       return { success: false, workspace: null };
     }
-    
+
     // Cache the result
     await setWorkspaceValidationCache(userId, slug, workspace);
-    
+
     return {
       success: true,
       workspace,

@@ -24,10 +24,11 @@ async function handler() {
 
     await Promise.all(
       workspaces.map(async (workspace) => {
+        // Find the latest active usage record
         const currentUsage = await db.usage.findFirst({
           where: {
             workspaceId: workspace.id,
-            deletedAt: null, // Only get active usage records
+            deletedAt: null,
           },
           orderBy: {
             createdAt: "desc",
@@ -36,32 +37,25 @@ async function handler() {
 
         processedCount++;
 
-        // Check if current usage period has expired
         if (currentUsage && isUsagePeriodExpired(currentUsage.periodEnd, now)) {
-          // Archive the current usage record
+          // Archive old usage record
           await db.usage.update({
-            where: {
-              id: currentUsage.id,
-            },
-            data: {
-              deletedAt: now,
-            },
+            where: { id: currentUsage.id },
+            data: { deletedAt: now },
           });
 
-          // Calculate the next period using utility function
+          // Calculate next period, catching up if delayed
           const { periodStart, periodEnd } = calculateUsagePeriod(
             currentUsage.periodEnd,
             now,
           );
 
-          // Get current member count for this workspace
+          // Count current members
           const memberCount = await db.member.count({
-            where: {
-              workspaceId: workspace.id,
-            },
+            where: { workspaceId: workspace.id },
           });
 
-          // Create new usage record for the next period
+          // Create new usage record
           await db.usage.create({
             data: {
               userId: workspace.userId,
@@ -75,15 +69,12 @@ async function handler() {
           });
 
           resetCount++;
-        }
-        // If no current usage exists, create one (for new workspaces)
-        else if (!currentUsage) {
+        } else if (!currentUsage) {
+          // New workspace with no usage records yet
           const { periodStart, periodEnd } = calculateUsagePeriod(null, now);
 
           const memberCount = await db.member.count({
-            where: {
-              workspaceId: workspace.id,
-            },
+            where: { workspaceId: workspace.id },
           });
 
           await db.usage.create({
@@ -104,11 +95,11 @@ async function handler() {
     );
 
     return NextResponse.json(
-      { 
+      {
         message: "Usage cron job completed",
         processed: processedCount,
         reset: resetCount,
-        timestamp: now.toISOString()
+        timestamp: now.toISOString(),
       },
       { status: 200 },
     );
@@ -121,10 +112,11 @@ async function handler() {
   }
 }
 
-// Only use signature verification if QStash keys are configured
+// Only use signature verification if QStash keys configured
 const QSTASH_CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
 
-export const POST = QSTASH_CURRENT_SIGNING_KEY && QSTASH_NEXT_SIGNING_KEY
-  ? verifySignatureAppRouter(handler)
-  : handler;
+export const POST =
+  QSTASH_CURRENT_SIGNING_KEY && QSTASH_NEXT_SIGNING_KEY
+    ? verifySignatureAppRouter(handler)
+    : handler;
