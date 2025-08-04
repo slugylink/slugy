@@ -300,7 +300,7 @@ model Analytics {
   clickedAt DateTime @default(now())
   country   String?
   city      String?
-  region    String?
+  region    String? // good addition for finer geo
   continent String?
   device    String?
   browser   String?
@@ -314,9 +314,11 @@ model Analytics {
   @@index([linkId, clickedAt])
   @@index([country])
   @@index([city])
+  @@index([continent])
   @@index([device])
   @@index([browser])
   @@index([os])
+  @@index([referer])
   @@map("analytics")
 }
 

@@ -22,20 +22,6 @@ const ALL_METRICS: AnalyticsMetric[] = [
   "destinations",
 ];
 
-// function serializeParams(params: Record<string, string>): string {
-//   return JSON.stringify(
-//     Object.entries(params)
-//       .sort(([a], [b]) => a.localeCompare(b))
-//       .reduce(
-//         (acc, [k, v]) => {
-//           acc[k] = v;
-//           return acc;
-//         },
-//         {} as Record<string, string>,
-//       ),
-//   );
-// }
-
 export const getAnalyticsData = cache(
   async (
     workspaceslug: string,
