@@ -115,12 +115,12 @@ export const NavUser: React.FC = () => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/upgrade">
+                {/* <Link href="/upgrade"> */}
                   <span>
                     <Sparkles className="mr-2 inline-block" />
                     Upgrade to Pro
                   </span>
-                </Link>
+                {/* </Link> */}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
