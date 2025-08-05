@@ -23,7 +23,7 @@ const useGitHubStars = () => {
     `https://api.github.com/repos/${repo}`,
     fetcher,
     {
-      dedupingInterval: 3600000,
+      dedupingInterval: 3600000, // 1 hour cache
       revalidateOnFocus: false,
       revalidateOnReconnect: false,
       refreshInterval: 0,
@@ -50,6 +50,7 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({
       ? `https://app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
       : "http://app.localhost:3000";
 
+  // Route according to session state
   const destination = session ? baseUrl : `${baseUrl}/login`;
   const label = session ? "Dashboard" : "Get started";
 

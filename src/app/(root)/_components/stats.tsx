@@ -21,7 +21,7 @@ interface AnimatedNumberProps {
 const statsData = [
   {
     title: "Active Users",
-    count: 10,
+    count: 30,
     suffix: "+",
     icon: Users,
     iconColor: "text-blue-500",
@@ -37,7 +37,7 @@ const statsData = [
   },
   {
     title: "Clicks Tracked",
-    count: 664,
+    count: 2000,
     suffix: "+",
     icon: BarChart3,
     iconColor: "text-green-500",
@@ -149,7 +149,7 @@ export default function Stats() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h2 className="text-3xl font-semibold tracking-tight md:text-4xl">
+        <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
           Our Growth
         </h2>
         <p className="text-muted-foreground mt-3 text-sm md:text-base">

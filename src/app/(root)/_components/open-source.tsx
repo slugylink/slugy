@@ -19,7 +19,7 @@ const OpenSource = () => {
             maxOpacity={0.4}
           />
           <div className="relative z-10 flex flex-col items-center justify-center gap-4 px-4 py-10 sm:gap-6 sm:px-6 sm:py-16 md:gap-8 md:py-20">
-            <h3 className="text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
+            <h3 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               Open Source
             </h3>
 

@@ -12,21 +12,17 @@ import { toast } from "sonner";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 
-// Constants
 const API_ENDPOINT = "/api/temp";
 const MAX_LINKS_DISPLAY = 2;
 
-// URL validation pattern
 const urlPattern = /^https?:\/\//;
 
-// Schema validation
 const createLinkSchema = z.object({
   url: z
     .string()
     .min(1, "Destination URL is required")
     .refine(
       (url) => {
-        // If URL has a protocol, validate it as a proper URL
         if (urlPattern.test(url)) {
           try {
             new URL(url);
@@ -35,19 +31,17 @@ const createLinkSchema = z.object({
             return false;
           }
         }
-        
-        // If no protocol, check if it looks like a domain
-        // Allow domains like "example.com", "www.example.com", "example.com/path"
+
         const domainPattern = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/;
         return domainPattern.test(url);
       },
       {
-        message: "Please enter a valid URL (e.g., https://example.com or example.com)",
+        message:
+          "Please enter a valid URL (e.g., https://example.com or example.com)",
       },
     ),
 });
 
-// Type definitions
 type FormData = z.infer<typeof createLinkSchema>;
 
 interface Link {
@@ -70,24 +64,21 @@ interface GetLinksResponse {
   error?: string;
 }
 
-// Default link for demonstration
 const defaultLink: Link = {
   short: "slugy.co/git",
   original: "https://github.com/slugylink/slugy",
-  clicks: 150,
+  clicks: 650,
   expires: null,
 };
 
 const HeroLinkForm = () => {
   const [links, setLinks] = useState<Link[]>([defaultLink]);
 
-  // SWR hook for fetching links
   const { data, mutate } = useSWR<GetLinksResponse, Error>(
     API_ENDPOINT,
     fetcher,
     {
       onError: (error) => {
-        // Only show error toast for non-rate-limit errors
         if (!error.message.includes("Too many requests")) {
           toast.error(error.message);
         }
@@ -97,7 +88,6 @@ const HeroLinkForm = () => {
     },
   );
 
-  // Form setup
   const {
     register,
     handleSubmit,
@@ -107,42 +97,30 @@ const HeroLinkForm = () => {
     resolver: zodResolver(createLinkSchema),
   });
 
-  // Update links when data changes
   useEffect(() => {
-    if (data?.links && data.links.length > 0) {
+    if (data?.links?.length) {
       setLinks((prevLinks) => {
-        // Filter out new links that already exist
         const newLinks = data.links.filter(
           (newLink) =>
             !prevLinks.some(
               (existingLink) => existingLink.short === newLink.short,
             ),
         );
-
-        // Update click counts for existing links
         const updatedLinks = prevLinks.map((prevLink) => {
-          const updatedLink = data.links.find(
-            (link) => link.short === prevLink.short,
-          );
-          return updatedLink
-            ? { ...prevLink, clicks: updatedLink.clicks }
-            : prevLink;
+          const updated = data.links.find((l) => l.short === prevLink.short);
+          return updated ? { ...prevLink, clicks: updated.clicks } : prevLink;
         });
-
         return [...newLinks, ...updatedLinks];
       });
     }
   }, [data]);
 
-  // Handle form submission
   const onSubmit = useCallback(
     async (formData: FormData) => {
       try {
         const response = await fetch(API_ENDPOINT, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ url: formData.url }),
         });
 
@@ -157,12 +135,9 @@ const HeroLinkForm = () => {
           throw new Error(result.error ?? "Failed to create link");
         }
 
-        // Add new link to the beginning of the list
-        setLinks((prevLinks) => [result, ...prevLinks]);
+        setLinks((prev) => [result, ...prev]);
         reset();
         toast.success("Link created successfully!");
-
-        // Revalidate the data
         await mutate();
       } catch (error) {
         toast.error(
@@ -173,7 +148,6 @@ const HeroLinkForm = () => {
     [reset, mutate],
   );
 
-  // Check if we should disable the form
   const isFormDisabled = isSubmitting || links.length >= MAX_LINKS_DISPLAY;
 
   return (
@@ -212,7 +186,6 @@ const HeroLinkForm = () => {
         ))}
       </div>
 
-      {/* Analytics/Claim Message */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-500">
         Want to claim your links, edit them, or view their analytics?{" "}
         <a

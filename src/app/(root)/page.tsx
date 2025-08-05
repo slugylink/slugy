@@ -66,13 +66,6 @@ export default function Home() {
         </section>
       </Suspense>
 
-      {/* Pricing section commented out */}
-      {/* <Suspense fallback={<LoadingSection height={LOADING_HEIGHT.pricing} />}>
-        <section id="pricing" className="scroll-mt-20">
-          <Pricing />
-        </section>
-      </Suspense> */}
-
       <Suspense
         fallback={<LoadingSection height={LOADING_HEIGHT.openSource} />}
       >

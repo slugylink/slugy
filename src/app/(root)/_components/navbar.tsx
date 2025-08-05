@@ -57,7 +57,11 @@ const Navbar: React.FC<NavbarProps> = ({ session }) => {
 };
 
 const NavbarLogo: React.FC = () => (
-  <Link href="/" className="flex items-center gap-3">
+  <Link
+    href="/"
+    className="flex items-center gap-3"
+    aria-label="Go to home page"
+  >
     <div className="flex items-center gap-2">
       <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
         <AppLogo />
