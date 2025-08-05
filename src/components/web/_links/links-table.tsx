@@ -49,6 +49,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     setworkspaceslug(workspaceslug);
   }, [workspaceslug, setworkspaceslug]);
 
+  // Build search config from URL params
   const searchConfig = useMemo(
     () => ({
       search: searchParams?.get("search") ?? "",
@@ -58,7 +59,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     }),
     [searchParams],
   );
-  // Memoized API URL
+  // Memoized API URL for SWR
   const apiUrl = useMemo(
     () =>
       `/api/workspace/${workspaceslug}/link/get?${new URLSearchParams({
@@ -70,8 +71,9 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       }).toString()}`,
     [workspaceslug, searchConfig],
   );
-  // SWR hook
-  const { data, isLoading } = useSWR<ApiResponse, Error & { status?: number }>(
+
+  // SWR fetch + error
+  const { data, error, isLoading } = useSWR<ApiResponse, Error>(
     apiUrl,
     fetcher,
   );
@@ -82,7 +84,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     totalPages: 0,
   };
 
-  // Ensure all links have a qrCode property for LinkList/LinkCard compatibility
+  // Ensure all links have a qrCode for LinkList/LinkCard
   const linksWithQrCode = useMemo(
     () =>
       links.map((link) => ({
@@ -96,11 +98,8 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   const handleSelectLink = useCallback((linkId: string) => {
     setSelectedLinks((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(linkId)) {
-        newSet.delete(linkId);
-      } else {
-        newSet.add(linkId);
-      }
+      if (newSet.has(linkId)) newSet.delete(linkId);
+      else newSet.add(linkId);
       return newSet;
     });
   }, []);
@@ -145,6 +144,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   );
 
   const isGridLayout = layout === "grid-cols-2";
+
   return (
     <section>
       <div className="flex w-full items-center justify-between gap-4 pb-8">
@@ -154,6 +154,8 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
 
       {isLoading && links.length === 0 ? (
         <LinkCardSkeleton />
+      ) : error ? (
+        <div className="p-4 text-red-500">Error loading links.</div>
       ) : links.length > 0 ? (
         <LinkList
           links={linksWithQrCode}

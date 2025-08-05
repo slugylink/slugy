@@ -48,6 +48,13 @@ interface FormState {
   logo?: string;
 }
 
+// Static logo configuration
+const STATIC_LOGO = {
+  src: "/logo.svg", // Path to your brand logo
+  size: 0.3, // Size relative to QR code (0.3 = 30% of QR code size)
+  margin: 5, // Margin around the logo
+};
+
 const QR_CONFIG = {
   DEFAULT_SIZE: 300,
   BACKGROUND_COLOR: "#ffffff",
@@ -90,8 +97,8 @@ const DEFAULT_QR_OPTIONS: Options = {
   },
   imageOptions: {
     hideBackgroundDots: true,
-    imageSize: QR_CONFIG.LOGO_SIZE,
-    margin: 5,
+    imageSize: STATIC_LOGO.size,
+    margin: STATIC_LOGO.margin,
     crossOrigin: "anonymous",
   },
   backgroundOptions: {
@@ -248,6 +255,7 @@ export default function QRCodeDesigner({
       color: formState.fgColor,
       type: formState.dotStyle,
     },
+    image: STATIC_LOGO.src, // Always show the static logo
   }));
 
   // Memoize the downloadHighQualityQR function
@@ -355,6 +363,7 @@ export default function QRCodeDesigner({
           color: qrCodeData.fgColor as string,
           type: qrCodeData.dotStyle as DotType,
         },
+        image: STATIC_LOGO.src, // Always show the static logo
       }));
     } catch (error) {
       console.error("Failed to fetch QR code:", error);
@@ -539,6 +548,8 @@ export default function QRCodeDesigner({
           />
         </div>
       </div>
+
+
 
       {/* <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
