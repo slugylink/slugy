@@ -84,6 +84,20 @@ export class S3Service {
       throw error;
     }
   }
+
+  async deleteFile(key: string) {
+    const params = {
+      Bucket: this.bucketName,
+      Key: key,
+    };
+
+    try {
+      await this.s3.deleteObject(params).promise();
+    } catch (error) {
+      console.error("Error deleting file from S3:", error);
+      throw error;
+    }
+  }
 }
 
 export const s3Service = new S3Service(process.env.AWS_BUCKET_NAME!);

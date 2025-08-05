@@ -67,6 +67,21 @@ export async function PATCH(
       );
     }
 
+    // Delete old logo from S3 if it exists
+    if (workspace.logo) {
+      try {
+        // Extract the file key from the S3 URL
+        const url = new URL(workspace.logo);
+        const oldLogoKey = url.pathname.substring(1); // Remove leading slash
+        if (oldLogoKey) {
+          await s3Service.deleteFile(oldLogoKey);
+        }
+      } catch (error) {
+        console.error("Error deleting old logo from S3:", error);
+        // Continue with upload even if deletion fails
+      }
+    }
+
     // Generate a unique file key for the logo
     const fileKey = `workspace-logos/${workspace.id}/${Date.now()}-${file.name}`;
 
