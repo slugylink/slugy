@@ -405,10 +405,11 @@ export async function POST(req: Request) {
     }
 
     // Normalize URL by prepending https:// if no protocol is present
-    const normalizedUrl = url.startsWith('http://') || url.startsWith('https://') 
-      ? url 
-      : `https://${url}`;
-    
+    const normalizedUrl =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `https://${url}`;
+
     // Validate the normalized URL
     try {
       new URL(normalizedUrl);
