@@ -16,7 +16,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-
 import {
   SidebarGroup,
   SidebarMenu,
@@ -26,7 +25,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-
 import { cn } from "@/lib/utils";
 import { memo, useMemo, useRef, useEffect } from "react";
 
@@ -62,7 +60,10 @@ interface NavMainProps {
   workspaces: WorkspaceMinimal[];
 }
 
-// Constants
+// Cache to store path segments — cleared on pathname changes
+const pathSegmentCache = new Map<string, string>();
+
+// Sidebar static data
 const SIDEBAR_DATA = {
   logo: { icon: SquareTerminal, name: "Slugy" } as Brand,
   navMain: [
@@ -81,6 +82,7 @@ const SIDEBAR_DATA = {
   ] as NavItem[],
 };
 
+// Access control config
 const NAV_ACCESS_CONTROL = {
   restrictedSubItems: {
     Billing: ["owner"] as const,
@@ -89,20 +91,22 @@ const NAV_ACCESS_CONTROL = {
   },
 } as const;
 
+// Access check helper
 const hasAccess = (
   userRole: UserRole | null,
   allowedRoles: readonly string[],
 ) => userRole !== null && allowedRoles.includes(userRole);
 
-// Build URL prefixing baseUrl when needed
-const buildUrl = (baseUrl: string, path: string): string =>
-  baseUrl && !path.startsWith(baseUrl)
+// URL prefixer with absolute URL detection
+const buildUrl = (baseUrl: string, path: string): string => {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  return baseUrl && !path.startsWith(baseUrl)
     ? baseUrl + (path.startsWith("/") ? path : `/${path}`)
     : path;
+};
 
-const pathSegmentCache = new Map<string, string>();
-
-// Creates a checker object for active nav item/subItem states based on pathname
+// Active state checker factory
 const createActiveStateChecker = (pathname: string) => {
   const pathSegments = pathname.split("/").filter(Boolean);
   const lastSegment = pathSegments[pathSegments.length - 1] ?? "";
@@ -131,7 +135,6 @@ const createActiveStateChecker = (pathname: string) => {
   };
 };
 
-// Memoized NavItem component
 const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
@@ -219,7 +222,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   const pathname = usePathname();
   const prevPathnameRef = useRef(pathname);
 
-  // Memoize current workspace and userRole
   const currentWorkspace = useMemo(
     () => workspaces.find((w) => w.slug === workspaceslug),
     [workspaces, workspaceslug],
@@ -228,7 +230,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   const userRole = currentWorkspace?.userRole ?? null;
   const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
 
-  // Process nav items according to base url and userRole
   const processedNavItems = useMemo(() => {
     return SIDEBAR_DATA.navMain.map((item) => {
       const isBioLinks = item.title === "Bio Links";
@@ -244,11 +245,9 @@ export const NavMain = memo<NavMainProps>(function NavMain({
             NAV_ACCESS_CONTROL.restrictedSubItems[
               sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
             ];
-          return (
-            !allowedRoles ||
-            userRole === null ||
-            hasAccess(userRole, allowedRoles)
-          );
+          if (!allowedRoles) return true;
+          if (!userRole) return false;
+          return hasAccess(userRole, allowedRoles);
         })
         .map((sub) => ({
           ...sub,
@@ -263,13 +262,11 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [baseUrl, userRole]);
 
-  // Active state checker based on pathname
   const activeStateChecker = useMemo(
     () => createActiveStateChecker(pathname),
     [pathname],
   );
 
-  // Prefetch all main nav item URLs except "Settings"
   useEffect(() => {
     processedNavItems.forEach(({ url, title }) => {
       if (url && title !== "Settings" && !url.startsWith("http")) {
@@ -281,7 +278,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [processedNavItems]);
 
-  // Clear path cache when first segment changes
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
       if (pathname.split("/")[1] !== prevPathnameRef.current.split("/")[1]) {

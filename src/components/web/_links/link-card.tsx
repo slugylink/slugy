@@ -12,7 +12,6 @@ import {
   QrCode,
   LinkIcon,
   Trash,
-  // Forward,
   Archive,
   Pencil,
 } from "lucide-react";
@@ -33,7 +32,6 @@ import { mutate } from "swr";
 import dynamic from "next/dynamic";
 import { cn } from "@/lib/utils";
 
-// Import components from the separate file
 import {
   LinkPreviewComponent,
   CopyButton,
@@ -46,27 +44,17 @@ import {
 } from "@/components/web/_links/link-card-components";
 import { useWorkspaceStore } from "@/store/workspace";
 
-// Dynamic imports with better loading states
 const EditLinkForm = dynamic(
   () => import("@/components/web/_links/edit-link"),
-  {
-    ssr: false,
-  },
+  { ssr: false },
 );
 
-// const ShareAnalyticsModal = dynamic(
-//   () => import("@/components/web/_links/link-analytics-share"),
-//   {
-//     ssr: false,
-//   },
-// );
+type DialogType = "dropdown" | "edit" | "qrCode" | "delete" | "shareAnalytics";
 
-// Types - More precise and organized
 interface Creator {
   name: string | null;
   image: string | null;
 }
-
 interface LinkData {
   id: string;
   url: string;
@@ -109,21 +97,10 @@ interface LinkCardProps {
   onSelect?: () => void;
 }
 
-// interface ShareResponse {
-//   isPublic: boolean;
-//   allowIndexing: boolean;
-//   password?: string | null;
-//   publicId?: string;
-// }
-
-type DialogType = "dropdown" | "edit" | "qrCode" | "delete" | "shareAnalytics";
-
-// Constants
 const COPY_TIMEOUT = 2000;
 
 const useDialogState = () => {
   const [openDialogs, setOpenDialogs] = useState<Set<DialogType>>(new Set());
-
   const toggleDialog = useCallback((dialog: DialogType, isOpen?: boolean) => {
     setOpenDialogs((prev) => {
       const newSet = new Set(prev);
@@ -135,19 +112,16 @@ const useDialogState = () => {
       return newSet;
     });
   }, []);
-
   const isDialogOpen = useCallback(
     (dialog: DialogType) => openDialogs.has(dialog),
     [openDialogs],
   );
-
   return { toggleDialog, isDialogOpen };
 };
 
 const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
-
   const mutateLinks = useCallback(() => {
     return mutate(
       (key) => typeof key === "string" && key.includes("/link/get"),
@@ -155,26 +129,21 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
       { revalidate: true },
     );
   }, []);
-
   const handleArchive = useCallback(
     async (isArchived: boolean) => {
       if (!workspaceslug || !linkId) return;
-
       try {
         const response = await axios.patch(
           `/api/workspace/${workspaceslug}/link/${linkId}/archive`,
           { isArchived: !isArchived },
         );
-
         if (response.status === 200) {
           toast.success(
             isArchived
               ? "Link unarchived successfully!"
               : "Link archived successfully!",
           );
-          void mutate(
-            (key) => typeof key === "string" && key.includes("/link/get"),
-          );
+          void mutateLinks();
         }
       } catch (error) {
         console.error("Archive error:", error);
@@ -186,20 +155,14 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
 
   const handleDelete = useCallback(async () => {
     if (!workspaceslug || !linkId) return;
-
     try {
       setIsDeleting(true);
       const response = await axios.delete(
         `/api/workspace/${workspaceslug}/link/${linkId}/delete`,
       );
-
       if (response.status === 200) {
         toast.success("Link deleted successfully!");
-        void mutate(
-          (key) => typeof key === "string" && key.includes("/link/get"),
-          undefined,
-          { revalidate: true },
-        );
+        void mutateLinks();
         router.refresh();
       }
     } catch (error) {
@@ -209,11 +172,9 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
       setIsDeleting(false);
     }
   }, [workspaceslug, linkId, mutateLinks]);
-
   return { handleArchive, handleDelete, isDeleting };
 };
 
-// Helper function for creating edit form data
 const createEditFormData = (link: LinkData) => ({
   id: link.id,
   domain: link.domain ?? "slugy.co",
@@ -235,10 +196,9 @@ const createEditFormData = (link: LinkData) => ({
   utm_term: link.utm_term ?? "",
   creatorId: typeof link.creatorId === "string" ? link.creatorId : undefined,
   image: link.image ?? "",
-  qrCode: link.qrCode, // <-- Add this line
+  qrCode: link.qrCode,
 });
 
-// Main LinkCard Component
 export default function LinkCard({
   link,
   isPublic,
@@ -246,7 +206,6 @@ export default function LinkCard({
   isSelected = false,
   onSelect,
 }: LinkCardProps) {
-  // Hooks
   const { workspaceslug } = useWorkspaceStore();
   const pathname = usePathname();
   const { toggleDialog, isDialogOpen } = useDialogState();
@@ -254,36 +213,9 @@ export default function LinkCard({
     workspaceslug!,
     link.id,
   );
-
-  // State
   const [isCopied, setIsCopied] = useState(false);
-
-  // Memoized values
   const shortUrl = useMemo(() => `${SHORT_URL_BASE}${link.slug}`, [link.slug]);
-  const editFormData = useMemo(
-    () => createEditFormData(link),
-    [
-      link.id,
-      link.domain,
-      link.url,
-      link.slug,
-      link.description,
-      link.password,
-      link.expiresAt,
-      link.tags,
-      link.expirationUrl,
-      link.utm_source,
-      link.utm_medium,
-      link.utm_campaign,
-      link.utm_content,
-      link.utm_term,
-      link.creatorId,
-      link.image,
-      link.qrCode,
-    ],
-  );
-
-  // Event handlers
+  const editFormData = useMemo(() => createEditFormData(link), [link]);
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(shortUrl);
@@ -295,12 +227,6 @@ export default function LinkCard({
       toast.error("Failed to copy to clipboard");
     }
   }, [shortUrl]);
-
-  // const handleShareAnalytics = useCallback((updatedSettings: ShareResponse) => {
-  //   console.log("Share settings updated:", updatedSettings);
-  // }, []);
-
-  // Action handlers with dialog management
   const actionHandlers = useMemo(
     () => ({
       edit: () => {
@@ -315,10 +241,6 @@ export default function LinkCard({
         await handleCopy();
         toggleDialog("dropdown", false);
       },
-      shareAnalytics: () => {
-        toggleDialog("shareAnalytics", true);
-        toggleDialog("dropdown", false);
-      },
       archive: async () => {
         await handleArchive(link.isArchived ?? false);
         toggleDialog("dropdown", false);
@@ -330,18 +252,11 @@ export default function LinkCard({
     }),
     [toggleDialog, handleCopy, handleArchive, link.isArchived],
   );
-
-  // Memoized dropdown items
   const dropdownItems = useMemo(
     () => [
       { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
       { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
       { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
-      // {
-      //   icon: Forward,
-      //   label: "Share Analytics",
-      //   onClick: actionHandlers.shareAnalytics,
-      // },
       { type: "separator" as const },
       {
         icon: Archive,
@@ -357,19 +272,13 @@ export default function LinkCard({
     ],
     [link.isArchived, actionHandlers],
   );
-
-  // Event handlers
   const handleCardClick = useCallback(() => {
-    if (isSelectModeOn && onSelect) {
-      onSelect();
-    }
+    if (isSelectModeOn && onSelect) onSelect();
   }, [isSelectModeOn, onSelect]);
-
   const handleDeleteConfirm = useCallback(async () => {
     await handleDelete();
     toggleDialog("delete", false);
   }, [handleDelete, toggleDialog]);
-
   return (
     <TooltipProvider delayDuration={0}>
       <div
@@ -400,7 +309,6 @@ export default function LinkCard({
               {SHORT_URL_BASE.replace("https://", "")}
               {link.slug}
             </p>
-
             <div className="flex items-center gap-2">
               <CopyButton isCopied={isCopied} onClick={handleCopy} />
               {link.description && (
@@ -414,7 +322,6 @@ export default function LinkCard({
               )}
             </div>
           </div>
-
           <LinkPreviewComponent url={link.url} />
         </div>
 
@@ -425,7 +332,7 @@ export default function LinkCard({
             isPublic={isPublic}
             pathname={pathname}
             slug={link.slug}
-            onShareAnalytics={actionHandlers.shareAnalytics}
+            onShareAnalytics={() => {}}
           />
 
           <DropdownMenu
@@ -445,7 +352,6 @@ export default function LinkCard({
                 />
               </Button>
             </DropdownMenuTrigger>
-
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuGroup>
                 {dropdownItems.map((item, index) =>
@@ -497,7 +403,6 @@ export default function LinkCard({
           </DialogContent>
         </Dialog>
       )}
-
       {isDialogOpen("edit") ? (
         <EditLinkForm
           initialData={editFormData}
@@ -508,24 +413,12 @@ export default function LinkCard({
           creator={link.creator!}
         />
       ) : null}
-
       <DeleteConfirmationDialog
         isOpen={isDialogOpen("delete")}
         onOpenChange={(open) => toggleDialog("delete", open)}
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
-
-      {/* {isDialogOpen("shareAnalytics") && (
-        <ShareAnalyticsModal
-          open={isDialogOpen("shareAnalytics")}
-          onOpenChange={(open) => toggleDialog("shareAnalytics", open)}
-          linkId={link.id}
-          slug={link.slug}
-          url={link.url}
-          onSettingsUpdated={handleShareAnalytics}
-        />
-      )} */}
     </TooltipProvider>
   );
 }
