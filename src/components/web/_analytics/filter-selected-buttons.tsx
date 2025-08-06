@@ -1,6 +1,6 @@
 "use client";
 
-import type React from "react";
+import React, { useMemo, useCallback } from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
@@ -25,101 +25,130 @@ interface FilterSelectedButtonsProps {
   onRemoveFilter: (categoryId: CategoryId, value: string) => void;
 }
 
+const CONTINENT_NAMES: Record<string, string> = {
+  af: "Africa",
+  an: "Antarctica",
+  as: "Asia",
+  eu: "Europe",
+  na: "North America",
+  oc: "Oceania",
+  sa: "South America",
+  unknown: "Unknown",
+};
+
+const CATEGORY_BG_CLASSES: Record<CategoryId, string> = {
+  slug_key: "bg-orange-200/40 hover:bg-orange-200/50",
+  destination_key: "bg-orange-200/40 hover:bg-orange-200/50",
+  continent_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
+  country_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
+  city_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
+  browser_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
+  os_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
+  device_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
+  referrer_key: "bg-red-200/40 hover:bg-red-200/50",
+};
+
 const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
   filterCategories,
   selectedFilters,
   onRemoveFilter,
 }) => {
-  const selectedFilterCount = Object.values(selectedFilters).flat().length;
-  if (selectedFilterCount === 0) return null;
+  const selectedFilterCount = useMemo(
+    () => Object.values(selectedFilters).flat().length,
+    [selectedFilters],
+  );
 
-  const getOptionByValue = (
-    category: FilterCategory,
-    value: string,
-  ): FilterOption | undefined => {
-    if (!category?.options || category.options.length === 0) return undefined;
-    return category.options.find((option) => {
+  const displayNames = useMemo(() => {
+    try {
+      return new Intl.DisplayNames(["en"], { type: "region" });
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getOptionByValue = useCallback(
+    (category: FilterCategory, value: string): FilterOption | undefined => {
+      if (!category?.options?.length) return undefined;
+      return category.options.find((option) => {
+        switch (category.id) {
+          case "slug_key":
+            return "slug" in option && option.slug === value;
+          case "continent_key":
+            return "continent" in option && option.continent === value;
+          case "country_key":
+            return "country" in option && option.country === value;
+          case "city_key":
+            return "city" in option && option.city === value;
+          case "browser_key":
+            return "browser" in option && option.browser === value;
+          case "os_key":
+            return "os" in option && option.os === value;
+          case "device_key":
+            return "device" in option && option.device === value;
+          case "referrer_key":
+            return "referrer" in option && option.referrer === value;
+          case "destination_key":
+            return "destination" in option && option.destination === value;
+          default:
+            return false;
+        }
+      });
+    },
+    [],
+  );
+
+  const getOptionLabel = useCallback(
+    (category: FilterCategory, value: string) => {
+      const option = getOptionByValue(category, value);
+      if (!option) return value;
       switch (category.id) {
         case "slug_key":
-          return "slug" in option && option.slug === value;
-        case "continent_key":
-          return "continent" in option && option.continent === value;
-        case "country_key":
-          return "country" in option && option.country === value;
-        case "city_key":
-          return "city" in option && option.city === value;
-        case "browser_key":
-          return "browser" in option && option.browser === value;
-        case "os_key":
-          return "os" in option && option.os === value;
-        case "device_key":
-          return "device" in option && option.device === value;
-        case "referrer_key":
-          return "referrer" in option && option.referrer === value;
-        case "destination_key":
-          return "destination" in option && option.destination === value;
-        default:
-          return false;
-      }
-    });
-  };
-
-  // Mapping from continent code to full name
-  const CONTINENT_NAMES: Record<string, string> = {
-    af: "Africa",
-    an: "Antarctica",
-    as: "Asia",
-    eu: "Europe",
-    na: "North America",
-    oc: "Oceania",
-    sa: "South America",
-    unknown: "Unknown",
-  };
-
-  const getOptionLabel = (category: FilterCategory, value: string): string => {
-    const option = getOptionByValue(category, value);
-    if (!option) return value;
-    switch (category.id) {
-      case "slug_key":
-        return (option as LinkAnalytics).slug || value;
-      case "continent_key": {
-        const code = ((option as ContinentAnalytics).continent || value).toLowerCase();
-        return CONTINENT_NAMES[code] || code;
-      }
-      case "country_key": {
-        const code = (option as CountryAnalytics).country || value;
-        try {
-          const displayNames = new Intl.DisplayNames(["en"], { type: "region" });
-          return displayNames.of(code.toUpperCase()) || code;
-        } catch {
-          return code;
+          return (option as LinkAnalytics).slug || value;
+        case "continent_key": {
+          const code = (
+            (option as ContinentAnalytics).continent || value
+          ).toLowerCase();
+          return CONTINENT_NAMES[code] || code;
         }
+        case "country_key": {
+          const code = (option as CountryAnalytics).country || value;
+          try {
+            return displayNames?.of(code.toUpperCase()) || code;
+          } catch {
+            return code;
+          }
+        }
+        case "city_key":
+          return (option as CityAnalytics).city || value;
+        case "browser_key":
+          return (option as BrowserAnalytics).browser || value;
+        case "os_key":
+          return (option as OsAnalytics).os || value;
+        case "device_key":
+          return (option as DeviceAnalytics).device || value;
+        case "referrer_key":
+          return (option as ReferrerAnalytics).referrer || value;
+        case "destination_key":
+          return (option as DestinationAnalytics).destination || value;
+        default:
+          return value;
       }
-      case "city_key":
-        return (option as CityAnalytics).city || value;
-      case "browser_key":
-        return (option as BrowserAnalytics).browser || value;
-      case "os_key":
-        return (option as OsAnalytics).os || value;
-      case "device_key":
-        return (option as DeviceAnalytics).device || value;
-      case "referrer_key":
-        return (option as ReferrerAnalytics).referrer || value;
-      case "destination_key":
-        return (option as DestinationAnalytics).destination || value;
-      default:
-        return value;
-    }
-  };
+    },
+    [displayNames, getOptionByValue],
+  );
 
-  // Group filters by category for display
-  const filtersByCategory = filterCategories.reduce<
-    Array<{ category: FilterCategory; values: string[] }>
-  >((acc, category) => {
-    const values = selectedFilters[category.id] || [];
-    if (values.length > 0) acc.push({ category, values });
-    return acc;
-  }, []);
+  // Group filters by category for rendering
+  const filtersByCategory = useMemo(() => {
+    return filterCategories.reduce<
+      Array<{ category: FilterCategory; values: string[] }>
+    >((acc, category) => {
+      const values = selectedFilters[category.id] || [];
+      if (values.length > 0) acc.push({ category, values });
+      return acc;
+    }, []);
+  }, [filterCategories, selectedFilters]);
+
+  if (selectedFilterCount === 0) return null;
 
   return (
     <div className="mt-3">
@@ -129,11 +158,14 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
             <div
               key={category.id}
               className="flex flex-wrap items-center gap-2"
+              aria-label={`Selected filters for ${category.label}`}
             >
               <Button
                 size="sm"
                 variant="outline"
                 className="bg-muted/50 font-normal"
+                aria-disabled="true"
+                tabIndex={-1}
               >
                 <span className="mr-1 flex items-center">{category.icon}</span>
                 {category.label}
@@ -142,38 +174,28 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
                 const optionLabel = getOptionLabel(category, value);
                 return (
                   <Button
-                    size="sm"
                     key={`${category.id}-${value}`}
+                    size="sm"
                     variant="secondary"
                     className={cn(
                       "flex items-center gap-1.5 py-1 pr-1 pl-2 font-normal transition-all",
-                      {
-                        "bg-blue-100 hover:bg-blue-200 dark:bg-blue-950 dark:hover:bg-blue-900":
-                          category.id === "slug_key",
-                        "bg-green-100 hover:bg-green-200 dark:bg-green-950 dark:hover:bg-green-900":
-                          category.id === "continent_key",
-                        "bg-amber-100 hover:bg-amber-200 dark:bg-amber-950 dark:hover:bg-amber-900":
-                          category.id === "country_key",
-                        "bg-purple-100 hover:bg-purple-200 dark:bg-purple-950 dark:hover:bg-purple-900":
-                          category.id === "city_key",
-                        "bg-red-100 hover:bg-red-200 dark:bg-red-950 dark:hover:bg-red-900":
-                          category.id === "browser_key",
-                        "bg-indigo-100 hover:bg-indigo-200 dark:bg-indigo-950 dark:hover:bg-indigo-900":
-                          category.id === "os_key",
-                      },
+                      CATEGORY_BG_CLASSES[category.id] ?? "",
                     )}
+                    type="button"
+                    aria-label={`Remove filter: ${optionLabel}`}
+                    onClick={() => onRemoveFilter(category.id, value)}
                   >
                     <span className="max-w-[150px] truncate">
-                      {optionLabel}
+                      {optionLabel
+                        .replace("https://", "")
+                        .replace("http://", "")
+                        .replace("www.", "")}
                     </span>
-                    <button
-                      onClick={() => onRemoveFilter(category.id, value)}
-                      className="hover:bg-muted/20 ml-1 cursor-pointer rounded-full p-0.5"
-                      aria-label={`Remove ${optionLabel} filter`}
-                      type="button"
-                    >
-                      <X className="text-muted-foreground h-3 w-3 cursor-pointer" />
-                    </button>
+                    <X
+                      className="text-muted-foreground h-3 w-3 cursor-pointer"
+                      aria-hidden="true"
+                      focusable={false}
+                    />
                   </Button>
                 );
               })}

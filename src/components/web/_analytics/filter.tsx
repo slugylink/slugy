@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { ChevronDown, ChevronsUp, Filter } from "lucide-react";
+import { Calendar, ChevronDown, ChevronsUp, Filter, Lock } from "lucide-react";
 import Image from "next/image";
 import ContinentFlag from "./continent-flag";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
@@ -497,7 +497,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="relative w-[250px] p-2 transition-all duration-300 ease-in-out"
+              className="relative w-[210px] p-2 transition-all duration-300 ease-in-out"
               align="start"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
@@ -752,17 +752,36 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        {/* Time Period */}
         <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Select time range" />
+          <SelectTrigger className="w-fit shadow-none text-sm">
+            <Calendar /> <SelectValue placeholder="Select time range" />
           </SelectTrigger>
           <SelectContent className="w-fit cursor-pointer">
-            <SelectItem value="24h">Last 24 hours</SelectItem>
-            <SelectItem value="7d">Last 7 days</SelectItem>
-            <SelectItem value="30d">Last 30 days</SelectItem>
-            <SelectItem value="3m">Last 3 months</SelectItem>
-            <SelectItem value="12m">Last 12 months</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem className="cursor-pointer" value="24h">Last 24 hours</SelectItem>
+            <SelectItem className="cursor-pointer" value="7d">Last 7 days</SelectItem>
+            <SelectItem className="cursor-pointer" value="30d">Last 30 days</SelectItem>
+            <SelectItem className="cursor-pointer" value="3m" disabled>
+              Last 3 months
+              <Lock
+                size={10}
+                className="text-muted-foreground absolute right-2 h-2.5 w-2"
+              />
+            </SelectItem>
+            <SelectItem value="12m" disabled>
+              Last 12 months
+              <Lock
+                size={10}
+                className="text-muted-foreground absolute right-2 h-2.5 w-2"
+              />
+            </SelectItem>
+            <SelectItem value="all" disabled>
+              All Time
+              <Lock
+                size={10}
+                className="text-muted-foreground absolute right-2 h-2.5 w-2"
+              />
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>

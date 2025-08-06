@@ -42,8 +42,8 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
   );
 
   const [activeTab, setActiveTab] = useState<
-    "short-links" | "destination-links"
-  >("short-links");
+    "slug-links" | "destination-links"
+  >("slug-links");
 
   if (error) {
     return (
@@ -63,13 +63,13 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
           onValueChange={(value) => setActiveTab(value as typeof activeTab)}
         >
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="short-links">Short Links</TabsTrigger>
+            <TabsTrigger value="slug-links">Short Links</TabsTrigger>
             <TabsTrigger value="destination-links">
               Destination URLs
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="short-links" className="mt-1">
+          <TabsContent value="slug-links" className="mt-1">
             <ScrollArea
               className="h-72 w-full"
               role="list"
@@ -81,10 +81,10 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
                   data={sortedData}
                   loading={isLoading}
                   error={error}
-                  keyPrefix="short"
+                  keyPrefix="slug"
                   getClicks={(item) => item.clicks}
                   getKey={(item, index) =>
-                    item.slug ?? item.url ?? `short-${index}`
+                    item.slug ?? item.url ?? `slug-${index}`
                   }
                   progressColor="bg-orange-200/40"
                   renderName={(item) => (
@@ -117,7 +117,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
                   data={sortedData}
                   loading={isLoading}
                   error={error}
-                  keyPrefix="dest"
+                  keyPrefix="destination"
                   getClicks={(item) => item.clicks}
                   getKey={(item, index) =>
                     item.slug ?? item.url ?? `dest-${index}`

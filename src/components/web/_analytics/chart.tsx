@@ -287,7 +287,7 @@ const AnalyticsChart = ({
                   width={30}
                 />
 
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.4} />
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.35} />
 
                 <Tooltip
                   content={<CustomTooltip />}
