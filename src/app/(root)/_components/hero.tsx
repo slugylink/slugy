@@ -36,6 +36,7 @@ const Hero = () => {
               </AnimatedShinyText>
             </div>
           </div>
+
           <div
             style={{ fontFamily: `var(--font-bricolage)` }}
             className="space-y-1 text-3xl font-semibold md:space-y-2 md:text-4xl lg:text-5xl"
@@ -57,6 +58,21 @@ const Hero = () => {
               It&apos;s fast, secure, and easy to use.
             </p>
           </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-center">
+          <a
+            href="https://www.producthunt.com/products/slugy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-slugy"
+            target="_blank"
+          >
+            <Image
+              src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464"
+              alt="Slugy - Simplify links like magic | Product Hunt"
+              style={{ width: "200px", height: "54px" }}
+              width="200"
+              height="54"
+            />
+          </a>
         </div>
 
         {/* Form */}
