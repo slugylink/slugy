@@ -1,21 +1,12 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import UrlAvatar from "@/components/web/url-avatar";
-import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
 import { fetchUrlClicksData } from "@/server/actions/analytics/use-analytics";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import TableCard from "./table-card";
 
 interface UrlClicksProps {
   workspaceslug: string;
@@ -28,76 +19,13 @@ interface UrlClickData {
   clicks: number;
 }
 
-interface UrlTableProps<T> {
-  data: T[];
-  loading: boolean;
-  error?: Error;
-  keyPrefix: string;
-  renderName: (item: T) => React.ReactNode;
-}
-
-function UrlTable<T extends UrlClickData>({
-  data,
-  loading,
-  error,
-  keyPrefix,
-  renderName,
-}: UrlTableProps<T>) {
-  const maxClicks = data[0]?.clicks ?? 1;
-
-  if (loading) {
-    return (
-      <TableBody>
-        <TableRow>
-          <TableCell
-            colSpan={2}
-            className="h-60 py-4 text-center text-gray-500"
-          >
-            <LoaderCircle className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    );
-  }
-
-  if (error || data.length === 0) {
-    return (
-      <TableBody>
-        <TableRow>
-          <TableCell
-            colSpan={2}
-            className="h-60 py-4 text-center text-gray-500"
-          >
-            No data available
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    );
-  }
-
+// Reusable header component for table column titles
+function TableHeader({ linkLabel }: { linkLabel: string }) {
   return (
-    <TableBody className="space-y-1">
-      {data.map((item, index) => {
-        const widthPercentage = (item.clicks / maxClicks) * 100;
-        const keyId = item.slug ?? item.url ?? `${keyPrefix}-${index}`;
-        return (
-          <TableRow
-            key={`${keyPrefix}-${keyId}`}
-            className="relative border-none"
-          >
-            <TableCell className="relative z-10">{renderName(item)}</TableCell>
-            <TableCell className="relative z-10 text-right">
-              {formatNumber(item.clicks)}
-            </TableCell>
-            <span
-              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-orange-200/40 dark:bg-orange-950/50"
-              style={{ width: `${widthPercentage}%` }}
-              aria-hidden="true"
-            />
-          </TableRow>
-        );
-      })}
-    </TableBody>
+    <div className="mb-2 flex items-center border-b pb-2">
+      <div className="flex-1 text-sm">{linkLabel}</div>
+      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+    </div>
   );
 }
 
@@ -107,7 +35,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     () => fetchUrlClicksData(workspaceslug, searchParams),
   );
 
-  // Pre-sort the data by clicks (descending) for better user experience
+  // Sort descending by clicks
   const sortedData = useMemo(
     () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
     [data],
@@ -142,55 +70,63 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
           </TabsList>
 
           <TabsContent value="short-links" className="mt-1">
-            <ScrollArea className="h-72 w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Link</TableHead>
-                    <TableHead className="text-right">Clicks</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <UrlTable
+            <ScrollArea
+              className="h-72 w-full"
+              role="list"
+              aria-label="Short Links click data"
+            >
+              <div>
+                <TableHeader linkLabel="Link" />
+                <TableCard
                   data={sortedData}
                   loading={isLoading}
                   error={error}
                   keyPrefix="short"
+                  getClicks={(item) => item.clicks}
+                  getKey={(item, index) =>
+                    item.slug ?? item.url ?? `short-${index}`
+                  }
+                  progressColor="bg-orange-200/40"
                   renderName={(item) => (
                     <div className="flex items-center gap-x-2">
                       <UrlAvatar
-                        className="rounded-sm"
+                        className="flex-shrink-0 rounded-sm"
                         size={5}
                         imgSize={4}
                         url={item.url}
                       />
-                      <p className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+                      <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
                         slugy.co/{item.slug}
-                      </p>
+                      </span>
                     </div>
                   )}
                 />
-              </Table>
+              </div>
             </ScrollArea>
           </TabsContent>
 
           <TabsContent value="destination-links" className="mt-1">
-            <ScrollArea className="h-72 w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>URL</TableHead>
-                    <TableHead className="text-right">Clicks</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <UrlTable
+            <ScrollArea
+              className="h-72 w-full"
+              role="list"
+              aria-label="Destination URLs click data"
+            >
+              <div>
+                <TableHeader linkLabel="URL" />
+                <TableCard
                   data={sortedData}
                   loading={isLoading}
                   error={error}
                   keyPrefix="dest"
+                  getClicks={(item) => item.clicks}
+                  getKey={(item, index) =>
+                    item.slug ?? item.url ?? `dest-${index}`
+                  }
+                  progressColor="bg-orange-200/45"
                   renderName={(item) => (
                     <div className="flex items-center gap-x-2">
                       <UrlAvatar
-                        className="rounded-sm"
+                        className="flex-shrink-0 rounded-sm"
                         size={5}
                         imgSize={4}
                         url={item.url}
@@ -204,7 +140,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
                     </div>
                   )}
                 />
-              </Table>
+              </div>
             </ScrollArea>
           </TabsContent>
         </Tabs>

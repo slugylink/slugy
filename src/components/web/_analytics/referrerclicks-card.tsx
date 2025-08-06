@@ -1,21 +1,12 @@
 "use client";
 import React, { useMemo } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import UrlAvatar from "@/components/web/url-avatar";
-import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
 import { fetchReferrerData } from "@/server/actions/analytics/use-analytics";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import TableCard from "./table-card";
 
 interface ReferrerClicksProps {
   workspaceslug: string;
@@ -25,75 +16,6 @@ interface ReferrerClicksProps {
 interface ReferrerData {
   referrer: string;
   clicks: number;
-}
-
-interface RefTableProps<T> {
-  data: T[];
-  loading: boolean;
-  error?: Error;
-  keyPrefix: string;
-  renderName: (item: T) => React.ReactNode;
-}
-
-function RefTable<T extends ReferrerData>({
-  data,
-  loading,
-  error,
-  keyPrefix,
-  renderName,
-}: RefTableProps<T>) {
-  const maxClicks = data[0]?.clicks ?? 1;
-
-  if (loading) {
-    return (
-      <TableBody>
-        <TableRow>
-          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
-            <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin mx-auto" />
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    );
-  }
-
-  if (error || data.length === 0) {
-    return (
-      <TableBody>
-        <TableRow>
-          <TableCell colSpan={2} className="h-60 py-4 text-center text-gray-500">
-            No data available
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    );
-  }
-
-  return (
-    <TableBody className="space-y-1">
-      {data.map((item, index) => {
-        const widthPercentage = (item.clicks / maxClicks) * 100;
-        const keyId = item.referrer ?? `${keyPrefix}-${index}`;
-        return (
-          <TableRow
-            key={`${keyPrefix}-${keyId}`}
-            className="bg-background relative border-none"
-          >
-            <TableCell className="relative z-10 flex items-center gap-x-2">
-              {renderName(item)}
-            </TableCell>
-            <TableCell className="relative z-10 text-right">
-              {formatNumber(item.clicks)}
-            </TableCell>
-            <span
-              className="absolute inset-y-0 left-0 my-auto h-[85%] rounded-md bg-red-200/40 dark:bg-red-950/50"
-              style={{ width: `${widthPercentage}%` }}
-              aria-hidden="true"
-            />
-          </TableRow>
-        );
-      })}
-    </TableBody>
-  );
 }
 
 const ReferrerClicks = ({
@@ -135,22 +57,25 @@ const ReferrerClicks = ({
 
           <TabsContent value="referrers" className="mt-1">
             <ScrollArea className="h-72 w-full">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Source</TableHead>
-                    <TableHead className="text-right">Clicks</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <RefTable
+              <div>
+                {/* Header */}
+                <div className="flex items-center border-b pb-2 mb-2">
+                  <div className="flex-1 text-sm">Source</div>
+                  <div className="text-right text-sm min-w-[80px]">Clicks</div>
+                </div>
+                {/* Content */}
+                <TableCard
                   data={processedData}
                   loading={isLoading}
                   error={error}
                   keyPrefix="referrer"
+                  getClicks={(item) => item.clicks}
+                  getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
+                  progressColor="bg-red-200/40"
                   renderName={(item) => (
-                    <>
+                    <div className="flex items-center gap-x-2">
                       <UrlAvatar
-                        className="rounded-sm"
+                        className="rounded-sm flex-shrink-0"
                         size={5}
                         imgSize={4}
                         url={item.referrer}
@@ -161,10 +86,10 @@ const ReferrerClicks = ({
                           .replace("http://", "")
                           .replace("www.", "")}
                       </span>
-                    </>
+                    </div>
                   )}
                 />
-              </Table>
+              </div>
             </ScrollArea>
           </TabsContent>
         </Tabs>

@@ -12,6 +12,7 @@ const nextConfig: import("next").NextConfig = {
       { hostname: "res.cloudinary.com" },
       { hostname: "zplink.s3.ap-south-1.amazonaws.com" },
       { hostname: "opengraph.b-cdn.net" },
+      { hostname: "direct" },
 
       // Social media platforms
       { hostname: "abs.twimg.com" },

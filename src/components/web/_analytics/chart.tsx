@@ -19,10 +19,11 @@ import useSWR from "swr";
 import { fetchChartData } from "@/server/actions/analytics/use-analytics";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 interface ChartProps {
   data?: {
-    time: Date;
+    time: string; // Accept string for easy serialization
     clicks: number;
   }[];
   totalClicks?: number;
@@ -45,24 +46,13 @@ interface ChartDataResponse {
   totalClicks: number;
 }
 
-// Chart theme values
 const CHART_THEME = {
-  primary: "#EA877E", // rose-400
+  primary: "#EA877E",
   background: "hsl(var(--background))",
   border: "hsl(var(--border))",
   foreground: "hsl(var(--foreground))",
   muted: "hsl(var(--muted-foreground))",
 };
-
-// Time format mapping type with strict typing
-// interface TimeFormatMap {
-//   "24h": { axis: string; tooltip: string };
-//   "7d": { axis: string; tooltip: string };
-//   "30d": { axis: string; tooltip: string };
-//   "3m": { axis: string; tooltip: string };
-//   "12m": { axis: string; tooltip: string };
-//   all: { axis: string; tooltip: string };
-// }
 
 const AnalyticsChart = ({
   data: propData,
@@ -87,7 +77,6 @@ const AnalyticsChart = ({
       }),
   );
 
-  // Update local data when new data arrives
   useEffect(() => {
     const dataToProcess = propData ?? swrData?.clicksOverTime;
     if (dataToProcess) {
@@ -107,7 +96,6 @@ const AnalyticsChart = ({
         };
       });
 
-      // Sort and sample data if needed
       const sortedData = [...formattedData].sort(
         (a, b) => a.timestamp - b.timestamp,
       );
@@ -123,17 +111,11 @@ const AnalyticsChart = ({
     }
   }, [propData, swrData, propTotalClicks]);
 
-  // Format time for axis display
   const formatTime = (timeStr: string): string => {
     if (!timeStr) return "";
     try {
       const date = new Date(timeStr);
-      if (isNaN(date.getTime())) {
-        console.warn("Invalid date:", timeStr);
-        return "";
-      }
-
-      // For 24h period, show time
+      if (isNaN(date.getTime())) return "";
       if (timePeriod === "24h") {
         return date.toLocaleTimeString("en-US", {
           hour: "numeric",
@@ -141,27 +123,21 @@ const AnalyticsChart = ({
           hour12: true,
         });
       }
-
-      // For 7d and 30d, show date
       if (timePeriod === "7d" || timePeriod === "30d") {
         return date.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
         });
       }
-
-      // For 3m, 12m, and all, show month and year
       return date.toLocaleDateString("en-US", {
         month: "short",
         year: "numeric",
       });
-    } catch (error) {
-      console.error("Error formatting time:", error);
+    } catch {
       return "";
     }
   };
 
-  // Custom tooltip component
   interface CustomTooltipProps extends TooltipProps<number, string> {
     active?: boolean;
     payload?: Array<{
@@ -178,14 +154,9 @@ const AnalyticsChart = ({
     label,
   }) => {
     if (!active || !payload?.length || !label) return null;
-
     try {
       const date = new Date(label);
-      if (isNaN(date.getTime())) {
-        console.warn("Invalid date in tooltip:", label);
-        return null;
-      }
-
+      if (isNaN(date.getTime())) return null;
       let formattedDate: string;
       if (timePeriod === "24h") {
         formattedDate =
@@ -210,35 +181,35 @@ const AnalyticsChart = ({
           year: "numeric",
         });
       }
-
       const clicks = payload[0]?.value;
-
       return (
         <div
-          className="bg-background rounded-md border p-2 shadow-sm"
+          className="rounded-md border bg-white py-2 shadow-xs"
           style={{
-            backgroundColor: CHART_THEME.background,
-            border: `1px solid ${CHART_THEME.border}`,
+            backgroundColor: "#fff",
           }}
+          role="tooltip"
         >
           <p
-            className="m-0 text-sm font-normal"
+            className="m-0 px-3 text-sm font-normal"
             style={{ color: CHART_THEME.foreground }}
           >
             {formattedDate}
           </p>
-          <p className="m-0 text-sm" style={{ color: CHART_THEME.foreground }}>
+          <Separator className="my-1 px-0" />
+          <p
+            className="m-0 px-3 text-sm"
+            style={{ color: CHART_THEME.foreground }}
+          >
             <span className="font-normal">Clicks:</span> {formatNumber(clicks!)}
           </p>
         </div>
       );
-    } catch (error) {
-      console.error("Error in tooltip:", error);
+    } catch {
       return null;
     }
   };
 
-  // Calculate appropriate tick count based on time period
   const getTickCount = (): number => {
     if (timePeriod === "24h") return 12;
     if (timePeriod === "7d") return 7;
@@ -250,16 +221,16 @@ const AnalyticsChart = ({
 
   return (
     <Card className="w-full border shadow-none">
-      <CardHeader className="px-4 pt-2">
-        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-3xl font-semibold">
+      <CardHeader className="px-4">
+        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
           {formatNumber(totalClicks)}
-          <span className="text-muted-foreground text-base font-normal">
+          <span className="text-muted-foreground text-sm font-normal">
             Clicks
           </span>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-2">
-        <div className="relative h-[300px] w-full sm:h-[400px]">
+        <div className="relative h-[300px] w-full sm:h-[420px]">
           {isLoading && (
             <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
               <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
@@ -301,7 +272,7 @@ const AnalyticsChart = ({
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={formatTime}
-                  style={{ fontSize: "11px", fill: CHART_THEME.muted }}
+                  style={{ fontSize: "12px", fill: CHART_THEME.muted }}
                   minTickGap={20}
                   tick={{ dy: 10 }}
                   tickCount={getTickCount()}
@@ -312,11 +283,11 @@ const AnalyticsChart = ({
                   tickLine={false}
                   allowDecimals={false}
                   domain={[0, "auto"]}
-                  style={{ fontSize: "11px", fill: CHART_THEME.muted }}
+                  style={{ fontSize: "12px", fill: CHART_THEME.muted }}
                   width={30}
                 />
 
-                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.15} />
+                <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.4} />
 
                 <Tooltip
                   content={<CustomTooltip />}
@@ -343,9 +314,11 @@ const AnalyticsChart = ({
                 />
               </AreaChart>
             </ResponsiveContainer>
-          ) : (
-            <></>
-          )}
+          ) : !isLoading && !error ? (
+            <div className="text-muted-foreground flex h-full items-center justify-center text-sm">
+              No chart data available.
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>
