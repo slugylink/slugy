@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
 import { FaCircleCheck } from "react-icons/fa6";
 import SocialLoginButtons from "./social-login-buttons";
+import { validateEmail } from "@/server/actions/validate-email";
 
 const signupSchema = z.object({
   name: z
@@ -52,12 +54,6 @@ export function SignupForm({
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  useEffect(() => {
-    setIsGoogleLoading(false);
-    setIsGithubLoading(false);
-    setPending(false);
-  }, []);
-
   const {
     register,
     handleSubmit,
@@ -81,16 +77,10 @@ export function SignupForm({
   const handleGoogleLogin = async () => {
     try {
       await authClient.signIn.social(
+        { provider: "google" },
         {
-          provider: "google",
-        },
-        {
-          onRequest: () => {
-            setIsGoogleLoading(true);
-          },
-          onSuccess: () => {
-            router.push("/?status=success");
-          },
+          onRequest: () => setIsGoogleLoading(true),
+          onSuccess: () => router.push("/?status=success"),
           onError: (err) => {
             toast.error(
               err instanceof Error
@@ -111,16 +101,10 @@ export function SignupForm({
   const handleGithubLogin = async () => {
     try {
       await authClient.signIn.social(
+        { provider: "github" },
         {
-          provider: "github",
-        },
-        {
-          onRequest: () => {
-            setIsGithubLoading(true);
-          },
-          onSuccess: () => {
-            router.push("/?status=success");
-          },
+          onRequest: () => setIsGithubLoading(true),
+          onSuccess: () => router.push("/?status=success"),
           onError: (err) => {
             console.error("GitHub login error details:", err);
             toast.error(
@@ -136,14 +120,29 @@ export function SignupForm({
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
-    }
-    finally {
+    } finally {
       setIsGithubLoading(false);
     }
   };
+
   const onSubmit = async (data: SignupFormData) => {
     try {
-      // First check if user already exists
+      setPending(true);
+
+      // EMAIL FRAUD VALIDATION ONLY ON SUBMIT
+      const validationResult = await validateEmail(data.email);
+
+      if ("error" in validationResult) {
+        toast.error(validationResult.error);
+        return;
+      }
+
+      if (validationResult.isFraud) {
+        toast.error("This email address appears to be suspicious.");
+        return;
+      }
+
+      // Check if user already exists
       const userData = await checkUserExists(data.email);
       if (userData.exists) {
         toast.error(
@@ -152,6 +151,7 @@ export function SignupForm({
         return;
       }
 
+      // Proceed with signup
       await authClient.signUp.email(
         {
           email: data.email,
@@ -159,9 +159,6 @@ export function SignupForm({
           name: data.name,
         },
         {
-          onRequest: () => {
-            setPending(true);
-          },
           onSuccess: () => {
             toast.success(
               "Account created! Please check your email to complete your registration.",
@@ -194,7 +191,11 @@ export function SignupForm({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-4"
+            noValidate
+          >
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -206,9 +207,21 @@ export function SignupForm({
                   "w-full",
                   errors.name && "border-red-500 focus-visible:ring-red-500",
                 )}
+                aria-invalid={!!errors.name}
+                aria-describedby={errors.name ? "name-error" : undefined}
                 required
               />
+              {errors.name && (
+                <p
+                  id="name-error"
+                  role="alert"
+                  className="text-sm text-red-600"
+                >
+                  {errors.name.message}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -220,28 +233,47 @@ export function SignupForm({
                   "w-full",
                   errors.email && "border-red-500 focus-visible:ring-red-500",
                 )}
+                aria-invalid={!!errors.email}
+                aria-describedby={errors.email ? "email-error" : undefined}
                 required
               />
+              {errors.email && (
+                <p
+                  id="email-error"
+                  role="alert"
+                  className="text-sm text-red-600"
+                >
+                  {errors.email.message}
+                </p>
+              )}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <div className={cn("relative")}>
+              <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder=""
                   {...register("password")}
                   className={cn(
                     "w-full pr-10",
                     errors.password &&
                       "border-red-500 focus-visible:ring-red-500",
                   )}
+                  aria-invalid={!!errors.password}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
                   required
+                  minLength={8}
+                  maxLength={100}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -250,7 +282,19 @@ export function SignupForm({
                   )}
                 </button>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+              {errors.password && (
+                <p
+                  id="password-error"
+                  role="alert"
+                  className="text-sm text-red-600"
+                >
+                  {errors.password.message}
+                </p>
+              )}
+              <div
+                className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+                aria-live="polite"
+              >
                 <div className="flex items-center gap-1">
                   <FaCircleCheck
                     className={cn(
@@ -314,6 +358,7 @@ export function SignupForm({
                 </div>
               </div>
             </div>
+
             <div className="flex gap-1">
               <Button
                 type="submit"
@@ -321,8 +366,9 @@ export function SignupForm({
                 disabled={
                   isSubmitting || pending || isGoogleLoading || isGithubLoading
                 }
+                aria-busy={isSubmitting || pending}
               >
-                {isSubmitting && (
+                {(isSubmitting || pending) && (
                   <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
                 )}{" "}
                 Sign up
@@ -347,6 +393,7 @@ export function SignupForm({
           </form>
         </CardContent>
       </Card>
+
       <div className="text-muted-foreground px-8 text-center text-xs">
         By clicking continue, you agree to our{" "}
         <Link
