@@ -53,7 +53,10 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
     : `https://${url.trim()}`;
 
   const requestBody: SafeBrowsingRequest = {
-    client: { clientId: "url-scanner-app", clientVersion: "1.0" },
+    client: {
+      clientId: process.env.GOOGLE_SAFE_BROWSING_CLIENT_ID!,
+      clientVersion: "1.0",
+    },
     threatInfo: {
       threatTypes: [
         "MALWARE",
@@ -76,11 +79,13 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
         body: JSON.stringify(requestBody),
         // Make sure not to use Next.js fetch cache here
         cache: "no-store",
-      }
+      },
     );
 
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `API request failed: ${response.status} ${response.statusText}`,
+      );
     }
 
     const data: SafeBrowsingResponse = await response.json();
@@ -105,7 +110,7 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
 const cachedScanUrlSafety = unstable_cache(
   async (url: string) => fetchUrlSafety(url),
   ["scan-url-safety"], // global cache key namespace
-  { revalidate: 300 }   // revalidate every 300 seconds (5 minutes)
+  { revalidate: 300 }, // revalidate every 300 seconds (5 minutes)
 );
 
 export async function scanUrlSafety(url: string) {
@@ -123,17 +128,25 @@ export async function validateUrlSafety(url: string): Promise<{
   const result = await scanUrlSafety(url);
 
   if (result.error && result.error !== "API key not configured") {
-    return { isValid: false, message: "Unable to verify URL safety. Please try again." };
+    return {
+      isValid: false,
+      message: "Unable to verify URL safety. Please try again.",
+    };
   }
 
   if (!result.isSafe) {
     const prettyThreats = result.threats.map((t) => {
       switch (t) {
-        case "MALWARE": return "malware";
-        case "SOCIAL_ENGINEERING": return "phishing";
-        case "UNWANTED_SOFTWARE": return "unwanted software";
-        case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
-        default: return "security threat";
+        case "MALWARE":
+          return "malware";
+        case "SOCIAL_ENGINEERING":
+          return "phishing";
+        case "UNWANTED_SOFTWARE":
+          return "unwanted software";
+        case "POTENTIALLY_HARMFUL_APPLICATION":
+          return "potentially harmful application";
+        default:
+          return "security threat";
       }
     });
     return {
