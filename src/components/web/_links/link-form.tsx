@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import type { UseFormReturn } from "react-hook-form";
+import axios from "axios";
+import useSWR, { mutate } from "swr";
+import { cn } from "@/lib/utils";
+import { validateUrlSafety } from "@/server/actions/url-scan";
+import { useDebounce } from "@/hooks/use-debounce";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,23 +32,30 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Loader2, Shuffle, TriangleAlert } from "lucide-react";
+import {
+  Loader2,
+  Shuffle,
+  TriangleAlert,
+  Shield,
+  ShieldAlert,
+  Tag,
+  Check,
+  Plus,
+} from "lucide-react";
 import { BsStars } from "react-icons/bs";
+
 import LinkQrCode from "./link-qrcode";
 import LinkPreview from "./link-preview";
-import type { LinkFormValues } from "@/types/link-form";
-import axios from "axios";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { Tag, Check, Plus } from "lucide-react";
-import { cn } from "@/lib/utils";
-import useSWR, { mutate } from "swr";
+
+import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
-import type { LinkData } from "@/types/link-form";
 
 interface LinkFormFieldsProps {
   form: UseFormReturn<LinkFormValues>;
@@ -50,9 +63,10 @@ interface LinkFormFieldsProps {
   onGenerateRandomSlug: () => void;
   isEditMode?: boolean;
   workspaceslug?: string;
+  onSafetyStatusChange?: (status: { isChecking: boolean; isValid: boolean | null; message: string }) => void;
 }
 
-interface Tag {
+interface TagType {
   id: string;
   name: string;
   color: string | null;
@@ -65,63 +79,108 @@ export default function LinkFormFields({
   onGenerateRandomSlug,
   isEditMode = false,
   workspaceslug,
+  onSafetyStatusChange,
 }: LinkFormFieldsProps) {
   const { control, getValues, watch, setValue } = form;
+
   const [currentCode, setCurrentCode] = useState(code);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
+  const [urlSafetyStatus, setUrlSafetyStatus] = useState<{
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+  }>({ isChecking: false, isValid: null, message: "" });
 
-  // Watch for changes in the domain and slug fields
+  // Watch domain, slug, and url fields
   const domain = watch("domain");
   const slug = watch("slug");
+  const url = watch("url");
+  
+  // Debounce URL for safety checking (1 second delay)
+  const debouncedUrl = useDebounce(url, 700);
 
-  // Fetch tags from the workspace
+  // Fetch tags for workspace
   const {
     data: tags,
     error: tagsError,
     isLoading: tagsLoading,
-  } = useSWR<Tag[]>(
+  } = useSWR<TagType[]>(
     workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
   );
 
+  // Update currentCode when domain or slug changes
   useEffect(() => {
-    // Update the currentCode when domain or slug changes
     setCurrentCode(slug ? `${domain}/${slug}` : "");
   }, [domain, slug]);
 
-  // Function to auto-prepend https:// if no protocol is present
-  const normalizeUrl = (url: string): string => {
-    if (!url) return url;
-    
-    // If URL already has a protocol, return as is
-    if (/^https?:\/\//.test(url)) {
-      return url;
+  // URL safety check with debounced URL
+  useEffect(() => {
+    if (!debouncedUrl) {
+      setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
+      return;
     }
-    
-    // If URL starts with www. or has a domain-like structure, prepend https://
-    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(url) || url.startsWith('www.')) {
-      return `https://${url}`;
+
+    checkUrlSafety(debouncedUrl);
+  }, [debouncedUrl]);
+
+  // Normalize URL by adding https:// if missing
+  const normalizeUrl = (rawUrl: string): string => {
+    if (!rawUrl) return rawUrl;
+    if (/^https?:\/\//.test(rawUrl)) return rawUrl;
+    if (
+      /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(rawUrl) ||
+      rawUrl.startsWith("www.")
+    ) {
+      return `https://${rawUrl}`;
     }
-    
-    return url;
+    return rawUrl;
   };
 
-  const handleAiRandomize = async (url: string) => {
+  // Check URL safety using server action
+  const checkUrlSafety = async (checkUrl: string) => {
+    if (!checkUrl) {
+      const status = { isChecking: false, isValid: null, message: "" };
+      setUrlSafetyStatus(status);
+      onSafetyStatusChange?.(status);
+      return;
+    }
+
+    const checkingStatus = { isChecking: true, isValid: null, message: "" };
+    setUrlSafetyStatus(checkingStatus);
+    onSafetyStatusChange?.(checkingStatus);
+
     try {
-      if (!url) return;
+      const normalizedUrl = normalizeUrl(checkUrl);
+      const result = await validateUrlSafety(normalizedUrl);
 
-      setIsAiLoading(true);
+      const finalStatus = {
+        isChecking: false,
+        isValid: result.isValid,
+        message: result.message || "",
+      };
+      setUrlSafetyStatus(finalStatus);
+      onSafetyStatusChange?.(finalStatus);
+    } catch (error) {
+      console.error("Error checking URL safety:", error);
+      // Default to safe if server action fails
+      const safeStatus = { isChecking: false, isValid: true, message: "" };
+      setUrlSafetyStatus(safeStatus);
+      onSafetyStatusChange?.(safeStatus);
+    }
+  };
 
-      const normalizedUrl = normalizeUrl(url);
-      const res = await axios.post("/api/ai/link-slug", {
-        url: normalizedUrl,
-      });
+  // Generate AI slug based on URL
+  const handleAiRandomize = async (rawUrl: string) => {
+    if (!rawUrl) return;
 
+    setIsAiLoading(true);
+    try {
+      const normalizedUrl = normalizeUrl(rawUrl);
+      const res = await axios.post("/api/ai/link-slug", { url: normalizedUrl });
       const data = res.data as { slug: string };
-      setValue("slug", data.slug, { shouldDirty: true });
 
-      // The currentCode will be updated automatically via the useEffect
-      // that watches for changes in domain and slug
+      setValue("slug", data.slug, { shouldDirty: true });
     } catch (error) {
       console.error("Error generating AI slug:", error);
     } finally {
@@ -129,28 +188,30 @@ export default function LinkFormFields({
     }
   };
 
+  // Generate random slug
   const handleRandomize = () => {
     setIsRandomLoading(true);
 
     onGenerateRandomSlug();
 
-    // The new slug will be reflected in the form values after the state update
+    // Small delay to show loading
     setTimeout(() => {
       const newSlug = getValues("slug");
       setValue("slug", newSlug, { shouldDirty: true });
       setCurrentCode(`${domain}/${newSlug}`);
       setIsRandomLoading(false);
-    }, 300); // Adding a small delay to make the loading state visible
+    }, 300);
   };
 
-  const [open, setOpen] = React.useState(false);
-  const [selectedTags, setSelectedTags] = React.useState<string[]>([]);
-  const [searchValue, setSearchValue] = React.useState("");
+  // Tag selection state
+  const [open, setOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchValue, setSearchValue] = useState("");
 
-  // Get current tags from form
+  // Current tags from form
   const currentTags = getValues("tags") || [];
 
-  // Initialize selected tags from form values
+  // Initialize selected tags from form values and tags data
   useEffect(() => {
     if (currentTags.length > 0 && tags) {
       const tagIds = tags
@@ -160,7 +221,7 @@ export default function LinkFormFields({
     }
   }, [currentTags, tags]);
 
-  // Also initialize when tags are loaded and we have current tags
+  // Also initialize when tags data changes and no selected tags yet
   useEffect(() => {
     if (tags && currentTags.length > 0 && selectedTags.length === 0) {
       const tagIds = tags
@@ -170,14 +231,14 @@ export default function LinkFormFields({
     }
   }, [tags, currentTags, selectedTags.length]);
 
+  // Handle tag selection toggle
   const handleSelect = (tagId: string) => {
     const newSelectedTags = selectedTags.includes(tagId)
       ? selectedTags.filter((id) => id !== tagId)
       : [...selectedTags, tagId];
-
     setSelectedTags(newSelectedTags);
 
-    // Update form with tag names
+    // Update form tags names
     const selectedTagNames =
       tags
         ?.filter((tag) => newSelectedTags.includes(tag.id))
@@ -189,24 +250,24 @@ export default function LinkFormFields({
   const selectedTagObjects =
     tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
 
-  // Helper function to get color option for a tag
-  const getColorOption = (tagColor: string | null) => {
-    return (
-      COLOR_OPTIONS.find((color) => color.value === tagColor) ??
-      COLOR_OPTIONS[0]!
-    );
-  };
+  // Get color option for tag color
+  const getColorOption = (tagColor: string | null) =>
+    COLOR_OPTIONS.find((color) => color.value === tagColor) ??
+    COLOR_OPTIONS[0]!;
 
+  // Filter tags based on search input
   const filteredTags =
     tags?.filter((tag) =>
       tag.name.toLowerCase().includes(searchValue.toLowerCase()),
     ) || [];
 
+  // Check if new tag can be added
   const canAddNew =
     searchValue &&
     tags &&
     !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
 
+  // Add new tag via API
   const handleAddNewTag = async () => {
     if (!workspaceslug || !searchValue.trim()) return;
 
@@ -215,32 +276,31 @@ export default function LinkFormFields({
         `/api/workspace/${workspaceslug}/tags`,
         {
           name: searchValue.trim(),
-          color: null, // You can add color selection later
+          color: null,
         },
       );
 
       if (response.status === 201) {
         const newTag = response.data;
-        // Add the new tag to the selection
         handleSelect(newTag.id);
         setSearchValue("");
-        // Refresh the tags list
         await mutate(`/api/workspace/${workspaceslug}/tags`);
       }
     } catch (error) {
       console.error("Error creating tag:", error);
-      // You can add toast notification here
     }
   };
 
-  // Type guard to check if defaultValues is LinkData
+  // Type guard for LinkData check
   function isLinkData(obj: unknown): obj is LinkData {
     return !!obj && typeof obj === "object" && "qrCode" in obj;
   }
 
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+      {/* Left side: Form fields */}
       <div className="space-y-4 sm:space-y-6">
+        {/* URL field with safety indicator */}
         <FormField
           control={control}
           name="url"
@@ -248,12 +308,38 @@ export default function LinkFormFields({
             <FormItem className="space-y-2">
               <div className="flex items-center justify-between">
                 <FormLabel>Destination URL</FormLabel>
+                <div className="flex items-center gap-2">
+                  {urlSafetyStatus.isChecking ? (
+                    <div className="text-muted-foreground flex items-center gap-1 text-sm">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    </div>
+                  ) : urlSafetyStatus.isValid === true ? (
+                    <div className="flex items-center gap-1 text-xs text-green-600">
+                      <Shield className="h-3.5 w-3.5" />
+                      <span>Safe</span>
+                    </div>
+                  ) : urlSafetyStatus.isValid === false ? (
+                    <div className="flex items-center gap-1 text-xs text-red-600">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      <span>Unsafe</span>
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground flex items-center gap-1 text-sm">
+                      <Shield className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                </div>
               </div>
               <FormControl>
                 <Input
                   {...field}
                   placeholder="https://slugy.co/blogs/project-x"
                   autoComplete="off"
+                  className={
+                    urlSafetyStatus.isValid === false
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : ""
+                  }
                   onBlur={(e) => {
                     const normalizedUrl = normalizeUrl(e.target.value);
                     setValue("url", normalizedUrl, { shouldDirty: true });
@@ -265,6 +351,7 @@ export default function LinkFormFields({
           )}
         />
 
+        {/* Short link domain and slug inputs with buttons */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex w-full items-center justify-between gap-2 space-y-1">
@@ -325,7 +412,6 @@ export default function LinkFormFields({
                       className="hover:bg-muted ml-3 size-4 p-0"
                       type="button"
                       onClick={(e) => {
-                        // Prevent event propagation
                         e.stopPropagation();
                         e.preventDefault();
                       }}
@@ -340,6 +426,7 @@ export default function LinkFormFields({
               </TooltipProvider>
             )}
           </div>
+
           <div className="flex flex-col gap-2 sm:flex-row">
             <FormField
               control={control}
@@ -366,15 +453,13 @@ export default function LinkFormFields({
               name="slug"
               render={({ field }) => (
                 <FormItem className="relative flex-1">
-                  <div className="relative flex w-full items-center">
-                    <FormControl>
-                      <Input
-                        autoComplete="off"
-                        {...field}
-                        placeholder="(optional)"
-                      />
-                    </FormControl>
-                  </div>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      autoComplete="off"
+                      placeholder="(optional)"
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -486,14 +571,13 @@ export default function LinkFormFields({
           </Popover>
         </div>
 
+        {/* Comments textarea */}
         <FormField
           control={control}
           name="description"
           render={({ field }) => (
             <FormItem className="space-y-2">
-              <div className="flex items-center justify-between">
-                <FormLabel>Comments</FormLabel>
-              </div>
+              <FormLabel>Comments</FormLabel>
               <FormControl>
                 <Textarea
                   {...field}
@@ -506,12 +590,10 @@ export default function LinkFormFields({
         />
       </div>
 
+      {/* Right side: QR code and link preview */}
       <div className="space-y-4 sm:space-y-6">
         <div className="space-y-2">
-          <div className="mb-3 flex items-center justify-between">
-            <Label>QR Code</Label>
-          </div>
-
+          <Label>QR Code</Label>
           <LinkQrCode
             code={currentCode}
             customization={
@@ -523,10 +605,7 @@ export default function LinkFormFields({
         </div>
 
         <div className="space-y-2">
-          <div className="mb-3 flex items-center justify-between">
-            <Label>Link Preview</Label>
-          </div>
-
+          <Label>Link Preview</Label>
           <LinkPreview url={normalizeUrl(getValues("url"))} />
         </div>
       </div>

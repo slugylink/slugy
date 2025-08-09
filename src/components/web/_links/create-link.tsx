@@ -60,6 +60,11 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     content: "",
     referral: "",
   });
+  const [urlSafetyStatus, setUrlSafetyStatus] = useState<{
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+  }>({ isChecking: false, isValid: null, message: "" });
 
   const form = useForm<FormValues>({
     resolver: zodResolver(linkFormSchema),
@@ -78,6 +83,10 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     getValues,
     setValue,
   } = form;
+
+  // Check if form is safe to submit
+  const isSafeToSubmit =
+    isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false;
 
   const nanoid = customAlphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -213,6 +222,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                 code={code}
                 onGenerateRandomSlug={handleGenerateRandomSlug}
                 workspaceslug={workspaceslug}
+                onSafetyStatusChange={setUrlSafetyStatus}
               />
             </div>
             <div className="mt-4 border-t border-zinc-100 bg-zinc-50 p-5 py-3.5 dark:bg-zinc-900">
@@ -246,12 +256,18 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                 <Button
                   type="submit"
                   className="flex w-full items-center gap-x-2 sm:w-auto"
-                  disabled={!isValid || isSubmitting}
+                  disabled={!isSafeToSubmit || isSubmitting}
                 >
                   {isSubmitting && (
                     <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
                   )}
-                  Create link <CornerDownLeft size={12} />
+                  {urlSafetyStatus.isValid === false ? (
+                    <>Unsafe URL <CornerDownLeft size={12} /></>
+                  ) : (
+                    <>
+                      Create link <CornerDownLeft size={12} />
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

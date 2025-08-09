@@ -86,6 +86,11 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
     password: initialData.password || null,
     expirationUrl: initialData.expirationUrl || null,
   };
+  const [urlSafetyStatus, setUrlSafetyStatus] = useState<{
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+  }>({ isChecking: false, isValid: null, message: "" });
 
   const form = useForm<LinkFormValues>({
     resolver: zodResolver(linkFormSchema),
@@ -132,6 +137,9 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
     linkSettings.expirationUrl !== initialLinkSettings.expirationUrl;
 
   const isAnythingDirty = isDirty || isParamsDirty || isLinkSettingsDirty;
+
+  // Check if form is safe to submit
+  const isSafeToSubmit = isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false && isAnythingDirty;
 
   const onSubmit = async (data: LinkFormValues) => {
     try {
@@ -219,6 +227,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                 onGenerateRandomSlug={handleGenerateRandomSlug}
                 isEditMode={true}
                 workspaceslug={workspaceslug!}
+                onSafetyStatusChange={setUrlSafetyStatus}
               />
             </div>
             <div className="text-muted-foreground flex items-center gap-1.5 px-4 text-xs font-light sm:px-6">
@@ -270,12 +279,20 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                 <Button
                   type="submit"
                   className="flex w-full items-center gap-x-2 sm:w-auto"
-                  disabled={!isValid || isSubmitting || !isAnythingDirty}
+                  disabled={!isSafeToSubmit || isSubmitting}
                 >
                   {isSubmitting && (
                     <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
                   )}
-                  Update link <CornerDownLeft size={12} />
+                  {urlSafetyStatus.isChecking ? (
+                    <>Checking safety... <LoaderCircle className="ml-1 h-3 w-3 animate-spin" /></>
+                  ) : urlSafetyStatus.isValid === false ? (
+                    <>Unsafe URL detected</>
+                  ) : !isAnythingDirty ? (
+                    <>No changes to update</>
+                  ) : (
+                    <>Update link <CornerDownLeft size={12} /></>
+                  )}
                 </Button>
               </div>
             </div>

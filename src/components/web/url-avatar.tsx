@@ -31,7 +31,7 @@ function UrlAvatar({
       
       return [
         `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-        `https://${domain}/favicon.ico`,
+        // `https://${domain}/favicon.ico`,
         `https://avatar.vercel.sh/${domain}?size=32`,
       ];
     },

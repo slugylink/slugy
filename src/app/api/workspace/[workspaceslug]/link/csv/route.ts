@@ -7,6 +7,7 @@ import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
+import { validateUrlSafety } from "@/server/actions/url-scan";
 
 export async function GET(
   req: Request,
@@ -286,6 +287,8 @@ export async function POST(
       tagNames: string[];
     }> = [];
 
+    const urlsToScan: Array<{ url: string; row: number }> = [];
+
     // Process each row
     records.forEach((record: Record<string, unknown>, index: number) => {
       const rowErrors: Array<{ message: string; path: string[] }> = [];
@@ -301,6 +304,8 @@ export async function POST(
       } else {
         try {
           new URL(url);
+          // Add valid URLs to scanning queue
+          urlsToScan.push({ url: url.trim(), row: rowNumber });
         } catch {
           rowErrors.push({
             message: "Invalid URL format",
@@ -374,6 +379,63 @@ export async function POST(
         { status: 400 },
       );
     }
+
+    // Scan URLs for safety in parallel (with concurrency limit)
+    console.log(`Scanning ${urlsToScan.length} URLs for safety...`);
+    const CONCURRENCY_LIMIT = 10; // Limit concurrent requests to avoid overwhelming the API
+    const unsafeUrls: Array<{ url: string; row: number; threats: string[] }> = [];
+
+    for (let i = 0; i < urlsToScan.length; i += CONCURRENCY_LIMIT) {
+      const batch = urlsToScan.slice(i, i + CONCURRENCY_LIMIT);
+      const scanPromises = batch.map(async ({ url, row }) => {
+        try {
+          const result = await validateUrlSafety(url);
+          if (!result.isValid) {
+            return { url, row, threats: result.threats || [] };
+          }
+          return null;
+        } catch (error) {
+          console.warn(`Failed to scan URL ${url} at row ${row}:`, error);
+          // On scan failure, allow URL (graceful fallback)
+          return null;
+        }
+      });
+
+      const batchResults = await Promise.all(scanPromises);
+      const batchUnsafeUrls = batchResults.filter(Boolean) as Array<{ url: string; row: number; threats: string[] }>;
+      unsafeUrls.push(...batchUnsafeUrls);
+    }
+
+    // If unsafe URLs found, return them as validation errors
+    if (unsafeUrls.length > 0) {
+      const safetyErrors = unsafeUrls.map(({ row, threats }) => ({
+        row,
+        errors: [{
+          message: `Unsafe URL detected - contains ${threats.map(t => {
+            switch (t) {
+              case "MALWARE": return "malware";
+              case "SOCIAL_ENGINEERING": return "phishing";
+              case "UNWANTED_SOFTWARE": return "unwanted software";
+              case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
+              default: return "security threat";
+            }
+          }).join(", ")}`,
+          path: ["url"],
+        }],
+      }));
+
+      return NextResponse.json(
+        {
+          message: "Unsafe URLs detected in CSV import",
+          errors: safetyErrors,
+          unsafeUrlsCount: unsafeUrls.length,
+        },
+        { status: 400 },
+      );
+    }
+
+    console.log(`All ${urlsToScan.length} URLs passed safety checks`);
+    
 
     // Create links in database
     let createdLinksCount = 0;

@@ -73,7 +73,20 @@ export const getHtml = async (url: string): Promise<string | null> => {
       throw new Error("Not an HTML document");
     return await response.text();
   } catch (error) {
-    console.error("Error fetching HTML:", error);
+    // Graceful logging based on error type
+    if (error instanceof Error) {
+      if (error.name === 'AbortError') {
+        console.warn(`Request timeout for ${url}`);
+      } else if (error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo')) {
+        console.warn(`DNS resolution failed for ${url}`);
+      } else if (error.message.includes('ECONNREFUSED')) {
+        console.warn(`Connection refused for ${url}`);
+      } else {
+        console.warn(`Failed to fetch ${url}: ${error.message}`);
+      }
+    } else {
+      console.warn(`Unknown error fetching ${url}:`, error);
+    }
     return null;
   }
 };
@@ -148,12 +161,23 @@ export const isValidUrl = (str: string): boolean => {
   }
 };
 
+// Safe hostname extraction with fallback
+const getSafeHostname = (url: string): string => {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    // Extract hostname manually if URL parsing fails
+    const match = url.match(/^https?:\/\/([^\/]+)/);
+    return match ? match[1] : url.replace(/^https?:\/\//, '').split('/')[0] || 'unknown-host';
+  }
+};
+
 function extractMetadata(
   metaMap: Map<string, string>,
   titleTag: string | undefined,
   url: string,
 ): MetadataResult {
-  const fallbackTitle = new URL(url).hostname;
+  const fallbackTitle = getSafeHostname(url);
   const title =
     metaMap.get("og:title") ||
     metaMap.get("twitter:title") ||
@@ -196,7 +220,7 @@ export const getMetaTags = async (url: string): Promise<MetadataResult> => {
     const html = await getHtml(fetchUrl);
     if (!html) {
       return {
-        title: new URL(fetchUrl).hostname,
+        title: getSafeHostname(fetchUrl),
         description: "No description available",
         image: null,
       };
@@ -217,28 +241,35 @@ export const getMetaTags = async (url: string): Promise<MetadataResult> => {
 
   try {
     const metadata = await fetchMetadata(normalizedUrl);
+    const hostname = getSafeHostname(normalizedUrl);
+    
     if (
-      metadata.title === new URL(normalizedUrl).hostname &&
+      metadata.title === hostname &&
       metadata.description === "No description available" &&
       !metadata.image
     ) {
-      const rootDomain = new URL(normalizedUrl).origin;
-      if (rootDomain !== normalizedUrl) {
-        console.warn(
-          `No metadata found for ${normalizedUrl}. Trying root domain.`,
-        );
-        const rootMeta = await fetchMetadata(rootDomain);
-        metadataCache.set(cacheKey, metadata);
-        metadataCache.set(rootDomain.toLowerCase(), rootMeta);
-        return rootMeta;
+      try {
+        const rootDomain = new URL(normalizedUrl).origin;
+        if (rootDomain !== normalizedUrl) {
+          console.warn(
+            `No metadata found for ${normalizedUrl}. Trying root domain.`,
+          );
+          const rootMeta = await fetchMetadata(rootDomain);
+          metadataCache.set(cacheKey, metadata);
+          metadataCache.set(rootDomain.toLowerCase(), rootMeta);
+          return rootMeta;
+        }
+      } catch (urlError) {
+        // If URL parsing fails for root domain, just use the original metadata
+        console.warn(`Failed to parse root domain for ${normalizedUrl}:`, urlError);
       }
     }
     metadataCache.set(cacheKey, metadata);
     return metadata;
   } catch (error) {
-    console.error("Error in getMetaTags:", error);
+    console.warn(`Error in getMetaTags for ${normalizedUrl}:`, error);
     const fallback = {
-      title: new URL(normalizedUrl).hostname,
+      title: getSafeHostname(normalizedUrl),
       description: "No description available",
       image: null,
     };
