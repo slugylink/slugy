@@ -11,7 +11,21 @@ import {
 import { z } from "zod";
 import { headers } from "next/headers";
 
-// Input validation schema
+// Input schema with metrics type safety
+const ALL_METRICS = [
+  "totalClicks",
+  "clicksOverTime",
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+] as const;
+
 const AnalyticsPropsSchema = z.object({
   workspaceslug: z.string().min(1),
   timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]),
@@ -26,41 +40,28 @@ const AnalyticsPropsSchema = z.object({
   destination_key: z.string().nullable().optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
-  metrics: z.array(z.string()).optional(),
+  metrics: z.array(z.enum(ALL_METRICS)).optional()
 });
-
-// All metrics (default)
-const ALL_METRICS: AnalyticsMetric[] = [
-  "totalClicks",
-  "clicksOverTime",
-  "links",
-  "cities",
-  "countries",
-  "continents",
-  "devices",
-  "browsers",
-  "oses",
-  "referrers",
-  "destinations",
-];
 
 export async function getAnalytics(
   props: AnalyticsRequestProps,
 ): Promise<AnalyticsResponse> {
   try {
-    // Validate input
+    // 1 Validate input
     const safeProps = AnalyticsPropsSchema.parse(props);
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    if (!session?.user) throw new Error("User not authenticated");
 
+    // 2️ Auth & access control
+    const session = await auth.api.getSession({ headers: await headers() });
+    if (!session?.user) {
+      throw new Error("User not authenticated");
+    }
+
+    // 3️ Time period & metrics selection
     const startDate = getStartDate(safeProps.timePeriod);
-    const metrics: AnalyticsMetric[] =
-      (safeProps.metrics as AnalyticsMetric[]) ?? ALL_METRICS;
+    const metrics = (safeProps.metrics ?? ALL_METRICS) as AnalyticsMetric[];
 
-    // Combined query to get all analytics data at once
-    const analyticsData = await db.analytics.groupBy({
+    // 4️ Core grouped analytics query
+    const rawAggregates = await db.analytics.groupBy({
       by: [
         "linkId",
         "clickedAt",
@@ -100,36 +101,34 @@ export async function getAnalytics(
       _count: true,
     });
 
-    // Get unique link IDs for fetching link details
-    const linkIds = [...new Set(analyticsData.map((item) => item.linkId))];
+    // 5️⃣ Gather related link data & clicks map
+    const linkIds = [...new Set(rawAggregates.map((item) => item.linkId))];
 
-    // Fetch link details in parallel with data processing
-    const [links, linkClicksMap] = await Promise.all([
-      db.link.findMany({
-        where: { id: { in: linkIds } },
-        select: {
-          id: true,
-          slug: true,
-          url: true,
-        },
-      }),
-      // Create a map of link clicks for faster lookup
-      Promise.resolve(
-        new Map(
-          analyticsData.reduce((acc, curr) => {
-            acc.set(curr.linkId, (acc.get(curr.linkId) ?? 0) + curr._count);
-            return acc;
-          }, new Map<string, number>()),
-        ),
-      ),
-    ]);
+    const links = await db.link.findMany({
+      where: { id: { in: linkIds } },
+      select: {
+        id: true,
+        slug: true,
+        url: true,
+      },
+    });
 
+    const linkClicksMap = new Map<string, number>();
+    for (const entry of rawAggregates) {
+      linkClicksMap.set(
+        entry.linkId,
+        (linkClicksMap.get(entry.linkId) ?? 0) + entry._count,
+      );
+    }
+
+    // 6️⃣ Aggregate and format
     const aggregationMaps = processAnalyticsData(
-      analyticsData,
+      rawAggregates,
       safeProps.timePeriod,
       links,
       metrics,
     );
+
     return formatAnalyticsResponse(
       aggregationMaps,
       links,
@@ -137,9 +136,7 @@ export async function getAnalytics(
       metrics,
     );
   } catch (error) {
-    // Log error for observability
     console.error("[getAnalytics] Error:", error);
-    // Return a safe error message
     throw new Error("Failed to fetch analytics data. Please try again later.");
   }
 }

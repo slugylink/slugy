@@ -7,7 +7,7 @@ import {
 import { getAnalytics } from "@/server/actions/analytics/get-analytics";
 import { cache } from "react";
 
-// Default metrics (all)
+// -------------------- Defaults --------------------
 const ALL_METRICS: AnalyticsMetric[] = [
   "totalClicks",
   "clicksOverTime",
@@ -22,16 +22,20 @@ const ALL_METRICS: AnalyticsMetric[] = [
   "destinations",
 ];
 
+// -------------------- Helpers --------------------
+const safeClick = (n?: number): number => n ?? 0;
+
+function mapMetric<T, R>(arr: T[] | undefined, mapper: (item: T) => R): R[] {
+  return arr?.map(mapper) ?? [];
+}
+
+// -------------------- Core Server Action --------------------
 export const getAnalyticsData = cache(
   async (
     workspaceslug: string,
     params: Record<string, string>,
-    metrics?: AnalyticsMetric[],
+    metrics: AnalyticsMetric[] = ALL_METRICS
   ): Promise<AnalyticsResponse> => {
-    // const serializedParams = serializeParams(params);
-
-
-    // Core analytics call (keep your existing field extraction):
     return getAnalytics({
       workspaceslug,
       timePeriod:
@@ -45,145 +49,114 @@ export const getAnalyticsData = cache(
       referrer_key: params.referrer_key || null,
       device_key: params.device_key || null,
       destination_key: params.destination_key || null,
-      metrics: metrics ?? ALL_METRICS,
+      metrics,
     });
-  },
+  }
 );
 
-// Client-side function that calls the server action
+// -------------------- Client-side Wrappers --------------------
 export const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
-  metrics?: AnalyticsMetric[],
+  metrics?: AnalyticsMetric[]
 ): Promise<AnalyticsResponse> => {
   return getAnalyticsData(workspaceslug, params, metrics);
 };
 
-// For chart data, we'll use the same analytics data and format it
+// -------------------- Chart Data --------------------
 export const fetchChartData = async (
   workspaceslug: string,
-  params: Record<string, string>,
-): Promise<{
-  clicksOverTime: { time: Date; clicks: number }[];
-  totalClicks: number;
-}> => {
+  params: Record<string, string>
+) => {
   const analyticsData = await getAnalyticsData(workspaceslug, params, [
     "clicksOverTime",
     "totalClicks",
   ]);
   return {
-    clicksOverTime: analyticsData.clicksOverTime || [],
-    totalClicks: analyticsData.totalClicks || 0,
+    clicksOverTime: analyticsData.clicksOverTime ?? [],
+    totalClicks: analyticsData.totalClicks ?? 0,
   };
 };
 
-// For other data types, implement specific functions with selective metrics
+// -------------------- URL Clicks --------------------
 export const fetchUrlClicksData = async (
   workspaceslug: string,
-  params: Record<string, string>,
-): Promise<Array<{ slug: string; url: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params, [
-    "links",
-  ]);
-  return (
-    analyticsData.links?.map((link) => ({
-      slug: link.slug,
-      url: link.url,
-      clicks: link.clicks || 0,
-    })) || []
-  );
+  params: Record<string, string>
+) => {
+  const { links } = await getAnalyticsData(workspaceslug, params, ["links"]);
+  return mapMetric(links, (l) => ({
+    slug: l.slug,
+    url: l.url,
+    clicks: safeClick(l.clicks),
+  }));
 };
 
+// -------------------- Geo Data --------------------
 export const fetchGeoData = async (
   workspaceslug: string,
   params: Record<string, string>,
-  type: "countries" | "cities" | "continents",
-): Promise<
-  Array<{ country?: string; city?: string; continent?: string; clicks: number }>
-> => {
-  let metric: AnalyticsMetric;
-  if (type === "countries") metric = "countries";
-  else if (type === "cities") metric = "cities";
-  else metric = "continents";
-  const analyticsData = await getAnalyticsData(workspaceslug, params, [metric]);
+  type: "countries" | "cities" | "continents"
+) => {
+  const data = await getAnalyticsData(workspaceslug, params, [type]);
   switch (type) {
     case "countries":
-      return (
-        analyticsData.countries?.map((country) => ({
-          country: country.country,
-          clicks: country.clicks || 0,
-        })) || []
-      );
+      return mapMetric(data.countries, (c) => ({
+        country: c.country,
+        clicks: safeClick(c.clicks),
+      }));
     case "cities":
-      return (
-        analyticsData.cities?.map((city) => ({
-          city: city.city,
-          country: city.country,
-          clicks: city.clicks || 0,
-        })) || []
-      );
+      return mapMetric(data.cities, (c) => ({
+        city: c.city,
+        country: c.country,
+        clicks: safeClick(c.clicks),
+      }));
     case "continents":
-      return (
-        analyticsData.continents?.map((continent) => ({
-          continent: continent.continent,
-          clicks: continent.clicks || 0,
-        })) || []
-      );
-    default:
-      return [];
+      return mapMetric(data.continents, (c) => ({
+        continent: c.continent,
+        clicks: safeClick(c.clicks),
+      }));
   }
 };
 
+// -------------------- Device / Browser / OS Data --------------------
 export const fetchDeviceData = async (
   workspaceslug: string,
   params: Record<string, string>,
-  type: "devices" | "browsers" | "os",
-): Promise<
-  Array<{ device?: string; browser?: string; os?: string; clicks: number }>
-> => {
-  let metric: AnalyticsMetric;
-  if (type === "devices") metric = "devices";
-  else if (type === "browsers") metric = "browsers";
-  else metric = "oses";
-  const analyticsData = await getAnalyticsData(workspaceslug, params, [metric]);
+  type: "devices" | "browsers" | "os"
+) => {
+  const metric: AnalyticsMetric =
+    type === "os" ? "oses" : (type as AnalyticsMetric);
+  const data = await getAnalyticsData(workspaceslug, params, [metric]);
+
   switch (type) {
     case "devices":
-      return (
-        analyticsData.devices?.map((device) => ({
-          device: device.device,
-          clicks: device.clicks || 0,
-        })) || []
-      );
+      return mapMetric(data.devices, (d) => ({
+        device: d.device,
+        clicks: safeClick(d.clicks),
+      }));
     case "browsers":
-      return (
-        analyticsData.browsers?.map((browser) => ({
-          browser: browser.browser,
-          clicks: browser.clicks || 0,
-        })) || []
-      );
+      return mapMetric(data.browsers, (b) => ({
+        browser: b.browser,
+        clicks: safeClick(b.clicks),
+      }));
     case "os":
-      return (
-        analyticsData.oses?.map((os) => ({
-          os: os.os,
-          clicks: os.clicks || 0,
-        })) || []
-      );
-    default:
-      return [];
+      return mapMetric(data.oses, (o) => ({
+        os: o.os,
+        clicks: safeClick(o.clicks),
+      }));
   }
 };
 
+// -------------------- Referrer Data --------------------
 export const fetchReferrerData = async (
   workspaceslug: string,
-  params: Record<string, string>,
-): Promise<Array<{ referrer: string; clicks: number }>> => {
-  const analyticsData = await getAnalyticsData(workspaceslug, params, [
+  params: Record<string, string>
+) => {
+  const { referrers } = await getAnalyticsData(workspaceslug, params, [
     "referrers",
   ]);
-  return (
-    analyticsData.referrers?.map((referrer) => ({
-      referrer: referrer.referrer,
-      clicks: referrer.clicks || 0,
-    })) || []
-  );
+  return mapMetric(referrers, (r) => ({
+    referrer: r.referrer,
+    clicks: safeClick(r.clicks),
+  }));
 };
