@@ -8,6 +8,7 @@ import useSWR from "swr";
 import { fetchUrlClicksData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
 
+// ----------------------- Types -----------------------
 interface UrlClicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
@@ -19,7 +20,18 @@ interface UrlClickData {
   clicks: number;
 }
 
-// Reusable header component for table column titles
+type TabKey = "slug-links" | "destination-links";
+
+interface TabConfig {
+  key: TabKey;
+  label: string; // used for tab label
+  linkLabel: string; // used for TableHeader
+  keyPrefix: string;
+  progressColor: string;
+  renderName: (item: UrlClickData) => JSX.Element;
+}
+
+// ----------------------- TableHeader -----------------------
 function TableHeader({ linkLabel }: { linkLabel: string }) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
@@ -29,21 +41,19 @@ function TableHeader({ linkLabel }: { linkLabel: string }) {
   );
 }
 
+// ----------------------- Main Component -----------------------
 const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
   const { data, error, isLoading } = useSWR<UrlClickData[], Error>(
     ["url-clicks", workspaceslug, searchParams],
     () => fetchUrlClicksData(workspaceslug, searchParams),
   );
 
-  // Sort descending by clicks
   const sortedData = useMemo(
     () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
     [data],
   );
 
-  const [activeTab, setActiveTab] = useState<
-    "slug-links" | "destination-links"
-  >("slug-links");
+  const [activeTab, setActiveTab] = useState<TabKey>("slug-links");
 
   if (error) {
     return (
@@ -55,94 +65,90 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     );
   }
 
+  // ------------------- Centralized tab configs -------------------
+  const tabConfigs: TabConfig[] = [
+    {
+      key: "slug-links",
+      label: "Short Links",
+      linkLabel: "Link",
+      keyPrefix: "slug",
+      progressColor: "bg-orange-200/40",
+      renderName: (item) => (
+        <div className="flex items-center gap-x-2">
+          <UrlAvatar
+            className="flex-shrink-0 rounded-sm"
+            size={5}
+            imgSize={4}
+            url={item.url}
+          />
+          <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+            slugy.co/{item.slug}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: "destination-links",
+      label: "Destination URLs",
+      linkLabel: "URL",
+      keyPrefix: "destination",
+      progressColor: "bg-orange-200/45",
+      renderName: (item) => (
+        <div className="flex items-center gap-x-2">
+          <UrlAvatar
+            className="flex-shrink-0 rounded-sm"
+            size={5}
+            imgSize={4}
+            url={item.url}
+          />
+          <span className="line-clamp-1 max-w-[220px] text-ellipsis">
+            {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+          </span>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           value={activeTab}
-          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          onValueChange={(value) => setActiveTab(value as TabKey)}
         >
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="slug-links">Short Links</TabsTrigger>
-            <TabsTrigger value="destination-links">
-              Destination URLs
-            </TabsTrigger>
+            {tabConfigs.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="slug-links" className="mt-1">
-            <ScrollArea
-              className="h-72 w-full"
-              role="list"
-              aria-label="Short Links click data"
-            >
-              <div>
-                <TableHeader linkLabel="Link" />
-                <TableCard
-                  data={sortedData}
-                  loading={isLoading}
-                  error={error}
-                  keyPrefix="slug"
-                  getClicks={(item) => item.clicks}
-                  getKey={(item, index) =>
-                    item.slug ?? item.url ?? `slug-${index}`
-                  }
-                  progressColor="bg-orange-200/40"
-                  renderName={(item) => (
-                    <div className="flex items-center gap-x-2">
-                      <UrlAvatar
-                        className="flex-shrink-0 rounded-sm"
-                        size={5}
-                        imgSize={4}
-                        url={item.url}
-                      />
-                      <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-                        slugy.co/{item.slug}
-                      </span>
-                    </div>
-                  )}
-                />
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          <TabsContent value="destination-links" className="mt-1">
-            <ScrollArea
-              className="h-72 w-full"
-              role="list"
-              aria-label="Destination URLs click data"
-            >
-              <div>
-                <TableHeader linkLabel="URL" />
-                <TableCard
-                  data={sortedData}
-                  loading={isLoading}
-                  error={error}
-                  keyPrefix="destination"
-                  getClicks={(item) => item.clicks}
-                  getKey={(item, index) =>
-                    item.slug ?? item.url ?? `dest-${index}`
-                  }
-                  progressColor="bg-orange-200/45"
-                  renderName={(item) => (
-                    <div className="flex items-center gap-x-2">
-                      <UrlAvatar
-                        className="flex-shrink-0 rounded-sm"
-                        size={5}
-                        imgSize={4}
-                        url={item.url}
-                      />
-                      <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-                        {item.url
-                          .replace("https://", "")
-                          .replace("http://", "")
-                          .replace("www.", "")}
-                      </span>
-                    </div>
-                  )}
-                />
-              </div>
-            </ScrollArea>
-          </TabsContent>
+          {tabConfigs.map((tab) => (
+            <TabsContent value={tab.key} key={tab.key} className="mt-1">
+              <ScrollArea
+                className="h-72 w-full"
+                role="list"
+                aria-label={`${tab.label} click data`}
+              >
+                <div>
+                  <TableHeader linkLabel={tab.linkLabel} />
+                  <TableCard
+                    data={sortedData}
+                    loading={isLoading}
+                    error={error}
+                    keyPrefix={tab.keyPrefix}
+                    getClicks={(item) => item.clicks}
+                    getKey={(item, index) =>
+                      item.slug ?? item.url ?? `${tab.keyPrefix}-${index}`
+                    }
+                    progressColor={tab.progressColor}
+                    renderName={tab.renderName}
+                  />
+                </div>
+              </ScrollArea>
+            </TabsContent>
+          ))}
         </Tabs>
       </CardHeader>
     </Card>

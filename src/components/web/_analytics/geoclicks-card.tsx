@@ -9,16 +9,9 @@ import useSWR from "swr";
 import { fetchGeoData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
 
-// Table header component to avoid repetition
-function TableHeader({ label }: { label: string }) {
-  return (
-    <div className="mb-2 flex items-center border-b pb-2">
-      <div className="flex-1 text-sm">{label}</div>
-      <div className="min-w-[80px] text-right text-sm">Clicks</div>
-    </div>
-  );
-}
-
+// --------------------------------------------------
+// Types
+// --------------------------------------------------
 interface GeoclicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
@@ -31,7 +24,34 @@ interface GeoData {
   clicks: number;
 }
 
-// Helper for ISO code normalization, translation, and flag link
+type GeoKey = keyof Pick<GeoData, "country" | "city" | "continent">;
+
+interface TabConfig {
+  key: "countries" | "cities" | "continents";
+  label: string; // plural (for tab labels)
+  singular: string; // singular (for table header)
+  dataKey: GeoKey;
+  renderName: (
+    item: GeoData,
+    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"],
+  ) => JSX.Element;
+}
+
+// --------------------------------------------------
+// Helper Components
+// --------------------------------------------------
+function TableHeader({ label }: { label: string }) {
+  return (
+    <div className="mb-2 flex items-center border-b pb-2">
+      <div className="flex-1 text-sm">{label}</div>
+      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+    </div>
+  );
+}
+
+// --------------------------------------------------
+// Country Tools hook
+// --------------------------------------------------
 function useCountryTools() {
   const displayNames = useMemo(() => {
     try {
@@ -60,7 +80,9 @@ function useCountryTools() {
   return { getCountryInfo };
 }
 
-// Continent map (same as before)
+// --------------------------------------------------
+// Static Data
+// --------------------------------------------------
 const CONTINENT_NAMES: Record<string, string> = {
   af: "Africa",
   an: "Antarctica",
@@ -72,11 +94,74 @@ const CONTINENT_NAMES: Record<string, string> = {
   unknown: "Unknown",
 };
 
-const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
-  const [activeTab, setActiveTab] = useState<
-    "countries" | "cities" | "continents"
-  >("countries");
+const tabConfigs: TabConfig[] = [
+  {
+    key: "countries",
+    label: "Countries",
+    singular: "Country",
+    dataKey: "country",
+    renderName: (item, getCountryInfo) => {
+      const { name, flag } = getCountryInfo(item.country);
+      return (
+        <div className="flex items-center gap-x-2">
+          <Image
+            src={flag}
+            alt={`${name} flag`}
+            width={20}
+            height={15}
+            style={{ borderRadius: 2 }}
+            loading="lazy"
+          />
+          <span className="capitalize">{name}</span>
+        </div>
+      );
+    },
+  },
+  {
+    key: "cities",
+    label: "Cities",
+    singular: "City",
+    dataKey: "city",
+    renderName: (item, getCountryInfo) => {
+      const { flag } = getCountryInfo(item.country);
+      return (
+        <div className="flex items-center gap-x-2 capitalize">
+          <Image
+            src={flag}
+            alt={`${item.country ?? "Unknown"} flag`}
+            width={20}
+            height={15}
+            style={{ borderRadius: 2 }}
+            loading="lazy"
+          />
+          <span>{item.city ?? "Unknown"}</span>
+        </div>
+      );
+    },
+  },
+  {
+    key: "continents",
+    label: "Continents",
+    singular: "Continent",
+    dataKey: "continent",
+    renderName: (item) => {
+      const code = (item.continent ?? "").toLowerCase();
+      const name = CONTINENT_NAMES[code] || code || "Unknown";
+      return (
+        <div className="flex items-center gap-x-2 capitalize">
+          <NotoGlobeShowingAmericas />
+          <span>{name}</span>
+        </div>
+      );
+    },
+  },
+];
 
+// --------------------------------------------------
+// Main Component
+// --------------------------------------------------
+const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
+  const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
   const [cache, setCache] = useState<Record<string, GeoData[]>>({});
 
   const swrKey = ["geo", workspaceslug, activeTab, searchParams];
@@ -90,139 +175,59 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
     },
   );
 
-  // Use cached data if available to avoid refetch lag
   const displayedData = cache[activeTab] ?? data ?? [];
 
-  // Sorted data descending by clicks
   const sortedData = useMemo(
     () => [...displayedData].sort((a, b) => b.clicks - a.clicks),
     [displayedData],
   );
 
   const { getCountryInfo } = useCountryTools();
+  const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
 
   return (
     <Card className="border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           defaultValue="countries"
-          onValueChange={(value) => setActiveTab(value as typeof activeTab)}
+          onValueChange={(value) => setActiveTab(value as TabConfig["key"])}
         >
+          {/* Tab buttons */}
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="countries">Countries</TabsTrigger>
-            <TabsTrigger value="cities">Cities</TabsTrigger>
-            <TabsTrigger value="continents">Continents</TabsTrigger>
+            {tabConfigs.map((tab) => (
+              <TabsTrigger key={tab.key} value={tab.key}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          {/* Countries Tab */}
-          <TabsContent value="countries" className="mt-1 font-normal">
+          {/* Tab panel */}
+          <TabsContent
+            value={currentTabConfig.key}
+            className="mt-1 font-normal"
+          >
             <ScrollArea
               className="h-72 w-full"
               role="list"
-              aria-label="Clicks by country"
+              aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
             >
               <div>
-                <TableHeader label="Country" />
+                {/* Correct singular label */}
+                <TableHeader label={currentTabConfig.singular} />
                 <TableCard
                   data={sortedData}
                   loading={isLoading}
                   error={error}
-                  keyPrefix="country"
+                  keyPrefix={currentTabConfig.key}
                   getClicks={(item) => item.clicks}
                   getKey={(item, index) =>
-                    item.country ? item.country : `country-${index}`
+                    item[currentTabConfig.dataKey] ??
+                    `${currentTabConfig.dataKey}-${index}`
                   }
                   progressColor="bg-green-200/40"
-                  renderName={(item) => {
-                    const { name, flag } = getCountryInfo(item.country);
-                    return (
-                      <div className="flex items-center gap-x-2">
-                        <Image
-                          src={flag}
-                          alt={`${name} flag`}
-                          width={20}
-                          height={15}
-                          style={{ borderRadius: 2 }}
-                          loading="lazy"
-                        />
-                        <span className="capitalize">{name}</span>
-                      </div>
-                    );
-                  }}
-                />
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          {/* Cities Tab */}
-          <TabsContent value="cities" className="mt-1 font-normal">
-            <ScrollArea
-              className="h-72 w-full"
-              role="list"
-              aria-label="Clicks by city"
-            >
-              <div>
-                <TableHeader label="City" />
-                <TableCard
-                  data={sortedData}
-                  loading={isLoading}
-                  error={error}
-                  keyPrefix="city"
-                  getClicks={(item) => item.clicks}
-                  getKey={(item, index) =>
-                    item.city ? item.city : `city-${index}`
+                  renderName={(item) =>
+                    currentTabConfig.renderName(item, getCountryInfo)
                   }
-                  progressColor="bg-green-200/40"
-                  renderName={(item) => {
-                    const { flag } = getCountryInfo(item.country);
-                    return (
-                      <div className="flex items-center gap-x-2 capitalize">
-                        <Image
-                          src={flag}
-                          alt={`${item.country ?? "Unknown"} flag`}
-                          width={20}
-                          height={15}
-                          style={{ borderRadius: 2 }}
-                          loading="lazy"
-                        />
-                        <span>{item.city ?? "Unknown"}</span>
-                      </div>
-                    );
-                  }}
-                />
-              </div>
-            </ScrollArea>
-          </TabsContent>
-
-          {/* Continents Tab */}
-          <TabsContent value="continents" className="mt-1 font-normal">
-            <ScrollArea
-              className="h-72 w-full"
-              role="list"
-              aria-label="Clicks by continent"
-            >
-              <div>
-                <TableHeader label="Continent" />
-                <TableCard
-                  data={sortedData}
-                  loading={isLoading}
-                  error={error}
-                  keyPrefix="continent"
-                  getClicks={(item) => item.clicks}
-                  getKey={(item, index) =>
-                    item.continent ? item.continent : `continent-${index}`
-                  }
-                  progressColor="bg-green-200/40"
-                  renderName={(item) => {
-                    const code = (item.continent ?? "").toLowerCase();
-                    const name = CONTINENT_NAMES[code] || code || "Unknown";
-                    return (
-                      <div className="flex items-center gap-x-2 capitalize">
-                        <NotoGlobeShowingAmericas />
-                        <span>{name}</span>
-                      </div>
-                    );
-                  }}
                 />
               </div>
             </ScrollArea>
