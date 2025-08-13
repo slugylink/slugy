@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
     const usageRecord = await db.usage.findFirst({
       where: { workspaceId },
       select: { id: true },
+      orderBy: { createdAt: "desc" }, // Get the latest usage record
     });
 
     if (!usageRecord) {
