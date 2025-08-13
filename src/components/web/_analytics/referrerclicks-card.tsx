@@ -17,9 +17,6 @@ import TableCard from "./table-card";
 import { Scan } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// --------------------------------------------------
-// Types
-// --------------------------------------------------
 interface ReferrerClicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
@@ -39,9 +36,6 @@ interface TabConfig {
   renderName: (item: ReferrerData) => JSX.Element;
 }
 
-// --------------------------------------------------
-// Helper Components
-// --------------------------------------------------
 function TableHeader({ label }: { label: string }) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
@@ -51,9 +45,6 @@ function TableHeader({ label }: { label: string }) {
   );
 }
 
-// --------------------------------------------------
-// Static Data
-// --------------------------------------------------
 const tabConfigs: TabConfig[] = [
   {
     key: "referrers",
@@ -75,9 +66,6 @@ const tabConfigs: TabConfig[] = [
   },
 ];
 
-// --------------------------------------------------
-// Main Component
-// --------------------------------------------------
 const ReferrerClicks = ({
   workspaceslug,
   searchParams,
@@ -137,8 +125,7 @@ const ReferrerClicks = ({
           defaultValue="referrers"
           onValueChange={(value) => setActiveTab(value as TabConfig["key"])}
         >
-          {/* Tab buttons */}
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full grid-cols-2`}>
             {tabConfigs.map((tab) => (
               <TabsTrigger key={tab.key} value={tab.key}>
                 {tab.label}
@@ -146,7 +133,6 @@ const ReferrerClicks = ({
             ))}
           </TabsList>
 
-          {/* Tab panel */}
           <TabsContent
             value={currentTabConfig.key}
             className="mt-1 font-normal"
@@ -163,12 +149,11 @@ const ReferrerClicks = ({
         </Tabs>
       </CardContent>
 
-      <div className="absolute bottom-0 left-0 h-[50%] w-full bg-gradient-to-t from-white to-transparent"></div>
       <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            {(!isLoading || processedData.length > 0) && (
-              <Button size={"xs"} variant={"secondary"}>
+            {!isLoading && processedData.length > 7 && (
+              <Button size="xs" variant="secondary">
                 <Scan className="mr-1 h-3 w-3" /> View All
               </Button>
             )}
