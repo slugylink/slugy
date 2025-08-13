@@ -137,14 +137,14 @@ const ReferrerClicks = ({
             value={currentTabConfig.key}
             className="mt-1 font-normal"
           >
-            <ScrollArea
+            <div
               className="relative h-72 w-full"
               role="list"
               aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
             >
               <TableHeader label={currentTabConfig.singular} />
               {renderTable(processedData.slice(0, 7))}
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
       </CardContent>
