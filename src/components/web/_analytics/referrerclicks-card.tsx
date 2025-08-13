@@ -167,7 +167,7 @@ const ReferrerClicks = ({
       <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            {!isLoading || data?.length && (
+            {(!isLoading || processedData.length > 0) && (
               <Button size={"xs"} variant={"secondary"}>
                 <Scan className="mr-1 h-3 w-3" /> View All
               </Button>
