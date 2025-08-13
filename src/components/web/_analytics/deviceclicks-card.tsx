@@ -1,6 +1,6 @@
 "use client";
 import React, { useMemo, useState } from "react";
-import { Card, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -71,14 +71,14 @@ interface TabConfig {
 const tabConfigs: TabConfig[] = [
   {
     key: "devices",
-    label: "Device",
+    label: "Devices",
     dataKey: "device",
     getAssetSrc: (name) =>
       `${BASE_ASSET_URL}/device/${formatNameForUrl(name)}.svg`,
   },
   {
     key: "browsers",
-    label: "Browser",
+    label: "Browsers",
     dataKey: "browser",
     getAssetSrc: (name) =>
       `${BASE_ASSET_URL}/browser/${formatNameForUrl(name)}.svg`,
@@ -106,7 +106,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
 
   return (
     <Card className="border shadow-none">
-      <CardHeader className="pb-2">
+      <CardContent className="pb-2">
         <Tabs
           defaultValue="devices"
           onValueChange={(value) => setActiveTab(value as TabKey)}
@@ -114,7 +114,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
           <TabsList className="grid w-full grid-cols-3">
             {tabConfigs.map((tab) => (
               <TabsTrigger key={tab.key} value={tab.key}>
-                {tab.label}s
+                {tab.label}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -132,7 +132,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                     data={sortedData}
                     loading={isLoading}
                     error={error}
-                    keyPrefix={tab.key}
+                    keyPrefix={tab.dataKey}
                     getClicks={(item) => item.clicks}
                     getKey={(item, index) =>
                       (item[tab.dataKey] as string | undefined) ??
@@ -143,10 +143,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                       const name = (item[tab.dataKey] as string) ?? "unknown";
                       return (
                         <div
-                          className={cn(
-                            "flex items-center gap-x-2",
-                            tab.key !== "devices" ? "capitalize" : undefined,
-                          )}
+                          className={cn("flex items-center gap-x-2 capitalize")}
                         >
                           <OptimizedImage
                             src={tab.getAssetSrc(name)}
@@ -162,7 +159,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
             </TabsContent>
           ))}
         </Tabs>
-      </CardHeader>
+      </CardContent>
     </Card>
   );
 };

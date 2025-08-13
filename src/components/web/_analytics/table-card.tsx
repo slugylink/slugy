@@ -54,7 +54,7 @@ export default function TableCard<T>({
 
   if (error || data.length === 0) {
     return (
-      <div className="flex h-60 items-center justify-center py-4 text-gray-500">
+      <div className="flex h-60 items-center justify-center py-4 text-gray-500 text-sm">
         {emptyText}
       </div>
     );
