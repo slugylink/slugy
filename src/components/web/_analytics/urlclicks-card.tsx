@@ -2,11 +2,11 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import UrlAvatar from "@/components/web/url-avatar";
 import useSWR from "swr";
 import { fetchUrlClicksData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
+import AnalyticsDialog from "./analytics-dialog";
 
 // ----------------------- Types -----------------------
 interface UrlClicksProps {
@@ -41,8 +41,55 @@ function TableHeader({ linkLabel }: { linkLabel: string }) {
   );
 }
 
+// ------------------- Centralized tab configs -------------------
+const tabConfigs: TabConfig[] = [
+  {
+    key: "slug-links",
+    label: "Short Links",
+    linkLabel: "Link",
+    keyPrefix: "slug",
+    progressColor: "bg-orange-200/40",
+    renderName: (item) => (
+      <div className="flex items-center gap-x-2">
+        <UrlAvatar
+          className="flex-shrink-0 rounded-sm"
+          size={5}
+          imgSize={4}
+          url={item.url}
+        />
+        <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+          slugy.co/{item.slug}
+        </span>
+      </div>
+    ),
+  },
+  {
+    key: "destination-links",
+    label: "Destination URLs",
+    linkLabel: "URL",
+    keyPrefix: "destination",
+    progressColor: "bg-orange-200/45",
+    renderName: (item) => (
+      <div className="flex items-center gap-x-2">
+        <UrlAvatar
+          className="flex-shrink-0 rounded-sm"
+          size={5}
+          imgSize={4}
+          url={item.url}
+        />
+        <span className="line-clamp-1 max-w-[220px] text-ellipsis">
+          {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+        </span>
+      </div>
+    ),
+  },
+];
+
 // ----------------------- Main Component -----------------------
 const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
+  const [activeTab, setActiveTab] = useState<TabKey>("slug-links");
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   const { data, error, isLoading } = useSWR<UrlClickData[], Error>(
     ["url-clicks", workspaceslug, searchParams],
     () => fetchUrlClicksData(workspaceslug, searchParams),
@@ -53,7 +100,7 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     [data],
   );
 
-  const [activeTab, setActiveTab] = useState<TabKey>("slug-links");
+  const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
 
   if (error) {
     return (
@@ -65,52 +112,8 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
     );
   }
 
-  // ------------------- Centralized tab configs -------------------
-  const tabConfigs: TabConfig[] = [
-    {
-      key: "slug-links",
-      label: "Short Links",
-      linkLabel: "Link",
-      keyPrefix: "slug",
-      progressColor: "bg-orange-200/40",
-      renderName: (item) => (
-        <div className="flex items-center gap-x-2">
-          <UrlAvatar
-            className="flex-shrink-0 rounded-sm"
-            size={5}
-            imgSize={4}
-            url={item.url}
-          />
-          <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-            slugy.co/{item.slug}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: "destination-links",
-      label: "Destination URLs",
-      linkLabel: "URL",
-      keyPrefix: "destination",
-      progressColor: "bg-orange-200/45",
-      renderName: (item) => (
-        <div className="flex items-center gap-x-2">
-          <UrlAvatar
-            className="flex-shrink-0 rounded-sm"
-            size={5}
-            imgSize={4}
-            url={item.url}
-          />
-          <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-            {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
-          </span>
-        </div>
-      ),
-    },
-  ];
-
   return (
-    <Card className="border shadow-none">
+    <Card className="relative overflow-hidden border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           value={activeTab}
@@ -124,33 +127,49 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
             ))}
           </TabsList>
 
-          {tabConfigs.map((tab) => (
-            <TabsContent value={tab.key} key={tab.key} className="mt-1">
-              <ScrollArea
-                className="h-72 w-full"
-                role="list"
-                aria-label={`${tab.label} click data`}
-              >
-                <div>
-                  <TableHeader linkLabel={tab.linkLabel} />
-                  <TableCard
-                    data={sortedData}
-                    loading={isLoading}
-                    error={error}
-                    keyPrefix={tab.keyPrefix}
-                    getClicks={(item) => item.clicks}
-                    getKey={(item, index) =>
-                      item.slug ?? item.url ?? `${tab.keyPrefix}-${index}`
-                    }
-                    progressColor={tab.progressColor}
-                    renderName={tab.renderName}
-                  />
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          ))}
+          <TabsContent value={currentTabConfig.key} className="mt-1">
+            <div
+              className="relative h-72 w-full"
+              role="list"
+              aria-label={`${currentTabConfig.label} click data`}
+            >
+              <TableHeader linkLabel={currentTabConfig.linkLabel} />
+              <TableCard
+                data={sortedData.slice(0, 7)}
+                loading={isLoading}
+                error={error}
+                keyPrefix={currentTabConfig.keyPrefix}
+                getClicks={(item) => item.clicks}
+                getKey={(item, index) =>
+                  item.slug ?? item.url ?? `${currentTabConfig.keyPrefix}-${index}`
+                }
+                progressColor={currentTabConfig.progressColor}
+                renderName={currentTabConfig.renderName}
+              />
+            </div>
+          </TabsContent>
         </Tabs>
       </CardHeader>
+
+      <div className="absolute bottom-0 left-0 h-[50%] w-full bg-gradient-to-t from-white to-transparent"></div>
+
+      <AnalyticsDialog
+        data={sortedData}
+        loading={isLoading}
+        error={error}
+        keyPrefix={currentTabConfig.keyPrefix}
+        getClicks={(item) => item.clicks}
+        getKey={(item, index) =>
+          item.slug ?? item.url ?? `${currentTabConfig.keyPrefix}-${index}`
+        }
+        progressColor={currentTabConfig.progressColor}
+        renderName={currentTabConfig.renderName}
+        title={currentTabConfig.label}
+        headerLabel={currentTabConfig.linkLabel}
+        showButton={!isLoading && sortedData.length > 7}
+        dialogOpen={dialogOpen}
+        onDialogOpenChange={setDialogOpen}
+      />
     </Card>
   );
 };

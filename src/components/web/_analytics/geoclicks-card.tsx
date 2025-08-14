@@ -4,10 +4,10 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
 import Image from "next/image";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import useSWR from "swr";
 import { fetchGeoData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
+import AnalyticsDialog from "./analytics-dialog";
 
 // --------------------------------------------------
 // Types
@@ -162,31 +162,24 @@ const tabConfigs: TabConfig[] = [
 // --------------------------------------------------
 const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
-  const [cache, setCache] = useState<Record<string, GeoData[]>>({});
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const swrKey = ["geo", workspaceslug, activeTab, searchParams];
   const { data, error, isLoading } = useSWR<GeoData[], Error>(
     swrKey,
     () => fetchGeoData(workspaceslug, searchParams, activeTab),
-    {
-      onSuccess: (newData) => {
-        setCache((prev) => ({ ...prev, [activeTab]: newData }));
-      },
-    },
   );
 
-  const displayedData = cache[activeTab] ?? data ?? [];
-
   const sortedData = useMemo(
-    () => [...displayedData].sort((a, b) => b.clicks - a.clicks),
-    [displayedData],
+    () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
+    [data],
   );
 
   const { getCountryInfo } = useCountryTools();
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
 
   return (
-    <Card className="border shadow-none">
+    <Card className="relative overflow-hidden border shadow-none">
       <CardHeader className="pb-2">
         <Tabs
           defaultValue="countries"
@@ -206,34 +199,55 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
             value={currentTabConfig.key}
             className="mt-1 font-normal"
           >
-            <ScrollArea
-              className="h-72 w-full"
+            <div
+              className="relative h-72 w-full"
               role="list"
               aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
             >
-              <div>
-                {/* Correct singular label */}
-                <TableHeader label={currentTabConfig.singular} />
-                <TableCard
-                  data={sortedData}
-                  loading={isLoading}
-                  error={error}
-                  keyPrefix={currentTabConfig.key}
-                  getClicks={(item) => item.clicks}
-                  getKey={(item, index) =>
-                    item[currentTabConfig.dataKey] ??
-                    `${currentTabConfig.dataKey}-${index}`
-                  }
-                  progressColor="bg-green-200/40"
-                  renderName={(item) =>
-                    currentTabConfig.renderName(item, getCountryInfo)
-                  }
-                />
-              </div>
-            </ScrollArea>
+              {/* Correct singular label */}
+              <TableHeader label={currentTabConfig.singular} />
+              <TableCard
+                data={sortedData.slice(0, 7)}
+                loading={isLoading}
+                error={error}
+                keyPrefix={currentTabConfig.key}
+                getClicks={(item) => item.clicks}
+                getKey={(item, index) =>
+                  item[currentTabConfig.dataKey] ??
+                  `${currentTabConfig.dataKey}-${index}`
+                }
+                progressColor="bg-green-200/40"
+                renderName={(item) =>
+                  currentTabConfig.renderName(item, getCountryInfo)
+                }
+              />
+            </div>
           </TabsContent>
         </Tabs>
       </CardHeader>
+
+      <div className="absolute bottom-0 left-0 h-[50%] w-full bg-gradient-to-t from-white to-transparent"></div>
+
+      <AnalyticsDialog
+        data={sortedData}
+        loading={isLoading}
+        error={error}
+        keyPrefix={currentTabConfig.key}
+        getClicks={(item) => item.clicks}
+        getKey={(item, index) =>
+          item[currentTabConfig.dataKey] ??
+          `${currentTabConfig.dataKey}-${index}`
+        }
+        progressColor="bg-green-200/40"
+        renderName={(item) =>
+          currentTabConfig.renderName(item, getCountryInfo)
+        }
+        title={currentTabConfig.label}
+        headerLabel={currentTabConfig.singular}
+        showButton={!isLoading && sortedData.length > 7}
+        dialogOpen={dialogOpen}
+        onDialogOpenChange={setDialogOpen}
+      />
     </Card>
   );
 };

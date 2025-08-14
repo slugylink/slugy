@@ -1,13 +1,13 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import useSWR from "swr";
 import { fetchDeviceData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
+import AnalyticsDialog from "./analytics-dialog";
 
 // Asset base URLs and helpers
 const BASE_ASSET_URL = "https://slugylink.github.io/slugy-assets/dist/colorful";
@@ -93,6 +93,7 @@ const tabConfigs: TabConfig[] = [
 
 const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("devices");
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data, error, isLoading } = useSWR<DeviceData[], Error>(
     ["device", workspaceslug, activeTab, searchParams],
@@ -104,8 +105,23 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
     [data],
   );
 
+  const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
+
+  const renderName = (item: DeviceData) => {
+    const name = (item[currentTabConfig.dataKey] as string) ?? "unknown";
+    return (
+      <div className={cn("flex items-center gap-x-2 capitalize")}>
+        <OptimizedImage
+          src={currentTabConfig.getAssetSrc(name)}
+          alt={name}
+        />
+        <span>{name}</span>
+      </div>
+    );
+  };
+
   return (
-    <Card className="border shadow-none">
+    <Card className="relative overflow-hidden border shadow-none">
       <CardContent className="pb-2">
         <Tabs
           defaultValue="devices"
@@ -119,47 +135,51 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
             ))}
           </TabsList>
 
-          {tabConfigs.map((tab) => (
-            <TabsContent value={tab.key} key={tab.key} className="mt-1">
-              <ScrollArea
-                className="h-72 w-full"
-                role="list"
-                aria-label={`Clicks by ${tab.label.toLowerCase()}`}
-              >
-                <div>
-                  <TableHeader label={tab.label} />
-                  <TableCard
-                    data={sortedData}
-                    loading={isLoading}
-                    error={error}
-                    keyPrefix={tab.dataKey}
-                    getClicks={(item) => item.clicks}
-                    getKey={(item, index) =>
-                      (item[tab.dataKey] as string | undefined) ??
-                      `${tab.key}-${index}`
-                    }
-                    progressColor="bg-blue-200/40"
-                    renderName={(item) => {
-                      const name = (item[tab.dataKey] as string) ?? "unknown";
-                      return (
-                        <div
-                          className={cn("flex items-center gap-x-2 capitalize")}
-                        >
-                          <OptimizedImage
-                            src={tab.getAssetSrc(name)}
-                            alt={name}
-                          />
-                          <span>{name}</span>
-                        </div>
-                      );
-                    }}
-                  />
-                </div>
-              </ScrollArea>
-            </TabsContent>
-          ))}
+          <TabsContent value={currentTabConfig.key} className="mt-1">
+            <div
+              className="relative h-72 w-full"
+              role="list"
+              aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
+            >
+              <TableHeader label={currentTabConfig.label} />
+              <TableCard
+                data={sortedData.slice(0, 7)}
+                loading={isLoading}
+                error={error}
+                keyPrefix={currentTabConfig.dataKey}
+                getClicks={(item) => item.clicks}
+                getKey={(item, index) =>
+                  (item[currentTabConfig.dataKey] as string | undefined) ??
+                  `${currentTabConfig.key}-${index}`
+                }
+                progressColor="bg-blue-200/40"
+                renderName={renderName}
+              />
+            </div>
+          </TabsContent>
         </Tabs>
       </CardContent>
+
+      <div className="absolute bottom-0 left-0 h-[50%] w-full bg-gradient-to-t from-white to-transparent"></div>
+
+      <AnalyticsDialog
+        data={sortedData}
+        loading={isLoading}
+        error={error}
+        keyPrefix={currentTabConfig.dataKey}
+        getClicks={(item) => item.clicks}
+        getKey={(item, index) =>
+          (item[currentTabConfig.dataKey] as string | undefined) ??
+          `${currentTabConfig.key}-${index}`
+        }
+        progressColor="bg-blue-200/40"
+        renderName={renderName}
+        title={currentTabConfig.label}
+        headerLabel={currentTabConfig.label}
+        showButton={!isLoading && sortedData.length > 7}
+        dialogOpen={dialogOpen}
+        onDialogOpenChange={setDialogOpen}
+      />
     </Card>
   );
 };

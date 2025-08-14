@@ -2,20 +2,11 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import UrlAvatar from "@/components/web/url-avatar";
 import useSWR from "swr";
 import { fetchReferrerData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
-import { Scan } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import AnalyticsDialog from "./analytics-dialog";
 
 interface ReferrerClicksProps {
   workspaceslug: string;
@@ -105,18 +96,7 @@ const ReferrerClicks = ({
 
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
 
-  const renderTable = (rows: ProcessedReferrerData[], keySuffix = "") => (
-    <TableCard
-      data={rows}
-      loading={isLoading}
-      error={error}
-      keyPrefix={`referrer${keySuffix}`}
-      getClicks={(item) => item.clicks}
-      getKey={(item, index) => item.safeKey ?? `referrer-${keySuffix}${index}`}
-      progressColor="bg-red-200/40"
-      renderName={(item) => currentTabConfig.renderName(item)}
-    />
-  );
+
 
   return (
     <Card className="relative overflow-hidden border shadow-none">
@@ -125,7 +105,7 @@ const ReferrerClicks = ({
           defaultValue="referrers"
           onValueChange={(value) => setActiveTab(value as TabConfig["key"])}
         >
-          <TabsList className={`grid w-full grid-cols-2`}>
+          <TabsList className="grid w-full grid-cols-2">
             {tabConfigs.map((tab) => (
               <TabsTrigger key={tab.key} value={tab.key}>
                 {tab.label}
@@ -143,36 +123,37 @@ const ReferrerClicks = ({
               aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
             >
               <TableHeader label={currentTabConfig.singular} />
-              {renderTable(processedData.slice(0, 7))}
+              <TableCard
+                data={processedData.slice(0, 7)}
+                loading={isLoading}
+                error={error}
+                keyPrefix="referrer"
+                getClicks={(item) => item.clicks}
+                getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
+                progressColor="bg-red-200/40"
+                renderName={(item) => currentTabConfig.renderName(item)}
+              />
             </div>
           </TabsContent>
         </Tabs>
       </CardContent>
+      <div className="absolute bottom-0 left-0 h-[50%] w-full bg-gradient-to-t from-white to-transparent"></div>
 
-      <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            {!isLoading && processedData.length > 7 && (
-              <Button size="xs" variant="secondary">
-                <Scan className="mr-1 h-3 w-3" /> View All
-              </Button>
-            )}
-          </DialogTrigger>
-          <DialogContent className="max-h-[80vh] max-w-xl overflow-hidden">
-            <DialogHeader>
-              <DialogTitle className="text-lg">
-                {currentTabConfig.label}
-              </DialogTitle>
-            </DialogHeader>
-            <div className="mt-4">
-              <TableHeader label={currentTabConfig.singular} />
-              <ScrollArea className="h-[60vh] w-full">
-                {renderTable(processedData, "dialog-")}
-              </ScrollArea>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
+      <AnalyticsDialog
+        data={processedData}
+        loading={isLoading}
+        error={error}
+        keyPrefix="referrer"
+        getClicks={(item) => item.clicks}
+        getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
+        progressColor="bg-red-200/40"
+        renderName={(item) => currentTabConfig.renderName(item)}
+        title={currentTabConfig.label}
+        headerLabel={currentTabConfig.singular}
+        showButton={!isLoading && processedData.length > 7}
+        dialogOpen={dialogOpen}
+        onDialogOpenChange={setDialogOpen}
+      />
     </Card>
   );
 };
