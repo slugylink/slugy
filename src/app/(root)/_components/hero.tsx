@@ -29,8 +29,8 @@ const data = {
         "https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464",
       alt: "Slugy - Simplify links like magic | Product Hunt",
       href: "https://www.producthunt.com/products/slugy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-slugy",
-      width: 185,
-      height: 54,
+      width: 180,
+      height: 50,
     },
   },
 };
