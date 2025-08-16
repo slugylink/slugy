@@ -1,7 +1,6 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense } from "react";
 import Hero from "./_components/hero";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
@@ -48,31 +47,23 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Hero section rendered immediately */}
-      <div className="relative w-full">
+      <div className="relative bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 rounded-3xl py-12 pb-16 border w-[99%] mx-auto">
         <div className="z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
       </div>
 
-      <Suspense fallback={<LoadingSection height={LOADING_HEIGHT.features} />}>
-        <section id="features" className="scroll-mt-20">
-          <Features />
-        </section>
-      </Suspense>
+      <section id="features" className="scroll-mt-20">
+        <Features />
+      </section>
 
-      <Suspense fallback={<LoadingSection height={LOADING_HEIGHT.stats} />}>
-        <section id="stats" className="scroll-mt-20">
-          <Stats />
-        </section>
-      </Suspense>
+      <section id="stats" className="scroll-mt-20">
+        <Stats />
+      </section>
 
-      <Suspense
-        fallback={<LoadingSection height={LOADING_HEIGHT.openSource} />}
-      >
-        <section id="open-source" className="scroll-mt-20">
-          <OpenSource />
-        </section>
-      </Suspense>
+      <section id="open-source" className="scroll-mt-20">
+        <OpenSource />
+      </section>
     </main>
   );
 }

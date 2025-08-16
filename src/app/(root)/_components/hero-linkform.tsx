@@ -1,22 +1,30 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useState, useEffect, useCallback } from "react";
-import HeroLinkCard from "./hero-linkcard";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import useSWR from "swr";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import HeroLinkCard from "./hero-linkcard";
+import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
 
+// ----------------- Constants -----------------
 const API_ENDPOINT = "/api/temp";
 const MAX_LINKS_DISPLAY = 2;
+const DEFAULT_LINK = {
+  short: "slugy.co/git",
+  original: "https://github.com/slugylink/slugy",
+  clicks: 650,
+  expires: null,
+} as const;
 
+// ----------------- Validation Schema -----------------
 const urlPattern = /^https?:\/\//;
-
 const createLinkSchema = z.object({
   url: z
     .string()
@@ -31,9 +39,7 @@ const createLinkSchema = z.object({
             return false;
           }
         }
-
-        const domainPattern = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/;
-        return domainPattern.test(url);
+        return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(url);
       },
       {
         message:
@@ -44,6 +50,7 @@ const createLinkSchema = z.object({
 
 type FormData = z.infer<typeof createLinkSchema>;
 
+// ----------------- Types -----------------
 interface Link {
   short: string;
   original: string;
@@ -64,22 +71,17 @@ interface GetLinksResponse {
   error?: string;
 }
 
-const defaultLink: Link = {
-  short: "slugy.co/git",
-  original: "https://github.com/slugylink/slugy",
-  clicks: 650,
-  expires: null,
-};
-
+// ----------------- Component -----------------
 const HeroLinkForm = () => {
-  const [links, setLinks] = useState<Link[]>([defaultLink]);
+  const [links, setLinks] = useState<Link[]>([DEFAULT_LINK]);
 
+  // SWR: fetching existing links
   const { data, mutate } = useSWR<GetLinksResponse, Error>(
     API_ENDPOINT,
     fetcher,
     {
       onError: (error) => {
-        if (!error.message.includes("Too many requests")) {
+        if (!/Too many requests/i.test(error.message)) {
           toast.error(error.message);
         }
       },
@@ -88,6 +90,7 @@ const HeroLinkForm = () => {
     },
   );
 
+  // Form handling
   const {
     register,
     handleSubmit,
@@ -97,42 +100,39 @@ const HeroLinkForm = () => {
     resolver: zodResolver(createLinkSchema),
   });
 
+  // Update links when new data arrives
   useEffect(() => {
-    if (data?.links?.length) {
-      setLinks((prevLinks) => {
-        const newLinks = data.links.filter(
-          (newLink) =>
-            !prevLinks.some(
-              (existingLink) => existingLink.short === newLink.short,
-            ),
-        );
-        const updatedLinks = prevLinks.map((prevLink) => {
-          const updated = data.links.find((l) => l.short === prevLink.short);
-          return updated ? { ...prevLink, clicks: updated.clicks } : prevLink;
-        });
-        return [...newLinks, ...updatedLinks];
-      });
-    }
+    if (!data?.links?.length) return;
+
+    setLinks((prevLinks) => {
+      const newLinks = data.links.filter(
+        (l) => !prevLinks.some((existing) => existing.short === l.short),
+      );
+      const updatedLinks = prevLinks.map(
+        (prev) => data.links.find((l) => l.short === prev.short) ?? prev,
+      );
+      return [...newLinks, ...updatedLinks];
+    });
   }, [data]);
 
+  // Form submit handler
   const onSubmit = useCallback(
     async (formData: FormData) => {
       try {
         const response = await fetch(API_ENDPOINT, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: formData.url }),
+          body: JSON.stringify(formData),
         });
 
         const result = (await response.json()) as ApiResponse;
 
         if (!response.ok) {
-          if (response.status === 429) {
-            throw new Error(
-              "You can only create 1 temporary link at a time. Please wait for it to expire or create an account for unlimited links.",
-            );
-          }
-          throw new Error(result.error ?? "Failed to create link");
+          throw new Error(
+            response.status === 429
+              ? "You can only create 1 temporary link at a time. Please wait for it to expire or create an account for unlimited links."
+              : (result.error ?? "Failed to create link"),
+          );
         }
 
         setLinks((prev) => [result, ...prev]);
@@ -148,28 +148,33 @@ const HeroLinkForm = () => {
     [reset, mutate],
   );
 
-  const isFormDisabled = isSubmitting || links.length >= MAX_LINKS_DISPLAY;
+  // Derived UI state
+  const isFormDisabled = useMemo(
+    () => isSubmitting || links.length >= MAX_LINKS_DISPLAY,
+    [isSubmitting, links.length],
+  );
 
   return (
     <div>
+      {/* Form */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-xl border bg-zinc-100 p-3 backdrop-blur-md"
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/70 p-2.5 backdrop-blur-md"
       >
-        <div className="flex items-center justify-center gap-2 rounded-md border bg-white p-1">
+        <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
           <Input
             type="text"
-            className="right-0 w-full border-none focus:right-0 focus-visible:ring-0"
-            placeholder="Enter any link"
-            required
-            autoComplete="off"
+            placeholder="Enter a destination URL"
             disabled={isFormDisabled}
+            autoComplete="off"
             {...register("url")}
+            className="w-full border-none focus-visible:ring-0"
+            required
           />
           <Button
-            className="h-full w-auto bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50"
             type="submit"
             disabled={isFormDisabled}
+            className="bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50 rounded-lg"
           >
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
@@ -177,20 +182,22 @@ const HeroLinkForm = () => {
             Shorten
           </Button>
         </div>
-      </form>
-
-      {/* Shortened Links List */}
-      <div className="mx-auto mt-4 max-w-[580px] space-y-3">
-        {links.map((link, idx) => (
-          <HeroLinkCard key={`${link.short}-${idx}`} link={link} />
+        {/* Links */}
+      <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
+        {links.map((link) => (
+          <HeroLinkCard key={link.short} link={link} />
         ))}
       </div>
+      </form>
 
-      <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-500">
+      
+
+      {/* CTA */}
+      <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-700">
         Want to claim your links, edit them, or view their analytics?{" "}
         <a
           href="https://app.slugy.co/login"
-          className="text-black underline transition-colors hover:text-gray-700"
+          className="text-black underline hover:text-gray-700"
         >
           Create a free account to get started.
         </a>

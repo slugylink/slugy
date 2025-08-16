@@ -149,7 +149,7 @@ export default function Stats() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+        <h2 className="text-2xl tracking-tight font-medium sm:text-4xl">
           Our Growth
         </h2>
         <p className="text-muted-foreground mt-3 text-sm md:text-base">

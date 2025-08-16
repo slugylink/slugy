@@ -13,6 +13,9 @@ const nextConfig: import("next").NextConfig = {
       { hostname: "zplink.s3.ap-south-1.amazonaws.com" },
       { hostname: "opengraph.b-cdn.net" },
       { hostname: "api.producthunt.com" },
+      { hostname: "img.shields.io" },
+      { hostname: "peerlist.io" },
+      { hostname: "github.com" },
       { hostname: "direct" },
 
       // Social media platforms
