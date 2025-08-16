@@ -21,7 +21,7 @@ interface AnimatedNumberProps {
 const statsData = [
   {
     title: "Active Users",
-    count: 30,
+    count: 40,
     suffix: "+",
     icon: Users,
     iconColor: "text-blue-500",
@@ -29,7 +29,7 @@ const statsData = [
   },
   {
     title: "Links Created",
-    count: 50,
+    count: 60,
     suffix: "+",
     icon: Link,
     iconColor: "text-purple-500",
@@ -37,7 +37,7 @@ const statsData = [
   },
   {
     title: "Clicks Tracked",
-    count: 2000,
+    count: 3000,
     suffix: "+",
     icon: BarChart3,
     iconColor: "text-green-500",

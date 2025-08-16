@@ -26,20 +26,20 @@ const Features = () => {
           <div
             key={item.title}
             className={cn(
-              "w-full  sm:p-4",
+              "w-full sm:p-4",
               index % 2 === 0 ? "sm:border-r dark:border-zinc-100/20" : "",
               index > 1 ? "rounf border-t dark:border-zinc-100/20" : "",
               index === 1 ? "border-t sm:border-t-0" : "",
             )}
           >
-            <Card className="rounded-none border-none bg-transparent p-3 pt-10 shadow-none sm:p-10">
+            <Card className="rounded-none border-none bg-transparent p-3 pt-10 shadow-none sm:p-12">
               <div>
                 <div className="relative">
                   <div className="absolute inset-x-32 top-6 m-auto aspect-video bg-gradient-to-tr from-yellow-500 via-orange-200 to-violet-300 blur-3xl md:inset-x-20" />
                   <div className="absolute inset-0 z-20 rounded-xl [background:radial-gradient(100%_100%_at_28%_-0%,transparent_60%,#ffffff_100%)] dark:[background:radial-gradient(100%_100%_at_0%_0%,transparent_0%,#121212_100%)]" />
                   {/* Feature image */}
-                  <div className="relative w-full max-w-6xl rounded-2xl border border-zinc-200 p-1 dark:border-zinc-200/20">
-                    <div className="relative aspect-[16/11] overflow-hidden rounded-2xl border dark:border-zinc-200/40">
+                  <div className="relative w-full max-w-6xl rounded-3xl border border-zinc-200 bg-zinc-100/70 p-1.5 sm:p-2 dark:border-zinc-200/20">
+                    <div className="relative aspect-[16/11] overflow-hidden rounded-[20px] border dark:border-zinc-200/40">
                       <Image
                         src={item.image}
                         fill

@@ -47,7 +47,7 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Hero section rendered immediately */}
-      <div className="relative bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 rounded-3xl py-12 pb-16 border w-[99%] mx-auto">
+      <div className="relative bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 rounded-3xl py-8 pb-16 border w-[99%] mx-auto">
         <div className="z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>

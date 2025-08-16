@@ -159,7 +159,7 @@ const HeroLinkForm = () => {
       {/* Form */}
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/70 p-2.5 backdrop-blur-md"
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/70 p-2 backdrop-blur-md sm:p-2.5"
       >
         <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
           <Input
@@ -174,7 +174,7 @@ const HeroLinkForm = () => {
           <Button
             type="submit"
             disabled={isFormDisabled}
-            className="bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50 rounded-lg"
+            className="rounded-lg bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50"
           >
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
@@ -183,14 +183,12 @@ const HeroLinkForm = () => {
           </Button>
         </div>
         {/* Links */}
-      <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
-        {links.map((link) => (
-          <HeroLinkCard key={link.short} link={link} />
-        ))}
-      </div>
+        <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
+          {links.map((link) => (
+            <HeroLinkCard key={link.short} link={link} />
+          ))}
+        </div>
       </form>
-
-      
 
       {/* CTA */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-700">

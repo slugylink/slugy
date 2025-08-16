@@ -90,7 +90,7 @@ const Hero = () => {
         </div>
 
         {/* Product Hunt Badge */}
-        <div className="mt-6 flex items-center justify-center gap-5">
+        <div className="mt-6 flex items-center justify-center gap-2 sm:gap-4">
           <a href={hero.badge.href} target="_blank" rel="noopener noreferrer">
             <Image
               src={hero.badge.imageUrl}
@@ -108,15 +108,15 @@ const Hero = () => {
             target="_blank"
             rel="noreferrer"
           >
-             {/* eslint-disable-next-line @next/next/no-img-element */}
-             <img
-               src="https://peerlist.io/api/v1/projects/embed/PRJHKKD8MG6L9DDBECOARK8G8GEPBR?showUpvote=true"
-               alt="Slugy - Magic Links 🔥"
-               style={{
-                 width: `${hero.badge.width}px`,
-                 height: `${hero.badge.height}px`,
-               }}
-             />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="https://peerlist.io/api/v1/projects/embed/PRJHKKD8MG6L9DDBECOARK8G8GEPBR?showUpvote=true"
+              alt="Slugy - Magic Links 🔥"
+              style={{
+                width: `${hero.badge.width}px`,
+                height: `${hero.badge.height}px`,
+              }}
+            />
           </a>
         </div>
 
