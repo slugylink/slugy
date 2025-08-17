@@ -38,7 +38,7 @@ const cleanUrl = (url: string): string => {
 };
 
 // Analytics Icon Component
-export const AnalyticsIcon = memo(() => (
+export const AnalyticsIcon = memo(({ className }: { className?: string }) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={24}
@@ -49,7 +49,7 @@ export const AnalyticsIcon = memo(() => (
     strokeWidth={1.5}
     strokeLinecap="round"
     strokeLinejoin="round"
-    className="size-4"
+    className={cn("size-4", className)}
   >
     <path d="M9 9l5 12 1.774-5.226L21 14 9 9z" />
     <path d="M16.071 16.071l4.243 4.243" />
@@ -190,7 +190,7 @@ export const AnalyticsBadge = memo(
         <TooltipTrigger asChild>
           <Link href={`${pathname}/analytics?slug_key=${slug}`}>
             <div className="flex items-center justify-center gap-x-1 text-[13px]">
-              <AnalyticsIcon />
+              <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""  } />
               {formatNumber(clicks)}
               <span className="hidden sm:inline">clicks</span>
             </div>
