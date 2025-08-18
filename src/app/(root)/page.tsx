@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import PricingSection from "@/components/web/_pricing/pricing-section";
 
 const LOADING_HEIGHT = {
   features: "h-[400px]",
@@ -47,14 +48,18 @@ export default function Home() {
   return (
     <main className="min-h-screen">
       {/* Hero section rendered immediately */}
-      <div className="relative bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 rounded-3xl py-8 pb-16 border w-[99%] mx-auto">
+      <div className="relative mx-auto w-[99%] rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16">
         <div className="z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
       </div>
 
-      <section id="features" className="scroll-mt-20">
+      <section id="features" className="scroll-mt-20 mt-12">
         <Features />
+      </section>
+
+      <section id="stats" className="scroll-mt-20">
+        <PricingSection />
       </section>
 
       <section id="stats" className="scroll-mt-20">
