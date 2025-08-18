@@ -33,14 +33,14 @@ export interface SearchInputProps {
   setLayout?: React.Dispatch<React.SetStateAction<string>>;
 }
 
-// Custom hooks
+/* ---------------- Custom Hooks ---------------- */
 const useLayout = (
   setLayout?: React.Dispatch<React.SetStateAction<string>>,
 ) => {
   const [currentLayout, setCurrentLayout] = useState<LayoutOption>(() => {
     if (typeof window === "undefined") return DEFAULT_LAYOUT;
-    const saved = window.localStorage.getItem("layout") as LayoutOption;
-    return LAYOUT_OPTIONS.some((opt) => opt.value === saved)
+    const saved = window.localStorage.getItem("layout") as LayoutOption | null;
+    return saved && LAYOUT_OPTIONS.some((o) => o.value === saved)
       ? saved
       : DEFAULT_LAYOUT;
   });
@@ -49,7 +49,9 @@ const useLayout = (
     (layout: LayoutOption) => {
       setCurrentLayout(layout);
       setLayout?.(layout);
-      window.localStorage.setItem("layout", layout);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("layout", layout);
+      }
     },
     [setLayout],
   );
@@ -75,11 +77,9 @@ const useSearchState = () => {
   const [inputValue, setInputValue] = useState(searchQuery ?? "");
   const debouncedValue = useDebounce(inputValue, DEBOUNCE_DELAY);
 
-  // Sync input with URL params
+  // Sync input field when "search" param changes
   useEffect(() => {
-    if (searchQuery !== null) {
-      setInputValue(searchQuery);
-    }
+    if (searchQuery !== null) setInputValue(searchQuery);
   }, [searchQuery]);
 
   // Update URL when debounced value changes
@@ -87,7 +87,7 @@ const useSearchState = () => {
     void setSearchQuery(debouncedValue || null);
   }, [debouncedValue, setSearchQuery]);
 
-  // Clean up URL params
+  // Clean up showArchived param
   useEffect(() => {
     if (showArchived === false) {
       void setShowArchived(null);
@@ -118,7 +118,7 @@ const useSearchState = () => {
   };
 };
 
-// Components
+/* ---------------- Components ---------------- */
 const ViewModeSelector: React.FC<{
   currentLayout: LayoutOption;
   onLayoutChange: (layout: LayoutOption) => void;
@@ -141,7 +141,6 @@ const ViewModeSelector: React.FC<{
     ))}
   </div>
 ));
-
 ViewModeSelector.displayName = "ViewModeSelector";
 
 const SortSelector: React.FC<{
@@ -160,7 +159,7 @@ const SortSelector: React.FC<{
         <DropdownMenuSubTrigger className="flex items-center rounded-sm border px-3 py-1.5 text-sm">
           <span>{currentSortOption?.label}</span>
         </DropdownMenuSubTrigger>
-        <DropdownMenuSubContent className="">
+        <DropdownMenuSubContent>
           {SORT_OPTIONS.map(({ value, label }) => (
             <DropdownMenuItem
               key={value}
@@ -176,7 +175,6 @@ const SortSelector: React.FC<{
     </div>
   );
 });
-
 SortSelector.displayName = "SortSelector";
 
 const ArchiveToggle: React.FC<{
@@ -192,13 +190,13 @@ const ArchiveToggle: React.FC<{
       className="cursor-pointer"
       checked={checked}
       onCheckedChange={onToggle}
+      aria-checked={checked}
     />
   </div>
 ));
-
 ArchiveToggle.displayName = "ArchiveToggle";
 
-// Main component
+/* ---------------- Main Search Input ---------------- */
 const SearchInput: React.FC<SearchInputProps> = ({ setLayout }) => {
   const [displayOpen, setDisplayOpen] = useState(false);
   const { currentLayout, handleChangeLayout } = useLayout(setLayout);
@@ -233,7 +231,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ setLayout }) => {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            size={"default"}
+            size="default"
             className="ml-1 h-[39px] font-normal"
             aria-label="Display options"
           >
@@ -249,9 +247,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ setLayout }) => {
             currentLayout={currentLayout}
             onLayoutChange={handleChangeLayout}
           />
-
           <SortSelector sortBy={sortBy} onSortChange={handleSortChange} />
-
           <ArchiveToggle
             checked={showArchived}
             onToggle={handleToggleArchived}

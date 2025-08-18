@@ -28,6 +28,9 @@ import {
 import { cn } from "@/lib/utils";
 import { memo, useMemo, useRef, useEffect } from "react";
 
+// --------------------------
+// Types
+// --------------------------
 type UserRole = "owner" | "admin" | "member" | null;
 
 interface Brand {
@@ -60,10 +63,11 @@ interface NavMainProps {
   workspaces: WorkspaceMinimal[];
 }
 
-// Cache to store path segments — cleared on pathname changes
+// --------------------------
+// Static Data
+// --------------------------
 const pathSegmentCache = new Map<string, string>();
 
-// Sidebar static data
 const SIDEBAR_DATA = {
   logo: { icon: SquareTerminal, name: "Slugy" } as Brand,
   navMain: [
@@ -82,7 +86,6 @@ const SIDEBAR_DATA = {
   ] as NavItem[],
 };
 
-// Access control config
 const NAV_ACCESS_CONTROL = {
   restrictedSubItems: {
     Billing: ["owner"] as const,
@@ -91,50 +94,50 @@ const NAV_ACCESS_CONTROL = {
   },
 } as const;
 
-// Access check helper
-const hasAccess = (
-  userRole: UserRole | null,
-  allowedRoles: readonly string[],
-) => userRole !== null && allowedRoles.includes(userRole);
+// --------------------------
+// Helpers
+// --------------------------
+const hasAccess = (userRole: UserRole, allowedRoles: readonly string[]) =>
+  Boolean(userRole && allowedRoles.includes(userRole));
 
-// URL prefixer with absolute URL detection
+// URL prefixer with absolute URL handling
 const buildUrl = (baseUrl: string, path: string): string => {
   if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (/^https?:\/\//.test(path)) return path;
   return baseUrl && !path.startsWith(baseUrl)
-    ? baseUrl + (path.startsWith("/") ? path : `/${path}`)
+    ? `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`
     : path;
 };
 
 // Active state checker factory
 const createActiveStateChecker = (pathname: string) => {
   const pathSegments = pathname.split("/").filter(Boolean);
-  const lastSegment = pathSegments[pathSegments.length - 1] ?? "";
+  const lastSegment = pathSegments.at(-1) ?? "";
 
   return {
     isItemActive: (item: NavItem): boolean => {
-      if (item.title === "Bio Links") {
-        return pathname.includes("/bio-links");
-      }
+      if (item.title === "Bio Links") return pathname.includes("/bio-links");
       if (item.url) {
         const segments = item.url.split("/").filter(Boolean);
-        if (segments[segments.length - 1] === lastSegment) return true;
+        if (segments.at(-1) === lastSegment) return true;
       }
       return (
         item.items?.some((sub) => {
           const seg = sub.url.split("/").filter(Boolean);
-          return seg[seg.length - 1] === lastSegment;
+          return seg.at(-1) === lastSegment;
         }) ?? false
       );
     },
-
-    isSubItemActive: (subUrl: string) => {
+    isSubItemActive: (subUrl: string): boolean => {
       const seg = subUrl.split("/").filter(Boolean);
-      return seg[seg.length - 1] === lastSegment;
+      return seg.at(-1) === lastSegment;
     },
   };
 };
 
+// --------------------------
+// Nav Item Component
+// --------------------------
 const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
@@ -212,9 +215,11 @@ const NavItemComponent = memo<{
     </SidebarMenuItem>
   </Collapsible>
 ));
-
 NavItemComponent.displayName = "NavItemComponent";
 
+// --------------------------
+// Main Sidebar Nav
+// --------------------------
 export const NavMain = memo<NavMainProps>(function NavMain({
   workspaceslug,
   workspaces,
@@ -235,7 +240,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
         ? isBioLinks
-          ? item.url
+          ? item.url // keep absolute
           : buildUrl(baseUrl, item.url)
         : undefined;
 
@@ -245,20 +250,14 @@ export const NavMain = memo<NavMainProps>(function NavMain({
             NAV_ACCESS_CONTROL.restrictedSubItems[
               sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
             ];
-          if (!allowedRoles) return true;
-          if (!userRole) return false;
-          return hasAccess(userRole, allowedRoles);
+          return allowedRoles ? hasAccess(userRole, allowedRoles) : true;
         })
         .map((sub) => ({
           ...sub,
           url: isBioLinks ? sub.url : buildUrl(baseUrl, sub.url),
         }));
 
-      return {
-        ...item,
-        url: itemUrl,
-        items: filteredSubItems,
-      };
+      return { ...item, url: itemUrl, items: filteredSubItems };
     });
   }, [baseUrl, userRole]);
 
@@ -267,9 +266,10 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     [pathname],
   );
 
+  // Prefetch non-settings, non-external routes
   useEffect(() => {
     processedNavItems.forEach(({ url, title }) => {
-      if (url && title !== "Settings" && !url.startsWith("http")) {
+      if (url && title !== "Settings" && !/^https?:\/\//.test(url)) {
         const link = document.createElement("link");
         link.rel = "prefetch";
         link.href = url;
@@ -278,6 +278,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [processedNavItems]);
 
+  // Clear cache on workspace switch
   useEffect(() => {
     if (prevPathnameRef.current !== pathname) {
       if (pathname.split("/")[1] !== prevPathnameRef.current.split("/")[1]) {

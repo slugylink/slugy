@@ -50,46 +50,41 @@ const validateInput = (params: {
   return { errors, offset, limit };
 };
 
-// Memoized search conditions with better performance
+// Generate search conditions optimized for short and long search terms
 const getSearchConditions = (
   search: string,
 ): NonNullable<LinkWhereInput["OR"]> => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return [];
 
-  // Use more efficient search for short queries
+  // Use efficient search for short queries (<= 3 characters)
   if (trimmedSearch.length <= 3) {
     return [
-      {
-        description: { contains: trimmedSearch, mode: "insensitive" as const },
-      },
-      { url: { contains: trimmedSearch, mode: "insensitive" as const } },
+      { description: { contains: trimmedSearch, mode: "insensitive" } },
+      { url: { contains: trimmedSearch, mode: "insensitive" } },
     ];
   }
 
-  // For longer searches, add more specific conditions
+  // For longer queries, similar conditions, possible future optimization here
   return [
-    { description: { contains: trimmedSearch, mode: "insensitive" as const } },
-    { url: { contains: trimmedSearch, mode: "insensitive" as const } },
+    { description: { contains: trimmedSearch, mode: "insensitive" } },
+    { url: { contains: trimmedSearch, mode: "insensitive" } },
   ];
 };
 
-// Memoized order conditions
+// Determine 'orderBy' condition based on sortBy param
 const getOrderConditions = (sortBy: string): LinkOrderByInput => {
   switch (sortBy) {
     case "total-clicks":
-      return { clicks: "desc" as const };
+      return { clicks: "desc" };
     case "last-clicked":
-      return [
-        { lastClicked: { sort: "desc" as const, nulls: "last" as const } },
-      ];
+      return [{ lastClicked: { sort: "desc", nulls: "last" } }];
     case "date-created":
     default:
-      return { createdAt: "desc" as const };
+      return { createdAt: "desc" };
   }
 };
 
-// Optimized link fetching with better error handling
 const getLinksWithCount = async (
   workspaceId: string,
   conditions: LinkWhereInput,
@@ -98,7 +93,7 @@ const getLinksWithCount = async (
   limit: number,
 ) => {
   try {
-    return await db.$transaction([
+    const [totalLinks, links] = await db.$transaction([
       db.link.count({ where: conditions }),
       db.link.findMany({
         where: conditions,
@@ -123,11 +118,7 @@ const getLinksWithCount = async (
           tags: {
             select: {
               tag: {
-                select: {
-                  id: true,
-                  name: true,
-                  color: true,
-                },
+                select: { id: true, name: true, color: true },
               },
             },
           },
@@ -143,6 +134,8 @@ const getLinksWithCount = async (
         take: limit,
       }),
     ]);
+
+    return { totalLinks, links };
   } catch (error) {
     console.error("Database transaction failed:", error);
     throw new Error("Failed to fetch links from database");
@@ -160,12 +153,9 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Parse and validate parameters
     const context = await params;
-    const searchParams = request.nextUrl.searchParams;
-    const workspaceslug = context.workspaceslug;
+    const { workspaceslug } = context;
 
-    // Validate workspace slug
     if (!workspaceslug || workspaceslug.length < 1) {
       return NextResponse.json(
         { error: "Invalid workspace slug" },
@@ -173,13 +163,13 @@ export async function GET(
       );
     }
 
+    const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") ?? "";
     const showArchived = searchParams.get("showArchived") === "true";
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset") ?? "0";
     const limitParam = searchParams.get("limit") ?? String(DEFAULT_LIMIT);
 
-    // Validate input parameters
     const { errors, offset, limit } = validateInput({
       search,
       showArchived: searchParams.get("showArchived"),
@@ -195,8 +185,7 @@ export async function GET(
       );
     }
 
-    // Get workspace with access check and caching
-    const workspace = await db.workspace.findUnique({
+    const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
         OR: [
@@ -214,18 +203,16 @@ export async function GET(
       );
     }
 
-    // Build query conditions
     const searchConditions = getSearchConditions(search);
-    const conditions = {
+    const conditions: LinkWhereInput = {
       workspaceId: workspace.id,
-      ...(searchConditions.length > 0 && { OR: searchConditions }),
-      ...(showArchived === false && { isArchived: false }),
+      ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
+      ...(showArchived === false ? { isArchived: false } : {}),
     };
 
     const orderBy = getOrderConditions(sortBy);
 
-    // Fetch data with optimized query
-    const [totalLinks, links] = await getLinksWithCount(
+    const { totalLinks, links } = await getLinksWithCount(
       workspace.id,
       conditions,
       orderBy,
@@ -235,9 +222,9 @@ export async function GET(
 
     const totalPages = Math.ceil(totalLinks / limit);
 
-    // Handle pagination edge cases more efficiently
+    // Pagination edge case: offset past total, reset to first page
     if (offset >= totalLinks && totalLinks > 0) {
-      const [, firstPageLinks] = await getLinksWithCount(
+      const { links: firstPageLinks } = await getLinksWithCount(
         workspace.id,
         conditions,
         orderBy,
@@ -254,9 +241,7 @@ export async function GET(
           hasNextPage: totalPages > 1,
           hasPreviousPage: false,
         },
-        {
-          status: 200,
-        },
+        { status: 200 },
       );
     }
 
@@ -274,21 +259,16 @@ export async function GET(
         hasPreviousPage,
         overallCount: totalLinks,
       },
-      {
-        status: 200,
-      },
+      { status: 200 },
     );
   } catch (error) {
     console.error("Error fetching links:", error);
 
-    // Provide more specific error messages
-    if (error instanceof Error) {
-      if (error.message.includes("database")) {
-        return NextResponse.json(
-          { error: "Database connection error" },
-          { status: 503 },
-        );
-      }
+    if (error instanceof Error && error.message.includes("database")) {
+      return NextResponse.json(
+        { error: "Database connection error" },
+        { status: 503 },
+      );
     }
 
     return NextResponse.json(

@@ -7,7 +7,6 @@ import useSWR, { mutate } from "swr";
 import { cn } from "@/lib/utils";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { useDebounce } from "@/hooks/use-debounce";
-
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -43,17 +42,14 @@ import {
   Plus,
 } from "lucide-react";
 import { BsStars } from "react-icons/bs";
-
 import LinkQrCode from "./link-qrcode";
 import LinkPreview from "./link-preview";
-
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-
 import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
 
@@ -63,7 +59,11 @@ interface LinkFormFieldsProps {
   onGenerateRandomSlug: () => void;
   isEditMode?: boolean;
   workspaceslug?: string;
-  onSafetyStatusChange?: (status: { isChecking: boolean; isValid: boolean | null; message: string }) => void;
+  onSafetyStatusChange?: (status: {
+    isChecking: boolean;
+    isValid: boolean | null;
+    message: string;
+  }) => void;
 }
 
 interface TagType {
@@ -86,18 +86,17 @@ export default function LinkFormFields({
   const [currentCode, setCurrentCode] = useState(code);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
-  const [urlSafetyStatus, setUrlSafetyStatus] = useState<{
-    isChecking: boolean;
-    isValid: boolean | null;
-    message: string;
-  }>({ isChecking: false, isValid: null, message: "" });
+  const [urlSafetyStatus, setUrlSafetyStatus] = useState({
+    isChecking: false,
+    isValid: null as boolean | null,
+    message: "",
+  });
 
-  // Watch domain, slug, and url fields
   const domain = watch("domain");
   const slug = watch("slug");
   const url = watch("url");
-  
-  // Debounce URL for safety checking (1 second delay)
+
+  // Use a slight debounce for url safety check
   const debouncedUrl = useDebounce(url, 700);
 
   // Fetch tags for workspace
@@ -109,22 +108,18 @@ export default function LinkFormFields({
     workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
   );
 
-  // Update currentCode when domain or slug changes
   useEffect(() => {
     setCurrentCode(slug ? `${domain}/${slug}` : "");
   }, [domain, slug]);
 
-  // URL safety check with debounced URL
   useEffect(() => {
     if (!debouncedUrl) {
       setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
       return;
     }
-
     checkUrlSafety(debouncedUrl);
   }, [debouncedUrl]);
 
-  // Normalize URL by adding https:// if missing
   const normalizeUrl = (rawUrl: string): string => {
     if (!rawUrl) return rawUrl;
     if (/^https?:\/\//.test(rawUrl)) return rawUrl;
@@ -137,7 +132,6 @@ export default function LinkFormFields({
     return rawUrl;
   };
 
-  // Check URL safety using server action
   const checkUrlSafety = async (checkUrl: string) => {
     if (!checkUrl) {
       const status = { isChecking: false, isValid: null, message: "" };
@@ -145,7 +139,6 @@ export default function LinkFormFields({
       onSafetyStatusChange?.(status);
       return;
     }
-
     const checkingStatus = { isChecking: true, isValid: null, message: "" };
     setUrlSafetyStatus(checkingStatus);
     onSafetyStatusChange?.(checkingStatus);
@@ -153,7 +146,6 @@ export default function LinkFormFields({
     try {
       const normalizedUrl = normalizeUrl(checkUrl);
       const result = await validateUrlSafety(normalizedUrl);
-
       const finalStatus = {
         isChecking: false,
         isValid: result.isValid,
@@ -163,23 +155,19 @@ export default function LinkFormFields({
       onSafetyStatusChange?.(finalStatus);
     } catch (error) {
       console.error("Error checking URL safety:", error);
-      // Default to safe if server action fails
       const safeStatus = { isChecking: false, isValid: true, message: "" };
       setUrlSafetyStatus(safeStatus);
       onSafetyStatusChange?.(safeStatus);
     }
   };
 
-  // Generate AI slug based on URL
   const handleAiRandomize = async (rawUrl: string) => {
     if (!rawUrl) return;
-
     setIsAiLoading(true);
     try {
       const normalizedUrl = normalizeUrl(rawUrl);
       const res = await axios.post("/api/ai/link-slug", { url: normalizedUrl });
       const data = res.data as { slug: string };
-
       setValue("slug", data.slug, { shouldDirty: true });
     } catch (error) {
       console.error("Error generating AI slug:", error);
@@ -188,13 +176,9 @@ export default function LinkFormFields({
     }
   };
 
-  // Generate random slug
   const handleRandomize = () => {
     setIsRandomLoading(true);
-
     onGenerateRandomSlug();
-
-    // Small delay to show loading
     setTimeout(() => {
       const newSlug = getValues("slug");
       setValue("slug", newSlug, { shouldDirty: true });
@@ -203,17 +187,14 @@ export default function LinkFormFields({
     }, 300);
   };
 
-  // Tag selection state
-  const [open, setOpen] = useState(false);
+  // Tag management
+  const [popoverOpen, setPopoverOpen] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
-
-  // Current tags from form
   const currentTags = getValues("tags") || [];
 
-  // Initialize selected tags from form values and tags data
   useEffect(() => {
-    if (currentTags.length > 0 && tags) {
+    if (currentTags.length && tags) {
       const tagIds = tags
         .filter((tag) => currentTags.includes(tag.name))
         .map((tag) => tag.id);
@@ -221,7 +202,6 @@ export default function LinkFormFields({
     }
   }, [currentTags, tags]);
 
-  // Also initialize when tags data changes and no selected tags yet
   useEffect(() => {
     if (tags && currentTags.length > 0 && selectedTags.length === 0) {
       const tagIds = tags
@@ -231,55 +211,44 @@ export default function LinkFormFields({
     }
   }, [tags, currentTags, selectedTags.length]);
 
-  // Handle tag selection toggle
   const handleSelect = (tagId: string) => {
     const newSelectedTags = selectedTags.includes(tagId)
       ? selectedTags.filter((id) => id !== tagId)
       : [...selectedTags, tagId];
+
     setSelectedTags(newSelectedTags);
 
-    // Update form tags names
     const selectedTagNames =
       tags
         ?.filter((tag) => newSelectedTags.includes(tag.id))
         .map((tag) => tag.name) || [];
-
     setValue("tags", selectedTagNames, { shouldDirty: true });
   };
 
   const selectedTagObjects =
     tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
 
-  // Get color option for tag color
   const getColorOption = (tagColor: string | null) =>
-    COLOR_OPTIONS.find((color) => color.value === tagColor) ??
+    COLOR_OPTIONS.find((color) => color.value === tagColor) ||
     COLOR_OPTIONS[0]!;
 
-  // Filter tags based on search input
   const filteredTags =
     tags?.filter((tag) =>
       tag.name.toLowerCase().includes(searchValue.toLowerCase()),
     ) || [];
 
-  // Check if new tag can be added
   const canAddNew =
     searchValue &&
     tags &&
     !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
 
-  // Add new tag via API
   const handleAddNewTag = async () => {
     if (!workspaceslug || !searchValue.trim()) return;
-
     try {
       const response = await axios.post(
         `/api/workspace/${workspaceslug}/tags`,
-        {
-          name: searchValue.trim(),
-          color: null,
-        },
+        { name: searchValue.trim(), color: null },
       );
-
       if (response.status === 201) {
         const newTag = response.data;
         handleSelect(newTag.id);
@@ -291,7 +260,6 @@ export default function LinkFormFields({
     }
   };
 
-  // Type guard for LinkData check
   function isLinkData(obj: unknown): obj is LinkData {
     return !!obj && typeof obj === "object" && "qrCode" in obj;
   }
@@ -378,7 +346,6 @@ export default function LinkFormFields({
                     <TooltipContent>Generate AI slug</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -426,7 +393,6 @@ export default function LinkFormFields({
               </TooltipProvider>
             )}
           </div>
-
           <div className="flex flex-col gap-2 sm:flex-row">
             <FormField
               control={control}
@@ -447,7 +413,6 @@ export default function LinkFormFields({
                 </FormItem>
               )}
             />
-
             <FormField
               control={control}
               name="slug"
@@ -470,12 +435,12 @@ export default function LinkFormFields({
         {/* Tag selection */}
         <div className="space-y-3">
           <Label>Tags</Label>
-          <Popover open={open} onOpenChange={setOpen}>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 role="combobox"
-                aria-expanded={open}
+                aria-expanded={popoverOpen}
                 className="h-auto min-h-[40px] w-full justify-between bg-transparent px-3 py-1 hover:bg-transparent"
                 disabled={tagsLoading}
               >
@@ -603,7 +568,6 @@ export default function LinkFormFields({
             }
           />
         </div>
-
         <div className="space-y-2">
           <Label>Link Preview</Label>
           <LinkPreview url={normalizeUrl(getValues("url"))} />

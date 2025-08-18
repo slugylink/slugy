@@ -35,13 +35,6 @@ interface LinkSettings {
   expirationUrl: string | null;
 }
 
-// interface LinkResponse {
-//   id: string;
-//   url: string;
-//   slug: string;
-//   // Add other fields as needed
-// }
-
 const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -84,7 +77,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     setValue,
   } = form;
 
-  // Check if form is safe to submit
+  // Determine if form is safe and valid to submit
   const isSafeToSubmit =
     isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false;
 
@@ -99,14 +92,15 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     setCode(randomSlug);
   };
 
+  const normalizeExpiresAt = (val: string | Date | null | undefined) => {
+    if (!val) return null;
+    if (val instanceof Date) return val.toISOString();
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  };
+
   const onSubmit = async (data: FormValues) => {
     try {
-      function normalizeExpiresAt(val: string | Date | null | undefined) {
-        if (!val) return null;
-        if (val instanceof Date) return val.toISOString();
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? null : d.toISOString();
-      }
       const normalizedSettings = {
         ...linkSettings,
         expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
@@ -120,6 +114,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
         utm_content: utmParams.content || null,
         utm_term: utmParams.term || null,
       };
+
       const response = await axios.post(
         `/api/workspace/${workspaceslug}/link`,
         {
@@ -131,7 +126,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
 
       if (response.status === 201) {
         toast.success("Link created successfully!");
-        void mutate(
+        await mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
           undefined,
           { revalidate: true },
@@ -154,7 +149,6 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       console.error("Error creating link:", error);
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 403) {
-          // Handle link limit reached error
           const errorData = error.response.data as {
             error: string;
             limitInfo?: {
@@ -163,7 +157,6 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
               planType: string;
             };
           };
-
           if (errorData.limitInfo) {
             toast.error(
               `Link limit reached! You have ${errorData.limitInfo.currentLinks}/${errorData.limitInfo.maxLinks} links. Upgrade to Pro for more links.`,
@@ -171,10 +164,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                 duration: 5000,
                 action: {
                   label: "Upgrade",
-                  onClick: () => {
-                    // Navigate to upgrade page
-                    window.open("/upgrade", "_blank");
-                  },
+                  onClick: () => window.open("/upgrade", "_blank"),
                 },
               },
             );
@@ -193,6 +183,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       }
     }
   };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -225,6 +216,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                 onSafetyStatusChange={setUrlSafetyStatus}
               />
             </div>
+
             <div className="mt-4 border-t border-zinc-100 bg-zinc-50 p-5 py-3.5 dark:bg-zinc-900">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap gap-2">
@@ -262,7 +254,9 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                     <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
                   )}
                   {urlSafetyStatus.isValid === false ? (
-                    <>Unsafe URL <CornerDownLeft size={12} /></>
+                    <>
+                      Unsafe URL <CornerDownLeft size={12} />
+                    </>
                   ) : (
                     <>
                       Create link <CornerDownLeft size={12} />

@@ -1,20 +1,25 @@
 "use server";
+
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 
+interface WorkspaceData {
+  maxClicksLimit: number;
+  maxLinksLimit: number;
+  maxUsers: number;
+}
+
+interface UsageDetails {
+  clicksTracked: number;
+  linksCreated: number;
+  addedUsers: number;
+  periodEnd: Date;
+}
+
 interface UsageData {
-  workspace: {
-    maxClicksLimit: number;
-    maxLinksLimit: number;
-    maxUsers: number;
-  } | null;
-  usage: {
-    clicksTracked: number;
-    linksCreated: number;
-    addedUsers: number;
-    periodEnd: Date;
-  } | null;
+  workspace: WorkspaceData | null;
+  usage: UsageDetails | null;
 }
 
 export async function getUsages({
@@ -23,20 +28,21 @@ export async function getUsages({
   workspaceslug: string;
 }): Promise<UsageData> {
   try {
+    // Authenticate session
     const session = await auth.api.getSession({
       headers: await headers(),
     });
 
-    if (!session?.user?.id) {
+    const userId = session?.user?.id;
+    if (!userId) {
       return { workspace: null, usage: null };
     }
 
-    const userId = session.user.id;
-
+    // Fetch workspace
     const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
-        userId: userId,
+        userId,
       },
       select: {
         id: true,
@@ -50,15 +56,14 @@ export async function getUsages({
       return { workspace: null, usage: null };
     }
 
+    // Fetch latest usage entry
     const usage = await db.usage.findFirst({
       where: {
-        userId: userId,
+        userId,
         workspaceId: workspace.id,
         deletedAt: null,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
       select: {
         clicksTracked: true,
         linksCreated: true,
@@ -68,8 +73,8 @@ export async function getUsages({
     });
 
     if (!usage) {
-      console.error(
-        `Usage data not found for workspaceId: ${workspace.id} and userId: ${userId}`,
+      console.warn(
+        `No usage data found for workspaceId=${workspace.id}, userId=${userId}`,
       );
       return { workspace, usage: null };
     }

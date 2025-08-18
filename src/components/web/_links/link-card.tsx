@@ -44,6 +44,7 @@ import {
 } from "@/components/web/_links/link-card-components";
 import { useWorkspaceStore } from "@/store/workspace";
 
+// Dynamic import for Edit link form (no SSR)
 const EditLinkForm = dynamic(
   () => import("@/components/web/_links/edit-link"),
   { ssr: false },
@@ -55,6 +56,7 @@ interface Creator {
   name: string | null;
   image: string | null;
 }
+
 interface LinkData {
   id: string;
   url: string;
@@ -99,6 +101,7 @@ interface LinkCardProps {
 
 const COPY_TIMEOUT = 2000;
 
+// Dialog state hook (only opens/close specific dialogs)
 const useDialogState = () => {
   const [openDialogs, setOpenDialogs] = useState<Set<DialogType>>(new Set());
   const toggleDialog = useCallback((dialog: DialogType, isOpen?: boolean) => {
@@ -175,6 +178,7 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
   return { handleArchive, handleDelete, isDeleting };
 };
 
+// EditLinkForm data creation
 const createEditFormData = (link: LinkData) => ({
   id: link.id,
   domain: link.domain ?? "slugy.co",
@@ -227,6 +231,8 @@ export default function LinkCard({
       toast.error("Failed to copy to clipboard");
     }
   }, [shortUrl]);
+
+  // Action handlers mapping
   const actionHandlers = useMemo(
     () => ({
       edit: () => {
@@ -252,6 +258,8 @@ export default function LinkCard({
     }),
     [toggleDialog, handleCopy, handleArchive, link.isArchived],
   );
+
+  // Dropdown menu items
   const dropdownItems = useMemo(
     () => [
       { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
@@ -272,13 +280,16 @@ export default function LinkCard({
     ],
     [link.isArchived, actionHandlers],
   );
+
   const handleCardClick = useCallback(() => {
     if (isSelectModeOn && onSelect) onSelect();
   }, [isSelectModeOn, onSelect]);
+
   const handleDeleteConfirm = useCallback(async () => {
     await handleDelete();
     toggleDialog("delete", false);
   }, [handleDelete, toggleDialog]);
+
   return (
     <TooltipProvider delayDuration={0}>
       <div
@@ -403,7 +414,7 @@ export default function LinkCard({
           </DialogContent>
         </Dialog>
       )}
-      {isDialogOpen("edit") ? (
+      {isDialogOpen("edit") && (
         <EditLinkForm
           initialData={editFormData}
           open={true}
@@ -412,7 +423,7 @@ export default function LinkCard({
           date={link.createdAt!}
           creator={link.creator!}
         />
-      ) : null}
+      )}
       <DeleteConfirmationDialog
         isOpen={isDialogOpen("delete")}
         onOpenChange={(open) => toggleDialog("delete", open)}

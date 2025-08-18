@@ -27,12 +27,12 @@ import CountryFlag from "./country-flag";
 import FilterSelectedButtons from "./filter-selected-buttons";
 import { useQueryState, parseAsString, parseAsArrayOf } from "nuqs";
 
-// Base interface for all options
+// Base interface with optional clicks
 interface BaseOption {
   clicks?: number;
 }
 
-// Specific option interfaces with strict typing
+// Specific option interfaces
 interface LinkAnalytics extends BaseOption {
   slug: string;
   url: string;
@@ -72,7 +72,7 @@ interface DestinationAnalytics extends BaseOption {
   destination: string;
 }
 
-// Union type for all possible option types
+// Union for filter option types
 type FilterOption =
   | LinkAnalytics
   | ContinentAnalytics
@@ -84,7 +84,7 @@ type FilterOption =
   | ReferrerAnalytics
   | DestinationAnalytics;
 
-// Literal type for category IDs
+// Category IDs
 export type CategoryId =
   | "slug_key"
   | "destination_key"
@@ -96,7 +96,7 @@ export type CategoryId =
   | "os_key"
   | "referrer_key";
 
-// Interface for filter categories
+// Filter category interface
 export interface FilterCategory {
   id: CategoryId;
   label: string;
@@ -108,6 +108,7 @@ interface FilterActionsProps {
   filterCategories: FilterCategory[];
 }
 
+// OptimizedImage component with loading and error handling
 const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
@@ -131,6 +132,7 @@ const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
 });
 OptimizedImage.displayName = "OptimizedImage";
 
+// FilterOptionItem component showing checkbox and icon/label
 const FilterOptionItem = memo(
   ({
     category,
@@ -221,7 +223,7 @@ const FilterOptionItem = memo(
 FilterOptionItem.displayName = "FilterOptionItem";
 
 const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
-  // Use nuqs for each filter category and time_period
+  // nuqs query states for all category filters & time period
   const [timePeriod, setTimePeriod] = useQueryState(
     "time_period",
     parseAsString.withDefault("24h"),
@@ -266,7 +268,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Compose selectedFilters from nuqs state
+  // Compose selected filters into an object
   const selectedFilters = useMemo(
     () => ({
       slug_key: slugFilter,
@@ -306,7 +308,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
         ? current.filter((v) => v !== value)
         : [...current, value];
 
-      // Set or clear (null clears the filter)
+      // Update or clear filters
       switch (categoryId) {
         case "slug_key":
           void setSlugFilter(updated.length ? updated : null);
@@ -455,7 +457,6 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
 
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-
         if (activeCategory) {
           return category.options.some((option) =>
             getOptionLabel(category, option).toLowerCase().includes(q),
@@ -752,16 +753,23 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {/* Time Period */}
+
+        {/* Time period select */}
         <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
-          <SelectTrigger className="w-fit shadow-none text-sm">
+          <SelectTrigger className="w-fit text-sm shadow-none">
             <Calendar /> <SelectValue placeholder="Select time range" />
           </SelectTrigger>
           <SelectContent className="w-fit cursor-pointer">
-            <SelectItem className="cursor-pointer" value="24h">Last 24 hours</SelectItem>
-            <SelectItem className="cursor-pointer" value="7d">Last 7 days</SelectItem>
-            <SelectItem className="cursor-pointer" value="30d">Last 30 days</SelectItem>
-            <SelectItem className="cursor-pointer" value="3m" disabled>
+            <SelectItem className="cursor-pointer" value="24h">
+              Last 24 hours
+            </SelectItem>
+            <SelectItem className="cursor-pointer" value="7d">
+              Last 7 days
+            </SelectItem>
+            <SelectItem className="cursor-pointer" value="30d">
+              Last 30 days
+            </SelectItem>
+            <SelectItem value="3m" disabled>
               Last 3 months
               <Lock
                 size={10}
@@ -786,6 +794,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
         </Select>
       </div>
 
+      {/* Selected filters tags bar */}
       {selectedFilterCount > 0 && (
         <FilterSelectedButtons
           filterCategories={filterCategories}

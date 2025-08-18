@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import React, { memo, useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { useQueryState, parseAsString } from "nuqs"
-import { Archive, Trash2, X, Loader2 } from "lucide-react"
-import { BulkOperationDialog } from "./table-links-components"
+import React, { memo, useState, useEffect, useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { useQueryState, parseAsString } from "nuqs";
+import { Archive, Trash2, X, Loader2 } from "lucide-react";
+import { BulkOperationDialog } from "./table-links-components";
 
 interface PaginationProps {
-  total_pages: number
-  limit: number
-  total_links: number
+  total_pages: number;
+  limit: number;
+  total_links: number;
 }
 
 interface PaginationComponentProps {
-  isSelectModeOn: boolean
-  setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>
-  selectedCount: number
-  totalCount: number
-  onSelectAll: () => void
-  onClearSelection: () => void
-  onArchive: (linkIds: string[]) => void
-  onDelete: (linkIds: string[]) => void
-  isProcessing: boolean
-  pagination: PaginationProps
-  selectedLinks: Set<string>
+  isSelectModeOn: boolean;
+  setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>;
+  selectedCount: number;
+  totalCount: number;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  onArchive: (linkIds: string[]) => void;
+  onDelete: (linkIds: string[]) => void;
+  isProcessing: boolean;
+  pagination: PaginationProps;
+  selectedLinks: Set<string>;
 }
 
-// Memoized SelectionMode component (Back side)
+/* ---------------- Selection Mode (Flipped Back) ---------------- */
 const SelectionMode = memo(
   ({
     selectedCount,
@@ -35,30 +35,42 @@ const SelectionMode = memo(
     onDeleteClick,
     isProcessing,
   }: {
-    selectedCount: number
-    onClearSelection: () => void
-    onArchiveClick: () => void
-    onDeleteClick: () => void
-    isProcessing: boolean
+    selectedCount: number;
+    onClearSelection: () => void;
+    onArchiveClick: () => void;
+    onDeleteClick: () => void;
+    isProcessing: boolean;
   }) => (
-    <div className="absolute inset-0 w-full h-full backface-hidden rotate-x-180">
-      <div className="flex w-full items-center justify-between rounded-xl border bg-white p-3.5 shadow-lg md:px-4 dark:bg-black h-full">
+    <div className="absolute inset-0 h-full w-full rotate-x-180 backface-hidden">
+      <div className="flex h-full w-full items-center justify-between rounded-xl border bg-white p-3.5 shadow-lg md:px-4 dark:bg-black">
+        {/* Left side: count + clear */}
         <div className="flex items-center gap-2 text-sm font-normal text-zinc-700 dark:text-zinc-50">
-          <Button variant="ghost" size="icon" onClick={onClearSelection} className="size-6" disabled={isProcessing}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClearSelection}
+            className="size-6"
+            disabled={isProcessing}
+          >
             <X className="h-4 w-4" />
           </Button>
           <span>{selectedCount} selected</span>
         </div>
 
+        {/* Right side: archive + delete */}
         <div className="flex items-center space-x-3">
           <Button
             variant="outline"
             size="sm"
             onClick={onArchiveClick}
-            className="h-fit py-1 text-sm font-normal bg-transparent"
+            className="h-fit bg-transparent py-1 text-sm font-normal"
             disabled={selectedCount === 0 || isProcessing}
           >
-            {isProcessing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Archive className="mr-1 h-3 w-3" />}
+            {isProcessing ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <Archive className="mr-1 h-3 w-3" />
+            )}
             Archive
           </Button>
 
@@ -66,21 +78,25 @@ const SelectionMode = memo(
             variant="outline"
             size="sm"
             onClick={onDeleteClick}
-            className="h-fit py-1 text-sm font-normal bg-transparent"
+            className="h-fit bg-transparent py-1 text-sm font-normal"
             disabled={selectedCount === 0 || isProcessing}
           >
-            {isProcessing ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Trash2 className="mr-1 h-3 w-3" />}
+            {isProcessing ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <Trash2 className="mr-1 h-3 w-3" />
+            )}
             Delete
           </Button>
         </div>
       </div>
     </div>
   ),
-)
+);
 
-SelectionMode.displayName = "SelectionMode"
+SelectionMode.displayName = "SelectionMode";
 
-// Memoized NavigationMode component (Front side)
+/* ---------------- Navigation Mode (Front Side Default) ---------------- */
 const NavigationMode = memo(
   ({
     currentPage,
@@ -88,60 +104,70 @@ const NavigationMode = memo(
     handlePageChange,
     setIsSelectModeOn,
   }: {
-    currentPage: number
-    pagination: PaginationProps
-    handlePageChange: (page: number) => void
-    setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>
-  }) => (
-    <div className="absolute inset-0 w-full h-full backface-hidden">
-      <div className="flex w-full items-center justify-between rounded-xl border bg-white p-3.5 shadow-lg md:px-4 dark:bg-black h-full">
-        <p className="text-sm font-normal text-zinc-700 dark:text-zinc-50">
-          {pagination.total_links === 0
-            ? "0-0"
-            : `${(currentPage - 1) * pagination.limit + 1}-${Math.min(
-                currentPage * pagination.limit,
-                pagination.total_links,
-              )}`}{" "}
-          of {pagination.total_links} links
-        </p>
+    currentPage: number;
+    pagination: PaginationProps;
+    handlePageChange: (page: number) => void;
+    setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>;
+  }) => {
+    const startIndex =
+      pagination.total_links === 0
+        ? 0
+        : (currentPage - 1) * pagination.limit + 1;
+    const endIndex = Math.min(
+      currentPage * pagination.limit,
+      pagination.total_links,
+    );
 
-        <div className="flex items-center space-x-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsSelectModeOn(true)}
-            className="h-fit py-1 font-normal"
-          >
-            Select
-          </Button>
+    return (
+      <div className="absolute inset-0 h-full w-full backface-hidden">
+        <div className="flex h-full w-full items-center justify-between rounded-xl border bg-white p-3.5 shadow-lg md:px-4 dark:bg-black">
+          <p className="text-sm font-normal text-zinc-700 dark:text-zinc-50">
+            {pagination.total_links === 0 ? "0-0" : `${startIndex}-${endIndex}`}{" "}
+            of {pagination.total_links} links
+          </p>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="h-fit py-1 font-normal"
-          >
-            Previous
-          </Button>
+          <div className="flex items-center space-x-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsSelectModeOn(true)}
+              className="h-fit py-1 font-normal"
+            >
+              Select
+            </Button>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-fit py-1 font-normal bg-transparent"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={pagination.total_links === 0 || currentPage === pagination.total_pages}
-          >
-            Next
-          </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="h-fit py-1 font-normal"
+            >
+              Previous
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-fit bg-transparent py-1 font-normal"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={
+                pagination.total_links === 0 ||
+                currentPage === pagination.total_pages
+              }
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
-  ),
-)
+    );
+  },
+);
 
-NavigationMode.displayName = "NavigationMode"
+NavigationMode.displayName = "NavigationMode";
 
+/* ---------------- Main Pagination Component ---------------- */
 export default function LinkPagination({
   isSelectModeOn,
   setIsSelectModeOn,
@@ -152,75 +178,76 @@ export default function LinkPagination({
   isProcessing,
   pagination,
   selectedLinks,
-}: PaginationComponentProps): React.JSX.Element {
-  const [pageNo, setPageNo] = useQueryState("page_no", parseAsString)
-  const [isAnimating, setIsAnimating] = useState(false)
-  const [showConfirmation, setShowConfirmation] = useState<"archive" | "delete" | null>(null)
+}: PaginationComponentProps) {
+  const [pageNo, setPageNo] = useQueryState("page_no", parseAsString);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState<
+    "archive" | "delete" | null
+  >(null);
 
-  // Get current page from URL, default to 1
-  const currentPage = Number(pageNo ?? 1)
+  // Page state: default to 1
+  const currentPage = Number(pageNo ?? 1);
 
-  // Handle flip animation when mode changes
+  // Animate card flip
   useEffect(() => {
-    setIsAnimating(true)
-    const timer = setTimeout(() => {
-      setIsAnimating(false)
-    }, 1000)
+    setIsAnimating(true);
+    const timer = setTimeout(() => setIsAnimating(false), 1000);
+    return () => clearTimeout(timer);
+  }, [isSelectModeOn]);
 
-    return () => clearTimeout(timer)
-  }, [isSelectModeOn])
-
-  // Handling pagination actions
-  const handlePageChange = React.useCallback(
+  // Handle page changes
+  const handlePageChange = useCallback(
     (newPage: number) => {
       if (newPage > 1) {
-        void setPageNo(newPage.toString())
+        void setPageNo(newPage.toString());
       } else {
-        void setPageNo(null) // Remove param for page 1
+        void setPageNo(null); // reset for page 1
       }
     },
     [setPageNo],
-  )
+  );
 
-  // Enhanced clear selection with flip animation
-  const handleClearSelection = React.useCallback(() => {
-    onClearSelection()
-    setIsSelectModeOn(false)
-  }, [onClearSelection, setIsSelectModeOn])
+  // Selection reset with flip-back
+  const handleClearSelection = useCallback(() => {
+    onClearSelection();
+    setIsSelectModeOn(false);
+  }, [onClearSelection, setIsSelectModeOn]);
 
   // Confirmation dialog handlers
-  const handleArchiveConfirm = React.useCallback(() => {
+  const handleArchiveConfirm = useCallback(() => {
     if (selectedLinks.size > 0) {
-      onArchive(Array.from(selectedLinks))
-      setShowConfirmation(null)
-      setIsSelectModeOn(false)
+      onArchive([...selectedLinks]);
+      setShowConfirmation(null);
+      setIsSelectModeOn(false);
     }
-  }, [onArchive, selectedLinks, setIsSelectModeOn])
+  }, [onArchive, selectedLinks, setIsSelectModeOn]);
 
-  const handleDeleteConfirm = React.useCallback(() => {
+  const handleDeleteConfirm = useCallback(() => {
     if (selectedLinks.size > 0) {
-      onDelete(Array.from(selectedLinks))
-      setShowConfirmation(null)
+      onDelete([...selectedLinks]);
+      setShowConfirmation(null);
+      setIsSelectModeOn(false); // unified behavior
     }
-  }, [onDelete, selectedLinks, setIsSelectModeOn])
+  }, [onDelete, selectedLinks, setIsSelectModeOn]);
 
-  const handleArchiveClick = React.useCallback(() => {
-    setShowConfirmation("archive")
-  }, [])
-
-  const handleDeleteClick = React.useCallback(() => {
-    setShowConfirmation("delete")
-  }, [])
+  const handleArchiveClick = useCallback(
+    () => setShowConfirmation("archive"),
+    [],
+  );
+  const handleDeleteClick = useCallback(
+    () => setShowConfirmation("delete"),
+    [],
+  );
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 md:-translate-x-1/3 lg:max-w-2xl w-full">
+    <div className="fixed bottom-6 left-1/2 w-full -translate-x-1/2 md:-translate-x-1/3 lg:max-w-2xl">
       <div className="perspective-1000 px-4">
         <div
-          className={`flip-container relative h-16 w-full transform-style-preserve-3d transition-transform duration-500 ease-spring ${
+          className={`flip-container transform-style-preserve-3d ease-spring relative h-16 w-full transition-transform duration-500 ${
             isSelectModeOn ? "rotate-x-180" : ""
           } ${isAnimating ? "flipping" : ""}`}
         >
-          {/* Navigation Mode - Front Side (default) */}
+          {/* Navigation Mode */}
           <NavigationMode
             currentPage={currentPage}
             pagination={pagination}
@@ -228,7 +255,7 @@ export default function LinkPagination({
             setIsSelectModeOn={setIsSelectModeOn}
           />
 
-          {/* Selection Mode - Back Side */}
+          {/* Selection Mode */}
           <SelectionMode
             selectedCount={selectedCount}
             onClearSelection={handleClearSelection}
@@ -245,11 +272,15 @@ export default function LinkPagination({
         onClose={() => setShowConfirmation(null)}
         operation={showConfirmation}
         selectedCount={selectedCount}
-        onConfirm={showConfirmation === "archive" ? handleArchiveConfirm : handleDeleteConfirm}
+        onConfirm={
+          showConfirmation === "archive"
+            ? handleArchiveConfirm
+            : handleDeleteConfirm
+        }
         isProcessing={isProcessing}
       />
     </div>
-  )
+  );
 }
 
-LinkPagination.displayName = "LinkPagination"
+LinkPagination.displayName = "LinkPagination";

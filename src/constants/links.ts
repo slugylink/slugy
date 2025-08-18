@@ -34,4 +34,4 @@ export const LAYOUT_OPTIONS: LayoutConfig[] = [
 ];
 
 export const DEFAULT_SORT: SortOptionKey = "date-created";
-export const DEBOUNCE_DELAY = 300;
+export const DEBOUNCE_DELAY = 400;

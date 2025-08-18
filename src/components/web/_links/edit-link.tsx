@@ -100,7 +100,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
       tags: initialData.tags || [],
     },
   });
-  
+
   const {
     handleSubmit,
     formState: { isSubmitting, isValid, isDirty },
@@ -139,7 +139,11 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
   const isAnythingDirty = isDirty || isParamsDirty || isLinkSettingsDirty;
 
   // Check if form is safe to submit
-  const isSafeToSubmit = isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false && isAnythingDirty;
+  const isSafeToSubmit =
+    isValid &&
+    !urlSafetyStatus.isChecking &&
+    urlSafetyStatus.isValid !== false &&
+    isAnythingDirty;
 
   const onSubmit = async (data: LinkFormValues) => {
     try {
@@ -284,14 +288,16 @@ const EditLinkForm: React.FC<EditLinkFormProps> = ({
                   {isSubmitting && (
                     <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
                   )}
-                  {urlSafetyStatus.isChecking ? (
-                    <>Checking safety... <LoaderCircle className="ml-1 h-3 w-3 animate-spin" /></>
-                  ) : urlSafetyStatus.isValid === false ? (
+                  {urlSafetyStatus.isValid === false ? (
                     <>Unsafe URL detected</>
-                  ) : !isAnythingDirty ? (
-                    <>No changes to update</>
+                  ) : !isAnythingDirty ? (  
+                    <>
+                      Update link <CornerDownLeft size={12} />
+                    </>
                   ) : (
-                    <>Update link <CornerDownLeft size={12} /></>
+                    <>
+                      Update link <CornerDownLeft size={12} />
+                    </>
                   )}
                 </Button>
               </div>

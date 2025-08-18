@@ -43,25 +43,25 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
   const pathname = usePathname() ?? "/";
   const { isMobile } = useSidebar();
 
-  // Memoize active workspace to avoid recalculation on rerender
+  // Memoize active workspace
   const activeWorkspace = React.useMemo(
     () => workspaces.find((ws) => ws.slug === workspaceslug),
     [workspaces, workspaceslug],
   );
 
+  // Only replace the leading /<currentSlug> in pathname
   const handleWorkspaceSwitch = React.useCallback(
     (workspace: WorkspaceArr) => {
-      // Replace only the first occurrence of /currentSlug/ in the pathname to avoid unexpected replacements
       const workspaceSlugPattern = `/${workspaceslug}`;
       const newPath = pathname.startsWith(workspaceSlugPattern)
         ? pathname.replace(workspaceSlugPattern, `/${workspace.slug}`)
         : `/${workspace.slug}${pathname}`;
-
       router.push(newPath);
     },
     [pathname, router, workspaceslug],
   );
 
+  // Loading skeleton if no workspaces yet
   if (!workspaces.length) {
     return (
       <SidebarMenu>
@@ -80,6 +80,7 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
             <SidebarMenuButton
               size="lg"
               className="bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
+              aria-label="Select workspace"
             >
               <div className="bg-sidebar-border flex aspect-square size-7 items-center justify-center overflow-hidden rounded-full">
                 {activeWorkspace?.logo ? (
@@ -129,6 +130,7 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
                   className={`cursor-pointer gap-2 p-2 ${
                     isActive ? "bg-accent text-accent-foreground" : ""
                   }`}
+                  aria-current={isActive ? "page" : undefined}
                 >
                   <div
                     className={`flex size-6 items-center justify-center overflow-hidden rounded-full border ${

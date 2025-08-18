@@ -77,8 +77,6 @@ const AnalyticsChart = ({
       }),
   );
 
-  console.log("swrData", swrData);
-
   useEffect(() => {
     const dataToProcess = propData ?? swrData?.clicksOverTime;
     if (dataToProcess) {

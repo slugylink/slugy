@@ -13,13 +13,6 @@ import QRCodeStyling, { type Options } from "qr-code-styling";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
 import {
   Popover,
   PopoverContent,
@@ -31,7 +24,6 @@ import { getQrCode, saveQrCode } from "@/server/actions/save-qrcode";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
-// Types and Constants
 type DotType =
   | "square"
   | "dots"
@@ -48,11 +40,10 @@ interface FormState {
   logo?: string;
 }
 
-// Static logo configuration
 const STATIC_LOGO = {
   src: "/logo.svg", // Path to your brand logo
-  size: 0.3, // Size relative to QR code (0.3 = 30% of QR code size)
-  margin: 5, // Margin around the logo
+  size: 0.3, // Size relative to QR code (30%)
+  margin: 5, // Margin around logo
 };
 
 const QR_CONFIG = {
@@ -63,17 +54,6 @@ const QR_CONFIG = {
   LOGO_SIZE: 0.5,
 } as const;
 
-// Memoize the dot styles
-// const DOT_STYLES: { label: string; value: DotType }[] = [
-//   { label: "Square", value: "square" },
-//   { label: "Dots", value: "dots" },
-//   { label: "Rounded", value: "rounded" },
-//   { label: "Classy", value: "classy" },
-//   { label: "Classy Rounded", value: "classy-rounded" },
-//   { label: "Extra Rounded", value: "extra-rounded" },
-// ] as const;
-
-// Memoize the color options
 const COLORS = [
   "#000000", // Black
   "#FF5F2D", // Orange
@@ -84,7 +64,6 @@ const COLORS = [
   "#833AB4", // Purple
 ] as const;
 
-// Memoize the QR code options to prevent unnecessary recalculations
 const DEFAULT_QR_OPTIONS: Options = {
   width: QR_CONFIG.DEFAULT_SIZE * 1.3,
   height: QR_CONFIG.DEFAULT_SIZE * 1.3,
@@ -112,7 +91,6 @@ interface QRCodeDesignerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Memoize the QR code component
 const QRCodePreview = memo(
   ({
     containerRef,
@@ -136,10 +114,8 @@ const QRCodePreview = memo(
     </div>
   ),
 );
-
 QRCodePreview.displayName = "QRCodePreview";
 
-// Memoize the color picker component
 const ColorPicker = memo(
   ({
     color,
@@ -171,10 +147,8 @@ const ColorPicker = memo(
     </Popover>
   ),
 );
-
 ColorPicker.displayName = "ColorPicker";
 
-// Memoize the color buttons component
 const ColorButtons = memo(
   ({
     colors,
@@ -209,7 +183,6 @@ const ColorButtons = memo(
     </div>
   ),
 );
-
 ColorButtons.displayName = "ColorButtons";
 
 export default function QRCodeDesigner({
@@ -223,7 +196,6 @@ export default function QRCodeDesigner({
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
 
-  // Track initial state for comparison
   const [initialState, setInitialState] = useState<FormState>({
     url,
     fgColor: "#000000",
@@ -238,7 +210,6 @@ export default function QRCodeDesigner({
     dotStyle: "square",
   });
 
-  // Check if form has been modified
   const isFormDirty = useMemo(() => {
     return (
       formState.fgColor !== initialState.fgColor ||
@@ -258,7 +229,6 @@ export default function QRCodeDesigner({
     image: STATIC_LOGO.src, // Always show the static logo
   }));
 
-  // Memoize the downloadHighQualityQR function
   const downloadHighQualityQR = useCallback(
     async (
       qrCode: QRCodeStyling | undefined,
@@ -270,20 +240,17 @@ export default function QRCodeDesigner({
         const svg = containerRef.current.querySelector("svg");
         if (!svg) throw new Error("SVG element not found");
 
-        // Create a high-resolution canvas
         const canvas = document.createElement("canvas");
-        const scale = 4; // Scale factor for higher quality
+        const scale = 4;
         canvas.width = svg.width.baseVal.value * scale;
         canvas.height = svg.height.baseVal.value * scale;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) throw new Error("Could not get canvas context");
 
-        // Set high quality rendering
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        // Convert SVG to image
         const svgData = new XMLSerializer().serializeToString(svg);
         const svgBlob = new Blob([svgData], {
           type: "image/svg+xml;charset=utf-8",
@@ -295,10 +262,8 @@ export default function QRCodeDesigner({
           img.onload = resolve;
         });
 
-        // Draw at high resolution
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        // Convert to blob with maximum quality
         canvas.toBlob(
           (blob) => {
             if (!blob) return;
@@ -312,7 +277,7 @@ export default function QRCodeDesigner({
             URL.revokeObjectURL(url);
           },
           "image/png",
-          1.0, // Maximum quality
+          1.0,
         );
       } catch (error) {
         console.error("Error downloading QR code:", error);
@@ -322,7 +287,6 @@ export default function QRCodeDesigner({
     [],
   );
 
-  // Memoize the updateQRCode function
   const updateQRCode = useCallback(() => {
     if (!containerRef.current) return;
     containerRef.current.innerHTML = "";
@@ -332,16 +296,15 @@ export default function QRCodeDesigner({
     } else {
       qrCodeRef.current.update(options);
     }
-  }, [options, containerRef]);
+  }, [options]);
 
-  // Memoize the fetchQrCode function
   const fetchQrCode = useCallback(async () => {
     if (!linkId) return;
     try {
       setIsFetching(true);
       const qrCodeData = await getQrCode(linkId);
       if (!qrCodeData) return;
-      
+
       const updatedFormState = {
         url,
         fgColor: qrCodeData.fgColor as string,
@@ -349,11 +312,10 @@ export default function QRCodeDesigner({
         dotStyle: qrCodeData.dotStyle as DotType,
         logo: qrCodeData.logo as string | undefined,
       };
-      
-      // Set both initial and current state
+
       setInitialState(updatedFormState);
       setFormState(updatedFormState);
-      
+
       setOptions((prev) => ({
         ...prev,
         width: qrCodeData.size as number,
@@ -363,7 +325,7 @@ export default function QRCodeDesigner({
           color: qrCodeData.fgColor as string,
           type: qrCodeData.dotStyle as DotType,
         },
-        image: STATIC_LOGO.src, // Always show the static logo
+        image: STATIC_LOGO.src,
       }));
     } catch (error) {
       console.error("Failed to fetch QR code:", error);
@@ -373,7 +335,6 @@ export default function QRCodeDesigner({
     }
   }, [linkId, url]);
 
-  // Memoize the handleFormChange function
   const handleFormChange = useCallback(
     (field: keyof FormState, value: string | number) => {
       setFormState((prev) => ({ ...prev, [field]: value }));
@@ -395,7 +356,6 @@ export default function QRCodeDesigner({
     [],
   );
 
-  // Memoize the copyToClipboard function
   const copyToClipboard = useCallback(async (blob: Blob) => {
     try {
       await navigator.clipboard.write([
@@ -408,7 +368,6 @@ export default function QRCodeDesigner({
     }
   }, []);
 
-  // Memoize the handleCopyImage function
   const handleCopyImage = useCallback(async () => {
     if (!containerRef.current) return;
 
@@ -442,7 +401,6 @@ export default function QRCodeDesigner({
     }
   }, [copyToClipboard]);
 
-  // Memoize the handleSave function
   const handleSave = useCallback(async () => {
     if (!qrCodeRef.current || !containerRef.current) return;
     try {
@@ -478,19 +436,16 @@ export default function QRCodeDesigner({
     }
   }, [linkId, formState, onOpenChange]);
 
-  // Use effect for initial QR code fetch
   useEffect(() => {
     if (code) {
       void fetchQrCode();
     }
   }, [code, fetchQrCode]);
 
-  // Use effect for QR code updates
   useEffect(() => {
     updateQRCode();
   }, [updateQRCode]);
 
-  // Cleanup effect
   useEffect(() => {
     return () => {
       if (qrCodeRef.current) {
@@ -549,9 +504,9 @@ export default function QRCodeDesigner({
         </div>
       </div>
 
-
-
-      {/* <div className="grid gap-4 sm:grid-cols-2">
+      {/*
+        Uncomment and enable dot style selection if needed:
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label className="text-sm font-medium" htmlFor="dotStyle">
             Dot Style
@@ -562,19 +517,15 @@ export default function QRCodeDesigner({
               handleFormChange("dotStyle", value as DotType)
             }
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Select dot style" />
-            </SelectTrigger>
-            <SelectContent>
-              {DOT_STYLES.map(({ label, value }) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
+            {DOT_STYLES.map(({ label, value }) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
           </Select>
         </div>
-      </div> */}
+      </div>
+      */}
 
       <div className="flex justify-end gap-2 pt-4">
         <Button

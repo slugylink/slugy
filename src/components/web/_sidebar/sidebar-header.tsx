@@ -3,41 +3,35 @@
 import { usePathname } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { useMemo } from "react";
+
+// Map last URL segments to human-friendly titles
+const PAGE_TITLES: Record<string, string> = {
+  analytics: "Analytics",
+  "bio-links": "Bio Links",
+  settings: "Settings",
+  team: "Team",
+  billing: "Plan and Usage",
+  account: "Account",
+  library: "Library",
+};
+
+function getPageTitle(pathname: string): string {
+  const parts = pathname.split("/").filter(Boolean);
+  const lastPart = parts.at(-1) ?? "";
+  const secondLastPart = parts.at(-2) ?? "";
+
+  if (PAGE_TITLES[lastPart]) return PAGE_TITLES[lastPart];
+
+  // Special handling when navigating deeper
+  if (secondLastPart === "library") return "Library";
+  if (secondLastPart === "bio-links") return "Bio Links";
+
+  return "Links"; // Default fallback
+}
 
 export default function SidebarHeader() {
-  const pathname = usePathname() ?? "/";
-
-  const getPageTitle = useMemo(() => {
-    const parts = pathname.split("/").filter(Boolean); // remove empty segments
-    const lastPart = parts[parts.length - 1] ?? "";
-    const secondLastPart = parts.length > 1 ? parts[parts.length - 2] : "";
-
-    switch (lastPart) {
-      case "analytics":
-        return "Analytics";
-      case "bio-links":
-        return "Bio Links";
-      case "settings":
-        return "Settings";
-      case "team":
-        return "Team";
-      case "billing":
-        return "Plan and Usage";
-      case "account":
-        return "Account";
-      case "library":
-        return "Library";
-      default:
-        if (secondLastPart === "library") {
-          return "Library";
-        }
-        if (secondLastPart === "bio-links") {
-          return "Bio Links";
-        }
-        return "Links";
-    }
-  }, [pathname]);
+  const pathname = usePathname();
+  const pageTitle = getPageTitle(pathname);
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
@@ -47,7 +41,7 @@ export default function SidebarHeader() {
           orientation="vertical"
           className="mr-2 block h-4 md:hidden"
         />
-        <div className="text-xl font-medium">{getPageTitle}</div>
+        <div className="text-xl font-medium">{pageTitle}</div>
       </div>
     </header>
   );

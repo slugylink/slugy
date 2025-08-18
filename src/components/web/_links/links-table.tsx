@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-import { Link } from "lucide-react";
 import SearchInput from "./search-input";
 import LinkActions from "./link-actions";
 import LinkPagination from "./link-pagination";
@@ -27,10 +26,10 @@ interface Link {
   isArchived?: boolean;
   isPublic: boolean;
   creator: { name: string | null; image: string | null } | null;
-  qrCode: {
+  qrCode?: {
     id: string;
     customization?: string;
-  };
+  } | null;
 }
 
 interface ApiResponse {
@@ -45,21 +44,23 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   const [isSelectModeOn, setIsSelectModeOn] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
 
+  // Sync workspace slug with store
   useEffect(() => {
     setworkspaceslug(workspaceslug);
   }, [workspaceslug, setworkspaceslug]);
 
   // Build search config from URL params
-  const searchConfig = useMemo(
-    () => ({
+  const searchConfig = useMemo(() => {
+    const page = Number(searchParams?.get("page_no") ?? "1");
+    return {
       search: searchParams?.get("search") ?? "",
       showArchived: searchParams?.get("showArchived") ?? "false",
       sortBy: searchParams?.get("sortBy") ?? "date-created",
-      offset: (Number(searchParams?.get("page_no") ?? "1") - 1) * DEFAULT_LIMIT,
-    }),
-    [searchParams],
-  );
-  // Memoized API URL for SWR
+      offset: (page - 1) * DEFAULT_LIMIT,
+    };
+  }, [searchParams]);
+
+  // API URL for SWR
   const apiUrl = useMemo(
     () =>
       `/api/workspace/${workspaceslug}/link/get?${new URLSearchParams({
@@ -72,24 +73,17 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     [workspaceslug, searchConfig],
   );
 
-  // SWR fetch + error
-  const { data, error, isLoading } = useSWR<ApiResponse, Error>(
-    apiUrl,
-    fetcher,
-  );
+  // Fetch data
+  const { data, error, isLoading } = useSWR<ApiResponse>(apiUrl, fetcher);
 
-  const { links, totalLinks, totalPages } = data ?? {
-    links: [],
-    totalLinks: 0,
-    totalPages: 0,
-  };
+  const { links = [], totalLinks = 0, totalPages = 0 } = data ?? {};
 
-  // Ensure all links have a qrCode for LinkList/LinkCard
+  // Ensure QR codes
   const linksWithQrCode = useMemo(
     () =>
       links.map((link) => ({
         ...link,
-        qrCode: link.qrCode || { id: "", customization: "" },
+        qrCode: link.qrCode ?? { id: "", customization: "" },
       })),
     [links],
   );
@@ -98,8 +92,11 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   const handleSelectLink = useCallback((linkId: string) => {
     setSelectedLinks((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(linkId)) newSet.delete(linkId);
-      else newSet.add(linkId);
+      if (newSet.has(linkId)) {
+        newSet.delete(linkId);
+      } else {
+        newSet.add(linkId);
+      }
       return newSet;
     });
   }, []);
@@ -117,7 +114,8 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     setIsSelectModeOn(false);
   }, []);
 
-  const memoizedPagination = useMemo(
+  // Pagination memoized
+  const pagination = useMemo(
     () => ({
       total_pages: totalPages,
       limit: DEFAULT_LIMIT,
@@ -126,20 +124,17 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     [totalPages, totalLinks],
   );
 
+  // Layout & bulk actions
   const { layout, setLayout } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
 
   const handleArchive = useCallback(
-    (linkIds: string[]) => {
-      executeOperation("archive", linkIds);
-    },
+    (linkIds: string[]) => executeOperation("archive", linkIds),
     [executeOperation],
   );
 
   const handleDelete = useCallback(
-    (linkIds: string[]) => {
-      executeOperation("delete", linkIds);
-    },
+    (linkIds: string[]) => executeOperation("delete", linkIds),
     [executeOperation],
   );
 
@@ -147,11 +142,13 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
 
   return (
     <section>
+      {/* Header Actions */}
       <div className="flex w-full items-center justify-between gap-4 pb-8">
         <SearchInput workspaceslug={workspaceslug} setLayout={setLayout} />
-        <LinkActions totalLinks={10} workspaceslug={workspaceslug} />
+        <LinkActions totalLinks={totalLinks} workspaceslug={workspaceslug} />
       </div>
 
+      {/* Loading / Error / Data */}
       {isLoading && links.length === 0 ? (
         <LinkCardSkeleton />
       ) : error ? (
@@ -169,6 +166,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
         <EmptyState searchQuery={searchConfig.search} />
       )}
 
+      {/* Pagination + Bulk Actions */}
       <LinkPagination
         isSelectModeOn={isSelectModeOn}
         setIsSelectModeOn={setIsSelectModeOn}
@@ -179,7 +177,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
         onArchive={handleArchive}
         onDelete={handleDelete}
         isProcessing={isProcessing}
-        pagination={memoizedPagination}
+        pagination={pagination}
         selectedLinks={selectedLinks}
       />
     </section>

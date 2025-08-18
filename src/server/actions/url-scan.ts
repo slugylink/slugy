@@ -2,6 +2,7 @@
 
 import { unstable_cache } from "next/cache";
 
+// Types
 interface SafeBrowsingClient {
   clientId: string;
   clientVersion: string;
@@ -37,7 +38,6 @@ interface UrlScanResult {
   error?: string;
 }
 
-// --------------------------------------------------------------------------------
 // Actual scan logic
 async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
   if (!url) return { isSafe: false, threats: [], error: "URL is required" };
@@ -77,8 +77,7 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
-        // Make sure not to use Next.js fetch cache here
-        cache: "no-store",
+        cache: "no-store", // Don't cache at the fetch level
       },
     );
 
@@ -98,27 +97,24 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
   } catch (error) {
     console.error("Error scanning URL:", error);
     return {
-      isSafe: true,
+      isSafe: true, // Default to "safe" if scan unavailable, but flag error.
       threats: [],
       error: error instanceof Error ? error.message : "Unknown error occurred",
     };
   }
 }
 
-// --------------------------------------------------------------------------------
-// This creates a cached wrapper around fetchUrlSafety using unstable_cache
+// Caching wrapper for fetching url safety
 const cachedScanUrlSafety = unstable_cache(
   async (url: string) => fetchUrlSafety(url),
-  ["scan-url-safety"], // global cache key namespace
-  { revalidate: 300 }, // revalidate every 300 seconds (5 minutes)
+  ["scan-url-safety"],
+  { revalidate: 300 }, // Every 5min
 );
 
 export async function scanUrlSafety(url: string) {
-  // We pass the URL as part of the key to differentiate results
   return cachedScanUrlSafety(url);
 }
 
-// --------------------------------------------------------------------------------
 // Validation wrapper
 export async function validateUrlSafety(url: string): Promise<{
   isValid: boolean;

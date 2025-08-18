@@ -6,8 +6,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Check, Copy, Archive, BookText, ForwardIcon } from "lucide-react";
-import { CornerDownRight } from "lucide-react";
+import {
+  Check,
+  Copy,
+  Archive,
+  BookText,
+  ForwardIcon,
+  CornerDownRight,
+} from "lucide-react";
 import { LinkPreview } from "@/components/ui/link-preview";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -18,24 +24,16 @@ import {
 } from "@/components/ui/dialog";
 import { formatNumber } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
-// import Image from "next/image";
 import Link from "next/link";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import UrlAvatar from "@/components/web/url-avatar";
-
-// Types
-// interface Creator {
-//   name: string | null;
-//   image: string | null;
-// }
 
 // Constants
 const SHORT_URL_BASE = "https://slugy.co/";
 
 // Utility functions
-const cleanUrl = (url: string): string => {
-  return url.replace("https://", "").replace("http://", "").replace("www.", "");
-};
+const cleanUrl = (url: string): string =>
+  url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 
 // Analytics Icon Component
 export const AnalyticsIcon = memo(({ className }: { className?: string }) => (
@@ -56,55 +54,7 @@ export const AnalyticsIcon = memo(({ className }: { className?: string }) => (
     <path d="M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
   </svg>
 ));
-
 AnalyticsIcon.displayName = "AnalyticsIcon";
-
-// Creator Tooltip Component
-// export const CreatorTooltip = memo(
-//   ({ creator, date }: { creator: Creator | null; date: Date }) => {
-//     // If creator is null, don't render anything
-//     if (!creator) {
-//       return null;
-//     }
-
-//     return (
-//       <Tooltip>
-//         <TooltipTrigger asChild>
-//           <Image
-//             src={creator.image ?? "https://avatar.vercel.sh/demo"}
-//             width={16}
-//             height={16}
-//             quality={75}
-//             loading="lazy"
-//             className="mt-1 ml-3 hidden cursor-pointer rounded-full border sm:inline"
-//             alt={creator.name ?? "Creator"}
-//           />
-//         </TooltipTrigger>
-//         <TooltipContent className="flex items-center gap-2 rounded-lg p-2 shadow-sm">
-//           <Image
-//             src={creator.image ?? "https://avatar.vercel.sh/demo"}
-//             width={24}
-//             height={24}
-//             quality={85}
-//             loading="eager"
-//             className="rounded-full"
-//             alt={creator.name ?? "Creator"}
-//           />
-//           <div>
-//             <p className="line-clamp-1 font-semibold text-zinc-50 dark:text-zinc-900">
-//               {creator.name}
-//             </p>
-//             <p className="text-xs text-zinc-300 dark:text-zinc-600">
-//               {new Date(date).toLocaleDateString()}
-//             </p>
-//           </div>
-//         </TooltipContent>
-//       </Tooltip>
-//     );
-//   },
-// );
-
-// CreatorTooltip.displayName = "CreatorTooltip";
 
 // Link Preview Component
 export const LinkPreviewComponent = memo(({ url }: { url: string }) => (
@@ -117,11 +67,9 @@ export const LinkPreviewComponent = memo(({ url }: { url: string }) => (
       >
         {cleanUrl(url)}
       </LinkPreview>
-      {/* <CreatorTooltip creator={creator} date={date} /> */}
     </div>
   </div>
 ));
-
 LinkPreviewComponent.displayName = "LinkPreviewComponent";
 
 // Copy Button Component
@@ -145,7 +93,6 @@ export const CopyButton = memo(
     </Button>
   ),
 );
-
 CopyButton.displayName = "CopyButton";
 
 // Description Tooltip Component
@@ -164,7 +111,6 @@ export const DescriptionTooltip = memo(
     </Tooltip>
   ),
 );
-
 DescriptionTooltip.displayName = "DescriptionTooltip";
 
 // Analytics Badge Component
@@ -190,7 +136,7 @@ export const AnalyticsBadge = memo(
         <TooltipTrigger asChild>
           <Link href={`${pathname}/analytics?slug_key=${slug}`}>
             <div className="flex items-center justify-center gap-x-1 text-[13px]">
-              <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""  } />
+              <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""} />
               {formatNumber(clicks)}
               <span className="hidden sm:inline">clicks</span>
             </div>
@@ -198,7 +144,6 @@ export const AnalyticsBadge = memo(
         </TooltipTrigger>
         <TooltipContent>Click to see analytics</TooltipContent>
       </Tooltip>
-
       {isPublic && (
         <>
           <Separator
@@ -218,7 +163,6 @@ export const AnalyticsBadge = memo(
     </Badge>
   ),
 );
-
 AnalyticsBadge.displayName = "AnalyticsBadge";
 
 // Selection Checkbox Component
@@ -243,7 +187,6 @@ export const SelectionCheckbox = memo(
     </div>
   ),
 );
-
 SelectionCheckbox.displayName = "SelectionCheckbox";
 
 // Link Avatar Component
@@ -259,7 +202,6 @@ export const LinkAvatar = memo(
         </div>
       );
     }
-
     return (
       <div className="hidden rounded-full sm:block">
         <UrlAvatar url={url} />
@@ -267,7 +209,6 @@ export const LinkAvatar = memo(
     );
   },
 );
-
 LinkAvatar.displayName = "LinkAvatar";
 
 // Delete Confirmation Dialog Component
@@ -317,7 +258,6 @@ export const DeleteConfirmationDialog = memo(
     </Dialog>
   ),
 );
-
 DeleteConfirmationDialog.displayName = "DeleteConfirmationDialog";
 
 // Export utility functions and constants

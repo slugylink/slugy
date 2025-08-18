@@ -17,26 +17,27 @@ function UrlAvatar({
   size = 8,
   imgSize = 2.5,
   className,
+  icon,
 }: UrlAvatarProps) {
   const domain = useMemo(() => getRootDomain(url), [url]);
   const [loading, setLoading] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
 
-  const sources = useMemo(
-    () => {
-      // Skip localhost domains to avoid Next.js image configuration issues
-      if (domain === 'localhost' || domain.includes('localhost') || domain.includes('127.0.0.1')) {
-        return [`https://avatar.vercel.sh/${domain}?size=32`];
-      }
-      
-      return [
-        `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-        // `https://${domain}/favicon.ico`,
-        `https://avatar.vercel.sh/${domain}?size=32`,
-      ];
-    },
-    [domain],
-  );
+  // Use only properly configured hosts for images; always end with a fallback
+  const sources = useMemo(() => {
+    if (
+      domain === "localhost" ||
+      domain.includes("localhost") ||
+      domain.includes("127.0.0.1")
+    ) {
+      return [`https://avatar.vercel.sh/${domain}?size=32`];
+    }
+    return [
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
+      // fallback
+      `https://avatar.vercel.sh/${domain}?size=32`,
+    ];
+  }, [domain]);
 
   const [src, setSrc] = useState(sources[0]);
 
@@ -49,10 +50,11 @@ function UrlAvatar({
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setLoading(false);
     const target = e.target as HTMLImageElement;
-    // Check if either width or height is too small instead of both
+    // If image is too small (bad favicon), fallback to next source
     if (
       (target.naturalWidth <= 16 || target.naturalHeight <= 16) &&
-      errorCount === 0
+      errorCount === 0 &&
+      sources.length > 1
     ) {
       setErrorCount(1);
       setSrc(sources[1]);
@@ -77,7 +79,7 @@ function UrlAvatar({
     10: "h-10 w-10",
     12: "h-12 w-12",
     16: "h-16 w-16",
-  };
+  } as const;
 
   const imageSize = size * imgSize;
   const quality = size <= 6 ? 75 : 85;
@@ -91,25 +93,30 @@ function UrlAvatar({
       )}
       aria-label={`Favicon for ${domain}`}
     >
-      <picture>
-        <source srcSet={src} type="image/png" />
-        <Image
-          alt={domain}
-          title={domain}
-          src={src}
-          width={imageSize}
-          height={imageSize}
-          quality={quality}
-          loading={size > 8 ? "eager" : "lazy"}
-          className={cn(
-            loading ? "opacity-70 blur-[2px]" : "blur-0 opacity-100",
-            "rounded-full transition-all duration-200",
-          )}
-          priority={size > 8}
-          onLoad={handleLoad}
-          onError={handleError}
-        />
-      </picture>
+      {icon ? (
+        icon
+      ) : (
+        <picture>
+          <source srcSet={src} type="image/png" />
+          <Image
+            alt={domain}
+            title={domain}
+            src={src}
+            width={imageSize}
+            height={imageSize}
+            quality={quality}
+            loading={size > 8 ? "eager" : "lazy"}
+            className={cn(
+              loading ? "opacity-70 blur-[2px]" : "blur-0 opacity-100",
+              "rounded-full transition-all duration-200",
+            )}
+            priority={size > 8}
+            onLoad={handleLoad}
+            onError={handleError}
+            unoptimized={src.startsWith("https://avatar.vercel.sh/")} // avoid next/image remote error warning
+          />
+        </picture>
+      )}
     </div>
   );
 }
