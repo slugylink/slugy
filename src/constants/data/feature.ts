@@ -2,7 +2,8 @@ export const data = [
     {
       title: "Link Shortening",
       description: "Create branded, concise links for effective sharing.",
-      image: "https://res.cloudinary.com/dcsouj6ix/image/upload/v1746376614/slugy/1_rsmrsi.png",
+      // image: "https://res.cloudinary.com/dcsouj6ix/image/upload/v1746376614/slugy/1_rsmrsi.png",
+      image: "/images/card1.png",
     },
     {
       title: "QR Code Generation",

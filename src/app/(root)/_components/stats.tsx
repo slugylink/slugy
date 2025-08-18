@@ -87,9 +87,9 @@ CustomTooltip.displayName = "CustomTooltip";
 const StatCard = memo(({ stat }: { stat: (typeof statsData)[number] }) => (
   <motion.div
     variants={animations.item}
-    className="rounded-2xl border border-zinc-200/40 p-1"
+    className="rounded-2xl border border-zinc-200/40 p-1 "
   >
-    <Card className="flex aspect-square items-center justify-center overflow-hidden border-zinc-200 bg-white/80 shadow-none backdrop-blur-sm transition-all">
+    <Card className="flex aspect-square items-center border border-zinc-200/70 justify-center overflow-hidden bg-zinc-50  shadow-none backdrop-blur-sm transition-all">
       <div className="p-4">
         <div className="mb-2 flex justify-center">
           <div className={`rounded-full p-2 ${stat.iconBg}`} />
@@ -174,7 +174,7 @@ export default function Stats() {
               ref={chartRef}
               className="relative h-[370px] w-full sm:h-[500px]"
             >
-              <div className="absolute inset-x-0 -bottom-3 z-20 h-[10%] w-full bg-gradient-to-b from-transparent via-[#fafaf8] to-[#fafaf8] dark:via-[#121212] dark:to-[#121212]" />
+              <div className="absolute inset-x-0 -bottom-3 z-20 h-[10%] w-full bg-gradient-to-b from-transparent via-[#ffffff] to-[#ffffff] dark:via-[#121212] dark:to-[#121212]" />
               {isInView && (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={growthData}>

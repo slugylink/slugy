@@ -8,7 +8,7 @@ import { Heart } from "lucide-react";
 const OpenSource = () => {
   return (
     <section className="relative mx-auto mt-20 max-w-6xl px-4 md:mt-36">
-      <div className="relative overflow-hidden rounded-xl border bg-gradient-to-b from-zinc-50 to-zinc-50 p-1.5 sm:rounded-2xl">
+      <div className="relative overflow-hidden rounded-xl border bg-zinc-200/50 p-1.5 sm:rounded-2xl">
         <div className="cardboard relative mx-auto overflow-hidden rounded-xl border border-zinc-200/60 bg-black/70 shadow-md backdrop-blur-sm backdrop-brightness-50 sm:rounded-2xl dark:border-zinc-700/70 dark:bg-zinc-900/90">
           <FlickeringGrid
             className="absolute inset-0 opacity-20"

@@ -77,6 +77,8 @@ const AnalyticsChart = ({
       }),
   );
 
+  console.log("swrData", swrData);
+
   useEffect(() => {
     const dataToProcess = propData ?? swrData?.clicksOverTime;
     if (dataToProcess) {
@@ -218,6 +220,8 @@ const AnalyticsChart = ({
     if (timePeriod === "12m") return 12;
     return 6;
   };
+
+
 
   return (
     <Card className="w-full border shadow-none">

@@ -72,7 +72,7 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({
       )}
 
       <Link href={destination} className="w-full sm:w-fit">
-        <Button variant="default" className="group w-full sm:w-fit">
+        <Button variant="default" size={"sm"} className="group w-full sm:w-fit">
           <span>{label}</span>
         </Button>
       </Link>
