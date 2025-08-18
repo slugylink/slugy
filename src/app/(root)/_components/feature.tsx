@@ -69,12 +69,12 @@ const featureCards = [
 const Features = () => (
   <div className="dark:bg-background mx-auto mt-10 max-w-[80rem] px-1 py-12 text-center sm:mt-0 sm:py-16">
     {/* Heading */}
-    <div className="mb-6 space-y-4 text-2xl font-medium sm:text-4xl">
+    <div className="mb-5 space-y-4 text-2xl font-medium sm:text-4xl">
       <h2 className="text-balance">Elevate your brand</h2>
     </div>
 
     {/* Description */}
-    <p className="mx-auto mb-12 max-w-xl text-sm text-zinc-600 sm:text-base dark:text-zinc-300">
+    <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-600 sm:text-base dark:text-zinc-300">
       Create standout short links with our powerful link management{" "}
       <br className="hidden sm:block" />
       platform that includes robust analytics.

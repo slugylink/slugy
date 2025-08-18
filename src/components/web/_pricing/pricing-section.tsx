@@ -16,7 +16,7 @@ export default function PricingSection() {
   return (
     <section className="pb-14 sm:pb-20">
       <MaxWidthContainer>
-        <div className="mb-10 text-center">
+        <div className="mb-20 text-center">
           <h2 className="text-2xl font-medium text-balance sm:text-4xl">
             Flexible Pricing for Everyone
           </h2>
@@ -25,7 +25,7 @@ export default function PricingSection() {
           </p>
         </div>
 
-        <div className="mx-auto flex w-full flex-col items-start justify-center gap-8 sm:flex-row">
+        <div className="mx-auto flex w-full flex-col items-start justify-center gap-8 sm:flex-row mt-10">
           {plans.map((plan) => (
             <Card
               key={plan.name}
