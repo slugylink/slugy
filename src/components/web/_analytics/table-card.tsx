@@ -32,9 +32,8 @@ export default function TableCard<T>({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // Build current full path from `next/navigation`
+  // Build the current full path with params
   const currentPath = useMemo(() => {
-    if (!pathname) return "";
     const query = searchParams.toString();
     return query ? `${pathname}?${query}` : pathname;
   }, [pathname, searchParams]);
@@ -52,9 +51,17 @@ export default function TableCard<T>({
     );
   }
 
-  if (error || data.length === 0) {
+  if (error) {
     return (
-      <div className="flex h-60 items-center justify-center py-4 text-gray-500 text-sm">
+      <div className="flex h-60 items-center justify-center py-4 text-sm text-gray-500">
+        {emptyText}
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-60 items-center justify-center py-4 text-sm text-gray-500">
         {emptyText}
       </div>
     );

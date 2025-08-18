@@ -1,8 +1,7 @@
 "use client";
 
-import type React from "react";
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type React from "react";
 import {
   Area,
   AreaChart,
@@ -13,7 +12,7 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
 import { fetchChartData } from "@/server/actions/analytics/use-analytics";
@@ -23,11 +22,11 @@ import { Separator } from "@/components/ui/separator";
 
 interface ChartProps {
   data?: {
-    time: string; // Accept string for easy serialization
+    time: string;
     clicks: number;
   }[];
   totalClicks?: number;
-  timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  timePeriod?: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   workspaceslug?: string;
   searchParams?: Record<string, string>;
 }
@@ -219,8 +218,6 @@ const AnalyticsChart = ({
     return 6;
   };
 
-
-
   return (
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
@@ -268,7 +265,6 @@ const AnalyticsChart = ({
                     />
                   </linearGradient>
                 </defs>
-
                 <XAxis
                   dataKey="time"
                   axisLine={false}
@@ -288,9 +284,7 @@ const AnalyticsChart = ({
                   style={{ fontSize: "12px", fill: CHART_THEME.muted }}
                   width={30}
                 />
-
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.35} />
-
                 <Tooltip
                   content={<CustomTooltip />}
                   cursor={{
@@ -299,7 +293,6 @@ const AnalyticsChart = ({
                     strokeOpacity: 0.3,
                   }}
                 />
-
                 <Area
                   type="linear"
                   dataKey="clicks"
@@ -309,7 +302,7 @@ const AnalyticsChart = ({
                   activeDot={{
                     r: 5,
                     strokeWidth: 1,
-                    stroke: "rgb(255, 255, 255)",
+                    stroke: "#fff",
                     fill: CHART_THEME.primary,
                   }}
                   isAnimationActive={localData.length < 1000}

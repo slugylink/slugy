@@ -1,17 +1,18 @@
 "use client";
+
 import React, { useMemo, useState } from "react";
+import Image from "next/image";
+import useSWR from "swr";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
-import Image from "next/image";
-import useSWR from "swr";
-import { fetchGeoData } from "@/server/actions/analytics/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
+import { fetchGeoData } from "@/server/actions/analytics/use-analytics";
 
-// --------------------------------------------------
+// ------------------------------
 // Types
-// --------------------------------------------------
+// ------------------------------
 interface GeoclicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
@@ -28,18 +29,18 @@ type GeoKey = keyof Pick<GeoData, "country" | "city" | "continent">;
 
 interface TabConfig {
   key: "countries" | "cities" | "continents";
-  label: string; // plural (for tab labels)
-  singular: string; // singular (for table header)
+  label: string; // plural for tab labels
+  singular: string; // singular for table header
   dataKey: GeoKey;
   renderName: (
     item: GeoData,
-    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"],
+    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"]
   ) => JSX.Element;
 }
 
-// --------------------------------------------------
+// ------------------------------
 // Helper Components
-// --------------------------------------------------
+// ------------------------------
 function TableHeader({ label }: { label: string }) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
@@ -49,9 +50,9 @@ function TableHeader({ label }: { label: string }) {
   );
 }
 
-// --------------------------------------------------
+// ------------------------------
 // Country Tools hook
-// --------------------------------------------------
+// ------------------------------
 function useCountryTools() {
   const displayNames = useMemo(() => {
     try {
@@ -80,9 +81,9 @@ function useCountryTools() {
   return { getCountryInfo };
 }
 
-// --------------------------------------------------
+// ------------------------------
 // Static Data
-// --------------------------------------------------
+// ------------------------------
 const CONTINENT_NAMES: Record<string, string> = {
   af: "Africa",
   an: "Antarctica",
@@ -157,9 +158,9 @@ const tabConfigs: TabConfig[] = [
   },
 ];
 
-// --------------------------------------------------
+// ------------------------------
 // Main Component
-// --------------------------------------------------
+// ------------------------------
 const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -167,12 +168,12 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
   const swrKey = ["geo", workspaceslug, activeTab, searchParams];
   const { data, error, isLoading } = useSWR<GeoData[], Error>(
     swrKey,
-    () => fetchGeoData(workspaceslug, searchParams, activeTab),
+    () => fetchGeoData(workspaceslug, searchParams, activeTab)
   );
 
   const sortedData = useMemo(
     () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
-    [data],
+    [data]
   );
 
   const { getCountryInfo } = useCountryTools();
@@ -195,10 +196,7 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
           </TabsList>
 
           {/* Tab panel */}
-          <TabsContent
-            value={currentTabConfig.key}
-            className="mt-1 font-normal"
-          >
+          <TabsContent value={currentTabConfig.key} className="mt-1 font-normal">
             <div
               className="relative h-72 w-full"
               role="list"
@@ -210,16 +208,13 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                 data={sortedData.slice(0, 7)}
                 loading={isLoading}
                 error={error}
-                keyPrefix={currentTabConfig.key}
+                keyPrefix={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) =>
-                  item[currentTabConfig.dataKey] ??
-                  `${currentTabConfig.dataKey}-${index}`
+                  item[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
                 }
                 progressColor="bg-green-200/40"
-                renderName={(item) =>
-                  currentTabConfig.renderName(item, getCountryInfo)
-                }
+                renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}
               />
             </div>
           </TabsContent>
@@ -232,16 +227,13 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
         data={sortedData}
         loading={isLoading}
         error={error}
-        keyPrefix={currentTabConfig.key}
+        keyPrefix={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) =>
-          item[currentTabConfig.dataKey] ??
-          `${currentTabConfig.dataKey}-${index}`
+          item[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
         }
         progressColor="bg-green-200/40"
-        renderName={(item) =>
-          currentTabConfig.renderName(item, getCountryInfo)
-        }
+        renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
         showButton={!isLoading && sortedData.length > 7}

@@ -1,5 +1,9 @@
 "use client";
+
 import dynamic from "next/dynamic";
+import { useMemo } from "react";
+import useSWR from "swr";
+import { useSearchParams } from "next/navigation";
 import FilterActions, {
   type CategoryId,
 } from "@/components/web/_analytics/filter";
@@ -14,43 +18,28 @@ import {
   Share2,
   Redo2,
 } from "lucide-react";
-import useSWR from "swr";
-import { useSearchParams } from "next/navigation";
 import { type AnalyticsResponse } from "@/server/actions/analytics/analytics";
 import { fetchAnalyticsData } from "@/server/actions/analytics/use-analytics";
-import { useMemo } from "react";
 
-// Dynamic imports with loading states
+// Dynamic imports with SSR disabled (client-only)
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
   ssr: true,
 });
-
 const UrlClicks = dynamic(
   () => import("@/components/web/_analytics/urlclicks-card"),
-  {
-    ssr: true,
-  },
+  { ssr: true },
 );
-
 const GeoClicks = dynamic(
   () => import("@/components/web/_analytics/geoclicks-card"),
-  {
-    ssr: true,
-  },
+  { ssr: true },
 );
-
 const DeviceClicks = dynamic(
   () => import("@/components/web/_analytics/deviceclicks-card"),
-  {
-    ssr: true,
-  },
+  { ssr: false },
 );
-
 const ReferrerClicks = dynamic(
   () => import("@/components/web/_analytics/referrerclicks-card"),
-  {
-    ssr: true,
-  },
+  { ssr: false },
 );
 
 interface AnalyticsClientProps {
@@ -160,7 +149,6 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
       </div>
       <div className="my-6 space-y-4">
         {/* Analytics Chart */}
-
         <Chart
           workspaceslug={workspace}
           timePeriod={timePeriod}
