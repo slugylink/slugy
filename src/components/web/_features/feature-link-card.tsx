@@ -33,7 +33,7 @@ const DEMO_LINKS = [
   {
     id: "demo-3",
     url: "https://sandipsarkar.dev",
-    icon: "/icons/github.svg",
+    icon: "/icons/sandip.png",
     slug: "sandip",
     clicks: 523,
     domain: "sandipsarkar.dev",
