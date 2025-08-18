@@ -95,7 +95,7 @@ const FeatureLinkPreview = ({
                     {links.length === 0 ? (
                       <div className={`text-center ${currentTheme.textColor}`}>
                         <p>No links available.</p>
-                      </div>
+                      </div>  
                     ) : (
                       links.map((link) => (
                         <a
