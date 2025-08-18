@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 import QRCodeStyling from "qr-code-styling";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,7 +53,13 @@ const QRCodePreview = ({
   </div>
 );
 
-const ColorPicker = ({ color }: { color: string }) => (
+const ColorPicker = ({
+  color,
+  onChange,
+}: {
+  color: string;
+  onChange: (val: string) => void;
+}) => (
   <Popover>
     <PopoverTrigger asChild>
       <div
@@ -66,13 +72,13 @@ const ColorPicker = ({ color }: { color: string }) => (
         />
         <Input
           value={color}
-          onChange={() => {}}
+          readOnly
           className="h-fit w-24 border-none focus:outline-none focus-visible:ring-0"
         />
       </div>
     </PopoverTrigger>
     <PopoverContent className="w-fit p-0">
-      <HexColorPicker color={color} />
+      <HexColorPicker color={color} onChange={onChange} />
     </PopoverContent>
   </Popover>
 );
@@ -80,15 +86,18 @@ const ColorPicker = ({ color }: { color: string }) => (
 const ColorButtons = ({
   colors,
   selectedColor,
+  onClick,
 }: {
   colors: readonly string[];
   selectedColor: string;
+  onClick: (color: string) => void;
 }) => (
   <div className="flex flex-wrap gap-1.5">
     {colors.map((color) => (
       <button
         key={color}
         type="button"
+        onClick={() => onClick(color)}
         className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
           selectedColor === color ? "border-primary" : "border-transparent"
         }`}
@@ -97,7 +106,9 @@ const ColorButtons = ({
         <Check
           size={16}
           strokeWidth={2.5}
-          className={`h-4 w-4 ${selectedColor === color ? "text-white" : "text-transparent"}`}
+          className={`h-4 w-4 ${
+            selectedColor === color ? "text-white" : "text-transparent"
+          }`}
         />
       </button>
     ))}
@@ -107,12 +118,11 @@ const ColorButtons = ({
 const QRCodeDesigner: React.FC<QRCodeDesignerProps> = ({ code }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<QRCodeStyling | null>(null);
-  const selectedColor = "#0abf53";
+  const [selectedColor, setSelectedColor] = useState<string>(COLORS[1]); // default color
 
   const updateQRCode = useCallback(
     (color: string) => {
       if (!containerRef.current) return;
-
       containerRef.current.innerHTML = "";
       qrRef.current = new QRCodeStyling({
         ...QR_OPTIONS,
@@ -146,8 +156,12 @@ const QRCodeDesigner: React.FC<QRCodeDesignerProps> = ({ code }) => {
       <div className="space-y-2">
         <Label className="text-sm font-medium">Colors</Label>
         <div className="flex items-center gap-2">
-          <ColorPicker color={selectedColor} />
-          <ColorButtons colors={COLORS} selectedColor={selectedColor} />
+          <ColorPicker color={selectedColor} onChange={setSelectedColor} />
+          <ColorButtons
+            colors={COLORS}
+            selectedColor={selectedColor}
+            onClick={setSelectedColor}
+          />
         </div>
       </div>
     </div>

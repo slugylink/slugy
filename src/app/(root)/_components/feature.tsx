@@ -72,14 +72,12 @@ const Features = () => (
     <div className="mb-5 space-y-4 text-2xl font-medium sm:text-4xl">
       <h2 className="text-balance">Elevate your brand</h2>
     </div>
-
     {/* Description */}
     <p className="mx-auto mb-8 max-w-xl text-sm text-zinc-600 sm:text-base dark:text-zinc-300">
       Create standout short links with our powerful link management{" "}
       <br className="hidden sm:block" />
       platform that includes robust analytics.
     </p>
-
     {/* Feature Cards Grid */}
     <div className="mb-16 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-2">
       {featureCards.map((feat, idx) => (
@@ -90,7 +88,6 @@ const Features = () => (
           <div>
             <div className="relative">
               <div className="absolute inset-x-32 top-6 m-auto aspect-video bg-gradient-to-tr from-yellow-500 via-orange-200 to-violet-300 blur-3xl md:inset-x-20" />
-
               {/* Feature Image/Body */}
               <div className="relative w-full max-w-6xl rounded-3xl border border-zinc-200 bg-white p-1.5 sm:p-2 dark:border-zinc-200/20">
                 <div

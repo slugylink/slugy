@@ -34,11 +34,6 @@ const Stats = dynamic(() => import("./_components/stats"), {
   ssr: true,
 });
 
-// const Pricing = dynamic(() => import("./_components/pricing"), {
-//   loading: () => <LoadingSection height={LOADING_HEIGHT.pricing} />,
-//   ssr: true,
-// });
-
 const OpenSource = dynamic(() => import("./_components/open-source"), {
   loading: () => <LoadingSection height={LOADING_HEIGHT.openSource} />,
   ssr: true,
@@ -54,7 +49,7 @@ export default function Home() {
         </div>
       </div>
 
-      <section id="features" className="scroll-mt-20 mt-12">
+      <section id="features" className="mt-12 scroll-mt-20">
         <Features />
       </section>
 

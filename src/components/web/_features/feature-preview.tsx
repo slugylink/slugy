@@ -38,6 +38,8 @@ const FeatureLinkPreview = ({
   React.useEffect(() => {
     setTheme(initialTheme);
   }, [initialTheme, setTheme]);
+
+  // Demo: static theme config. Replace with dynamic config for more themes.
   const currentTheme = {
     id: "prism",
     name: "Prism",
@@ -58,8 +60,6 @@ const FeatureLinkPreview = ({
 
           {/* Device Frame */}
           <div className="relative w-full rounded-[45px] bg-zinc-900 p-[9px] shadow-[0_0_16px_rgba(0,0,0,0.1)]">
-            {/* Screen Border */}
-
             {/* Screen Content */}
             <div
               className={`relative h-[380px] w-full rounded-[35px] ${currentTheme.background}`}
@@ -85,7 +85,7 @@ const FeatureLinkPreview = ({
                     </h2>
                     {bio && (
                       <p className={cn(currentTheme.accentColor, "text-sm")}>
-                        {bio ?? ""}
+                        {bio}
                       </p>
                     )}
                   </div>
@@ -94,7 +94,7 @@ const FeatureLinkPreview = ({
                   <div className="w-full space-y-3 pt-4 text-sm">
                     {links.length === 0 ? (
                       <div className={`text-center ${currentTheme.textColor}`}>
-                        <p></p>
+                        <p>No links available.</p>
                       </div>
                     ) : (
                       links.map((link) => (
@@ -112,7 +112,6 @@ const FeatureLinkPreview = ({
                   </div>
                 </div>
               </div>
-
               {/* Home Indicator */}
               <div className="absolute bottom-1 left-1/2 h-1 w-[120px] -translate-x-1/2 rounded-full bg-black"></div>
             </div>
