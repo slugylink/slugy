@@ -54,8 +54,7 @@ const Hero = () => {
           fill
           priority
           sizes="100vw"
-          className="object-cover mix-blend-multiply"
-          quality={20}
+          className="object-cover mix-blend-multiply opacity-20"
         />
       </motion.div>
 
