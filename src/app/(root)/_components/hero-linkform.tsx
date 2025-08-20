@@ -6,12 +6,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import useSWR from "swr";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "motion/react";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import HeroLinkCard from "./hero-linkcard";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
+import { Button } from "@/components/ui/button";
 
 // ----------------- Constants -----------------
 const API_ENDPOINT = "/api/temp";
@@ -19,7 +20,7 @@ const MAX_LINKS_DISPLAY = 2;
 const DEFAULT_LINK = {
   short: "slugy.co/git",
   original: "https://github.com/slugylink/slugy",
-  clicks: 650,
+  clicks: 1232,
   expires: null,
 } as const;
 
@@ -157,9 +158,13 @@ const HeroLinkForm = () => {
   return (
     <div>
       {/* Form */}
-      <form
+      <motion.form
         onSubmit={handleSubmit(onSubmit)}
         className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/70 p-2 backdrop-blur-md sm:p-2.5"
+        initial={{ opacity: 0, y: 12 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.2 }}
+        transition={{ duration: 1.0, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       >
         <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
           <Input
@@ -184,11 +189,22 @@ const HeroLinkForm = () => {
         </div>
         {/* Links */}
         <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
-          {links.map((link) => (
-            <HeroLinkCard key={link.short} link={link} />
-          ))}
+          <AnimatePresence initial={false}>
+            {links.map((link) => (
+              <motion.div
+                key={link.short}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
+                layout
+              >
+                <HeroLinkCard link={link} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
-      </form>
+      </motion.form>
 
       {/* CTA */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-700">

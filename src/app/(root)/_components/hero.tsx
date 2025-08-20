@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
+import { motion } from "motion/react";
 
 // ---------------------
 // Data-Driven Content
@@ -15,7 +16,7 @@ const data = {
     backgroundAlt: "Background texture",
     announcement: {
       text: "🚀 Efficient Link Management",
-      href: null, // Set if you want the announcement to be a link
+      href: null,
     },
     heading1: "Simplify Links Like",
     heading2: "Magic",
@@ -37,10 +38,16 @@ const data = {
 
 const Hero = () => {
   const { hero } = data;
+
   return (
     <section className="container mx-auto px-4">
       {/* Decorative Background */}
-      <div className="absolute top-36 right-0 left-1/2 z-0 h-[400px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-48 sm:h-[580px]">
+      <motion.div
+        className="absolute top-36 right-0 left-1/2 z-0 h-[400px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-48 sm:h-[580px]"
+        initial={{ opacity: 0, scale: 1.02 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
         <Image
           src={hero.backgroundImage}
           alt={hero.backgroundAlt}
@@ -50,13 +57,22 @@ const Hero = () => {
           className="object-cover mix-blend-multiply"
           quality={20}
         />
-      </div>
+      </motion.div>
 
       {/* Heading */}
       <div className="relative h-full w-full">
         <div className="mt-8 text-center">
-          {/* Banner Button / Announcement */}
-          <div className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12">
+          {/* Announcement Banner */}
+          <motion.div
+            className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.5,
+              ease: [0.22, 1, 0.36, 1],
+              delay: 0.05,
+            }}
+          >
             <div
               className={cn(
                 "group rounded-full border border-black/10 bg-neutral-50 text-base text-white transition-all hover:cursor-pointer hover:bg-neutral-100 dark:border-white/5 dark:bg-neutral-900 dark:hover:bg-neutral-800",
@@ -67,31 +83,77 @@ const Hero = () => {
                 <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
               </AnimatedShinyText>
             </div>
-          </div>
+          </motion.div>
 
           {/* Large Gradient Heading */}
-          <div
+          <motion.div
             style={{ fontFamily: hero.fontFamily }}
             className="space-y-1 text-3xl font-medium md:space-y-2 md:text-4xl lg:text-[53px]"
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
           >
-            <h2>{hero.heading1}</h2>
-            <h2 className={cn(hero.heading2Gradient, "font-medium")}>
-              {hero.heading2} <span className="text-[#ffaa40]">✨</span>{" "}
-            </h2>
-          </div>
+            <motion.h2
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.12,
+              }}
+            >
+              {hero.heading1}
+            </motion.h2>
+            <motion.h2
+              className={cn(hero.heading2Gradient, "font-medium")}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.18,
+              }}
+            >
+              {hero.heading2} <span className="text-[#ffaa40]">✨</span>
+            </motion.h2>
+          </motion.div>
           <div className="mx-auto max-w-2xl text-zinc-700">
-            <p className="mt-4 text-sm sm:mt-6 sm:text-base md:text-lg">
+            <motion.p
+              className="mt-4 text-sm sm:mt-6 sm:text-base md:text-lg"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.24,
+              }}
+            >
               {hero.subheading1}
-            </p>
-            <p className="text-sm sm:text-base md:text-lg">
+            </motion.p>
+            <motion.p
+              className="text-sm sm:text-base md:text-lg"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.5,
+                ease: [0.22, 1, 0.36, 1],
+                delay: 0.28,
+              }}
+            >
               {hero.subheading2}
-            </p>
+            </motion.p>
           </div>
         </div>
 
-        {/* Product Hunt Badge */}
-        <div className="mt-6 flex items-center justify-center gap-2 sm:gap-4">
-          <a href={hero.badge.href} target="_blank" rel="noopener noreferrer">
+        {/* Product Hunt / Peerlist Badge */}
+        <motion.div
+          className="mt-6 flex items-center justify-center gap-2 sm:gap-4"
+          initial={{ opacity: 0, y: 8 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* <a href={hero.badge.href} target="_blank" rel="noopener noreferrer">
             <Image
               src={hero.badge.imageUrl}
               alt={hero.badge.alt}
@@ -102,7 +164,7 @@ const Hero = () => {
               width={hero.badge.width}
               height={hero.badge.height}
             />
-          </a>
+          </a> */}
           <a
             href="https://peerlist.io/sandipsarkar/project/slugy--magic-links"
             target="_blank"
@@ -118,10 +180,17 @@ const Hero = () => {
               }}
             />
           </a>
-        </div>
+        </motion.div>
 
         {/* Form */}
-        <HeroLinkForm />
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+        >
+          <HeroLinkForm />
+        </motion.div>
       </div>
     </section>
   );
