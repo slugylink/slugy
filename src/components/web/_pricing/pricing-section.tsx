@@ -16,8 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NumberFlow from "@number-flow/react";
 
+type Plan = (typeof plans)[number];
+
 export default function PricingSection() {
-  type Plan = (typeof plans)[number];
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   return (
@@ -32,7 +33,7 @@ export default function PricingSection() {
           </p>
         </div>
 
-        {/* tabs (monthly & yearly) */}
+        {/* Tabs for monthly & yearly */}
         <Tabs
           value={billing}
           onValueChange={(v) => setBilling(v as "monthly" | "yearly")}
@@ -88,7 +89,7 @@ export default function PricingSection() {
                         />
                         <span className="mb-2 text-sm text-zinc-700">
                           {price === 0
-                            ? "Free forever"
+                            ? "[Free forever]"
                             : isYearly
                               ? "/ year"
                               : "/ month"}
