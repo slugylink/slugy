@@ -19,6 +19,8 @@ import { fetchChartData } from "@/server/actions/analytics/use-analytics";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import NumberFlow from "@number-flow/react";
+
 
 interface ChartProps {
   data?: {
@@ -222,7 +224,7 @@ const AnalyticsChart = ({
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
         <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
-          {formatNumber(totalClicks)}
+          <NumberFlow value={totalClicks} format={{ maximumFractionDigits: 0 }} />
           <span className="text-muted-foreground text-sm font-normal">
             Clicks
           </span>

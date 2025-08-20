@@ -277,7 +277,7 @@ function handleCustomDomain(
   // FIXED: Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`); // FIXED: Include search params
+    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`); 
   }
 
   return rewriteTo(`/${hostname}${pathname}${search}`, baseUrl);
