@@ -16,7 +16,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NumberFlow from "@number-flow/react";
 
-
 export default function PricingSection() {
   type Plan = (typeof plans)[number];
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
@@ -34,7 +33,11 @@ export default function PricingSection() {
         </div>
 
         {/* tabs (monthly & yearly) */}
-        <Tabs value={billing} onValueChange={(v) => setBilling(v as "monthly" | "yearly")} className="w-full">
+        <Tabs
+          value={billing}
+          onValueChange={(v) => setBilling(v as "monthly" | "yearly")}
+          className="w-full"
+        >
           <div className="flex w-full items-center justify-center">
             <TabsList className="mt-2">
               <TabsTrigger value="monthly">Monthly</TabsTrigger>
@@ -76,17 +79,27 @@ export default function PricingSection() {
                       <div className="mb-3 flex items-end gap-2">
                         <NumberFlow
                           value={price}
-                          format={{ style: "currency", currency: "USD", maximumFractionDigits: 0 }}
+                          format={{
+                            style: "currency",
+                            currency: "USD",
+                            maximumFractionDigits: 0,
+                          }}
                           className="text-3xl font-medium tracking-tight"
                         />
                         <span className="mb-2 text-sm text-zinc-700">
-                          {isYearly ? "/ year" : "/ month"}
+                          {price === 0
+                            ? "Free forever"
+                            : isYearly
+                              ? "/ year"
+                              : "/ month"}
                         </span>
-                        {isYearly && typeof yearlyDiscount === "number" && yearlyDiscount > 0 && (
-                          <Badge variant="secondary" className="mb-1">
-                            Save {yearlyDiscount}%
-                          </Badge>
-                        )}
+                        {isYearly &&
+                          typeof yearlyDiscount === "number" &&
+                          yearlyDiscount > 0 && (
+                            <Badge variant="secondary" className="mb-1">
+                              Save {yearlyDiscount}%
+                            </Badge>
+                          )}
                       </div>
                       <Button
                         size="lg"
