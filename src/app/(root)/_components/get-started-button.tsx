@@ -8,6 +8,7 @@ import { FaGithub } from "react-icons/fa6";
 import { cn } from "@/lib/utils";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
+import NumberFlow from "@number-flow/react";
 
 type GetStartedButtonProps = {
   isGitVisible: boolean;
@@ -66,7 +67,11 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({
         >
           <Button variant="ghost" className="group w-fit">
             <FaGithub className="h-5 w-5" />
-            <span className="text-xs">{isLoading ? 0 : (stars ?? 0)}</span>
+            <NumberFlow
+              value={isLoading ? 0 : (stars ?? 0)}
+              format={{ notation: "compact", maximumFractionDigits: 1 }}
+              className="text-xs"
+            />
           </Button>
         </Link>
       )}
