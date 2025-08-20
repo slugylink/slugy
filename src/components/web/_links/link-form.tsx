@@ -284,12 +284,10 @@ export default function LinkFormFields({
                   ) : urlSafetyStatus.isValid === true ? (
                     <div className="flex items-center gap-1 text-xs text-green-600">
                       <Shield className="h-3.5 w-3.5" />
-                      <span>Safe</span>
                     </div>
                   ) : urlSafetyStatus.isValid === false ? (
                     <div className="flex items-center gap-1 text-xs text-red-600">
                       <ShieldAlert className="h-3.5 w-3.5" />
-                      <span>Unsafe</span>
                     </div>
                   ) : (
                     <div className="text-muted-foreground flex items-center gap-1 text-sm">
