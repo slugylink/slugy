@@ -53,13 +53,13 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({
 
   // Route according to session state
   const destination = session ? baseUrl : `${baseUrl}/login`;
-  const label = session ? "Dashboard" : "Get started";
+  const label = session ? "Dashboard" : "Get started  ";
 
   return (
     <div className={cn(className, "flex gap-2")}>
       {isGitVisible && (
         <Link
-          href="https://slugy.co/git"
+          href="https://github.com/slugylink/slugy"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="View Slugy on GitHub"

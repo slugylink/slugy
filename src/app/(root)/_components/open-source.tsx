@@ -30,13 +30,13 @@ const OpenSource = () => {
             </p>
 
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-4">
-              <Link target="_blank" href="https://slugy.co/git">
+              <Link target="_blank" href="https://github.com/slugylink/slugy">
                 <Button className="rounded-lg">
                   <FaGithub className="mr-2 h-5 w-5" />
                   Star on Github
                 </Button>
               </Link>
-              <Link target="_blank" href="https://slugy.co/support">
+              <Link target="_blank" href="https://github.com/sponsors/slugylink">
                 <Button variant="outline" className="rounded-lg text-black">
                   <Heart className="mr-2 h-5 w-5 text-pink-500" />
                   Support

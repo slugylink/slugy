@@ -11,7 +11,10 @@ export const swrConfig: SWRConfiguration = {
   revalidateOnReconnect: true,
   shouldRetryOnError: true,
   keepPreviousData: true,
+  // refreshInterval: 15000,
+
   onError: (error: Error, key) => {
     console.error(`SWR Error on ${key}:`, error);
+    // e.g., Sentry.captureException(error);
   },
 };
