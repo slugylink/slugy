@@ -15,7 +15,24 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
 import useSWR from "swr";
-import { fetchChartData } from "@/server/actions/analytics/use-analytics";
+// Function to fetch chart data from the API route
+const fetchChartData = async (
+  workspaceslug: string,
+  params: Record<string, string>
+) => {
+  const searchParams = new URLSearchParams(params);
+  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch chart data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return {
+    clicksOverTime: data.clicksOverTime ?? [],
+    totalClicks: data.totalClicks ?? 0,
+  };
+};
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";

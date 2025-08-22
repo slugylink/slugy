@@ -8,7 +8,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
-import { fetchGeoData } from "@/server/actions/analytics/use-analytics";
+// Function to fetch geo data from the API route
+const fetchGeoData = async (
+  workspaceslug: string,
+  params: Record<string, string>,
+  type: "countries" | "cities" | "continents"
+) => {
+  const searchParams = new URLSearchParams(params);
+  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=${type}`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch geo data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data[type] ?? [];
+};
 
 // ------------------------------
 // Types

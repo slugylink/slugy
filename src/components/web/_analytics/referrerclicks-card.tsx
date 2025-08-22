@@ -4,7 +4,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UrlAvatar from "@/components/web/url-avatar";
 import useSWR from "swr";
-import { fetchReferrerData } from "@/server/actions/analytics/use-analytics";
+// Function to fetch referrer data from the API route
+const fetchReferrerData = async (
+  workspaceslug: string,
+  params: Record<string, string>
+) => {
+  const searchParams = new URLSearchParams(params);
+  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=referrers`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch referrer data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data.referrers ?? [];
+};
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 

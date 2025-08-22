@@ -19,7 +19,21 @@ import {
   Redo2,
 } from "lucide-react";
 import { type AnalyticsResponse } from "@/server/actions/analytics/analytics";
-import { fetchAnalyticsData } from "@/server/actions/analytics/use-analytics";
+
+// Function to fetch analytics data from the API route
+const fetchAnalyticsData = async (
+  workspace: string,
+  params: Record<string, string>
+): Promise<AnalyticsResponse> => {
+  const searchParams = new URLSearchParams(params);
+  const response = await fetch(`/api/workspace/${workspace}/analytics?${searchParams}`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch analytics: ${response.statusText}`);
+  }
+  
+  return response.json();
+};
 
 // Dynamic imports with SSR disabled (client-only)
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
@@ -30,7 +44,7 @@ const UrlClicks = dynamic(
   { ssr: true },
 );
 const GeoClicks = dynamic(
-  () => import("@/components/web/_analytics/geoclicks-card"),
+  () => import("@/components/web/_analytics/geoclicks-card"), 
   { ssr: true },
 );
 const DeviceClicks = dynamic(

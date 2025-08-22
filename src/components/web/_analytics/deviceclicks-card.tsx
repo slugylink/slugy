@@ -5,7 +5,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import useSWR from "swr";
-import { fetchDeviceData } from "@/server/actions/analytics/use-analytics";
+// Function to fetch device data from the API route
+const fetchDeviceData = async (
+  workspaceslug: string,
+  params: Record<string, string>,
+  metric: "devices" | "browsers" | "os"
+) => {
+  const searchParams = new URLSearchParams(params);
+  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=${metric}`);
+  
+  if (!response.ok) {
+    throw new Error(`Failed to fetch device data: ${response.statusText}`);
+  }
+  
+  const data = await response.json();
+  return data[metric] ?? [];
+};
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
