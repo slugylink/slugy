@@ -183,153 +183,128 @@ function getStartDate(period: TimePeriod): Date {
   return now;
 }
 
-// --- Data Processing ---
+// --- Optimized Data Processing ---
 
-function initMaps(metrics: AnalyticsMetric[]): AggregationMaps {
-  const maps: AggregationMaps = {};
-  if (metrics.includes("clicksOverTime")) maps.clicksOverTime = new Map();
-  if (metrics.includes("cities")) maps.cities = new Map();
-  if (metrics.includes("countries")) maps.countries = new Map();
-  if (metrics.includes("continents")) maps.continents = new Map();
-  if (metrics.includes("devices")) maps.devices = new Map();
-  if (metrics.includes("browsers")) maps.browsers = new Map();
-  if (metrics.includes("oses")) maps.oses = new Map();
-  if (metrics.includes("referrers")) maps.referrers = new Map();
-  if (metrics.includes("destinations")) maps.destinations = new Map();
-  return maps;
+// Use more efficient data structures and avoid Maps for simple aggregations
+interface AggregatedData {
+  clicksOverTime: Record<string, number>;
+  cities: Record<string, { city: string; country: string; clicks: number }>;
+  countries: Record<string, number>;
+  continents: Record<string, number>;
+  devices: Record<string, number>;
+  browsers: Record<string, number>;
+  oses: Record<string, number>;
+  referrers: Record<string, number>;
+  destinations: Record<string, number>;
+  linkClicks: Record<string, number>;
 }
 
-function processRecords(
+function aggregateData(
   records: RawRecord[],
   startDate: Date,
   links: LinkInfo[],
   metrics: AnalyticsMetric[],
-): { maps: AggregationMaps; linkClicks: Map<string, number> } {
-  const maps = initMaps(metrics);
-  const urlByLink = new Map(links.map((l) => [l.id, l.url]));
-  const linkClicks = new Map<string, number>();
+): AggregatedData {
+  const data: AggregatedData = {
+    clicksOverTime: {},
+    cities: {},
+    countries: {},
+    continents: {},
+    devices: {},
+    browsers: {},
+    oses: {},
+    referrers: {},
+    destinations: {},
+    linkClicks: {},
+  };
+
+  // Create lookup map for links (more efficient than repeated lookups)
+  const linkMap = new Map(links.map(l => [l.id, l]));
 
   for (const r of records) {
-    // Total clicks per link
-    linkClicks.set(r.linkId, (linkClicks.get(r.linkId) ?? 0) + r._count);
+    // Aggregate link clicks
+    data.linkClicks[r.linkId] = (data.linkClicks[r.linkId] ?? 0) + r._count;
 
-    // Clicks over time
-    if (maps.clicksOverTime) {
+    // Aggregate clicks over time
+    if (metrics.includes("clicksOverTime")) {
       let keyDate: Date;
       const elapsed = Date.now() - startDate.getTime();
       if (elapsed <= 24 * 3600 * 1000) keyDate = roundToHour(r.clickedAt);
-      else if (elapsed <= 30 * 24 * 3600 * 1000)
-        keyDate = roundToDay(r.clickedAt);
-      else
-        keyDate = new Date(
-          r.clickedAt.getFullYear(),
-          r.clickedAt.getMonth(),
-          1,
-        );
-
+      else if (elapsed <= 30 * 24 * 3600 * 1000) keyDate = roundToDay(r.clickedAt);
+      else keyDate = new Date(r.clickedAt.getFullYear(), r.clickedAt.getMonth(), 1);
+      
       const key = keyDate.toISOString();
-      maps.clicksOverTime.set(
-        key,
-        (maps.clicksOverTime.get(key) ?? 0) + r._count,
-      );
+      data.clicksOverTime[key] = (data.clicksOverTime[key] ?? 0) + r._count;
     }
 
-    // Cities
-    if (maps.cities) {
-      const key = `${r.city ?? "Unknown"}|${r.country ?? "Unknown"}`;
-      const existing = maps.cities.get(key) ?? {
-        city: r.city ?? "Unknown",
-        country: r.country ?? "Unknown",
-        clicks: 0,
-      };
-      existing.clicks += r._count;
-      maps.cities.set(key, existing);
+    // Aggregate cities
+    if (metrics.includes("cities")) {
+      const cityKey = `${r.city ?? "Unknown"}|${r.country ?? "Unknown"}`;
+      if (!data.cities[cityKey]) {
+        data.cities[cityKey] = { city: r.city ?? "Unknown", country: r.country ?? "Unknown", clicks: 0 };
+      }
+      data.cities[cityKey].clicks += r._count;
     }
 
-    // Generic increments
-    const inc = (map: Map<string, number> | undefined, key: string) => {
-      if (map) map.set(key, (map.get(key) ?? 0) + r._count);
+    // Aggregate other metrics efficiently
+    const inc = (obj: Record<string, number>, key: string) => {
+      obj[key] = (obj[key] ?? 0) + r._count;
     };
-    inc(maps.countries, r.country ?? "Unknown");
-    inc(maps.continents, r.continent ?? "Unknown");
-    inc(maps.devices, r.device ?? "Unknown");
-    inc(maps.browsers, r.browser ?? "Unknown");
-    inc(maps.oses, r.os ?? "Unknown");
-    inc(maps.referrers, r.referer ?? "Unknown");
-    if (maps.destinations) {
-      const dest = urlByLink.get(r.linkId) ?? "Unknown";
-      inc(maps.destinations, dest);
+
+    if (metrics.includes("countries")) inc(data.countries, r.country ?? "Unknown");
+    if (metrics.includes("continents")) inc(data.continents, r.continent ?? "Unknown");
+    if (metrics.includes("devices")) inc(data.devices, r.device ?? "Unknown");
+    if (metrics.includes("browsers")) inc(data.browsers, r.browser ?? "Unknown");
+    if (metrics.includes("oses")) inc(data.oses, r.os ?? "Unknown");
+    if (metrics.includes("referrers")) inc(data.referrers, r.referer ?? "Unknown");
+    
+    if (metrics.includes("destinations")) {
+      const link = linkMap.get(r.linkId);
+      const dest = link?.url ?? "Unknown";
+      inc(data.destinations, dest);
     }
   }
 
-  return { maps, linkClicks };
+  return data;
 }
 
 function buildResponse(
-  maps: AggregationMaps,
+  data: AggregatedData,
   links: LinkInfo[],
-  linkClicks: Map<string, number>,
   metrics: AnalyticsMetric[],
 ): AnalyticsResponse {
   const resp: AnalyticsResponse = {};
 
-  if (metrics.includes("totalClicks") && maps.clicksOverTime) {
-    resp.totalClicks = Array.from(maps.clicksOverTime.values()).reduce(
-      (a, b) => a + b,
-      0,
-    );
+  // Calculate total clicks from clicks over time
+  if (metrics.includes("totalClicks")) {
+    resp.totalClicks = Object.values(data.clicksOverTime).reduce((a, b) => a + b, 0);
   }
-  if (maps.clicksOverTime) {
-    resp.clicksOverTime = Array.from(maps.clicksOverTime.entries())
-      .map(([t, c]) => ({ time: new Date(t), clicks: c }))
+
+  // Format clicks over time
+  if (metrics.includes("clicksOverTime")) {
+    resp.clicksOverTime = Object.entries(data.clicksOverTime)
+      .map(([time, clicks]) => ({ time: new Date(time), clicks }))
       .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
+
+  // Format links
   if (metrics.includes("links")) {
     resp.links = links.map((l) => ({
       slug: l.slug,
       url: l.url,
-      clicks: linkClicks.get(l.id) ?? 0,
+      clicks: data.linkClicks[l.id] ?? 0,
     }));
   }
-  if (maps.cities) {
-    resp.cities = Array.from(maps.cities.values());
-  }
-  if (maps.countries) {
-    resp.countries = Array.from(maps.countries.entries()).map(
-      ([country, clicks]) => ({ country, clicks }),
-    );
-  }
-  if (maps.continents) {
-    resp.continents = Array.from(maps.continents.entries()).map(
-      ([continent, clicks]) => ({ continent, clicks }),
-    );
-  }
-  if (maps.devices) {
-    resp.devices = Array.from(maps.devices.entries()).map(
-      ([device, clicks]) => ({ device, clicks }),
-    );
-  }
-  if (maps.browsers) {
-    resp.browsers = Array.from(maps.browsers.entries()).map(
-      ([browser, clicks]) => ({ browser, clicks }),
-    );
-  }
-  if (maps.oses) {
-    resp.oses = Array.from(maps.oses.entries()).map(([os, clicks]) => ({
-      os,
-      clicks,
-    }));
-  }
-  if (maps.referrers) {
-    resp.referrers = Array.from(maps.referrers.entries()).map(
-      ([referrer, clicks]) => ({ referrer, clicks }),
-    );
-  }
-  if (maps.destinations) {
-    resp.destinations = Array.from(maps.destinations.entries()).map(
-      ([destination, clicks]) => ({ destination, clicks }),
-    );
-  }
+
+  // Format other metrics efficiently
+  if (metrics.includes("cities")) resp.cities = Object.values(data.cities);
+  if (metrics.includes("countries")) resp.countries = Object.entries(data.countries).map(([country, clicks]) => ({ country, clicks }));
+  if (metrics.includes("continents")) resp.continents = Object.entries(data.continents).map(([continent, clicks]) => ({ continent, clicks }));
+  if (metrics.includes("devices")) resp.devices = Object.entries(data.devices).map(([device, clicks]) => ({ device, clicks }));
+  if (metrics.includes("browsers")) resp.browsers = Object.entries(data.browsers).map(([browser, clicks]) => ({ browser, clicks }));
+  if (metrics.includes("oses")) resp.oses = Object.entries(data.oses).map(([os, clicks]) => ({ os, clicks }));
+  if (metrics.includes("referrers")) resp.referrers = Object.entries(data.referrers).map(([referrer, clicks]) => ({ referrer, clicks }));
+  if (metrics.includes("destinations")) resp.destinations = Object.entries(data.destinations).map(([destination, clicks]) => ({ destination, clicks }));
 
   return resp;
 }
@@ -407,19 +382,20 @@ export async function GET(
       _count: true,
     });
 
+    // Get unique link IDs and fetch link data in a single query
     const linkIds = [...new Set(rawData.map((r) => r.linkId))];
     const links = await db.link.findMany({
       where: { id: { in: linkIds } },
       select: { id: true, slug: true, url: true },
     });
 
-    const { maps, linkClicks } = processRecords(
+    const aggregatedData = aggregateData(
       rawData as RawRecord[],
       startDate,
       links,
       metrics,
     );
-    const result = buildResponse(maps, links, linkClicks, metrics);
+    const result = buildResponse(aggregatedData, links, metrics);
 
     return NextResponse.json(result);
   } catch (err) {
