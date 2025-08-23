@@ -93,7 +93,7 @@ const NAV_ACCESS_CONTROL = {
 } as const;
 
 // Core pages to prefetch
-const CORE_PAGES = ["/", "/analytics"] as const;
+const CORE_PAGES = ["/", "/analytics", "/bio-links"] as const;
 
 // --------------------------
 // Helpers
@@ -225,7 +225,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
         ? isBioLinks
-          ? item.url
+          ? item.url // Bio-links always uses root path, independent of workspace
           : buildUrl(baseUrl, item.url)
         : undefined;
 
@@ -251,7 +251,10 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     const lastSegment = getLastSegment(pathname);
     return {
       isItemActive: (item: NavItem): boolean => {
-        if (item.title === "Bio Links") return pathname.includes("/bio-links");
+        if (item.title === "Bio Links") {
+          // Bio-links is active when pathname includes /bio-links, regardless of workspace
+          return pathname.includes("/bio-links");
+        }
         if (item.url && getLastSegment(item.url) === lastSegment) return true;
         return (
           item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ??
@@ -280,7 +283,8 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   useEffect(() => {
     const links: HTMLLinkElement[] = [];
     CORE_PAGES.forEach((page) => {
-      const fullUrl = baseUrl ? `${baseUrl}${page}` : page;
+      // Bio-links should always be prefetched at root level
+      const fullUrl = page === "/bio-links" ? page : (baseUrl ? `${baseUrl}${page}` : page);
       if (!document.querySelector(`link[rel="prefetch"][href="${fullUrl}"]`)) {
         const link = document.createElement("link");
         link.rel = "prefetch";
