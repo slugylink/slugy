@@ -93,7 +93,7 @@ const NAV_ACCESS_CONTROL = {
 } as const;
 
 // Core pages to prefetch
-const CORE_PAGES = ["/", "/analytics", "/bio-links"] as const;
+const CORE_PAGES = ["/", "/analytics"] as const;
 
 // --------------------------
 // Helpers
@@ -211,15 +211,15 @@ export const NavMain = memo<NavMainProps>(function NavMain({
 }) {
   const pathname = usePathname();
 
-  // Memoize workspace and user role lookup
+  // Workspace & role
   const { userRole, baseUrl } = useMemo(() => {
     const currentWorkspace = workspaces.find((w) => w.slug === workspaceslug);
     const userRole = currentWorkspace?.userRole ?? null;
     const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
-    return { currentWorkspace, userRole, baseUrl };
+    return { userRole, baseUrl };
   }, [workspaces, workspaceslug]);
 
-  // Memoize processed nav items with access control
+  // Processed nav items
   const processedNavItems = useMemo(() => {
     return SIDEBAR_DATA.navMain.map((item) => {
       const isBioLinks = item.title === "Bio Links";
@@ -246,10 +246,9 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [baseUrl, userRole]);
 
-  // Memoize active state checker
+  // Active checker
   const activeStateChecker = useMemo(() => {
     const lastSegment = getLastSegment(pathname);
-
     return {
       isItemActive: (item: NavItem): boolean => {
         if (item.title === "Bio Links") return pathname.includes("/bio-links");
@@ -264,7 +263,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     };
   }, [pathname]);
 
-  // Memoize sub-item renderer
+  // Sub-item renderer
   const renderSubItems = useCallback(
     (items: NavSubItem[]) =>
       items.map((subItem) => (
@@ -277,65 +276,49 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     [activeStateChecker],
   );
 
-  // Prefetch core pages (home, analytics, bio-links)
+  // Prefetch core pages
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Prefetch core pages for better performance
-      CORE_PAGES.forEach((page) => {
-        const fullUrl = baseUrl ? `${baseUrl}${page}` : page;
-
-        // Create prefetch link for core pages
+    const links: HTMLLinkElement[] = [];
+    CORE_PAGES.forEach((page) => {
+      const fullUrl = baseUrl ? `${baseUrl}${page}` : page;
+      if (!document.querySelector(`link[rel="prefetch"][href="${fullUrl}"]`)) {
         const link = document.createElement("link");
         link.rel = "prefetch";
         link.href = fullUrl;
-        link.as = "document";
-
-        // Add to head if not already present
-        if (!document.querySelector(`link[href="${fullUrl}"]`)) {
-          document.head.appendChild(link);
-        }
-
-        // Cleanup after a delay to avoid memory leaks
-        setTimeout(() => {
-          if (document.head.contains(link)) {
-            document.head.removeChild(link);
-          }
-        }, 10000); // Keep prefetch links longer for core pages
+        document.head.appendChild(link);
+        links.push(link);
+      }
+    });
+    return () => {
+      links.forEach((l) => {
+        if (document.head.contains(l)) document.head.removeChild(l);
       });
-    }
+    };
   }, [baseUrl]);
 
-  // Memoize prefetch links for other nav items
-  const prefetchLinks = useMemo(() => {
-    return processedNavItems
-      .filter(
-        ({ url, title }) =>
-          url && title !== "Settings" && !/^https?:\/\//.test(url),
-      )
-      .map(({ url }) => url!);
-  }, [processedNavItems]);
-
   // Prefetch other nav items
-  useMemo(() => {
-    if (typeof window !== "undefined") {
-      prefetchLinks.forEach((url) => {
-        // Skip core pages as they're already prefetched above
-        if (CORE_PAGES.some((page) => url.endsWith(page))) return;
-
+  useEffect(() => {
+    const links: HTMLLinkElement[] = [];
+    processedNavItems.forEach(({ url, title }) => {
+      if (
+        url &&
+        title !== "Settings" &&
+        !/^https?:\/\//.test(url) &&
+        !CORE_PAGES.some((page) => url.endsWith(page))
+      ) {
         const link = document.createElement("link");
         link.rel = "prefetch";
         link.href = url;
         document.head.appendChild(link);
-
-        // Cleanup after a delay to avoid memory leaks
-        setTimeout(() => {
-          if (document.head.contains(link)) {
-            document.head.removeChild(link);
-          }
-        }, 5000);
+        links.push(link);
+      }
+    });
+    return () => {
+      links.forEach((l) => {
+        if (document.head.contains(l)) document.head.removeChild(l);
       });
-    }
-  }, [prefetchLinks]);
+    };
+  }, [processedNavItems]);
 
   return (
     <SidebarGroup className="px-2">
