@@ -7,15 +7,17 @@ import useSWR from "swr";
 // Function to fetch referrer data from the API route
 const fetchReferrerData = async (
   workspaceslug: string,
-  params: Record<string, string>
+  params: Record<string, string>,
 ) => {
   const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=referrers`);
-  
+  const response = await fetch(
+    `/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=referrers`,
+  );
+
   if (!response.ok) {
     throw new Error(`Failed to fetch referrer data: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   return data.referrers ?? [];
 };
@@ -80,8 +82,14 @@ const ReferrerClicks = ({
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Optimize SWR key structure and add proper options
-  const swrKey = ["analytics", "referrers", workspaceslug, activeTab, searchParams];
-  
+  const swrKey = [
+    "analytics",
+    "referrers",
+    workspaceslug,
+    activeTab,
+    searchParams,
+  ];
+
   const { data, error, isLoading } = useSWR<ReferrerData[], Error>(
     swrKey,
     () => fetchReferrerData(workspaceslug, searchParams),
@@ -93,7 +101,7 @@ const ReferrerClicks = ({
       // Only revalidate when focus returns
       revalidateOnFocus: false,
       // Revalidate on reconnect
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
       // Error retry configuration
       errorRetryCount: 2,
       errorRetryInterval: 3000,
@@ -122,8 +130,6 @@ const ReferrerClicks = ({
   );
 
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
-
-
 
   return (
     <Card className="relative overflow-hidden border shadow-none">

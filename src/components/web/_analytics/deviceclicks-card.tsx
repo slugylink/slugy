@@ -124,7 +124,7 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
       // Only revalidate when focus returns
       revalidateOnFocus: false,
       // Revalidate on reconnect
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
       // Error retry configuration
       errorRetryCount: 2,
       errorRetryInterval: 3000,

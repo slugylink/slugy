@@ -18,15 +18,17 @@ import useSWR from "swr";
 // Function to fetch chart data from the API route
 const fetchChartData = async (
   workspaceslug: string,
-  params: Record<string, string>
+  params: Record<string, string>,
 ) => {
   const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}`);
-  
+  const response = await fetch(
+    `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
+  );
+
   if (!response.ok) {
     throw new Error(`Failed to fetch chart data: ${response.statusText}`);
   }
-  
+
   const data = await response.json();
   return {
     clicksOverTime: data.clicksOverTime ?? [],
@@ -37,7 +39,6 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
-
 
 interface ChartProps {
   data?: {
@@ -84,7 +85,7 @@ const AnalyticsChart = ({
 
   // Optimize SWR key - only fetch when we have a workspace slug
   const shouldFetch = Boolean(workspaceslug);
-  const swrKey = shouldFetch 
+  const swrKey = shouldFetch
     ? ["analytics", "chart", workspaceslug, timePeriod, searchParams]
     : null;
 
@@ -94,19 +95,20 @@ const AnalyticsChart = ({
     error,
   } = useSWR<ChartDataResponse, Error>(
     swrKey,
-    () => fetchChartData(workspaceslug!, {
-      time_period: timePeriod,
-      ...searchParams,
-    }),
+    () =>
+      fetchChartData(workspaceslug!, {
+        time_period: timePeriod,
+        ...searchParams,
+      }),
     {
       // Only revalidate when searchParams change significantly
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
+      revalidateOnReconnect: false,
       // Keep previous data while loading new data
       keepPreviousData: true,
       // Dedupe requests within 10 seconds
       dedupingInterval: 10000,
-    }
+    },
   );
 
   useEffect(() => {
@@ -255,7 +257,10 @@ const AnalyticsChart = ({
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
         <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
-          <NumberFlow value={totalClicks} format={{ maximumFractionDigits: 0 }} />
+          <NumberFlow
+            value={totalClicks}
+            format={{ maximumFractionDigits: 0 }}
+          />
           <span className="text-muted-foreground text-sm font-normal">
             Clicks
           </span>
