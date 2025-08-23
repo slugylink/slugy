@@ -26,7 +26,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, useEffect } from "react";
 
 // --------------------------
 // Types
@@ -92,6 +92,9 @@ const NAV_ACCESS_CONTROL = {
   },
 } as const;
 
+// Core pages to prefetch
+const CORE_PAGES = ["/", "/analytics", "/bio-links"] as const;
+
 // --------------------------
 // Helpers
 // --------------------------
@@ -146,7 +149,7 @@ const NavItemComponent = memo<{
               className={cn(
                 "group-hover/menu-item cursor-pointer transition-colors duration-200",
                 isActive &&
-                  "bg-sidebar-accent text-blue-500 hover:text-blue-500 font-medium",
+                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
               )}
             >
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}
@@ -274,32 +277,51 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     [activeStateChecker],
   );
 
-  // Memoize prefetch links for analytics and bio pages
-  const prefetchLinks = useMemo(() => {
-    const links = [];
+  // Prefetch core pages (home, analytics, bio-links)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Prefetch core pages for better performance
+      CORE_PAGES.forEach((page) => {
+        const fullUrl = baseUrl ? `${baseUrl}${page}` : page;
 
-    // Always prefetch analytics page
-    if (baseUrl) {
-      links.push(`${baseUrl}/analytics`);
+        // Create prefetch link for core pages
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.href = fullUrl;
+        link.as = "document";
+
+        // Add to head if not already present
+        if (!document.querySelector(`link[href="${fullUrl}"]`)) {
+          document.head.appendChild(link);
+        }
+
+        // Cleanup after a delay to avoid memory leaks
+        setTimeout(() => {
+          if (document.head.contains(link)) {
+            document.head.removeChild(link);
+          }
+        }, 10000); // Keep prefetch links longer for core pages
+      });
     }
+  }, [baseUrl]);
 
-    // Always prefetch bio-links page (it's a global route)
-    links.push("/bio-links");
+  // Memoize prefetch links for other nav items
+  const prefetchLinks = useMemo(() => {
+    return processedNavItems
+      .filter(
+        ({ url, title }) =>
+          url && title !== "Settings" && !/^https?:\/\//.test(url),
+      )
+      .map(({ url }) => url!);
+  }, [processedNavItems]);
 
-    // Prefetch other non-settings, non-external routes
-    processedNavItems.forEach(({ url, title }) => {
-      if (url && title !== "Settings" && !/^https?:\/\//.test(url)) {
-        links.push(url);
-      }
-    });
-
-    return links;
-  }, [baseUrl, processedNavItems]);
-
-  // Prefetch important pages
+  // Prefetch other nav items
   useMemo(() => {
-    prefetchLinks.forEach((url) => {
-      if (typeof window !== "undefined") {
+    if (typeof window !== "undefined") {
+      prefetchLinks.forEach((url) => {
+        // Skip core pages as they're already prefetched above
+        if (CORE_PAGES.some((page) => url.endsWith(page))) return;
+
         const link = document.createElement("link");
         link.rel = "prefetch";
         link.href = url;
@@ -311,8 +333,8 @@ export const NavMain = memo<NavMainProps>(function NavMain({
             document.head.removeChild(link);
           }
         }, 5000);
-      }
-    });
+      });
+    }
   }, [prefetchLinks]);
 
   return (
