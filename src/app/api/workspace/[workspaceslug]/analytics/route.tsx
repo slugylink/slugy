@@ -18,6 +18,21 @@ type AnalyticsMetric =
   | "referrers"
   | "destinations";
 
+// Accept both singular and plural forms from client
+type ClientMetric =
+  | "totalClicks"
+  | "clicksOverTime"
+  | "links"
+  | "cities"
+  | "countries"
+  | "continents"
+  | "devices"
+  | "browsers"
+  | "os" // Allow singular form
+  | "oses" // Allow plural form
+  | "referrers"
+  | "destinations";
+
 const ALL_METRICS = [
   "totalClicks",
   "clicksOverTime",
@@ -32,6 +47,14 @@ const ALL_METRICS = [
   "destinations",
 ] as const;
 
+// Mapping function to convert client metrics to internal format
+function normalizeMetrics(metrics: ClientMetric[]): AnalyticsMetric[] {
+  return metrics.map(metric => {
+    if (metric === "os") return "oses";
+    return metric as AnalyticsMetric;
+  });
+}
+
 const analyticsPropsSchema = z
   .object({
     timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]),
@@ -44,7 +67,20 @@ const analyticsPropsSchema = z
     referrer_key: z.string().nullable().optional(),
     device_key: z.string().nullable().optional(),
     destination_key: z.string().nullable().optional(),
-    metrics: z.array(z.enum(ALL_METRICS)).optional(),
+    metrics: z.array(z.enum([
+      "totalClicks",
+      "clicksOverTime",
+      "links",
+      "cities",
+      "countries",
+      "continents",
+      "devices",
+      "browsers",
+      "os", // Allow singular form
+      "oses", // Allow plural form
+      "referrers",
+      "destinations"
+    ])).optional(),
   })
   .strict();
 
@@ -91,7 +127,7 @@ export async function GET(
       device_key: search.get("device_key"),
       destination_key: search.get("destination_key"),
       metrics: search.get("metrics")
-        ? (search.get("metrics")!.split(",") as AnalyticsMetric[])
+        ? (search.get("metrics")!.split(",") as ClientMetric[])
         : undefined,
     };
     const props = analyticsPropsSchema.parse(raw);
@@ -128,7 +164,9 @@ export async function GET(
           ? "day"
           : "month";
 
-    const metrics: readonly AnalyticsMetric[] = props.metrics ?? ALL_METRICS;
+    const metrics: readonly AnalyticsMetric[] = props.metrics 
+      ? normalizeMetrics(props.metrics)
+      : ALL_METRICS;
 
     const baseWhereClause = sql`
       a."clickedAt" >= ${startDate}

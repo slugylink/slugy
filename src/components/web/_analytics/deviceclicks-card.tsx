@@ -9,7 +9,7 @@ import useSWR from "swr";
 const fetchDeviceData = async (
   workspaceslug: string,
   params: Record<string, string>,
-  metric: "devices" | "browsers" | "os"
+  metric: "devices" | "browsers" | "oses"
 ) => {
   const searchParams = new URLSearchParams(params);
   const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=${metric}`);
@@ -74,7 +74,7 @@ interface DeviceData {
   clicks: number;
 }
 
-type TabKey = "devices" | "browsers" | "os";
+type TabKey = "devices" | "browsers" | "oses";
 
 interface TabConfig {
   key: TabKey;
@@ -99,7 +99,7 @@ const tabConfigs: TabConfig[] = [
       `${BASE_ASSET_URL}/browser/${formatNameForUrl(name)}.svg`,
   },
   {
-    key: "os",
+    key: "oses",
     label: "OS",
     dataKey: "os",
     getAssetSrc: (name) => `${BASE_ASSET_URL}/os/${formatNameForUrl(name)}.svg`,
