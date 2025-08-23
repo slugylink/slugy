@@ -22,6 +22,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import CreateWorkspaceDialog from "./create-workspace-dialog";
 
+// --------------------------
+// Types
+// --------------------------
 interface WorkspaceArr {
   id: string;
   name: string;
@@ -35,6 +38,75 @@ interface WorkspaceSwitcherProps {
   workspaceslug: string;
 }
 
+// --------------------------
+// Workspace Avatar Component
+// --------------------------
+const WorkspaceAvatar = React.memo<{
+  workspace: WorkspaceArr;
+  size: number;
+  className?: string;
+}>(({ workspace, size, className }) => (
+  <div className={className}>
+    {workspace.logo ? (
+      <Image
+        src={workspace.logo}
+        alt={workspace.name}
+        width={size}
+        height={size}
+        className="size-full object-cover"
+      />
+    ) : (
+      <Image
+        src={`https://avatar.vercel.sh/${workspace.slug}.png`}
+        alt={workspace.name}
+        width={size}
+        height={size}
+        className="size-full object-cover"
+      />
+    )}
+  </div>
+));
+WorkspaceAvatar.displayName = "WorkspaceAvatar";
+
+// --------------------------
+// Workspace Menu Item Component
+// --------------------------
+const WorkspaceMenuItem = React.memo<{
+  workspace: WorkspaceArr;
+  isActive: boolean;
+  index: number;
+  onSelect: (workspace: WorkspaceArr) => void;
+}>(({ workspace, isActive, index, onSelect }) => (
+  <DropdownMenuItem
+    key={workspace.id}
+    onClick={() => onSelect(workspace)}
+    className={React.useMemo(
+      () => `cursor-pointer gap-2 p-2 ${
+        isActive ? "bg-accent text-accent-foreground" : ""
+      }`,
+      [isActive]
+    )}
+    aria-current={isActive ? "page" : undefined}
+  >
+    <div
+      className={React.useMemo(
+        () => `flex size-6 items-center justify-center overflow-hidden rounded-full border ${
+          isActive ? "border-accent-foreground/20" : ""
+        }`,
+        [isActive]
+      )}
+    >
+      <WorkspaceAvatar workspace={workspace} size={24} />
+    </div>
+    {workspace.name}
+    <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
+  </DropdownMenuItem>
+));
+WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
+
+// --------------------------
+// Main Workspace Switch Component
+// --------------------------
 const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
   workspaces,
   workspaceslug,
@@ -49,7 +121,7 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
     [workspaces, workspaceslug],
   );
 
-  // Only replace the leading /<currentSlug> in pathname
+  // Memoize workspace switch handler
   const handleWorkspaceSwitch = React.useCallback(
     (workspace: WorkspaceArr) => {
       const workspaceSlugPattern = `/${workspaceslug}`;
@@ -59,6 +131,20 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
       router.push(newPath);
     },
     [pathname, router, workspaceslug],
+  );
+
+  // Memoize workspace menu items
+  const workspaceMenuItems = React.useMemo(
+    () => workspaces.map((workspace, index) => (
+      <WorkspaceMenuItem
+        key={workspace.id}
+        workspace={workspace}
+        isActive={activeWorkspace?.id === workspace.id}
+        index={index}
+        onSelect={handleWorkspaceSwitch}
+      />
+    )),
+    [workspaces, activeWorkspace?.id, handleWorkspaceSwitch]
   );
 
   // Loading skeleton if no workspaces yet
@@ -83,26 +169,13 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
               aria-label="Select workspace"
             >
               <div className="bg-sidebar-border flex aspect-square size-7 items-center justify-center overflow-hidden rounded-full">
-                {activeWorkspace?.logo ? (
-                  <Image
-                    src={activeWorkspace.logo}
-                    alt={activeWorkspace.name}
-                    width={30}
-                    height={30}
-                    className="size-full object-cover"
-                  />
-                ) : (
-                  <Image
-                    src={`https://avatar.vercel.sh/${activeWorkspace?.slug ?? "default"}.png`}
-                    alt={activeWorkspace?.name ?? "Workspace Avatar"}
-                    width={32}
-                    height={32}
-                    className="size-full object-cover"
-                  />
-                )}
+                <WorkspaceAvatar 
+                  workspace={activeWorkspace!} 
+                  size={30} 
+                />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">
+                <span className="truncate font-medium">
                   {activeWorkspace?.name ?? "Select Workspace"}
                 </span>
                 <span className="truncate text-xs">
@@ -121,45 +194,7 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
             <DropdownMenuLabel className="text-muted-foreground text-xs">
               Workspaces
             </DropdownMenuLabel>
-            {workspaces.map((workspace, index) => {
-              const isActive = activeWorkspace?.id === workspace.id;
-              return (
-                <DropdownMenuItem
-                  key={workspace.id}
-                  onClick={() => handleWorkspaceSwitch(workspace)}
-                  className={`cursor-pointer gap-2 p-2 ${
-                    isActive ? "bg-accent text-accent-foreground" : ""
-                  }`}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <div
-                    className={`flex size-6 items-center justify-center overflow-hidden rounded-full border ${
-                      isActive ? "border-accent-foreground/20" : ""
-                    }`}
-                  >
-                    {workspace.logo ? (
-                      <Image
-                        src={workspace.logo}
-                        alt={workspace.name}
-                        width={24}
-                        height={24}
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <Image
-                        src={`https://avatar.vercel.sh/${workspace.slug}.png`}
-                        alt={workspace.name}
-                        width={24}
-                        height={24}
-                        className="size-full object-cover"
-                      />
-                    )}
-                  </div>
-                  {workspace.name}
-                  <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
-                </DropdownMenuItem>
-              );
-            })}
+            {workspaceMenuItems}
             <DropdownMenuSeparator />
             <CreateWorkspaceDialog />
           </DropdownMenuContent>

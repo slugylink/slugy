@@ -26,7 +26,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useRef, useEffect } from "react";
+import { memo, useMemo, useCallback } from "react";
 
 // --------------------------
 // Types
@@ -66,8 +66,6 @@ interface NavMainProps {
 // --------------------------
 // Static Data
 // --------------------------
-const pathSegmentCache = new Map<string, string>();
-
 const SIDEBAR_DATA = {
   logo: { icon: SquareTerminal, name: "Slugy" } as Brand,
   navMain: [
@@ -100,7 +98,6 @@ const NAV_ACCESS_CONTROL = {
 const hasAccess = (userRole: UserRole, allowedRoles: readonly string[]) =>
   Boolean(userRole && allowedRoles.includes(userRole));
 
-// URL prefixer with absolute URL handling
 const buildUrl = (baseUrl: string, path: string): string => {
   if (!path) return "";
   if (/^https?:\/\//.test(path)) return path;
@@ -109,31 +106,8 @@ const buildUrl = (baseUrl: string, path: string): string => {
     : path;
 };
 
-// Active state checker factory
-const createActiveStateChecker = (pathname: string) => {
-  const pathSegments = pathname.split("/").filter(Boolean);
-  const lastSegment = pathSegments.at(-1) ?? "";
-
-  return {
-    isItemActive: (item: NavItem): boolean => {
-      if (item.title === "Bio Links") return pathname.includes("/bio-links");
-      if (item.url) {
-        const segments = item.url.split("/").filter(Boolean);
-        if (segments.at(-1) === lastSegment) return true;
-      }
-      return (
-        item.items?.some((sub) => {
-          const seg = sub.url.split("/").filter(Boolean);
-          return seg.at(-1) === lastSegment;
-        }) ?? false
-      );
-    },
-    isSubItemActive: (subUrl: string): boolean => {
-      const seg = subUrl.split("/").filter(Boolean);
-      return seg.at(-1) === lastSegment;
-    },
-  };
-};
+const getLastSegment = (url: string) =>
+  url.split("/").filter(Boolean).at(-1) ?? "";
 
 // --------------------------
 // Nav Item Component
@@ -141,81 +115,89 @@ const createActiveStateChecker = (pathname: string) => {
 const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
-  isSubItemActive: (url: string) => boolean;
-}>(({ item, isActive, isSubItemActive }) => (
-  <Collapsible
-    key={item.title}
-    asChild
-    defaultOpen={isActive}
-    className="group/collapsible"
-  >
-    <SidebarMenuItem>
-      {item.url ? (
-        <Link href={item.url} prefetch>
-          <SidebarMenuButton
-            tooltip={item.title}
-            className={cn(
-              "group-hover/menu-item cursor-pointer transition-colors duration-200",
-              isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
-            )}
-          >
-            {item.icon && <item.icon className="size-4" strokeWidth={2} />}
-            <span>{item.title}</span>
-          </SidebarMenuButton>
-        </Link>
-      ) : (
-        <CollapsibleTrigger asChild>
-          <SidebarMenuButton
-            tooltip={item.title}
-            className={cn(
-              "group-hover/menu-item cursor-pointer transition-colors duration-200",
-              isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
-            )}
-          >
-            {item.icon && <item.icon className="size-4" strokeWidth={2} />}
-            <span className={cn("font-normal", isActive && "font-medium")}>
-              {item.title}
-            </span>
-            {item.items && (
-              <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
-            )}
-          </SidebarMenuButton>
-        </CollapsibleTrigger>
-      )}
+  renderSubItems: (items: NavSubItem[]) => React.ReactNode;
+}>(({ item, isActive, renderSubItems }) => {
+  return (
+    <Collapsible
+      key={item.title}
+      asChild
+      defaultOpen={isActive}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        {item.url ? (
+          <Link href={item.url} prefetch>
+            <SidebarMenuButton
+              tooltip={item.title}
+              className={cn(
+                "group-hover/menu-item cursor-pointer transition-colors duration-200",
+                isActive &&
+                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+              )}
+            >
+              {item.icon && <item.icon className="size-4" strokeWidth={2} />}
+              <span>{item.title}</span>
+            </SidebarMenuButton>
+          </Link>
+        ) : (
+          <CollapsibleTrigger asChild>
+            <SidebarMenuButton
+              tooltip={item.title}
+              className={cn(
+                "group-hover/menu-item cursor-pointer transition-colors duration-200",
+                isActive &&
+                  "bg-sidebar-accent text-blue-500 hover:text-blue-500 font-medium",
+              )}
+            >
+              {item.icon && <item.icon className="size-4" strokeWidth={2} />}
+              <span className={cn("font-normal", isActive && "font-medium")}>
+                {item.title}
+              </span>
+              {item.items && (
+                <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
+              )}
+            </SidebarMenuButton>
+          </CollapsibleTrigger>
+        )}
 
-      {item.items && (
-        <CollapsibleContent>
-          <SidebarMenuSub className="mt-1">
-            {item.items.map((subItem) => {
-              const active = isSubItemActive(subItem.url);
-              return (
-                <SidebarMenuSubItem key={subItem.title}>
-                  <SidebarMenuSubButton
-                    asChild
-                    className={cn(
-                      "group-hover/menu-item transition-colors duration-200",
-                      active &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-                    )}
-                  >
-                    <Link href={subItem.url} prefetch>
-                      <span
-                        className={cn("font-normal", active && "font-medium")}
-                      >
-                        {subItem.title}
-                      </span>
-                    </Link>
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              );
-            })}
-          </SidebarMenuSub>
-        </CollapsibleContent>
-      )}
-    </SidebarMenuItem>
-  </Collapsible>
-));
+        {item.items && (
+          <CollapsibleContent>
+            <SidebarMenuSub className="mt-1">
+              {renderSubItems(item.items)}
+            </SidebarMenuSub>
+          </CollapsibleContent>
+        )}
+      </SidebarMenuItem>
+    </Collapsible>
+  );
+});
 NavItemComponent.displayName = "NavItemComponent";
+
+// --------------------------
+// Sub Item Component
+// --------------------------
+const SubItemComponent = memo<{
+  subItem: NavSubItem;
+  isActive: boolean;
+}>(({ subItem, isActive }) => (
+  <SidebarMenuSubItem key={subItem.title}>
+    <SidebarMenuSubButton
+      asChild
+      className={cn(
+        "group-hover/menu-item transition-colors duration-200",
+        isActive &&
+          "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+      )}
+    >
+      <Link href={subItem.url} prefetch>
+        <span className={cn("font-normal", isActive && "font-medium")}>
+          {subItem.title}
+        </span>
+      </Link>
+    </SidebarMenuSubButton>
+  </SidebarMenuSubItem>
+));
+SubItemComponent.displayName = "SubItemComponent";
 
 // --------------------------
 // Main Sidebar Nav
@@ -225,22 +207,22 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   workspaces,
 }) {
   const pathname = usePathname();
-  const prevPathnameRef = useRef(pathname);
 
-  const currentWorkspace = useMemo(
-    () => workspaces.find((w) => w.slug === workspaceslug),
-    [workspaces, workspaceslug],
-  );
+  // Memoize workspace and user role lookup
+  const { userRole, baseUrl } = useMemo(() => {
+    const currentWorkspace = workspaces.find((w) => w.slug === workspaceslug);
+    const userRole = currentWorkspace?.userRole ?? null;
+    const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
+    return { currentWorkspace, userRole, baseUrl };
+  }, [workspaces, workspaceslug]);
 
-  const userRole = currentWorkspace?.userRole ?? null;
-  const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
-
+  // Memoize processed nav items with access control
   const processedNavItems = useMemo(() => {
     return SIDEBAR_DATA.navMain.map((item) => {
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
         ? isBioLinks
-          ? item.url // keep absolute
+          ? item.url
           : buildUrl(baseUrl, item.url)
         : undefined;
 
@@ -261,32 +243,77 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [baseUrl, userRole]);
 
-  const activeStateChecker = useMemo(
-    () => createActiveStateChecker(pathname),
-    [pathname],
+  // Memoize active state checker
+  const activeStateChecker = useMemo(() => {
+    const lastSegment = getLastSegment(pathname);
+
+    return {
+      isItemActive: (item: NavItem): boolean => {
+        if (item.title === "Bio Links") return pathname.includes("/bio-links");
+        if (item.url && getLastSegment(item.url) === lastSegment) return true;
+        return (
+          item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ??
+          false
+        );
+      },
+      isSubItemActive: (subUrl: string): boolean =>
+        getLastSegment(subUrl) === lastSegment,
+    };
+  }, [pathname]);
+
+  // Memoize sub-item renderer
+  const renderSubItems = useCallback(
+    (items: NavSubItem[]) =>
+      items.map((subItem) => (
+        <SubItemComponent
+          key={subItem.title}
+          subItem={subItem}
+          isActive={activeStateChecker.isSubItemActive(subItem.url)}
+        />
+      )),
+    [activeStateChecker],
   );
 
-  // Prefetch non-settings, non-external routes
-  useEffect(() => {
+  // Memoize prefetch links for analytics and bio pages
+  const prefetchLinks = useMemo(() => {
+    const links = [];
+
+    // Always prefetch analytics page
+    if (baseUrl) {
+      links.push(`${baseUrl}/analytics`);
+    }
+
+    // Always prefetch bio-links page (it's a global route)
+    links.push("/bio-links");
+
+    // Prefetch other non-settings, non-external routes
     processedNavItems.forEach(({ url, title }) => {
       if (url && title !== "Settings" && !/^https?:\/\//.test(url)) {
+        links.push(url);
+      }
+    });
+
+    return links;
+  }, [baseUrl, processedNavItems]);
+
+  // Prefetch important pages
+  useMemo(() => {
+    prefetchLinks.forEach((url) => {
+      if (typeof window !== "undefined") {
         const link = document.createElement("link");
         link.rel = "prefetch";
         link.href = url;
         document.head.appendChild(link);
+
+        // Cleanup after a delay to avoid memory leaks
+        setTimeout(() => {
+          if (document.head.contains(link)) {
+            document.head.removeChild(link);
+          }
+        }, 5000);
       }
     });
-  }, [processedNavItems]);
-
-  // Clear cache on workspace switch
-  useEffect(() => {
-    if (prevPathnameRef.current !== pathname) {
-      if (pathname.split("/")[1] !== prevPathnameRef.current.split("/")[1]) {
-        pathSegmentCache.clear();
-      }
-      prevPathnameRef.current = pathname;
-    }
-  }, [pathname]);
+  }, [prefetchLinks]);
 
   return (
     <SidebarGroup className="px-2">
@@ -296,7 +323,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
             key={item.title}
             item={item}
             isActive={activeStateChecker.isItemActive(item)}
-            isSubItemActive={activeStateChecker.isSubItemActive}
+            renderSubItems={renderSubItems}
           />
         ))}
       </SidebarMenu>
