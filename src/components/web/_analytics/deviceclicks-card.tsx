@@ -110,9 +110,25 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("devices");
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  // Optimize SWR key structure and add proper options
+  const swrKey = ["analytics", "device", workspaceslug, activeTab, searchParams];
+  
   const { data, error, isLoading } = useSWR<DeviceData[], Error>(
-    ["device", workspaceslug, activeTab, searchParams],
+    swrKey,
     () => fetchDeviceData(workspaceslug, searchParams, activeTab),
+    {
+      // Keep previous data while loading new data
+      keepPreviousData: true,
+      // Dedupe requests within 10 seconds
+      dedupingInterval: 10000,
+      // Only revalidate when focus returns
+      revalidateOnFocus: false,
+      // Revalidate on reconnect
+      revalidateOnReconnect: true,
+      // Error retry configuration
+      errorRetryCount: 2,
+      errorRetryInterval: 3000,
+    }
   );
 
   const sortedData = useMemo(

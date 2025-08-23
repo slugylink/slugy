@@ -180,10 +180,25 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const swrKey = ["geo", workspaceslug, activeTab, searchParams];
+  // Optimize SWR key structure and add proper options
+  const swrKey = ["analytics", "geo", workspaceslug, activeTab, searchParams];
+  
   const { data, error, isLoading } = useSWR<GeoData[], Error>(
     swrKey,
-    () => fetchGeoData(workspaceslug, searchParams, activeTab)
+    () => fetchGeoData(workspaceslug, searchParams, activeTab),
+    {
+      // Keep previous data while loading new data
+      keepPreviousData: true,
+      // Dedupe requests within 10 seconds
+      dedupingInterval: 10000,
+      // Only revalidate when focus returns
+      revalidateOnFocus: false,
+      // Revalidate on reconnect
+      revalidateOnReconnect: true,
+      // Error retry configuration
+      errorRetryCount: 2,
+      errorRetryInterval: 3000,
+    }
   );
 
   const sortedData = useMemo(

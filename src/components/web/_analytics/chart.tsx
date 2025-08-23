@@ -82,17 +82,31 @@ const AnalyticsChart = ({
   const [localData, setLocalData] = useState<ChartDataPoint[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
 
+  // Optimize SWR key - only fetch when we have a workspace slug
+  const shouldFetch = Boolean(workspaceslug);
+  const swrKey = shouldFetch 
+    ? ["analytics", "chart", workspaceslug, timePeriod, searchParams]
+    : null;
+
   const {
     data: swrData,
     isLoading,
     error,
   } = useSWR<ChartDataResponse, Error>(
-    workspaceslug ? ["chart", workspaceslug, timePeriod, searchParams] : null,
-    () =>
-      fetchChartData(workspaceslug!, {
-        time_period: timePeriod,
-        ...searchParams,
-      }),
+    swrKey,
+    () => fetchChartData(workspaceslug!, {
+      time_period: timePeriod,
+      ...searchParams,
+    }),
+    {
+      // Only revalidate when searchParams change significantly
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      // Keep previous data while loading new data
+      keepPreviousData: true,
+      // Dedupe requests within 10 seconds
+      dedupingInterval: 10000,
+    }
   );
 
   useEffect(() => {

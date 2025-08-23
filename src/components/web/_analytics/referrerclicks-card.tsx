@@ -79,11 +79,24 @@ const ReferrerClicks = ({
   const [cache, setCache] = useState<Record<string, ReferrerData[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const swrKey = ["referrers", workspaceslug, activeTab, searchParams];
+  // Optimize SWR key structure and add proper options
+  const swrKey = ["analytics", "referrers", workspaceslug, activeTab, searchParams];
+  
   const { data, error, isLoading } = useSWR<ReferrerData[], Error>(
     swrKey,
     () => fetchReferrerData(workspaceslug, searchParams),
     {
+      // Keep previous data while loading new data
+      keepPreviousData: true,
+      // Dedupe requests within 10 seconds
+      dedupingInterval: 10000,
+      // Only revalidate when focus returns
+      revalidateOnFocus: false,
+      // Revalidate on reconnect
+      revalidateOnReconnect: true,
+      // Error retry configuration
+      errorRetryCount: 2,
+      errorRetryInterval: 3000,
       onSuccess: (newData) => {
         setCache((prev) => ({ ...prev, [activeTab]: newData }));
       },
