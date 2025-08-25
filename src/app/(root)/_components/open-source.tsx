@@ -20,28 +20,38 @@ const OpenSource = () => {
           />
           <div className="relative z-10 flex flex-col items-center justify-center gap-4 px-4 py-10 text-white sm:gap-6 sm:px-6 sm:py-16 md:gap-8 md:py-20">
             <h3 className="text-2xl font-medium tracking-tight sm:text-4xl">
-              Open Source
+              Get started with Slugy
             </h3>
 
             <p className="max-w-[90%] text-center text-sm text-zinc-300 sm:max-w-[85%] sm:text-base md:max-w-[75%] lg:max-w-[60%] dark:text-zinc-300">
-              Our source code is available on GitHub - feel free to read,
-              review, <br className="hidden sm:inline" /> or contribute to it
-              however you want!
+              Slugy is an open-source link management tool. <br /> It&apos;s
+              fast, secure, and easy to use.
             </p>
 
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-4">
               <Link target="_blank" href="https://github.com/slugylink/slugy">
-                <Button className="rounded-lg">
-                  <FaGithub className="mr-2 h-5 w-5" />
-                  Star on Github
+                <Button
+                  variant={"secondary"}
+                  className="rounded-md bg-white text-black"
+                >
+                  Start for free
                 </Button>
               </Link>
-              <Link target="_blank" href="https://github.com/sponsors/slugylink">
+              <Link target="_blank" href="https://github.com/slugylink/slugy">
+                <Button className="rounded-md bg-zinc-600 hover:bg-zinc-500">
+                  <FaGithub className="mr-1 h-5 w-5" />
+                  Github
+                </Button>
+              </Link>
+              {/* <Link
+                target="_blank"
+                href="https://github.com/sponsors/slugylink"
+              >
                 <Button variant="outline" className="rounded-lg text-black">
                   <Heart className="mr-2 h-5 w-5 text-pink-500" />
                   Support
                 </Button>
-              </Link>
+              </Link> */}
             </div>
           </div>
         </div>

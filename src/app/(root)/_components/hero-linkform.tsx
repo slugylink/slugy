@@ -160,7 +160,7 @@ const HeroLinkForm = () => {
       {/* Form */}
       <motion.form
         onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/70 p-2 backdrop-blur-md sm:p-2.5"
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
