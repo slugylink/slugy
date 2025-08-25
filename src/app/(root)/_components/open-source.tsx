@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa6";
-import { Heart } from "lucide-react";
 
 const OpenSource = () => {
   return (
@@ -29,7 +28,7 @@ const OpenSource = () => {
             </p>
 
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-4">
-              <Link target="_blank" href="https://slugy.co/signup">
+              <Link target="_blank" href="https://app.slugy.co/signup">
                 <Button
                   variant={"secondary"}
                   className="rounded-md bg-white text-black"
