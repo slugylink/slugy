@@ -29,7 +29,7 @@ const OpenSource = () => {
             </p>
 
             <div className="relative z-10 flex flex-wrap items-center justify-center gap-4">
-              <Link target="_blank" href="https://github.com/slugylink/slugy">
+              <Link target="_blank" href="https://slugy.co/signup">
                 <Button
                   variant={"secondary"}
                   className="rounded-md bg-white text-black"

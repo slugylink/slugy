@@ -4,7 +4,7 @@
 
 <h2> Slugy </h2>
 
-**Slugy** is a fast, secure, and open-source link management tool.  
+**Slugy** is a fast, secure, and open-source link management tool.  
 Easily shorten URLs, generate QR codes, track performance, and share everything from one place.
 
 </div>
@@ -13,34 +13,34 @@ Easily shorten URLs, generate QR codes, track performance, and share everything 
 
 ## 🌟 Features
 
-- 🔗 **Link Shortening**  
-  Create branded, concise links for effective sharing.
+- 🔗 **Link Shortening**  
+    Create branded, concise links for effective sharing.
 
-- 📱 **QR Code Generation**  
-  Instantly generate QR codes for easy access and scanning.
+- 📱 **QR Code Generation**  
+    Instantly generate QR codes for easy access and scanning.
 
-- 📊 **Analytics Dashboard**  
-  Track link performance with detailed click insights.
+- 📊 **Analytics Dashboard**  
+    Track link performance with detailed click insights.
 
-- 🌐 **Bio Links**  
-  Share all your links from one personalized page.
+- 🌐 **Bio Links**  
+    Share all your links from one personalized page.
 
 ---
 
 ## 🛠 Tech Stack
 
-| Tool                                           | Role                    |
-| ---------------------------------------------- | ----------------------- |
-| [`Next.js`](https://nextjs.org)                | Frontend Framework      |
-| [`TypeScript`](https://www.typescriptlang.org) | Programming Language    |
-| [`Tailwind CSS`](https://tailwindcss.com)      | Styling                 |
-| [`Better-Auth`](https://www.better-auth.com/)  | Authentication          |
-| [`Prisma`](https://www.prisma.io)              | ORM                     |
-| [`Neon`](https://neon.tech)                    | Database                |
-| [`Upstash`](https://upstash.com/)              | Caching                 |
-| [`Recharts`](https://recharts.org)             | Analytics Visualization |
-| [`Resend`](https://resend.com)                 | Email Notifications     |
-| [`Vercel`](https://vercel.com)                 | Hosting & Deployment    |
+| Tool                                            | Role                     |
+| ----------------------------------------------- | ------------------------ |
+| [`Next.js`](https://nextjs.org)                 | Frontend Framework       |
+| [`TypeScript`](https://www.typescriptlang.org)  | Programming Language     |
+| [`Tailwind CSS`](https://tailwindcss.com)       | Styling                  |
+| [`Better-Auth`](https://www.better-auth.com/)   | Authentication           |
+| [`Prisma`](https://www.prisma.io)               | ORM                      |
+| [`Neon`](https://neon.tech)                     | Database                 |
+| [`Upstash`](https://upstash.com/)               | Caching                  |
+| [`Recharts`](https://recharts.org)              | Analytics Visualization  |
+| [`Resend`](https://resend.com)                  | Email Notifications      |
+| [`Vercel`](https://vercel.com)                  | Hosting & Deployment     |
 
 ---
 
@@ -54,6 +54,12 @@ Slugy is open-source under the **MIT License**. See [LICENSE](./LICENSE) for mor
 
 - [Twitter](https://x.com/slugydotco)
 - [Sandip (Owner)](https://x.com/sandip_dev_07)
+
+---
+
+## 💖 Sponsor
+
+[![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)
 
 ---
 
