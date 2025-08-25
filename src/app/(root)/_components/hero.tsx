@@ -6,10 +6,15 @@ import { ArrowRightIcon } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { motion } from "motion/react";
+import { Bricolage_Grotesque } from "next/font/google";
 
 // ---------------------
 // Data-Driven Content
 // ---------------------
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
 const data = {
   hero: {
     backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
@@ -19,12 +24,21 @@ const data = {
       href: null,
     },
     heading1: "Simplify Links Like",
-    heading2: "Magic",
+    heading2: (
+      <>
+        <span className="text-[#ffaa40]">✨</span>Magic
+      </>
+    ),
     heading2Gradient:
-      "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#9c40ff]/90 to-[#ffaa40] bg-clip-text text-center leading-none font-semibold text-transparent [text-fill-color:transparent]",
+      "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text- [text-fill-color:transparent]",
     fontFamily: "var(--font-bricolage)",
-    subheading1: "Slugy is an open-source link management tool.",
-    subheading2: "It's fast, secure, and easy to use.",
+    subheading1: (
+      <>
+        A modern link platform where creators, entrepreneurs{" "}
+        <br className="hidden sm:block" /> and teams turn clicks into growth.
+      </>
+    ),
+    subheading2: "",
     badge: {
       imageUrl:
         "https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464",
@@ -54,7 +68,7 @@ const Hero = () => {
           fill
           priority
           sizes="100vw"
-          className="object-cover mix-blend-multiply opacity-20"
+          className="object-cover opacity-20 mix-blend-multiply"
         />
       </motion.div>
 
@@ -86,13 +100,13 @@ const Hero = () => {
 
           {/* Large Gradient Heading */}
           <motion.div
-            style={{ fontFamily: hero.fontFamily }}
             className="space-y-1 text-3xl font-medium md:space-y-2 md:text-4xl lg:text-[53px]"
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
           >
             <motion.h2
+              className={bricolage.className}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -104,7 +118,11 @@ const Hero = () => {
               {hero.heading1}
             </motion.h2>
             <motion.h2
-              className={cn(hero.heading2Gradient, "font-medium")}
+              className={cn(
+                bricolage.className,
+                hero.heading2Gradient,
+                "font-medium",
+              )}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -113,12 +131,12 @@ const Hero = () => {
                 delay: 0.18,
               }}
             >
-              {hero.heading2} <span className="text-[#ffaa40]">✨</span>
+              {hero.heading2}
             </motion.h2>
           </motion.div>
           <div className="mx-auto max-w-2xl text-zinc-700">
             <motion.p
-              className="mt-4 text-sm sm:mt-6 sm:text-base md:text-lg"
+              className="mt-4 text-sm sm:mt-6 sm:text-base md:text-xl"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -129,18 +147,20 @@ const Hero = () => {
             >
               {hero.subheading1}
             </motion.p>
-            <motion.p
-              className="text-sm sm:text-base md:text-lg"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                ease: [0.22, 1, 0.36, 1],
-                delay: 0.28,
-              }}
-            >
-              {hero.subheading2}
-            </motion.p>
+            {hero.subheading2 && (
+              <motion.p
+                className="text-sm sm:text-base md:text-lg"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.5,
+                  ease: [0.22, 1, 0.36, 1],
+                  delay: 0.28,
+                }}
+              >
+                {hero.subheading2}
+              </motion.p>
+            )}
           </div>
         </div>
 

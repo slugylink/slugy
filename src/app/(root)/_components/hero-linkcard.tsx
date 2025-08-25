@@ -224,7 +224,7 @@ export default function LinkCard({ link }: LinkCardProps) {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "bg-background flex w-full flex-row items-center space-x-3 rounded-xl border p-4 py-3 hover:shadow-[0_0_16px_rgba(0,0,0,0.07)] transition-all",
+          "bg-background flex w-full flex-row items-center space-x-3 rounded-xl border p-4 py-3 hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] transition-all cursor-pointer",
         )}
       >
         <div className="rounded-full">

@@ -184,7 +184,7 @@ const HeroLinkForm = () => {
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
             )}
-            Shorten
+            Shorten✨
           </Button>
         </div>
         {/* Links */}
@@ -196,7 +196,7 @@ const HeroLinkForm = () => {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 2, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                 layout
               >
                 <HeroLinkCard link={link} />
