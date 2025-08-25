@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
+import { getCachedSession } from "@/lib/middleware/get-sesstion";
 
 import {
   checkRateLimit,
@@ -112,6 +112,9 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       return NextResponse.next();
     }
 
+    // Get cached session presence early - before rate limiting
+    const { token } = await getCachedSession(req);
+
     const clientIP = getClientIP(req);
     const isFastUser = isFastApiRoute(pathname);
 
@@ -129,8 +132,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
       return addSecurityHeaders(NextResponse.next());
     }
-
-    const token = getSessionCookie(req);
 
     // HTTPS redirect (should be early)
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
@@ -277,7 +278,7 @@ function handleCustomDomain(
   // FIXED: Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`); 
+    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
   }
 
   return rewriteTo(`/${hostname}${pathname}${search}`, baseUrl);
