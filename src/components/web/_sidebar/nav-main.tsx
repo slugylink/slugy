@@ -135,7 +135,7 @@ const NavItemComponent = memo<{
               className={cn(
                 "group-hover/menu-item cursor-pointer transition-colors duration-200",
                 isActive &&
-                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+                  "bg-sidebar-accent text-orange-500 hover:text-orange-500",
               )}
             >
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}
@@ -149,7 +149,7 @@ const NavItemComponent = memo<{
               className={cn(
                 "group-hover/menu-item cursor-pointer transition-colors duration-200",
                 isActive &&
-                  "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+                  "bg-sidebar-accent text-orange-500 hover:text-orange-500",
               )}
             >
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}

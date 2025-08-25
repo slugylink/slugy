@@ -8,16 +8,12 @@ import { formatNumber } from "@/lib/format-number";
 type Workspace = {
   maxClicksLimit: number;
   maxLinksLimit: number;
-  storageLimitMb?: number;
-  maxUsers: number;
 };
 
 type Usage = {
   clicksTracked: number;
   linksCreated: number;
-  storageUsedMb?: number;
-  addedUsers: number;
-  periodEnd: Date;
+  periodEnd: Date | string;
 };
 
 type UsageStatsClientProps = {
@@ -25,37 +21,58 @@ type UsageStatsClientProps = {
   usage: Usage | null;
 };
 
+/**
+ * Utility to safely calculate usage percentage
+ */
+const calculateProgress = (used: number, limit: number) =>
+  limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+
+/**
+ * Empty State Card for when workspace/usage data is missing
+ */
+function EmptyUsageCard() {
+  return (
+    <Card className="w-full max-w-xs p-3.5 shadow-sm">
+      <div className="text-muted-foreground flex items-center text-sm">
+        Usage <ChevronRight className="ml-1 h-3 w-3" />
+      </div>
+
+      <div className="space-y-3">
+        <UsageProgressRow
+          icon={<MousePointerClick className="text-muted-foreground h-3 w-3" />}
+          label="Events"
+          used={0}
+          limit={0}
+          progress={0}
+        />
+        <UsageProgressRow
+          icon={<Link2 className="text-muted-foreground h-3 w-3" />}
+          label="Links"
+          used={0}
+          limit={0}
+          progress={0}
+        />
+      </div>
+
+      <p className="text-muted-foreground mt-2 text-xs">Usage will reset —</p>
+    </Card>
+  );
+}
+
 export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
-  if (!workspace || !usage) {
-    return (
-      <Card className="w-full max-w-xs space-y-4 p-3.5 shadow-sm">
-        <p className="text-muted-foreground text-sm">
-          Usage data not available.
-        </p>
-      </Card>
-    );
-  }
+  if (!workspace || !usage) return <EmptyUsageCard />;
 
-  const calculateProgress = (used: number, limit: number) =>
-    Math.min((used / limit) * 100, 100);
+  const { clicksTracked, linksCreated, periodEnd } = usage;
+  const { maxClicksLimit, maxLinksLimit } = workspace;
 
-  const clicksProgress = calculateProgress(
-    usage.clicksTracked,
-    workspace.maxClicksLimit,
-  );
-  const linksProgress = calculateProgress(
-    usage.linksCreated,
-    workspace.maxLinksLimit,
-  );
+  const clicksProgress = calculateProgress(clicksTracked, maxClicksLimit);
+  const linksProgress = calculateProgress(linksCreated, maxLinksLimit);
 
-  const usageResetDate = new Date(usage.periodEnd).toLocaleDateString(
-    undefined,
-    {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    },
-  );
+  const usageResetDate = new Date(periodEnd).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 
   return (
     <Card className="w-full max-w-xs p-3.5 shadow-sm">
@@ -64,21 +81,18 @@ export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
       </div>
 
       <div className="space-y-3">
-        {/* Click Events */}
         <UsageProgressRow
           icon={<MousePointerClick className="text-muted-foreground h-3 w-3" />}
-          label="Click Events"
-          used={usage.clicksTracked}
-          limit={workspace.maxClicksLimit}
+          label="Events"
+          used={clicksTracked}
+          limit={maxClicksLimit}
           progress={clicksProgress}
         />
-
-        {/* Links */}
         <UsageProgressRow
           icon={<Link2 className="text-muted-foreground h-3 w-3" />}
           label="Links"
-          used={usage.linksCreated}
-          limit={workspace.maxLinksLimit}
+          used={linksCreated}
+          limit={maxLinksLimit}
           progress={linksProgress}
         />
       </div>

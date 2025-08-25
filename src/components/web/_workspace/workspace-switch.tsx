@@ -53,7 +53,7 @@ const WorkspaceAvatar = React.memo<{
         alt={workspace.name}
         width={size}
         height={size}
-        className="size-full object-cover"
+        className="size-full h-full w-full object-cover"
       />
     ) : (
       <Image
@@ -81,22 +81,28 @@ const WorkspaceMenuItem = React.memo<{
     key={workspace.id}
     onClick={() => onSelect(workspace)}
     className={React.useMemo(
-      () => `cursor-pointer gap-2 p-2 ${
-        isActive ? "bg-accent text-accent-foreground" : ""
-      }`,
-      [isActive]
+      () =>
+        `cursor-pointer gap-2 p-2 ${
+          isActive ? "bg-accent text-accent-foreground" : ""
+        }`,
+      [isActive],
     )}
     aria-current={isActive ? "page" : undefined}
   >
     <div
       className={React.useMemo(
-        () => `flex size-6 items-center justify-center overflow-hidden rounded-full border ${
-          isActive ? "border-accent-foreground/20" : ""
-        }`,
-        [isActive]
+        () =>
+          `flex size-6 items-center justify-center overflow-hidden rounded-full border ${
+            isActive ? "border-accent-foreground/20" : ""
+          }`,
+        [isActive],
       )}
     >
-      <WorkspaceAvatar workspace={workspace} size={24} />
+      <WorkspaceAvatar
+        workspace={workspace}
+        size={24}
+        className="size-full h-full w-full object-cover"
+      />
     </div>
     {workspace.name}
     <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
@@ -135,16 +141,17 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
 
   // Memoize workspace menu items
   const workspaceMenuItems = React.useMemo(
-    () => workspaces.map((workspace, index) => (
-      <WorkspaceMenuItem
-        key={workspace.id}
-        workspace={workspace}
-        isActive={activeWorkspace?.id === workspace.id}
-        index={index}
-        onSelect={handleWorkspaceSwitch}
-      />
-    )),
-    [workspaces, activeWorkspace?.id, handleWorkspaceSwitch]
+    () =>
+      workspaces.map((workspace, index) => (
+        <WorkspaceMenuItem
+          key={workspace.id}
+          workspace={workspace}
+          isActive={activeWorkspace?.id === workspace.id}
+          index={index}
+          onSelect={handleWorkspaceSwitch}
+        />
+      )),
+    [workspaces, activeWorkspace?.id, handleWorkspaceSwitch],
   );
 
   // Loading skeleton if no workspaces yet
@@ -168,10 +175,11 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
               className="bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
               aria-label="Select workspace"
             >
-              <div className="bg-sidebar-border flex aspect-square size-7 items-center justify-center overflow-hidden rounded-full">
-                <WorkspaceAvatar 
-                  workspace={activeWorkspace!} 
-                  size={30} 
+              <div className="bg-sidebar-border flex aspect-square size-8 items-center justify-center overflow-hidden rounded-full">
+                <WorkspaceAvatar
+                  workspace={activeWorkspace!}
+                  size={30}
+                  className="size-full h-full w-full object-cover"
                 />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
