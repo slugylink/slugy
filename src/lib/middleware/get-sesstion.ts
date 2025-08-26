@@ -24,7 +24,6 @@ export async function getCachedSession(req: NextRequest): Promise<SessionResult>
     const cachedPresence = await getTemporarySession<boolean>(sessionPresenceKey);
     if (cachedPresence !== null) {
       isAuthenticated = Boolean(cachedPresence);
-      console.log("got token from redis  ✨ (cache hit)");
     } else {
       const cookieToken = getSessionCookie(req);
       isAuthenticated = Boolean(cookieToken);

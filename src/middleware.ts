@@ -112,9 +112,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       return NextResponse.next();
     }
 
-    // Get cached session presence early - before rate limiting
-    const { token } = await getCachedSession(req);
-
     const clientIP = getClientIP(req);
     const isFastUser = isFastApiRoute(pathname);
 
@@ -148,16 +145,20 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
         return rewriteTo(`${bioPath}${url.search}`, req.url);
       }
 
-      case SUBDOMAINS.app:
+      case SUBDOMAINS.app: {
+        const { token } = await getCachedSession(req);
         return handleAppSubdomain(url, token, req.url);
+      }
 
       case SUBDOMAINS.admin: {
         const adminPath = pathname === "/" ? "/admin" : `/admin${pathname}`;
         return rewriteTo(`${adminPath}${url.search}`, req.url);
       }
 
-      case ROOT_DOMAIN:
+      case ROOT_DOMAIN: {
+        const { token } = await getCachedSession(req);
         return handleRootDomain(url, token, req);
+      }
 
       default:
         return handleCustomDomain(url, hostname, req.url);
