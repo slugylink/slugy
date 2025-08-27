@@ -291,12 +291,14 @@ model Link {
   @@index([workspaceId, clicks])
   @@index([workspaceId, lastClicked])
   @@index([workspaceId, isArchived, createdAt])
+  @@index([workspaceId, id])
   @@map("links")
 }
 
 model Analytics {
   id        String   @id @default(cuid())
   linkId    String
+  clickId   String?
   clickedAt DateTime @default(now())
   country   String?
   city      String?
@@ -312,6 +314,15 @@ model Analytics {
   link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, clickedAt])
+  @@index([clickedAt])
+  @@index([clickedAt, linkId])
+  @@index([clickedAt, country])
+  @@index([clickedAt, city])
+  @@index([clickedAt, continent])
+  @@index([clickedAt, device])
+  @@index([clickedAt, browser])
+  @@index([clickedAt, os])
+  @@index([clickedAt, referer])
   @@index([country])
   @@index([city])
   @@index([continent])
@@ -493,22 +504,25 @@ model Notification {
 }
 
 model Usage {
-  id            String     @id @default(cuid())
+  id            String    @id @default(cuid())
   userId        String
-  workspaceId   String?
-  linksCreated  Int        @default(0)
-  clicksTracked Int        @default(0)
-  periodStart   DateTime   @default(now())
-  periodEnd     DateTime   @default(now())
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  workspaceId   String? // made required
+  linksCreated  Int       @default(0)
+  clicksTracked Int       @default(0)
+  periodStart   DateTime  @default(now())
+  periodEnd     DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?
-  addedUsers    Int        @default(1)
-  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
+  addedUsers    Int       @default(1)
+  isArchived    Boolean   @default(false)
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id])
 
   @@index([userId])
   @@index([workspaceId])
+  @@index([deletedAt, createdAt(sort: Desc)])
   @@map("usages")
 }
 
