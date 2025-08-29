@@ -31,12 +31,12 @@ export async function getCachedSession(
       try {
         const cookieToken = await getSessionCookie(req);
         isAuthenticated = Boolean(cookieToken);
-        const ttl = isAuthenticated ? 60 * 8 : 60 * 2; // 8min for auth, 2min for unauth
+        const ttl = isAuthenticated ? 60 * 15 : 60 * 2; // 15min for auth, 2min for unauth
         await setTemporarySession(sessionPresenceKey, isAuthenticated, ttl);
       } catch (error) {
         isAuthenticated =
           cookieHeader.includes("better-auth.session_token=") || false;
-        const ttl = isAuthenticated ? 60 * 8 : 60 * 2; // 8min for auth, 2min for unauth
+        const ttl = isAuthenticated ? 60 * 15 : 60 * 2; // 15min for auth, 2min for unauth
         await setTemporarySession(sessionPresenceKey, isAuthenticated, ttl);
         console.error("Failed to get session cookie:", error);
       }

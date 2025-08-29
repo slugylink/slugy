@@ -107,8 +107,18 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
 
-    // Early return for static assets
-    if (pathname.startsWith("/_next") || pathname.startsWith("/static")) {
+    // Early return for static assets and common files
+    if (
+      pathname.startsWith("/_next") ||
+      pathname.startsWith("/static") ||
+      pathname === "/favicon.ico" ||
+      pathname === "/robots.txt" ||
+      pathname === "/sitemap.xml" ||
+      pathname === "/manifest.webmanifest" ||
+      pathname.startsWith("/images/") ||
+      pathname.startsWith("/icons/") ||
+      /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/.test(pathname)
+    ) {
       return NextResponse.next();
     }
 
