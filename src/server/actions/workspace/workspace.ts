@@ -133,46 +133,54 @@ export async function createWorkspace({
   }
 }
 
-//* Get current default workspace with more details
+//* Get current default workspace with more details - OPTIMIZED FOR SPEED
 export async function getDefaultWorkspace(userId: string) {
   try {
-    // Try to get from cache first
+    // Try to get from cache first (fastest path)
     const cachedWorkspace = await getDefaultWorkspaceCache(userId);
     if (cachedWorkspace) {
       return {
         success: true,
         workspace: cachedWorkspace,
+        fromCache: true,
       };
     }
 
-    // Cache miss: fetch from database
+    // Cache miss: fetch from database with optimized query
     const workspace = await db.workspace.findFirst({
-      where: { userId, isDefault: true },
-      select: { id: true, name: true, slug: true, logo: true },
-      orderBy: { createdAt: "asc" },
+      where: { 
+        userId, 
+        isDefault: true 
+      },
+      select: { 
+        id: true, 
+        name: true, 
+        slug: true, 
+        logo: true 
+      },
+      // Remove orderBy for speed - just get the first default workspace
     });
 
-    if (!workspace) {
-      // Cache null result to avoid repeated DB queries
-      await setDefaultWorkspaceCache(userId, null);
-      return {
-        success: false,
-        workspace: null,
-      };
-    }
-
-    // Cache the result
-    await setDefaultWorkspaceCache(userId, workspace);
-
-    return {
-      success: true,
+    // Cache the result immediately (including null results)
+    const cachePromise = setDefaultWorkspaceCache(userId, workspace);
+    
+    // Return response immediately, don't wait for cache to be set
+    const result = {
+      success: !!workspace,
       workspace,
+      fromCache: false,
     };
+
+    // Set cache in background (non-blocking)
+    waitUntil(cachePromise);
+
+    return result;
   } catch (error) {
     console.error("Error getting default workspace:", error);
     return {
       success: false,
       workspace: null,
+      fromCache: false,
     };
   }
 }

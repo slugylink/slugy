@@ -218,6 +218,7 @@ model Workspace {
   creator          User              @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, slug])
+  @@index([userId, isDefault]) // Optimized for getDefaultWorkspace queries
   @@map("workspaces")
 }
 

@@ -38,50 +38,72 @@ export async function getUsages({
       return { workspace: null, usage: null };
     }
 
-    // Fetch workspace
-    const workspace = await db.workspace.findFirst({
-      where: {
-        slug: workspaceslug,
-        userId,
-      },
-      select: {
-        id: true,
-        maxClicksLimit: true,
-        maxLinksLimit: true,
-        maxUsers: true,
-      },
-    });
+    // Parallel database queries for better performance
+    const [workspace, usage] = await Promise.all([
+      // Fetch workspace with user membership check
+      db.workspace.findFirst({
+        where: {
+          slug: workspaceslug,
+          OR: [
+            { userId }, // Direct owner
+            {
+              members: {
+                some: {
+                  userId,
+                },
+              },
+            }, // Team member
+          ],
+        },
+        select: {
+          id: true,
+          maxClicksLimit: true,
+          maxLinksLimit: true,
+          maxUsers: true,
+        },
+      }),
+
+      // Fetch latest usage entry
+      db.usage.findFirst({
+        where: {
+          userId,
+          workspace: {
+            slug: workspaceslug,
+            OR: [
+              { userId },
+              {
+                members: {
+                  some: {
+                    userId,
+                  },
+                },
+              },
+            ],
+          },
+          deletedAt: null,
+        },
+        orderBy: { createdAt: "desc" },
+        select: {
+          clicksTracked: true,
+          linksCreated: true,
+          addedUsers: true,
+          periodEnd: true,
+        },
+      }),
+    ]);
 
     if (!workspace) {
       return { workspace: null, usage: null };
     }
 
-    // Fetch latest usage entry
-    const usage = await db.usage.findFirst({
-      where: {
-        userId,
-        workspaceId: workspace.id,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: "desc" },
-      select: {
-        clicksTracked: true,
-        linksCreated: true,
-        addedUsers: true,
-        periodEnd: true,
-      },
-    });
-
-    if (!usage) {
-      console.warn(
-        `No usage data found for workspaceId=${workspace.id}, userId=${userId}`,
-      );
-      return { workspace, usage: null };
-    }
-
     return { workspace, usage };
   } catch (error) {
-    console.error("Failed to fetch usage data:", error);
+    // Log error for debugging but don't expose details to client
+    console.error("Failed to fetch usage data:", {
+      workspaceslug,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+
     return { workspace: null, usage: null };
   }
 }

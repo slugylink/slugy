@@ -46,20 +46,28 @@ function isWorkspacesListCacheType(obj: unknown): obj is WorkspacesListCacheType
   return Array.isArray(obj) && obj.every(isWorkspaceWithRoleCacheType);
 }
 
-// Get default workspace cache
+// Get default workspace cache - OPTIMIZED FOR SPEED
 export async function getDefaultWorkspaceCache(userId: string): Promise<WorkspaceCacheType> {
   const cacheKey = `workspace:default:${userId}`;
   try {
     const cached = await redis.get(cacheKey);
-    const parsed = cached
-      ? typeof cached === "string"
-        ? JSON.parse(cached)
-        : cached
-      : null;
-      // console.log("fetched default workspace ✨");
-    if (isWorkspaceCacheType(parsed)) return parsed;
-  } catch {}
-  return null;
+    if (!cached) return null;
+    
+    // Fast path: if it's already parsed, return directly
+    if (typeof cached === "object" && cached !== null) {
+      return isWorkspaceCacheType(cached) ? cached : null;
+    }
+    
+    // Parse only if needed
+    if (typeof cached === "string") {
+      const parsed = JSON.parse(cached);
+      return isWorkspaceCacheType(parsed) ? parsed : null;
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // Set default workspace cache
