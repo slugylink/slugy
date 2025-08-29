@@ -29,17 +29,17 @@ interface UseAnalyticsParams {
 const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
-  metrics?: Array<keyof AnalyticsData>
+  metrics?: Array<keyof AnalyticsData>,
 ): Promise<Partial<AnalyticsData>> => {
   const searchParams = new URLSearchParams(params);
-  
+
   // Add metrics parameter if specified
   if (metrics && metrics.length > 0) {
-    searchParams.set('metrics', metrics.join(','));
+    searchParams.set("metrics", metrics.join(","));
   }
-  
+
   const response = await fetch(
-    `/api/workspace/${workspaceslug}/analytics?${searchParams}`
+    `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
   );
 
   if (!response.ok) {
@@ -47,50 +47,50 @@ const fetchAnalyticsData = async (
   }
 
   const data = await response.json();
-  
+
   // Return only the requested metrics with fallbacks
   if (metrics && metrics.length > 0) {
     const result: Partial<AnalyticsData> = {};
-    metrics.forEach(metric => {
+    metrics.forEach((metric) => {
       switch (metric) {
-        case 'totalClicks':
+        case "totalClicks":
           result.totalClicks = data.totalClicks ?? 0;
           break;
-        case 'clicksOverTime':
+        case "clicksOverTime":
           result.clicksOverTime = data.clicksOverTime ?? [];
           break;
-        case 'links':
+        case "links":
           result.links = data.links ?? [];
           break;
-        case 'cities':
+        case "cities":
           result.cities = data.cities ?? [];
           break;
-        case 'countries':
+        case "countries":
           result.countries = data.countries ?? [];
           break;
-        case 'continents':
+        case "continents":
           result.continents = data.continents ?? [];
           break;
-        case 'devices':
+        case "devices":
           result.devices = data.devices ?? [];
           break;
-        case 'browsers':
+        case "browsers":
           result.browsers = data.browsers ?? [];
           break;
-        case 'oses':
+        case "oses":
           result.oses = data.oses ?? [];
           break;
-        case 'referrers':
+        case "referrers":
           result.referrers = data.referrers ?? [];
           break;
-        case 'destinations':
+        case "destinations":
           result.destinations = data.destinations ?? [];
           break;
       }
     });
     return result;
   }
-  
+
   // Return all metrics if none specified (backward compatibility)
   return {
     totalClicks: data.totalClicks ?? 0,
@@ -119,45 +119,46 @@ export function useAnalytics({
     const params = { time_period: timePeriod, ...searchParams };
     // Remove undefined and null values
     return Object.fromEntries(
-      Object.entries(params).filter(([_, value]) => value != null)
+      Object.entries(params).filter(([_, value]) => value != null),
     );
   }, [timePeriod, searchParams]);
 
   // Only fetch when enabled and we have a workspace slug
   const shouldFetch = enabled && Boolean(workspaceslug);
   const swrKey = shouldFetch
-    ? ["analytics", metrics?.join(',') || "all", workspaceslug, stableSearchParams]
+    ? [
+        "analytics",
+        metrics?.join(",") || "all",
+        workspaceslug,
+        stableSearchParams,
+      ]
     : null;
 
-  const {
-    data,
-    error,
-    isLoading,
-    mutate,
-  } = useSWR<Partial<AnalyticsData>, Error>(
+  const { data, error, isLoading, mutate } = useSWR<
+    Partial<AnalyticsData>,
+    Error
+  >(
     swrKey,
     () => fetchAnalyticsData(workspaceslug, stableSearchParams, metrics),
     {
-      // Keep previous data while loading new data
       keepPreviousData: true,
-      // Dedupe requests within 10 seconds
-      dedupingInterval: 10000,
-      // Only revalidate when focus returns
+      dedupingInterval: 30000,
       revalidateOnFocus: false,
-      // Revalidate on reconnect
       revalidateOnReconnect: false,
-      // Error retry configuration
       errorRetryCount: 2,
       errorRetryInterval: 3000,
-    }
+    },
   );
 
   // Memoized sorted data for each metric type
   const sortedData = useMemo(() => {
     if (!data) return {};
-    
-    const result: Record<string, Array<{ clicks: number; [key: string]: unknown }>> = {};
-    
+
+    const result: Record<
+      string,
+      Array<{ clicks: number; [key: string]: unknown }>
+    > = {};
+
     if (data.links) {
       result.links = [...data.links].sort((a, b) => b.clicks - a.clicks);
     }
@@ -165,10 +166,14 @@ export function useAnalytics({
       result.cities = [...data.cities].sort((a, b) => b.clicks - a.clicks);
     }
     if (data.countries) {
-      result.countries = [...data.countries].sort((a, b) => b.clicks - a.clicks);
+      result.countries = [...data.countries].sort(
+        (a, b) => b.clicks - a.clicks,
+      );
     }
     if (data.continents) {
-      result.continents = [...data.continents].sort((a, b) => b.clicks - a.clicks);
+      result.continents = [...data.continents].sort(
+        (a, b) => b.clicks - a.clicks,
+      );
     }
     if (data.devices) {
       result.devices = [...data.devices].sort((a, b) => b.clicks - a.clicks);
@@ -180,12 +185,16 @@ export function useAnalytics({
       result.oses = [...data.oses].sort((a, b) => b.clicks - a.clicks);
     }
     if (data.referrers) {
-      result.referrers = [...data.referrers].sort((a, b) => b.clicks - a.clicks);
+      result.referrers = [...data.referrers].sort(
+        (a, b) => b.clicks - a.clicks,
+      );
     }
     if (data.destinations) {
-      result.destinations = [...data.destinations].sort((a, b) => b.clicks - a.clicks);
+      result.destinations = [...data.destinations].sort(
+        (a, b) => b.clicks - a.clicks,
+      );
     }
-    
+
     return result;
   }, [data]);
 
