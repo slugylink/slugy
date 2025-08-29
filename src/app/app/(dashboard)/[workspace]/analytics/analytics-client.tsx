@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import useSWR from "swr";
 import { useSearchParams } from "next/navigation";
+import { useAnalytics } from "@/hooks/use-analytics";
 import FilterActions, {
   type CategoryId,
 } from "@/components/web/_analytics/filter";
@@ -18,22 +18,6 @@ import {
   Share2,
   Redo2,
 } from "lucide-react";
-import { type AnalyticsResponse } from "@/server/actions/analytics/analytics";
-
-// Function to fetch analytics data from the API route
-const fetchAnalyticsData = async (
-  workspace: string,
-  params: Record<string, string>
-): Promise<AnalyticsResponse> => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspace}/analytics?${searchParams}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch analytics: ${response.statusText}`);
-  }
-  
-  return response.json();
-};
 
 // Dynamic imports with SSR disabled (client-only)
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
@@ -77,10 +61,83 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     [searchParams],
   );
 
-  const { data: res, error } = useSWR<AnalyticsResponse, Error>(
-    ["analytics", workspace, searchParamsObj],
-    () => fetchAnalyticsData(workspace, searchParamsObj),
-  );
+  // Use the new analytics hook to fetch all data at once
+  const {
+    data: res,
+    links,
+    countries,
+    cities,
+    continents,
+    browsers,
+    oses,
+    devices,
+    referrers,
+    destinations,
+    error,
+    isLoading,
+  } = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: searchParamsObj,
+    // Fetch all metrics for the main analytics dashboard
+    metrics: [
+      "totalClicks",
+      "clicksOverTime", 
+      "links",
+      "cities",
+      "countries",
+      "continents",
+      "devices",
+      "browsers",
+      "oses",
+      "referrers",
+      "destinations"
+    ],
+  });
+
+  // Helper function to convert analytics data to FilterOption types
+  const convertToFilterOptions = useMemo(() => {
+    return {
+      links: (links as Array<{ slug: string; url: string; clicks: number }>)?.map(item => ({
+        slug: item.slug,
+        url: item.url,
+        clicks: item.clicks
+      })) || [],
+      countries: (countries as Array<{ country: string; clicks: number }>)?.map(item => ({
+        country: item.country,
+        clicks: item.clicks
+      })) || [],
+      cities: (cities as Array<{ city: string; country: string; clicks: number }>)?.map(item => ({
+        city: item.city,
+        country: item.country,
+        clicks: item.clicks
+      })) || [],
+      continents: (continents as Array<{ continent: string; clicks: number }>)?.map(item => ({
+        continent: item.continent,
+        clicks: item.clicks
+      })) || [],
+      browsers: (browsers as Array<{ browser: string; clicks: number }>)?.map(item => ({
+        browser: item.browser,
+        clicks: item.clicks
+      })) || [],
+      oses: (oses as Array<{ os: string; clicks: number }>)?.map(item => ({
+        os: item.os,
+        clicks: item.clicks
+      })) || [],
+      devices: (devices as Array<{ device: string; clicks: number }>)?.map(item => ({
+        device: item.device,
+        clicks: item.clicks
+      })) || [],
+      referrers: (referrers as Array<{ referrer: string; clicks: number }>)?.map(item => ({
+        referrer: item.referrer,
+        clicks: item.clicks
+      })) || [],
+      destinations: (destinations as Array<{ destination: string; clicks: number }>)?.map(item => ({
+        destination: item.destination,
+        clicks: item.clicks
+      })) || [],
+    };
+  }, [links, countries, cities, continents, browsers, oses, devices, referrers, destinations]);
 
   // Memoize filter categories to prevent unnecessary re-renders
   const filterCategories = useMemo(
@@ -89,58 +146,58 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
         id: "slug_key" as CategoryId,
         label: "Link",
         icon: <LinkIcon className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.links ?? [],
+        options: convertToFilterOptions.links,
       },
       {
         id: "country_key" as CategoryId,
         label: "Country",
         icon: <Flag className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.countries ?? [],
+        options: convertToFilterOptions.countries,
       },
       {
         id: "city_key" as CategoryId,
         label: "City",
         icon: <MapPinned className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.cities ?? [],
+        options: convertToFilterOptions.cities,
       },
       {
         id: "continent_key" as CategoryId,
         label: "Continent",
         icon: <Map className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.continents ?? [],
+        options: convertToFilterOptions.continents,
       },
       {
         id: "browser_key" as CategoryId,
         label: "Browser",
         icon: <Chrome className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.browsers ?? [],
+        options: convertToFilterOptions.browsers,
       },
       {
         id: "os_key" as CategoryId,
         label: "OS",
         icon: <Box className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.oses ?? [],
+        options: convertToFilterOptions.oses,
       },
       {
         id: "device_key" as CategoryId,
         label: "Device",
         icon: <Smartphone className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.devices ?? [],
+        options: convertToFilterOptions.devices,
       },
       {
         id: "referrer_key" as CategoryId,
         label: "Referrer",
         icon: <Share2 className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.referrers ?? [],
+        options: convertToFilterOptions.referrers,
       },
       {
         id: "destination_key" as CategoryId,
         label: "Destination URL",
         icon: <Redo2 className="h-4 w-4" strokeWidth={1.3} />,
-        options: res?.destinations ?? [],
+        options: convertToFilterOptions.destinations,
       },
     ],
-    [res],
+    [convertToFilterOptions],
   );
 
   if (error) {
@@ -167,22 +224,54 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
           workspaceslug={workspace}
           timePeriod={timePeriod}
           searchParams={searchParamsObj}
+          // Pass data directly to prevent duplicate API calls
+          data={res?.clicksOverTime?.map(item => ({
+            time: item.time instanceof Date ? item.time.toISOString() : item.time,
+            clicks: item.clicks
+          }))}
+          totalClicks={res?.totalClicks}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           {/* URL Clicks */}
-          <UrlClicks workspaceslug={workspace} searchParams={searchParamsObj} />
+          <UrlClicks 
+            workspaceslug={workspace} 
+            searchParams={searchParamsObj} 
+            timePeriod={timePeriod}
+            // Pass data directly to prevent duplicate API calls
+            linksData={convertToFilterOptions.links}
+            destinationsData={convertToFilterOptions.destinations}
+            isLoading={isLoading}
+          />
           {/* Geo Clicks */}
-          <GeoClicks workspaceslug={workspace} searchParams={searchParamsObj} />
+          <GeoClicks 
+            workspaceslug={workspace} 
+            searchParams={searchParamsObj} 
+            timePeriod={timePeriod}
+            // Pass data directly to prevent duplicate API calls
+            citiesData={convertToFilterOptions.cities}
+            countriesData={convertToFilterOptions.countries}
+            continentsData={convertToFilterOptions.continents}
+            isLoading={isLoading}
+          />
           {/* Device Clicks */}
           <DeviceClicks
             workspaceslug={workspace}
             searchParams={searchParamsObj}
+            timePeriod={timePeriod}
+            // Pass data directly to prevent duplicate API calls
+            devicesData={convertToFilterOptions.devices}
+            browsersData={convertToFilterOptions.browsers}
+            osesData={convertToFilterOptions.oses}
+            isLoading={isLoading}
           />
           {/* Referrer Clicks */}
           <ReferrerClicks
             workspaceslug={workspace}
             searchParams={searchParamsObj}
+            timePeriod={timePeriod}
+            // Pass data directly to prevent duplicate API calls
+            referrersData={convertToFilterOptions.referrers}
           />
         </div>
       </div>

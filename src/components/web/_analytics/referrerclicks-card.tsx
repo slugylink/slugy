@@ -3,30 +3,15 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UrlAvatar from "@/components/web/url-avatar";
-import useSWR from "swr";
-// Function to fetch referrer data from the API route
-const fetchReferrerData = async (
-  workspaceslug: string,
-  params: Record<string, string>,
-) => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(
-    `/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=referrers`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch referrer data: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.referrers ?? [];
-};
+import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
 interface ReferrerClicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
+  timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  referrersData?: Array<{ referrer: string; clicks: number }>;
 }
 
 interface ReferrerData {
@@ -76,46 +61,36 @@ const tabConfigs: TabConfig[] = [
 const ReferrerClicks = ({
   workspaceslug,
   searchParams,
+  timePeriod,
+  referrersData,
 }: ReferrerClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("referrers");
-  const [cache, setCache] = useState<Record<string, ReferrerData[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Optimize SWR key structure and add proper options
-  const swrKey = [
-    "analytics",
-    "referrers",
+  // Use the new analytics hook with selective metrics only if no data is passed
+  const {
+    referrers: hookReferrers,
+    isLoading: apiLoading,
+    error,
+  } = useAnalytics({
     workspaceslug,
-    activeTab,
+    timePeriod,
     searchParams,
-  ];
+    metrics: ["referrers"], // Only fetch needed metrics
+    enabled: !referrersData, // Disable if data is passed
+  });
 
-  const { data, error, isLoading } = useSWR<ReferrerData[], Error>(
-    swrKey,
-    () => fetchReferrerData(workspaceslug, searchParams),
-    {
-      // Keep previous data while loading new data
-      keepPreviousData: true,
-      // Dedupe requests within 10 seconds
-      dedupingInterval: 10000,
-      // Only revalidate when focus returns
-      revalidateOnFocus: false,
-      // Revalidate on reconnect
-      revalidateOnReconnect: false,
-      // Error retry configuration
-      errorRetryCount: 2,
-      errorRetryInterval: 3000,
-      onSuccess: (newData) => {
-        setCache((prev) => ({ ...prev, [activeTab]: newData }));
-      },
-    },
-  );
+  // Use passed data or fallback to hook data
+  const referrers = referrersData || hookReferrers;
 
-  const displayedData = cache[activeTab] ?? data ?? [];
+  // Type-safe data processing
+  const typedReferrers = useMemo(() => {
+    return (referrers as Array<{ referrer: string; clicks: number }>) || [];
+  }, [referrers]);
 
   const sortedData = useMemo(
-    () => [...displayedData].sort((a, b) => b.clicks - a.clicks),
-    [displayedData],
+    () => [...typedReferrers].sort((a, b) => b.clicks - a.clicks),
+    [typedReferrers],
   );
 
   const processedData: ProcessedReferrerData[] = useMemo(
@@ -158,7 +133,7 @@ const ReferrerClicks = ({
               <TableHeader label={currentTabConfig.singular} />
               <TableCard
                 data={processedData.slice(0, 7)}
-                loading={isLoading}
+                loading={apiLoading}
                 error={error}
                 keyPrefix="referrer"
                 getClicks={(item) => item.clicks}
@@ -174,7 +149,7 @@ const ReferrerClicks = ({
 
       <AnalyticsDialog
         data={processedData}
-        loading={isLoading}
+        loading={apiLoading}
         error={error}
         keyPrefix="referrer"
         getClicks={(item) => item.clicks}
@@ -183,7 +158,7 @@ const ReferrerClicks = ({
         renderName={(item) => currentTabConfig.renderName(item)}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
-        showButton={!isLoading && processedData.length > 7}
+        showButton={!apiLoading && processedData.length > 7}
         dialogOpen={dialogOpen}
         onDialogOpenChange={setDialogOpen}
       />

@@ -33,28 +33,6 @@ type ClientMetric =
   | "referrers"
   | "destinations";
 
-const ALL_METRICS = [
-  "totalClicks",
-  "clicksOverTime",
-  "links",
-  "cities",
-  "countries",
-  "continents",
-  "devices",
-  "browsers",
-  "oses",
-  "referrers",
-  "destinations",
-] as const;
-
-// Mapping function to convert client metrics to internal format
-function normalizeMetrics(metrics: ClientMetric[]): AnalyticsMetric[] {
-  return metrics.map(metric => {
-    if (metric === "os") return "oses";
-    return metric as AnalyticsMetric;
-  });
-}
-
 const analyticsPropsSchema = z
   .object({
     timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]),
@@ -67,20 +45,24 @@ const analyticsPropsSchema = z
     referrer_key: z.string().nullable().optional(),
     device_key: z.string().nullable().optional(),
     destination_key: z.string().nullable().optional(),
-    metrics: z.array(z.enum([
-      "totalClicks",
-      "clicksOverTime",
-      "links",
-      "cities",
-      "countries",
-      "continents",
-      "devices",
-      "browsers",
-      "os", // Allow singular form
-      "oses", // Allow plural form
-      "referrers",
-      "destinations"
-    ])).optional(),
+    metrics: z
+      .array(
+        z.enum([
+          "totalClicks",
+          "clicksOverTime",
+          "links",
+          "cities",
+          "countries",
+          "continents",
+          "devices",
+          "browsers",
+          "os", // Allow singular form
+          "oses", // Allow plural form
+          "referrers",
+          "destinations",
+        ]),
+      )
+      .optional(),
   })
   .strict();
 
@@ -105,6 +87,243 @@ function getStartDate(period: TimePeriod): Date {
       break;
   }
   return now;
+}
+
+// Helper function to build filter conditions
+function buildFilterConditions(filters: Record<string, string>) {
+  const conditions = [];
+
+  if (filters.slug) conditions.push(sql`l.slug = ${filters.slug}`);
+  if (filters.destination) conditions.push(sql`l.url = ${filters.destination}`);
+  if (filters.country) conditions.push(sql`a.country = ${filters.country}`);
+  if (filters.city) conditions.push(sql`a.city = ${filters.city}`);
+  if (filters.continent)
+    conditions.push(sql`a.continent = ${filters.continent}`);
+  if (filters.browser) conditions.push(sql`a.browser = ${filters.browser}`);
+  if (filters.os) conditions.push(sql`a.os = ${filters.os}`);
+  if (filters.referrer) conditions.push(sql`a.referer = ${filters.referrer}`);
+  if (filters.device) conditions.push(sql`a.device = ${filters.device}`);
+
+  if (conditions.length === 0) return sql``;
+  if (conditions.length === 1) return sql`AND ${conditions[0]}`;
+
+  let result = sql`AND ${conditions[0]}`;
+  for (let i = 1; i < conditions.length; i++) {
+    result = sql`${result} AND ${conditions[i]}`;
+  }
+  return result;
+}
+
+// Optimized query for specific metrics
+async function fetchMetricData(
+  metric: AnalyticsMetric,
+  baseWhereClause: ReturnType<typeof sql>,
+  periodUnit: string,
+) {
+  switch (metric) {
+    case "totalClicks":
+      const totalResult = await sql`
+        SELECT COUNT(*) as total_clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+      `;
+      return totalResult[0]?.total_clicks || 0;
+
+    case "clicksOverTime":
+      const timeResult = await sql`
+        SELECT 
+          date_trunc(${periodUnit}, a."clickedAt") AS time_period,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+        GROUP BY time_period
+        ORDER BY time_period
+      `;
+      return timeResult.map((row) => ({
+        time: row.time_period,
+        clicks: Number(row.clicks),
+      }));
+
+    case "links":
+      const linksResult = await sql`
+        SELECT 
+          l.slug,
+          l.url,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+        GROUP BY l.slug, l.url
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return linksResult.map((row) => ({
+        slug: row.slug,
+        url: row.url,
+        clicks: Number(row.clicks),
+      }));
+
+    case "cities":
+      const citiesResult = await sql`
+        SELECT 
+          a.city,
+          a.country,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.city IS NOT NULL
+        GROUP BY a.city, a.country
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return citiesResult.map((row) => ({
+        city: row.city,
+        country: row.country,
+        clicks: Number(row.clicks),
+      }));
+
+    case "countries":
+      const countriesResult = await sql`
+        SELECT 
+          a.country,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.country IS NOT NULL
+        GROUP BY a.country
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return countriesResult.map((row) => ({
+        country: row.country,
+        clicks: Number(row.clicks),
+      }));
+
+    case "continents":
+      const continentsResult = await sql`
+        SELECT 
+          a.continent,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.continent IS NOT NULL
+        GROUP BY a.continent
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return continentsResult.map((row) => ({
+        continent: row.continent,
+        clicks: Number(row.clicks),
+      }));
+
+    case "devices":
+      const devicesResult = await sql`
+        SELECT 
+          a.device,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.device IS NOT NULL
+        GROUP BY a.device
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return devicesResult.map((row) => ({
+        device: row.device,
+        clicks: Number(row.clicks),
+      }));
+
+    case "browsers":
+      const browsersResult = await sql`
+        SELECT 
+          a.browser,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.browser IS NOT NULL
+        GROUP BY a.browser
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return browsersResult.map((row) => ({
+        browser: row.browser,
+        clicks: Number(row.clicks),
+      }));
+
+    case "oses":
+      const osesResult = await sql`
+        SELECT 
+          a.os,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.os IS NOT NULL
+        GROUP BY a.os
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return osesResult.map((row) => ({
+        os: row.os,
+        clicks: Number(row.clicks),
+      }));
+
+    case "referrers":
+      const referrersResult = await sql`
+        SELECT 
+          a.referer,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+          AND a.referer IS NOT NULL
+        GROUP BY a.referer
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return referrersResult.map((row) => ({
+        referrer: row.referer,
+        clicks: Number(row.clicks),
+      }));
+
+    case "destinations":
+      const destinationsResult = await sql`
+        SELECT 
+          l.url,
+          COUNT(*) AS clicks
+        FROM "analytics" a
+        JOIN "links" l ON a."linkId" = l.id
+        JOIN "workspaces" w ON l."workspaceId" = w.id
+        WHERE ${baseWhereClause}
+        GROUP BY l.url
+        ORDER BY clicks DESC
+        LIMIT 100
+      `;
+      return destinationsResult.map((row) => ({
+        destination: row.url,
+        clicks: Number(row.clicks),
+      }));
+
+    default:
+      return null;
+  }
 }
 
 export async function GET(
@@ -164,10 +383,27 @@ export async function GET(
           ? "day"
           : "month";
 
-    const metrics: readonly AnalyticsMetric[] = props.metrics 
-      ? normalizeMetrics(props.metrics)
-      : ALL_METRICS;
+    // Determine which metrics to fetch
+    const requestedMetrics = props.metrics || [
+      "totalClicks",
+      "clicksOverTime",
+      "links",
+      "cities",
+      "countries",
+      "continents",
+      "devices",
+      "browsers",
+      "oses",
+      "referrers",
+      "destinations",
+    ];
 
+    // Normalize metrics (convert "os" to "oses")
+    const normalizedMetrics = requestedMetrics.map((metric) =>
+      metric === "os" ? "oses" : metric,
+    ) as AnalyticsMetric[];
+
+    // Build base where clause with performance optimization
     const baseWhereClause = sql`
       a."clickedAt" >= ${startDate}
       AND w.slug = ${workspaceslug}
@@ -179,203 +415,62 @@ export async function GET(
             AND wm."userId" = ${session.user.id}
         )
       )
-      ${filters.slug ? sql`AND l.slug = ${filters.slug}` : sql``}
-      ${filters.destination ? sql`AND l.url = ${filters.destination}` : sql``}
-      ${filters.country ? sql`AND a.country = ${filters.country}` : sql``}
-      ${filters.city ? sql`AND a.city = ${filters.city}` : sql``}
-      ${filters.continent ? sql`AND a.continent = ${filters.continent}` : sql``}
-      ${filters.browser ? sql`AND a.browser = ${filters.browser}` : sql``}
-      ${filters.os ? sql`AND a.os = ${filters.os}` : sql``}
-      ${filters.referrer ? sql`AND a.referer = ${filters.referrer}` : sql``}
-      ${filters.device ? sql`AND a.device = ${filters.device}` : sql``}
+      ${buildFilterConditions(filters)}
     `;
 
-    const rows = await sql`
-      WITH base_data AS (
-        SELECT
-          a."clickedAt",
-          a.country,
-          a.city,
-          a.continent,
-          a.browser,
-          a.os,
-          a.referer,
-          a.device,
-          l.slug,
-          l.url,
-          date_trunc(${periodUnit}, a."clickedAt") AS time_period
-        FROM "analytics" a
-        JOIN "links" l ON a."linkId" = l.id
-        JOIN "workspaces" w ON l."workspaceId" = w.id
-        WHERE ${baseWhereClause}
-      )
-      
-      SELECT
-        CASE WHEN GROUPING(time_period) = 0 THEN time_period ELSE NULL END AS time_period,
-        CASE WHEN GROUPING(slug) = 0 THEN slug ELSE NULL END AS slug,
-        CASE WHEN GROUPING(url) = 0 THEN url ELSE NULL END AS url,
-        CASE WHEN GROUPING(city) = 0 THEN city ELSE NULL END AS city,
-        CASE WHEN GROUPING(country) = 0 THEN country ELSE NULL END AS country,
-        CASE WHEN GROUPING(continent) = 0 THEN continent ELSE NULL END AS continent,
-        CASE WHEN GROUPING(device) = 0 THEN device ELSE NULL END AS device,
-        CASE WHEN GROUPING(browser) = 0 THEN browser ELSE NULL END AS browser,
-        CASE WHEN GROUPING(os) = 0 THEN os ELSE NULL END AS os,
-        CASE WHEN GROUPING(referer) = 0 THEN referer ELSE NULL END AS referer,
-        COUNT(*) AS clicks,
-        CASE 
-          WHEN GROUPING(time_period) = 0 THEN 'time_series'
-          WHEN GROUPING(slug, url) = 0 THEN 'links'
-          WHEN GROUPING(city, country) = 0 THEN 'cities'
-          WHEN GROUPING(country) = 0 AND GROUPING(city) = 1 THEN 'countries'
-          WHEN GROUPING(continent) = 0 THEN 'continents'
-          WHEN GROUPING(device) = 0 THEN 'devices'
-          WHEN GROUPING(browser) = 0 THEN 'browsers'
-          WHEN GROUPING(os) = 0 THEN 'oses'
-          WHEN GROUPING(referer) = 0 THEN 'referrers'
-          WHEN GROUPING(url) = 0 AND GROUPING(slug) = 1 THEN 'destinations'
-          ELSE 'total'
-        END AS metric_type
-      FROM base_data
-      GROUP BY GROUPING SETS (
-        (time_period),
-        (slug, url),
-        (city, country),
-        (country),
-        (continent),
-        (device),
-        (browser),
-        (os),
-        (referer),
-        (url),
-        ()
-      )
-      ORDER BY metric_type, time_period NULLS LAST, clicks DESC;
-    `;
+    // Early return if no metrics requested
+    if (normalizedMetrics.length === 0) {
+      return NextResponse.json(
+        {},
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=120, stale-while-revalidate=240",
+          },
+        },
+      );
+    }
 
-    // Containers for results
+    // Fetch only requested metrics in parallel with better error handling
+    const metricPromises = normalizedMetrics.map(async (metric) => {
+      try {
+        const data = await fetchMetricData(metric, baseWhereClause, periodUnit);
+        return { metric, data, success: true };
+      } catch (error) {
+        console.error(`Error fetching metric ${metric}:`, error);
+        return { metric, data: null, success: false, error };
+      }
+    });
+
+    const metricResults = await Promise.all(metricPromises);
+
+    // Build response object with successful results only
     const results: Record<string, unknown> = {};
-    const timeSeriesData: Array<{ time: Date; clicks: number }> = [];
-    const links: Array<{ slug: string; url: string; clicks: number }> = [];
-    const cities: Array<{ city: string; country: string; clicks: number }> = [];
-    const countries: Array<{ country: string; clicks: number }> = [];
-    const continents: Array<{ continent: string; clicks: number }> = [];
-    const devices: Array<{ device: string; clicks: number }> = [];
-    const browsers: Array<{ browser: string; clicks: number }> = [];
-    const oses: Array<{ os: string; clicks: number }> = [];
-    const referrers: Array<{ referrer: string; clicks: number }> = [];
-    const destinations: Array<{ destination: string; clicks: number }> = [];
+    const errors: Record<string, string> = {};
 
-    for (const row of rows) {
-      const clicks = Number(row.clicks);
-      const metricType = row.metric_type as string;
-
-      switch (metricType) {
-        case "time_series":
-          if (row.time_period) {
-            timeSeriesData.push({
-              time: row.time_period as Date,
-              clicks,
-            });
-          }
-          break;
-        case "links":
-          if (row.slug && row.url) {
-            links.push({
-              slug: row.slug as string,
-              url: row.url as string,
-              clicks,
-            });
-          }
-          break;
-        case "cities":
-          if (row.city && row.country) {
-            cities.push({
-              city: row.city as string,
-              country: row.country as string,
-              clicks,
-            });
-          }
-          break;
-        case "countries":
-          if (row.country) {
-            countries.push({
-              country: row.country as string,
-              clicks,
-            });
-          }
-          break;
-        case "continents":
-          if (row.continent) {
-            continents.push({
-              continent: row.continent as string,
-              clicks,
-            });
-          }
-          break;
-        case "devices":
-          if (row.device) {
-            devices.push({
-              device: row.device as string,
-              clicks,
-            });
-          }
-          break;
-        case "browsers":
-          if (row.browser) {
-            browsers.push({
-              browser: row.browser as string,
-              clicks,
-            });
-          }
-          break;
-        case "oses":
-          if (row.os) {
-            oses.push({
-              os: row.os as string,
-              clicks,
-            });
-          }
-          break;
-        case "referrers":
-          if (row.referer) {
-            referrers.push({
-              referrer: row.referer as string,
-              clicks,
-            });
-          }
-          break;
-        case "destinations":
-          if (row.url) {
-            destinations.push({
-              destination: row.url as string,
-              clicks,
-            });
-          }
-          break;
-        default:
-        //console.log('Unknown metric type:', metricType, 'for row:', row);
+    for (const { metric, data, success, error } of metricResults) {
+      if (success && data !== null) {
+        results[metric] = data;
+      } else if (!success) {
+        errors[metric] = (error as Error)?.message || "Unknown error";
       }
     }
 
-    if (metrics.includes("totalClicks") && results.totalClicks === undefined) {
-      results.totalClicks = timeSeriesData.reduce(
-        (sum, item) => sum + item.clicks,
-        0,
-      );
-    }
-    if (metrics.includes("clicksOverTime"))
-      results.clicksOverTime = timeSeriesData;
-    if (metrics.includes("links")) results.links = links;
-    if (metrics.includes("cities")) results.cities = cities;
-    if (metrics.includes("countries")) results.countries = countries;
-    if (metrics.includes("continents")) results.continents = continents;
-    if (metrics.includes("devices")) results.devices = devices;
-    if (metrics.includes("browsers")) results.browsers = browsers;
-    if (metrics.includes("oses")) results.oses = oses;
-    if (metrics.includes("referrers")) results.referrers = referrers;
-    if (metrics.includes("destinations")) results.destinations = destinations;
+    // Set cache headers for better performance
+    const response = NextResponse.json({
+      ...results,
+      ...(Object.keys(errors).length > 0 && { _errors: errors }),
+    });
 
-    return NextResponse.json(results);
+    response.headers.set(
+      "Cache-Control",
+      "public, s-maxage=120, stale-while-revalidate=240", // Cache results for 2 minutes
+    );
+
+    // Add performance headers
+    response.headers.set("X-Analytics-Metrics", normalizedMetrics.join(","));
+    response.headers.set("X-Analytics-Period", props.timePeriod);
+
+    return response;
   } catch (err) {
     console.error("analytics API error:", err);
     if (err instanceof z.ZodError) {

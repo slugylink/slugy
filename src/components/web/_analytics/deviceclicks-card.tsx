@@ -4,23 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import useSWR from "swr";
-// Function to fetch device data from the API route
-const fetchDeviceData = async (
-  workspaceslug: string,
-  params: Record<string, string>,
-  metric: "devices" | "browsers" | "oses"
-) => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=${metric}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch device data: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
-  return data[metric] ?? [];
-};
+import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -65,6 +49,11 @@ OptimizedImage.displayName = "OptimizedImage";
 interface DeviceClicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
+  timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  devicesData?: DeviceData[];
+  browsersData?: DeviceData[];
+  osesData?: DeviceData[];
+  isLoading?: boolean;
 }
 
 interface DeviceData {
@@ -106,46 +95,65 @@ const tabConfigs: TabConfig[] = [
   },
 ];
 
-const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
+const DeviceClicks = ({
+  workspaceslug,
+  searchParams,
+  timePeriod,
+  devicesData,
+  browsersData,
+  osesData,
+  isLoading: propIsLoading,
+}: DeviceClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("devices");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Optimize SWR key structure and add proper options
-  const swrKey = ["analytics", "device", workspaceslug, activeTab, searchParams];
-  
-  const { data, error, isLoading } = useSWR<DeviceData[], Error>(
-    swrKey,
-    () => fetchDeviceData(workspaceslug, searchParams, activeTab),
-    {
-      // Keep previous data while loading new data
-      keepPreviousData: true,
-      // Dedupe requests within 10 seconds
-      dedupingInterval: 10000,
-      // Only revalidate when focus returns
-      revalidateOnFocus: false,
-      // Revalidate on reconnect
-      revalidateOnReconnect: false,
-      // Error retry configuration
-      errorRetryCount: 2,
-      errorRetryInterval: 3000,
+  // Use the new analytics hook with selective metrics only if no data is passed
+  const { devices: hookDevices, browsers: hookBrowsers, oses: hookOses, isLoading: hookLoading, error } = useAnalytics({
+    workspaceslug,
+    timePeriod,
+    searchParams,
+    metrics: ["devices", "browsers", "oses"], // Only fetch needed metrics
+    enabled: !devicesData && !browsersData && !osesData, // Disable if data is passed
+  });
+
+  // Use passed data or fallback to hook data
+  const devices = devicesData || hookDevices;
+  const browsers = browsersData || hookBrowsers;
+  const oses = osesData || hookOses;
+  const isLoading = propIsLoading || hookLoading;
+
+  // Get data based on active tab
+  const currentData = useMemo(() => {
+    switch (activeTab) {
+      case "devices":
+        return devices;
+      case "browsers":
+        return browsers;
+      case "oses":
+        return oses;
+      default:
+        return [];
     }
-  );
+  }, [activeTab, devices, browsers, oses]);
 
   const sortedData = useMemo(
-    () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
-    [data],
+    () => [...currentData].sort((a, b) => b.clicks - a.clicks),
+    [currentData],
   );
 
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
 
+  // Type-safe helper function to get the value for the current tab
+  const getTabValue = (item: DeviceData): string => {
+    const value = item[currentTabConfig.dataKey];
+    return (value as string) ?? "unknown";
+  };
+
   const renderName = (item: DeviceData) => {
-    const name = (item[currentTabConfig.dataKey] as string) ?? "unknown";
+    const name = getTabValue(item);
     return (
       <div className={cn("flex items-center gap-x-2 capitalize")}>
-        <OptimizedImage
-          src={currentTabConfig.getAssetSrc(name)}
-          alt={name}
-        />
+        <OptimizedImage src={currentTabConfig.getAssetSrc(name)} alt={name} />
         <span>{name}</span>
       </div>
     );
@@ -179,10 +187,10 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
                 error={error}
                 keyPrefix={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
-                getKey={(item, index) =>
-                  (item[currentTabConfig.dataKey] as string | undefined) ??
-                  `${currentTabConfig.key}-${index}`
-                }
+                getKey={(item, index) => {
+                  const value = getTabValue(item);
+                  return value !== "unknown" ? value : `${currentTabConfig.key}-${index}`;
+                }}
                 progressColor="bg-blue-200/40"
                 renderName={renderName}
               />
@@ -199,10 +207,10 @@ const DeviceClicks = ({ workspaceslug, searchParams }: DeviceClicksProps) => {
         error={error}
         keyPrefix={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
-        getKey={(item, index) =>
-          (item[currentTabConfig.dataKey] as string | undefined) ??
-          `${currentTabConfig.key}-${index}`
-        }
+        getKey={(item, index) => {
+          const value = getTabValue(item);
+          return value !== "unknown" ? value : `${currentTabConfig.key}-${index}`;
+        }}
         progressColor="bg-blue-200/40"
         renderName={renderName}
         title={currentTabConfig.label}

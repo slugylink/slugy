@@ -3,22 +3,7 @@ import React, { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UrlAvatar from "@/components/web/url-avatar";
-import useSWR from "swr";
-// Function to fetch URL clicks data from the API route
-const fetchUrlClicksData = async (
-  workspaceslug: string,
-  params: Record<string, string>
-) => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=links`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch URL clicks data: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
-  return data.links ?? [];
-};
+import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -26,13 +11,17 @@ import AnalyticsDialog from "./analytics-dialog";
 interface UrlClicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
+  timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  // New props to accept data directly
+  linksData?: Array<{ slug: string; url: string; clicks: number }>;
+  destinationsData?: Array<{ destination: string; clicks: number }>;
+  isLoading?: boolean;
 }
 
-interface UrlClickData {
-  slug: string;
-  url: string;
-  clicks: number;
-}
+// Union type to handle both data structures
+type UrlClickData = 
+  | { slug: string; url: string; clicks: number }
+  | { destination: string; clicks: number };
 
 type TabKey = "slug-links" | "destination-links";
 
@@ -63,19 +52,25 @@ const tabConfigs: TabConfig[] = [
     linkLabel: "Link",
     keyPrefix: "slug",
     progressColor: "bg-orange-200/40",
-    renderName: (item) => (
-      <div className="flex items-center gap-x-2">
-        <UrlAvatar
-          className="flex-shrink-0 rounded-sm"
-          size={5}
-          imgSize={4}
-          url={item.url}
-        />
-        <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-          slugy.co/{item.slug}
-        </span>
-      </div>
-    ),
+    renderName: (item) => {
+      // Type guard to check if item has slug and url
+      if ('slug' in item && 'url' in item) {
+        return (
+          <div className="flex items-center gap-x-2">
+            <UrlAvatar
+              className="flex-shrink-0 rounded-sm"
+              size={5}
+              imgSize={4}
+              url={item.url}
+            />
+            <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+              slugy.co/{item.slug}
+            </span>
+          </div>
+        );
+      }
+      return <span>Invalid data</span>;
+    },
   },
   {
     key: "destination-links",
@@ -83,35 +78,62 @@ const tabConfigs: TabConfig[] = [
     linkLabel: "URL",
     keyPrefix: "destination",
     progressColor: "bg-orange-200/45",
-    renderName: (item) => (
-      <div className="flex items-center gap-x-2">
-        <UrlAvatar
-          className="flex-shrink-0 rounded-sm"
-          size={5}
-          imgSize={4}
-          url={item.url}
-        />
-        <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-          {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
-        </span>
-      </div>
-    ),
+    renderName: (item) => {
+      // Type guard to check if item has destination
+      if ('destination' in item) {
+        return (
+          <div className="flex items-center gap-x-2">
+            <UrlAvatar
+              className="flex-shrink-0 rounded-sm"
+              size={5}
+              imgSize={4}
+              url={item.destination}
+            />
+            <span className="line-clamp-1 max-w-[220px] text-ellipsis">
+              {item.destination.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+            </span>
+          </div>
+        );
+      }
+      return <span>Invalid data</span>;
+    },
   },
 ];
 
 // ----------------------- Main Component -----------------------
-const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
+const UrlClicks = ({ workspaceslug, searchParams, timePeriod, linksData, destinationsData, isLoading }: UrlClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("slug-links");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { data, error, isLoading } = useSWR<UrlClickData[], Error>(
-    ["url-clicks", workspaceslug, searchParams],
-    () => fetchUrlClicksData(workspaceslug, searchParams),
-  );
+  // Use the new analytics hook with selective metrics only if no data is passed
+  const {
+    links,
+    destinations,
+    isLoading: hookLoading,
+    error,
+  } = useAnalytics({
+    workspaceslug,
+    timePeriod,
+    searchParams,
+    metrics: ["links", "destinations"], // Only fetch needed metrics
+    enabled: !linksData && !destinationsData, // Disable if data is passed
+  });
+
+  // Get data based on active tab with proper typing
+  const currentData = useMemo((): UrlClickData[] => {
+    switch (activeTab) {
+      case "slug-links":
+        return linksData || links as Array<{ slug: string; url: string; clicks: number }>;
+      case "destination-links":
+        return destinationsData || destinations as Array<{ destination: string; clicks: number }>;
+      default:
+        return [];
+    }
+  }, [activeTab, linksData, destinationsData, links, destinations]);
 
   const sortedData = useMemo(
-    () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
-    [data],
+    () => [...currentData].sort((a, b) => b.clicks - a.clicks),
+    [currentData],
   );
 
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
@@ -150,13 +172,15 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
               <TableHeader linkLabel={currentTabConfig.linkLabel} />
               <TableCard
                 data={sortedData.slice(0, 7)}
-                loading={isLoading}
+                loading={isLoading || hookLoading}
                 error={error}
                 keyPrefix={currentTabConfig.keyPrefix}
                 getClicks={(item) => item.clicks}
-                getKey={(item, index) =>
-                  item.slug ?? item.url ?? `${currentTabConfig.keyPrefix}-${index}`
-                }
+                getKey={(item, index) => {
+                  if ('slug' in item) return item.slug;
+                  if ('destination' in item) return item.destination;
+                  return `${currentTabConfig.keyPrefix}-${index}`;
+                }}
                 progressColor={currentTabConfig.progressColor}
                 renderName={currentTabConfig.renderName}
               />
@@ -169,13 +193,15 @@ const UrlClicks = ({ workspaceslug, searchParams }: UrlClicksProps) => {
 
       <AnalyticsDialog
         data={sortedData}
-        loading={isLoading}
+        loading={isLoading || hookLoading}
         error={error}
         keyPrefix={currentTabConfig.keyPrefix}
         getClicks={(item) => item.clicks}
-        getKey={(item, index) =>
-          item.slug ?? item.url ?? `${currentTabConfig.keyPrefix}-${index}`
-        }
+        getKey={(item, index) => {
+          if ('slug' in item) return item.slug;
+          if ('destination' in item) return item.destination;
+          return `${currentTabConfig.keyPrefix}-${index}`;
+        }}
         progressColor={currentTabConfig.progressColor}
         renderName={currentTabConfig.renderName}
         title={currentTabConfig.label}

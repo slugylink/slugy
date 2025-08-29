@@ -2,28 +2,12 @@
 
 import React, { useMemo, useState } from "react";
 import Image from "next/image";
-import useSWR from "swr";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
+import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
-// Function to fetch geo data from the API route
-const fetchGeoData = async (
-  workspaceslug: string,
-  params: Record<string, string>,
-  type: "countries" | "cities" | "continents"
-) => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(`/api/workspace/${workspaceslug}/analytics?${searchParams}&metrics=${type}`);
-  
-  if (!response.ok) {
-    throw new Error(`Failed to fetch geo data: ${response.statusText}`);
-  }
-  
-  const data = await response.json();
-  return data[type] ?? [];
-};
 
 // ------------------------------
 // Types
@@ -31,6 +15,11 @@ const fetchGeoData = async (
 interface GeoclicksProps {
   workspaceslug: string;
   searchParams: Record<string, string>;
+  timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  citiesData?: GeoData[];
+  countriesData?: GeoData[];
+  continentsData?: GeoData[];
+  isLoading?: boolean;
 }
 
 interface GeoData {
@@ -49,7 +38,7 @@ interface TabConfig {
   dataKey: GeoKey;
   renderName: (
     item: GeoData,
-    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"]
+    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"],
   ) => JSX.Element;
 }
 
@@ -176,34 +165,49 @@ const tabConfigs: TabConfig[] = [
 // ------------------------------
 // Main Component
 // ------------------------------
-const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
+const Geoclicks = ({
+  workspaceslug,
+  searchParams,
+  timePeriod,
+  citiesData,
+  countriesData,
+  continentsData,
+  isLoading: propIsLoading,
+}: GeoclicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Optimize SWR key structure and add proper options
-  const swrKey = ["analytics", "geo", workspaceslug, activeTab, searchParams];
-  
-  const { data, error, isLoading } = useSWR<GeoData[], Error>(
-    swrKey,
-    () => fetchGeoData(workspaceslug, searchParams, activeTab),
-    {
-      // Keep previous data while loading new data
-      keepPreviousData: true,
-      // Dedupe requests within 10 seconds
-      dedupingInterval: 10000,
-      // Only revalidate when focus returns
-      revalidateOnFocus: false,
-      // Revalidate on reconnect
-      revalidateOnReconnect: false,
-      // Error retry configuration
-      errorRetryCount: 2,
-      errorRetryInterval: 3000,
+  // Use the new analytics hook only if no data is passed
+  const { cities: hookCities, countries: hookCountries, continents: hookContinents, isLoading: hookLoading, error } = useAnalytics({
+    workspaceslug,
+    timePeriod,
+    searchParams,
+    enabled: !citiesData && !countriesData && !continentsData, // Disable if data is passed
+  });
+
+  // Use passed data or fallback to hook data
+  const cities = citiesData || hookCities;
+  const countries = countriesData || hookCountries;
+  const continents = continentsData || hookContinents;
+  const isLoading = propIsLoading || hookLoading;
+
+  // Get data based on active tab
+  const currentData = useMemo(() => {
+    switch (activeTab) {
+      case "cities":
+        return cities;
+      case "countries":
+        return countries;
+      case "continents":
+        return continents;
+      default:
+        return [];
     }
-  );
+  }, [activeTab, cities, countries, continents]);
 
   const sortedData = useMemo(
-    () => [...(data ?? [])].sort((a, b) => b.clicks - a.clicks),
-    [data]
+    () => [...currentData].sort((a, b) => b.clicks - a.clicks),
+    [currentData],
   );
 
   const { getCountryInfo } = useCountryTools();
@@ -226,7 +230,10 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
           </TabsList>
 
           {/* Tab panel */}
-          <TabsContent value={currentTabConfig.key} className="mt-1 font-normal">
+          <TabsContent
+            value={currentTabConfig.key}
+            className="mt-1 font-normal"
+          >
             <div
               className="relative h-72 w-full"
               role="list"
@@ -241,10 +248,20 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
                 keyPrefix={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) =>
-                  item[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
+                  (
+                    item as {
+                      country: string;
+                      city: string;
+                      continent: string;
+                      clicks: number;
+                    }
+                  )[currentTabConfig.dataKey] ??
+                  `${currentTabConfig.dataKey}-${index}`
                 }
                 progressColor="bg-green-200/40"
-                renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}
+                renderName={(item) =>
+                  currentTabConfig.renderName(item, getCountryInfo)
+                }
               />
             </div>
           </TabsContent>
@@ -260,7 +277,14 @@ const Geoclicks = ({ workspaceslug, searchParams }: GeoclicksProps) => {
         keyPrefix={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) =>
-          item[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
+          (
+            item as {
+              country: string;
+              city: string;
+              continent: string;
+              clicks: number;
+            }
+          )[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
         }
         progressColor="bg-green-200/40"
         renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}

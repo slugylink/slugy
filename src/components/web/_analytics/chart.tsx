@@ -14,27 +14,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
-import useSWR from "swr";
-// Function to fetch chart data from the API route
-const fetchChartData = async (
-  workspaceslug: string,
-  params: Record<string, string>,
-) => {
-  const searchParams = new URLSearchParams(params);
-  const response = await fetch(
-    `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch chart data: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return {
-    clicksOverTime: data.clicksOverTime ?? [],
-    totalClicks: data.totalClicks ?? 0,
-  };
-};
+import { useAnalytics } from "@/hooks/use-analytics";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -57,14 +37,6 @@ interface ChartDataPoint {
   clicks: number;
 }
 
-interface ChartDataResponse {
-  clicksOverTime: {
-    time: Date;
-    clicks: number;
-  }[];
-  totalClicks: number;
-}
-
 const CHART_THEME = {
   primary: "#EA877E",
   background: "hsl(var(--background))",
@@ -83,36 +55,22 @@ const AnalyticsChart = ({
   const [localData, setLocalData] = useState<ChartDataPoint[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
 
-  // Optimize SWR key - only fetch when we have a workspace slug
-  const shouldFetch = Boolean(workspaceslug);
-  const swrKey = shouldFetch
-    ? ["analytics", "chart", workspaceslug, timePeriod, searchParams]
-    : null;
-
+  // Use the new analytics hook with selective metrics only if no data is passed
   const {
-    data: swrData,
+    clicksOverTime,
+    totalClicks: hookTotalClicks,
     isLoading,
     error,
-  } = useSWR<ChartDataResponse, Error>(
-    swrKey,
-    () =>
-      fetchChartData(workspaceslug!, {
-        time_period: timePeriod,
-        ...searchParams,
-      }),
-    {
-      // Only revalidate when searchParams change significantly
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      // Keep previous data while loading new data
-      keepPreviousData: true,
-      // Dedupe requests within 10 seconds
-      dedupingInterval: 10000,
-    },
-  );
+  } = useAnalytics({
+    workspaceslug: workspaceslug || "",
+    timePeriod,
+    searchParams,
+    enabled: Boolean(workspaceslug) && !propData, // Disable if data is passed
+    metrics: ["clicksOverTime", "totalClicks"], // Only fetch needed metrics
+  });
 
   useEffect(() => {
-    const dataToProcess = propData ?? swrData?.clicksOverTime;
+    const dataToProcess = propData ?? clicksOverTime;
     if (dataToProcess) {
       const formattedData = dataToProcess.map((item) => {
         const date = new Date(item.time);
@@ -141,9 +99,9 @@ const AnalyticsChart = ({
           : sortedData;
 
       setLocalData(sampledData);
-      setTotalClicks(propTotalClicks ?? swrData?.totalClicks ?? 0);
+      setTotalClicks(propTotalClicks ?? hookTotalClicks ?? 0);
     }
-  }, [propData, swrData, propTotalClicks]);
+  }, [propData, propTotalClicks, hookTotalClicks]); // Removed clicksOverTime to prevent infinite loop
 
   const formatTime = (timeStr: string): string => {
     if (!timeStr) return "";
