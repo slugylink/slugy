@@ -3,12 +3,12 @@ import type { SWRConfiguration } from "swr";
 
 export const swrConfig: SWRConfiguration = {
   fetcher,
-  dedupingInterval: 10000,
+  dedupingInterval: 30000, // 30 seconds
   errorRetryCount: 3,
   errorRetryInterval: 2000,
   revalidateOnMount: true,
-  revalidateOnFocus: false, // Prevent unnecessary refetches on focus
-  revalidateOnReconnect: false, // Refresh data when connection is restored
+  revalidateOnFocus: false,
+  revalidateOnReconnect: false,
   keepPreviousData: true,
   loadingTimeout: 10000,
   // Error handling
