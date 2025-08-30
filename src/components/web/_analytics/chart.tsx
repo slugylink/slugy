@@ -103,7 +103,11 @@ const AnalyticsChart = ({
         if (isNaN(date.getTime())) return "";
 
         if (timePeriod === "24h") {
-          return date.toLocaleTimeString("en-US", {
+          // Round to the nearest hour for 24h period
+          const roundedDate = new Date(date);
+          roundedDate.setMinutes(0, 0, 0); // Set minutes and seconds to 0
+          
+          return roundedDate.toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
@@ -185,7 +189,7 @@ const AnalyticsChart = ({
   return (
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
-        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
+        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium border">
           <NumberFlow
             value={propTotalClicks ?? 0}
             format={{ maximumFractionDigits: 0 }}
