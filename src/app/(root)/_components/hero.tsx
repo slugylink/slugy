@@ -20,7 +20,7 @@ const data = {
     backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
     backgroundAlt: "Background texture",
     announcement: {
-      text: "🚀 Efficient Link Management",
+      text: <>Not Backed by <span className="bg-orange-500 text-white aspect-square size-5 p-[1px] text-center mx-2">Y</span> Combinator</>,
       href: null,
     },
     heading1: "Simplify Links Like",
@@ -81,7 +81,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
-              duration: 0.5,
+              duration: 0.2,
               ease: [0.22, 1, 0.36, 1],
               delay: 0.05,
             }}
