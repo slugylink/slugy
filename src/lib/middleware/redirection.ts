@@ -55,7 +55,9 @@ function trackAnalytics(
       ipAddress: req.headers.get("x-forwarded-for") ?? "unknown",
       country:
         req.headers.get("x-vercel-ip-country")?.toLowerCase() ?? "unknown",
-      city: decodeURIComponent(req.headers.get("x-vercel-ip-city") ?? "Unknown"),
+      city: decodeURIComponent(
+        req.headers.get("x-vercel-ip-city") ?? "Unknown",
+      ),
       continent:
         req.headers.get("x-vercel-ip-continent")?.toLowerCase() ?? "unknown",
       device: ua.device?.type?.toLowerCase() ?? "desktop",

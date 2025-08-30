@@ -12,8 +12,9 @@
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start",
-    "setup:cron": "ts-node src/scripts/setup-cron.ts",
-    "test:usage": "ts-node src/scripts/test-usage-periods.ts"
+    "setup:cron": "ts-node --project tsconfig.scripts.json src/scripts/setup-cron.ts",
+    "test:usage": "ts-node --project tsconfig.scripts.json src/scripts/test-usage-periods.ts",
+    "seed": "ts-node --project tsconfig.scripts.json src/scripts/index.ts"
   },
   "dependencies": {
     "@better-auth/stripe": "^1.2.9",
