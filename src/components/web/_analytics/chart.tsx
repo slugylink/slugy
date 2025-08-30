@@ -190,7 +190,7 @@ const AnalyticsChart = ({
   return (
     <Card className="w-full border p-0 shadow-none">
       <CardHeader className="grid grid-cols-2 md:grid-cols-3 gap-0 px-0">
-        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-5 text-[28px] font-medium sm:p-8">
+        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
           <div className="text-muted-foreground flex items-center gap-2 text-xs sm:text-sm font-normal">
             <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />{" "}
             <span>Clicks</span>
