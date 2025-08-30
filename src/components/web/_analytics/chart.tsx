@@ -106,7 +106,7 @@ const AnalyticsChart = ({
           // Round to the nearest hour for 24h period
           const roundedDate = new Date(date);
           roundedDate.setMinutes(0, 0, 0); // Set minutes and seconds to 0
-          
+
           return roundedDate.toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
@@ -165,13 +165,14 @@ const AnalyticsChart = ({
               {formattedDate}
             </p>
             <Separator className="my-1 px-0" />
-            <p
-              className="m-0 px-3 text-sm"
+            <div
+              className="m-0 px-3 text-sm flex items-center gap-2"
               style={{ color: CHART_THEME.foreground }}
             >
-              <span className="font-normal">Clicks:</span>{" "}
+              <div className="h-[8px] w-[8px] bg-[#EA877E]" />{" "}
+              <span>Clicks:</span>
               {formatNumber(clicks!)}
-            </p>
+            </div>
           </div>
         );
       } catch {
@@ -187,20 +188,24 @@ const AnalyticsChart = ({
   }, [timePeriod]);
 
   return (
-    <Card className="w-full border shadow-none">
-      <CardHeader className="px-4">
-        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
+    <Card className="w-full border p-0 shadow-none">
+      <CardHeader className="grid grid-cols-2 md:grid-cols-3 gap-0 px-0">
+        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-5 text-[28px] font-medium sm:p-8">
+          <div className="text-muted-foreground flex items-center gap-2 text-xs sm:text-sm font-normal">
+            <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />{" "}
+            <span>Clicks</span>
+          </div>
           <NumberFlow
             value={propTotalClicks ?? 0}
             format={{ maximumFractionDigits: 0 }}
+            className="text-2xl sm:text-3xl"
           />
-          <span className="text-muted-foreground text-sm font-normal">
-            Clicks
-          </span>
         </CardTitle>
+        <div className="hidden h-full border-r border-b p-5 sm:block"></div>
+        <div className="hidden h-full border-b p-5 sm:block"></div>
       </CardHeader>
-      <CardContent className="p-0 pr-2 pb-2">
-        <div className="relative h-[300px] w-full sm:h-[420px]">
+      <CardContent className="p-0 pr-2 pb-4">
+        <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (
             <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
               <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
