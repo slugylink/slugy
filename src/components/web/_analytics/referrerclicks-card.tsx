@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UrlAvatar from "@/components/web/url-avatar";
-import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -12,6 +11,8 @@ interface ReferrerClicksProps {
   searchParams: Record<string, string>;
   timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   referrersData?: Array<{ referrer: string; clicks: number }>;
+  isLoading?: boolean;
+  error?: Error;
 }
 
 interface ReferrerData {
@@ -59,29 +60,15 @@ const tabConfigs: TabConfig[] = [
 ];
 
 const ReferrerClicks = ({
-  workspaceslug,
-  searchParams,
-  timePeriod,
   referrersData,
+  isLoading,
+  error,
 }: ReferrerClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("referrers");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Use the new analytics hook with selective metrics only if no data is passed
-  const {
-    referrers: hookReferrers,
-    isLoading: apiLoading,
-    error,
-  } = useAnalytics({
-    workspaceslug,
-    timePeriod,
-    searchParams,
-    metrics: ["referrers"], // Only fetch needed metrics
-    enabled: !referrersData, // Disable if data is passed
-  });
-
   // Use passed data or fallback to hook data
-  const referrers = referrersData || hookReferrers;
+  const referrers = referrersData;
 
   // Type-safe data processing
   const typedReferrers = useMemo(() => {
@@ -133,7 +120,7 @@ const ReferrerClicks = ({
               <TableHeader label={currentTabConfig.singular} />
               <TableCard
                 data={processedData.slice(0, 7)}
-                loading={apiLoading}
+                loading={isLoading ?? false}
                 error={error}
                 keyPrefix="referrer"
                 getClicks={(item) => item.clicks}
@@ -149,7 +136,7 @@ const ReferrerClicks = ({
 
       <AnalyticsDialog
         data={processedData}
-        loading={apiLoading}
+        loading={isLoading ?? false}
         error={error}
         keyPrefix="referrer"
         getClicks={(item) => item.clicks}
@@ -158,7 +145,7 @@ const ReferrerClicks = ({
         renderName={(item) => currentTabConfig.renderName(item)}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
-        showButton={!apiLoading && processedData.length > 7}
+        showButton={!(isLoading ?? false) && processedData.length > 7}
         dialogOpen={dialogOpen}
         onDialogOpenChange={setDialogOpen}
       />

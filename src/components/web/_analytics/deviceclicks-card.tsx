@@ -4,7 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -54,6 +53,7 @@ interface DeviceClicksProps {
   browsersData?: DeviceData[];
   osesData?: DeviceData[];
   isLoading?: boolean;
+  error?: Error;
 }
 
 interface DeviceData {
@@ -96,31 +96,20 @@ const tabConfigs: TabConfig[] = [
 ];
 
 const DeviceClicks = ({
-  workspaceslug,
-  searchParams,
-  timePeriod,
   devicesData,
   browsersData,
   osesData,
   isLoading: propIsLoading,
+  error,
 }: DeviceClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("devices");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  // Use the new analytics hook with selective metrics only if no data is passed
-  const { devices: hookDevices, browsers: hookBrowsers, oses: hookOses, isLoading: hookLoading, error } = useAnalytics({
-    workspaceslug,
-    timePeriod,
-    searchParams,
-    metrics: ["devices", "browsers", "oses"], // Only fetch needed metrics
-    enabled: !devicesData && !browsersData && !osesData, // Disable if data is passed
-  });
-
   // Use passed data or fallback to hook data
-  const devices = devicesData || hookDevices;
-  const browsers = browsersData || hookBrowsers;
-  const oses = osesData || hookOses;
-  const isLoading = propIsLoading || hookLoading;
+  const devices = devicesData;
+  const browsers = browsersData;
+  const oses = osesData;
+  const isLoading = propIsLoading;
 
   // Get data based on active tab
   const currentData = useMemo(() => {
@@ -137,7 +126,7 @@ const DeviceClicks = ({
   }, [activeTab, devices, browsers, oses]);
 
   const sortedData = useMemo(
-    () => [...currentData].sort((a, b) => b.clicks - a.clicks),
+    () => [...currentData!].sort((a, b) => b.clicks - a.clicks),
     [currentData],
   );
 
@@ -183,13 +172,15 @@ const DeviceClicks = ({
               <TableHeader label={currentTabConfig.label} />
               <TableCard
                 data={sortedData.slice(0, 7)}
-                loading={isLoading}
+                loading={isLoading ?? false}
                 error={error}
                 keyPrefix={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
                   const value = getTabValue(item);
-                  return value !== "unknown" ? value : `${currentTabConfig.key}-${index}`;
+                  return value !== "unknown"
+                    ? value
+                    : `${currentTabConfig.key}-${index}`;
                 }}
                 progressColor="bg-blue-200/40"
                 renderName={renderName}
@@ -203,19 +194,21 @@ const DeviceClicks = ({
 
       <AnalyticsDialog
         data={sortedData}
-        loading={isLoading}
+        loading={isLoading ?? false}
         error={error}
         keyPrefix={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
           const value = getTabValue(item);
-          return value !== "unknown" ? value : `${currentTabConfig.key}-${index}`;
+          return value !== "unknown"
+            ? value
+            : `${currentTabConfig.key}-${index}`;
         }}
         progressColor="bg-blue-200/40"
         renderName={renderName}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.label}
-        showButton={!isLoading && sortedData.length > 7}
+        showButton={!(isLoading ?? false) && sortedData.length > 7}
         dialogOpen={dialogOpen}
         onDialogOpenChange={setDialogOpen}
       />

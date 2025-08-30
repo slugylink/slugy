@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import UrlAvatar from "@/components/web/url-avatar";
-import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -16,10 +15,11 @@ interface UrlClicksProps {
   linksData?: Array<{ slug: string; url: string; clicks: number }>;
   destinationsData?: Array<{ destination: string; clicks: number }>;
   isLoading?: boolean;
+  error?: Error;
 }
 
 // Union type to handle both data structures
-type UrlClickData = 
+type UrlClickData =
   | { slug: string; url: string; clicks: number }
   | { destination: string; clicks: number };
 
@@ -54,7 +54,7 @@ const tabConfigs: TabConfig[] = [
     progressColor: "bg-orange-200/40",
     renderName: (item) => {
       // Type guard to check if item has slug and url
-      if ('slug' in item && 'url' in item) {
+      if ("slug" in item && "url" in item) {
         return (
           <div className="flex items-center gap-x-2">
             <UrlAvatar
@@ -80,7 +80,7 @@ const tabConfigs: TabConfig[] = [
     progressColor: "bg-orange-200/45",
     renderName: (item) => {
       // Type guard to check if item has destination
-      if ('destination' in item) {
+      if ("destination" in item) {
         return (
           <div className="flex items-center gap-x-2">
             <UrlAvatar
@@ -90,7 +90,9 @@ const tabConfigs: TabConfig[] = [
               url={item.destination}
             />
             <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-              {item.destination.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+              {item.destination
+                .replace(/^https?:\/\//, "")
+                .replace(/^www\./, "")}
             </span>
           </div>
         );
@@ -101,35 +103,26 @@ const tabConfigs: TabConfig[] = [
 ];
 
 // ----------------------- Main Component -----------------------
-const UrlClicks = ({ workspaceslug, searchParams, timePeriod, linksData, destinationsData, isLoading }: UrlClicksProps) => {
+const UrlClicks = ({
+  linksData,
+  destinationsData,
+  isLoading,
+  error,
+}: UrlClicksProps) => {
   const [activeTab, setActiveTab] = useState<TabKey>("slug-links");
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  // Use the new analytics hook with selective metrics only if no data is passed
-  const {
-    links,
-    destinations,
-    isLoading: hookLoading,
-    error,
-  } = useAnalytics({
-    workspaceslug,
-    timePeriod,
-    searchParams,
-    metrics: ["links", "destinations"], // Only fetch needed metrics
-    enabled: !linksData && !destinationsData, // Disable if data is passed
-  });
 
   // Get data based on active tab with proper typing
   const currentData = useMemo((): UrlClickData[] => {
     switch (activeTab) {
       case "slug-links":
-        return linksData || links as Array<{ slug: string; url: string; clicks: number }>;
+        return linksData as UrlClickData[];
       case "destination-links":
-        return destinationsData || destinations as Array<{ destination: string; clicks: number }>;
+        return destinationsData as UrlClickData[];
       default:
         return [];
     }
-  }, [activeTab, linksData, destinationsData, links, destinations]);
+  }, [activeTab, linksData, destinationsData]);
 
   const sortedData = useMemo(
     () => [...currentData].sort((a, b) => b.clicks - a.clicks),
@@ -172,13 +165,13 @@ const UrlClicks = ({ workspaceslug, searchParams, timePeriod, linksData, destina
               <TableHeader linkLabel={currentTabConfig.linkLabel} />
               <TableCard
                 data={sortedData.slice(0, 7)}
-                loading={isLoading || hookLoading}
+                loading={isLoading ?? false}
                 error={error}
                 keyPrefix={currentTabConfig.keyPrefix}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
-                  if ('slug' in item) return item.slug;
-                  if ('destination' in item) return item.destination;
+                  if ("slug" in item) return item.slug;
+                  if ("destination" in item) return item.destination;
                   return `${currentTabConfig.keyPrefix}-${index}`;
                 }}
                 progressColor={currentTabConfig.progressColor}
@@ -193,20 +186,20 @@ const UrlClicks = ({ workspaceslug, searchParams, timePeriod, linksData, destina
 
       <AnalyticsDialog
         data={sortedData}
-        loading={isLoading || hookLoading}
+        loading={isLoading ?? false}
         error={error}
         keyPrefix={currentTabConfig.keyPrefix}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
-          if ('slug' in item) return item.slug;
-          if ('destination' in item) return item.destination;
+          if ("slug" in item) return item.slug;
+          if ("destination" in item) return item.destination;
           return `${currentTabConfig.keyPrefix}-${index}`;
         }}
         progressColor={currentTabConfig.progressColor}
         renderName={currentTabConfig.renderName}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.linkLabel}
-        showButton={!isLoading && sortedData.length > 7}
+        showButton={!(isLoading ?? false) && sortedData.length > 7}
         dialogOpen={dialogOpen}
         onDialogOpenChange={setDialogOpen}
       />

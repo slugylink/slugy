@@ -230,6 +230,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             clicks: item.clicks
           }))}
           totalClicks={res?.totalClicks}
+          isLoading={isLoading}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -253,6 +254,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             countriesData={convertToFilterOptions.countries}
             continentsData={convertToFilterOptions.continents}
             isLoading={isLoading}
+            error={error}
           />
           {/* Device Clicks */}
           <DeviceClicks
@@ -270,7 +272,8 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             workspaceslug={workspace}
             searchParams={searchParamsObj}
             timePeriod={timePeriod}
-            // Pass data directly to prevent duplicate API calls
+            isLoading={isLoading}
+            error={error}
             referrersData={convertToFilterOptions.referrers}
           />
         </div>

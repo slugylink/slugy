@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
-import { useAnalytics } from "@/hooks/use-analytics";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
@@ -29,6 +28,8 @@ interface ChartProps {
   timePeriod?: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   workspaceslug?: string;
   searchParams?: Record<string, string>;
+  isLoading?: boolean;
+  error?: Error;
 }
 
 interface ChartDataPoint {
@@ -49,28 +50,14 @@ const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
   timePeriod = "24h",
-  workspaceslug,
-  searchParams,
+  isLoading,
+  error,
 }: ChartProps) => {
   const [localData, setLocalData] = useState<ChartDataPoint[]>([]);
   const [totalClicks, setTotalClicks] = useState(0);
 
-  // Use the new analytics hook with selective metrics only if no data is passed
-  const {
-    clicksOverTime,
-    totalClicks: hookTotalClicks,
-    isLoading,
-    error,
-  } = useAnalytics({
-    workspaceslug: workspaceslug || "",
-    timePeriod,
-    searchParams,
-    enabled: Boolean(workspaceslug) && !propData, // Disable if data is passed
-    metrics: ["clicksOverTime", "totalClicks"], // Only fetch needed metrics
-  });
-
   useEffect(() => {
-    const dataToProcess = propData ?? clicksOverTime;
+    const dataToProcess = propData;
     if (dataToProcess) {
       const formattedData = dataToProcess.map((item) => {
         const date = new Date(item.time);
@@ -99,9 +86,9 @@ const AnalyticsChart = ({
           : sortedData;
 
       setLocalData(sampledData);
-      setTotalClicks(propTotalClicks ?? hookTotalClicks ?? 0);
+      setTotalClicks(propTotalClicks ?? 0);
     }
-  }, [propData, propTotalClicks, hookTotalClicks]); // Removed clicksOverTime to prevent infinite loop
+  }, [propData, propTotalClicks]); // Removed clicksOverTime to prevent infinite loop
 
   const formatTime = (timeStr: string): string => {
     if (!timeStr) return "";

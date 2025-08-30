@@ -5,7 +5,6 @@ import Image from "next/image";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
-import { useAnalytics } from "@/hooks/use-analytics";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
 
@@ -20,6 +19,7 @@ interface GeoclicksProps {
   countriesData?: GeoData[];
   continentsData?: GeoData[];
   isLoading?: boolean;
+  error?: Error;
 }
 
 interface GeoData {
@@ -166,30 +166,22 @@ const tabConfigs: TabConfig[] = [
 // Main Component
 // ------------------------------
 const Geoclicks = ({
-  workspaceslug,
-  searchParams,
-  timePeriod,
   citiesData,
   countriesData,
   continentsData,
   isLoading: propIsLoading,
+  error,
 }: GeoclicksProps) => {
   const [activeTab, setActiveTab] = useState<TabConfig["key"]>("countries");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Use the new analytics hook only if no data is passed
-  const { cities: hookCities, countries: hookCountries, continents: hookContinents, isLoading: hookLoading, error } = useAnalytics({
-    workspaceslug,
-    timePeriod,
-    searchParams,
-    enabled: !citiesData && !countriesData && !continentsData, // Disable if data is passed
-  });
 
   // Use passed data or fallback to hook data
-  const cities = citiesData || hookCities;
-  const countries = countriesData || hookCountries;
-  const continents = continentsData || hookContinents;
-  const isLoading = propIsLoading || hookLoading;
+  const cities = citiesData;
+  const countries = countriesData;
+  const continents = continentsData;
+  const isLoading = propIsLoading;
 
   // Get data based on active tab
   const currentData = useMemo(() => {
@@ -206,7 +198,7 @@ const Geoclicks = ({
   }, [activeTab, cities, countries, continents]);
 
   const sortedData = useMemo(
-    () => [...currentData].sort((a, b) => b.clicks - a.clicks),
+    () => [...currentData!].sort((a, b) => b.clicks - a.clicks),
     [currentData],
   );
 
@@ -243,7 +235,7 @@ const Geoclicks = ({
               <TableHeader label={currentTabConfig.singular} />
               <TableCard
                 data={sortedData.slice(0, 7)}
-                loading={isLoading}
+                loading={isLoading ?? false}
                 error={error}
                 keyPrefix={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
@@ -272,7 +264,7 @@ const Geoclicks = ({
 
       <AnalyticsDialog
         data={sortedData}
-        loading={isLoading}
+        loading={isLoading ?? false}
         error={error}
         keyPrefix={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
@@ -290,7 +282,7 @@ const Geoclicks = ({
         renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
-        showButton={!isLoading && sortedData.length > 7}
+        showButton={!(isLoading ?? false) && sortedData.length > 7}
         dialogOpen={dialogOpen}
         onDialogOpenChange={setDialogOpen}
       />
