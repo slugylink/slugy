@@ -189,7 +189,7 @@ const AnalyticsChart = ({
   return (
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
-        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium border">
+        <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
           <NumberFlow
             value={propTotalClicks ?? 0}
             format={{ maximumFractionDigits: 0 }}

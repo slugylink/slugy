@@ -1,22 +1,32 @@
 import { sql } from "@/server/neon";
 import { getLinkCache, setLinkCache } from "@/lib/cache-utils/link-cache";
 
-// Cookie parser utility
+// Cookie parser utility - optimized with better parsing
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
-  return cookieHeader.split(";").reduce(
-    (acc, cookie) => {
-      const [key, value] = cookie.trim().split("=");
-      if (key && value) acc[key] = value;
-      return acc;
-    },
-    {} as Record<string, string>,
-  );
+
+  try {
+    return cookieHeader.split(";").reduce(
+      (acc, cookie) => {
+        const [key, value] = cookie.trim().split("=");
+        if (key && value) acc[key] = value;
+        return acc;
+      },
+      {} as Record<string, string>,
+    );
+  } catch {
+    return {};
+  }
 };
 
-// Validation utility
+// Validation utility - more robust validation
 const isValidSlug = (slug: string): boolean =>
-  Boolean(slug && slug.length <= 50 && /^[a-zA-Z0-9_-]+$/.test(slug));
+  Boolean(
+    slug &&
+      slug.length <= 50 &&
+      slug.length > 0 &&
+      /^[a-zA-Z0-9_-]+$/.test(slug),
+  );
 
 export interface GetLinkResult {
   success: boolean;
@@ -25,6 +35,7 @@ export interface GetLinkResult {
   workspaceId?: string;
   requiresPassword?: boolean;
   expired?: boolean;
+  error?: string;
 }
 
 type LinkCacheType = {
@@ -41,80 +52,109 @@ export async function getLink(
   cookieHeader?: string | null,
   origin?: string,
 ): Promise<GetLinkResult> {
+  // Early validation
   if (!isValidSlug(slug)) {
     return {
       success: false,
       url: origin ? `${origin}/?status=invalid` : undefined,
+      error: "Invalid slug format",
     };
   }
 
   let link: LinkCacheType = null;
 
-  // Cache read (fail silently if redis unavailable)
-  link = await getLinkCache(slug);
+  try {
+    // Cache read with error handling
+    link = await getLinkCache(slug).catch(() => null);
 
-  // Cache miss: fetch from SQL and set cache
-  if (!link) {
-    try {
+    // Cache miss: fetch from SQL and set cache
+    if (!link) {
       const result = await sql`
-        SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
+        SELECT 
+          id, 
+          url, 
+          "expiresAt", 
+          "expirationUrl", 
+          password, 
+          "workspaceId"
         FROM "links"
-        WHERE slug = ${slug} AND "isArchived" = false
+        WHERE slug = ${slug} 
+          AND "isArchived" = false
         LIMIT 1
       `;
-      link = result[0]
-        ? {
-            id: result[0].id,
-            url: result[0].url,
-            expiresAt: result[0].expiresAt ?? null,
-            expirationUrl: result[0].expirationUrl ?? null,
-            password: result[0].password ?? null,
-            workspaceId: result[0].workspaceId,
-          }
-        : null;
-      if (link) {
-        await setLinkCache(slug, link);
+
+      if (result && result.length > 0) {
+        const row = result[0];
+        link = {
+          id: row.id,
+          url: row.url,
+          expiresAt: row.expiresAt ?? null,
+          expirationUrl: row.expirationUrl ?? null,
+          password: row.password ?? null,
+          workspaceId: row.workspaceId,
+        };
+
+        // Set cache asynchronously (don't block the response)
+        setLinkCache(slug, link).catch(console.error);
       }
-    } catch {
-      return {
-        success: false,
-        url: origin ? `${origin}/?status=error` : undefined,
-      };
     }
-  }
 
-  if (!link) {
-    return {
-      success: true,
-      url: origin ? `${origin}/?status=not-found` : undefined,
-    };
-  }
-
-  // Check expiration
-  if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-    const expirationUrl =
-      link.expirationUrl || (origin ? `${origin}/?status=expired` : undefined);
-    return { success: true, url: expirationUrl, expired: true };
-  }
-
-  // Password protection
-  if (link.password) {
-    const cookies = parseCookies(cookieHeader ?? null);
-    const passwordVerified = cookies[`password_verified_${slug}`];
-    if (!passwordVerified) {
+    if (!link) {
       return {
         success: true,
-        url: null,
-        requiresPassword: true,
+        url: origin ? `${origin}/?status=not-found` : undefined,
+        error: "Link not found",
       };
     }
-  }
 
-  // Success
-  return {
-    success: true,
-    url: link.url,
-    linkId: link.id,
-    workspaceId: link.workspaceId,
-  };
+    // Check expiration with better date handling
+    if (link.expiresAt) {
+      const expirationDate = new Date(link.expiresAt);
+      const now = new Date();
+
+      if (expirationDate < now) {
+        const expirationUrl =
+          link.expirationUrl ||
+          (origin ? `${origin}/?status=expired` : undefined);
+
+        return {
+          success: true,
+          url: expirationUrl,
+          expired: true,
+          error: "Link expired",
+        };
+      }
+    }
+
+    // Password protection with better cookie handling
+    if (link.password) {
+      const cookies = parseCookies(cookieHeader ?? null);
+      const passwordVerified = cookies[`password_verified_${slug}`];
+
+      if (!passwordVerified) {
+        return {
+          success: true,
+          url: null,
+          requiresPassword: true,
+          error: "Password required",
+        };
+      }
+    }
+
+    // Success response
+    return {
+      success: true,
+      url: link.url,
+      linkId: link.id,
+      workspaceId: link.workspaceId,
+    };
+  } catch (error) {
+    console.error(`Error fetching link for slug "${slug}":`, error);
+
+    return {
+      success: false,
+      url: origin ? `${origin}/?status=error` : undefined,
+      error: "Database error",
+    };
+  }
 }
