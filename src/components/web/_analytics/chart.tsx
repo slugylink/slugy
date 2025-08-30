@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo, useCallback } from "react";
 import type React from "react";
 import {
   Area,
@@ -32,12 +32,6 @@ interface ChartProps {
   error?: Error;
 }
 
-interface ChartDataPoint {
-  time: string;
-  timestamp: number;
-  clicks: number;
-}
-
 const CHART_THEME = {
   primary: "#EA877E",
   background: "hsl(var(--background))",
@@ -46,6 +40,19 @@ const CHART_THEME = {
   muted: "hsl(var(--muted-foreground))",
 };
 
+const CHART_CONFIG = {
+  MAX_DATA_POINTS: 500,
+  TICK_COUNTS: {
+    "24h": 12,
+    "7d": 7,
+    "30d": 10,
+    "3m": 3,
+    "12m": 12,
+    all: 6,
+  },
+  ANIMATION_THRESHOLD: 1000,
+} as const;
+
 const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
@@ -53,69 +60,71 @@ const AnalyticsChart = ({
   isLoading,
   error,
 }: ChartProps) => {
-  const [localData, setLocalData] = useState<ChartDataPoint[]>([]);
-  const [totalClicks, setTotalClicks] = useState(0);
+  // Memoize data processing to avoid unnecessary recalculations
+  const processedData = useMemo(() => {
+    if (!propData) return [];
 
-  useEffect(() => {
-    const dataToProcess = propData;
-    if (dataToProcess) {
-      const formattedData = dataToProcess.map((item) => {
-        const date = new Date(item.time);
-        if (isNaN(date.getTime())) {
-          return {
-            time: "",
-            timestamp: 0,
-            clicks: item.clicks ?? 0,
-          };
-        }
+    const formattedData = propData.map((item) => {
+      const date = new Date(item.time);
+      if (isNaN(date.getTime())) {
         return {
-          time: date.toISOString(),
-          timestamp: date.getTime(),
+          time: "",
+          timestamp: 0,
           clicks: item.clicks ?? 0,
         };
-      });
-
-      const sortedData = [...formattedData].sort(
-        (a, b) => a.timestamp - b.timestamp,
-      );
-      const sampledData =
-        sortedData.length > 500
-          ? sortedData.filter(
-              (_, index) => index % Math.ceil(sortedData.length / 500) === 0,
-            )
-          : sortedData;
-
-      setLocalData(sampledData);
-      setTotalClicks(propTotalClicks ?? 0);
-    }
-  }, [propData, propTotalClicks]); // Removed clicksOverTime to prevent infinite loop
-
-  const formatTime = (timeStr: string): string => {
-    if (!timeStr) return "";
-    try {
-      const date = new Date(timeStr);
-      if (isNaN(date.getTime())) return "";
-      if (timePeriod === "24h") {
-        return date.toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-          hour12: true,
-        });
       }
-      if (timePeriod === "7d" || timePeriod === "30d") {
+      return {
+        time: date.toISOString(),
+        timestamp: date.getTime(),
+        clicks: item.clicks ?? 0,
+      };
+    });
+
+    const sortedData = [...formattedData].sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+
+    return sortedData.length > CHART_CONFIG.MAX_DATA_POINTS
+      ? sortedData.filter(
+          (_, index) =>
+            index %
+              Math.ceil(sortedData.length / CHART_CONFIG.MAX_DATA_POINTS) ===
+            0,
+        )
+      : sortedData;
+  }, [propData]);
+
+  // Memoize time formatting function to prevent recreation on every render
+  const formatTime = useCallback(
+    (timeStr: string): string => {
+      if (!timeStr) return "";
+      try {
+        const date = new Date(timeStr);
+        if (isNaN(date.getTime())) return "";
+
+        if (timePeriod === "24h") {
+          return date.toLocaleTimeString("en-US", {
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          });
+        }
+        if (timePeriod === "7d" || timePeriod === "30d") {
+          return date.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
+        }
         return date.toLocaleDateString("en-US", {
           month: "short",
-          day: "numeric",
+          year: "numeric",
         });
+      } catch {
+        return "";
       }
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        year: "numeric",
-      });
-    } catch {
-      return "";
-    }
-  };
+    },
+    [timePeriod],
+  );
 
   interface CustomTooltipProps extends TooltipProps<number, string> {
     active?: boolean;
@@ -127,83 +136,58 @@ const AnalyticsChart = ({
     label?: string;
   }
 
-  const CustomTooltip: React.FC<CustomTooltipProps> = ({
-    active,
-    payload,
-    label,
-  }) => {
-    if (!active || !payload?.length || !label) return null;
-    try {
-      const date = new Date(label);
-      if (isNaN(date.getTime())) return null;
-      let formattedDate: string;
-      if (timePeriod === "24h") {
-        formattedDate =
-          date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          }) +
-          ", " +
-          date.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
-      } else if (timePeriod === "7d" || timePeriod === "30d") {
-        formattedDate = date.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        });
-      } else {
-        formattedDate = date.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-        });
-      }
-      const clicks = payload[0]?.value;
-      return (
-        <div
-          className="rounded-md border bg-white py-2 shadow-xs"
-          style={{
-            backgroundColor: "#fff",
-          }}
-          role="tooltip"
-        >
-          <p
-            className="m-0 px-3 text-sm font-normal"
-            style={{ color: CHART_THEME.foreground }}
-          >
-            {formattedDate}
-          </p>
-          <Separator className="my-1 px-0" />
-          <p
-            className="m-0 px-3 text-sm"
-            style={{ color: CHART_THEME.foreground }}
-          >
-            <span className="font-normal">Clicks:</span> {formatNumber(clicks!)}
-          </p>
-        </div>
-      );
-    } catch {
-      return null;
-    }
-  };
+  // Memoize tooltip component to prevent recreation
+  const CustomTooltip = useCallback<React.FC<CustomTooltipProps>>(
+    ({ active, payload, label }) => {
+      if (!active || !payload?.length || !label) return null;
 
-  const getTickCount = (): number => {
-    if (timePeriod === "24h") return 12;
-    if (timePeriod === "7d") return 7;
-    if (timePeriod === "30d") return 10;
-    if (timePeriod === "3m") return 3;
-    if (timePeriod === "12m") return 12;
-    return 6;
-  };
+      try {
+        const date = new Date(label);
+        if (isNaN(date.getTime())) return null;
+
+        const formattedDate = formatTime(label);
+        const clicks = payload[0]?.value;
+
+        return (
+          <div
+            className="rounded-md border bg-white py-2 shadow-xs"
+            style={{ backgroundColor: "#fff" }}
+            role="tooltip"
+          >
+            <p
+              className="m-0 px-3 text-sm font-normal"
+              style={{ color: CHART_THEME.foreground }}
+            >
+              {formattedDate}
+            </p>
+            <Separator className="my-1 px-0" />
+            <p
+              className="m-0 px-3 text-sm"
+              style={{ color: CHART_THEME.foreground }}
+            >
+              <span className="font-normal">Clicks:</span>{" "}
+              {formatNumber(clicks!)}
+            </p>
+          </div>
+        );
+      } catch {
+        return null;
+      }
+    },
+    [formatTime],
+  );
+
+  // Memoize tick count calculation
+  const getTickCount = useCallback((): number => {
+    return CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
+  }, [timePeriod]);
 
   return (
     <Card className="w-full border shadow-none">
       <CardHeader className="px-4">
         <CardTitle className="flex w-fit cursor-pointer items-baseline gap-2 text-[28px] font-medium">
           <NumberFlow
-            value={totalClicks}
+            value={propTotalClicks ?? 0}
             format={{ maximumFractionDigits: 0 }}
           />
           <span className="text-muted-foreground text-sm font-normal">
@@ -220,13 +204,18 @@ const AnalyticsChart = ({
           )}
           {error && (
             <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
-              <TriangleAlert className="text-muted-foreground h-5 w-5" />
+              <div className="text-center">
+                <TriangleAlert className="text-muted-foreground mx-auto mb-2 h-8 w-8" />
+                <p className="text-muted-foreground text-sm">
+                  Failed to load chart data
+                </p>
+              </div>
             </div>
           )}
-          {localData.length > 0 ? (
+          {processedData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={localData}
+                data={processedData}
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
@@ -288,7 +277,9 @@ const AnalyticsChart = ({
                     stroke: "#fff",
                     fill: CHART_THEME.primary,
                   }}
-                  isAnimationActive={localData.length < 1000}
+                  isAnimationActive={
+                    processedData.length < CHART_CONFIG.ANIMATION_THRESHOLD
+                  }
                 />
               </AreaChart>
             </ResponsiveContainer>
