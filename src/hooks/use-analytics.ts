@@ -1,5 +1,6 @@
 import useSWR from "swr";
 import { useMemo } from "react";
+import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
@@ -123,6 +124,9 @@ export function useAnalytics({
     );
   }, [timePeriod, searchParams]);
 
+  // Debounce the search params to prevent excessive API calls while filtering
+  const debouncedSearchParams = useDebounce(stableSearchParams, 500);
+
   // Only fetch when enabled and we have a workspace slug
   const shouldFetch = enabled && Boolean(workspaceslug);
   const swrKey = shouldFetch
@@ -130,24 +134,15 @@ export function useAnalytics({
         "analytics",
         metrics?.join(",") || "all",
         workspaceslug,
-        stableSearchParams,
+        debouncedSearchParams,
       ]
     : null;
 
   const { data, error, isLoading, mutate } = useSWR<
     Partial<AnalyticsData>,
     Error
-  >(
-    swrKey,
-    () => fetchAnalyticsData(workspaceslug, stableSearchParams, metrics),
-    {
-      keepPreviousData: true,
-      dedupingInterval: 30000,
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      errorRetryCount: 2,
-      errorRetryInterval: 3000,
-    },
+  >(swrKey, () =>
+    fetchAnalyticsData(workspaceslug, debouncedSearchParams, metrics),
   );
 
   // Memoized sorted data for each metric type
