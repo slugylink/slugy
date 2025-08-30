@@ -70,7 +70,7 @@ const TeamClient: React.FC<TeamClientProps> = memo(
               <TableRow>
                 <TableCell colSpan={3} className="h-32 text-center">
                   <div className="flex items-center justify-center">
-                    <LoaderCircle className="h-5 w-5 animate-spin" />
+                    <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 </TableCell>
               </TableRow>

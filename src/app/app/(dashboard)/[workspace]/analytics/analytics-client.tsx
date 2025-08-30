@@ -28,7 +28,7 @@ const UrlClicks = dynamic(
   { ssr: true },
 );
 const GeoClicks = dynamic(
-  () => import("@/components/web/_analytics/geoclicks-card"), 
+  () => import("@/components/web/_analytics/geoclicks-card"),
   { ssr: true },
 );
 const DeviceClicks = dynamic(
@@ -82,7 +82,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     // Fetch all metrics for the main analytics dashboard
     metrics: [
       "totalClicks",
-      "clicksOverTime", 
+      "clicksOverTime",
       "links",
       "cities",
       "countries",
@@ -91,53 +91,86 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
       "browsers",
       "oses",
       "referrers",
-      "destinations"
+      "destinations",
     ],
   });
 
   // Helper function to convert analytics data to FilterOption types
   const convertToFilterOptions = useMemo(() => {
     return {
-      links: (links as Array<{ slug: string; url: string; clicks: number }>)?.map(item => ({
-        slug: item.slug,
-        url: item.url,
-        clicks: item.clicks
-      })) || [],
-      countries: (countries as Array<{ country: string; clicks: number }>)?.map(item => ({
-        country: item.country,
-        clicks: item.clicks
-      })) || [],
-      cities: (cities as Array<{ city: string; country: string; clicks: number }>)?.map(item => ({
-        city: item.city,
-        country: item.country,
-        clicks: item.clicks
-      })) || [],
-      continents: (continents as Array<{ continent: string; clicks: number }>)?.map(item => ({
-        continent: item.continent,
-        clicks: item.clicks
-      })) || [],
-      browsers: (browsers as Array<{ browser: string; clicks: number }>)?.map(item => ({
-        browser: item.browser,
-        clicks: item.clicks
-      })) || [],
-      oses: (oses as Array<{ os: string; clicks: number }>)?.map(item => ({
-        os: item.os,
-        clicks: item.clicks
-      })) || [],
-      devices: (devices as Array<{ device: string; clicks: number }>)?.map(item => ({
-        device: item.device,
-        clicks: item.clicks
-      })) || [],
-      referrers: (referrers as Array<{ referrer: string; clicks: number }>)?.map(item => ({
-        referrer: item.referrer,
-        clicks: item.clicks
-      })) || [],
-      destinations: (destinations as Array<{ destination: string; clicks: number }>)?.map(item => ({
-        destination: item.destination,
-        clicks: item.clicks
-      })) || [],
+      links:
+        (links as Array<{ slug: string; url: string; clicks: number }>)?.map(
+          (item) => ({
+            slug: item.slug,
+            url: item.url,
+            clicks: item.clicks,
+          }),
+        ) || [],
+      countries:
+        (countries as Array<{ country: string; clicks: number }>)?.map(
+          (item) => ({
+            country: item.country,
+            clicks: item.clicks,
+          }),
+        ) || [],
+      cities:
+        (
+          cities as Array<{ city: string; country: string; clicks: number }>
+        )?.map((item) => ({
+          city: item.city,
+          country: item.country,
+          clicks: item.clicks,
+        })) || [],
+      continents:
+        (continents as Array<{ continent: string; clicks: number }>)?.map(
+          (item) => ({
+            continent: item.continent,
+            clicks: item.clicks,
+          }),
+        ) || [],
+      browsers:
+        (browsers as Array<{ browser: string; clicks: number }>)?.map(
+          (item) => ({
+            browser: item.browser,
+            clicks: item.clicks,
+          }),
+        ) || [],
+      oses:
+        (oses as Array<{ os: string; clicks: number }>)?.map((item) => ({
+          os: item.os,
+          clicks: item.clicks,
+        })) || [],
+      devices:
+        (devices as Array<{ device: string; clicks: number }>)?.map((item) => ({
+          device: item.device,
+          clicks: item.clicks,
+        })) || [],
+      referrers:
+        (referrers as Array<{ referrer: string; clicks: number }>)?.map(
+          (item) => ({
+            referrer: item.referrer,
+            clicks: item.clicks,
+          }),
+        ) || [],
+      destinations:
+        (destinations as Array<{ destination: string; clicks: number }>)?.map(
+          (item) => ({
+            destination: item.destination,
+            clicks: item.clicks,
+          }),
+        ) || [],
     };
-  }, [links, countries, cities, continents, browsers, oses, devices, referrers, destinations]);
+  }, [
+    links,
+    countries,
+    cities,
+    continents,
+    browsers,
+    oses,
+    devices,
+    referrers,
+    destinations,
+  ]);
 
   // Memoize filter categories to prevent unnecessary re-renders
   const filterCategories = useMemo(
@@ -213,7 +246,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
   }
 
   return (
-    <div className="container mx-auto mt-8 flex h-full max-w-6xl flex-col">
+    <section>
       {/* Header with filter actions */}
       <div className="flex items-center justify-start">
         <FilterActions filterCategories={filterCategories} />
@@ -225,9 +258,10 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
           timePeriod={timePeriod}
           searchParams={searchParamsObj}
           // Pass data directly to prevent duplicate API calls
-          data={res?.clicksOverTime?.map(item => ({
-            time: item.time instanceof Date ? item.time.toISOString() : item.time,
-            clicks: item.clicks
+          data={res?.clicksOverTime?.map((item) => ({
+            time:
+              item.time instanceof Date ? item.time.toISOString() : item.time,
+            clicks: item.clicks,
           }))}
           totalClicks={res?.totalClicks}
           isLoading={isLoading}
@@ -235,9 +269,9 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           {/* URL Clicks */}
-          <UrlClicks 
-            workspaceslug={workspace} 
-            searchParams={searchParamsObj} 
+          <UrlClicks
+            workspaceslug={workspace}
+            searchParams={searchParamsObj}
             timePeriod={timePeriod}
             // Pass data directly to prevent duplicate API calls
             linksData={convertToFilterOptions.links}
@@ -245,9 +279,9 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             isLoading={isLoading}
           />
           {/* Geo Clicks */}
-          <GeoClicks 
-            workspaceslug={workspace} 
-            searchParams={searchParamsObj} 
+          <GeoClicks
+            workspaceslug={workspace}
+            searchParams={searchParamsObj}
             timePeriod={timePeriod}
             // Pass data directly to prevent duplicate API calls
             citiesData={convertToFilterOptions.cities}
@@ -278,6 +312,6 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
           />
         </div>
       </div>
-    </div>
+    </section>
   );
 }

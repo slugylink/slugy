@@ -23,7 +23,7 @@ const Navitems = ({ workspaceslug }: { workspaceslug: string }) => {
   const basePath = `/${workspaceslug}/settings/library`;
 
   return (
-    <div className="container mx-auto mb-3 max-w-6xl space-y-8 py-3">
+    <div className="mx-auto mb-3 space-y-8 py-3">
       <div className="mx-auto flex h-[45px] max-w-[80rem] items-center gap-x-8 border-b">
         {navdata.map((item) => {
           const href = `${basePath}${item.path}`;

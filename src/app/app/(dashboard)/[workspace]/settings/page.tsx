@@ -53,7 +53,7 @@ export default async function Settings({
   };
 
   return (
-    <div className="container mx-auto max-w-6xl space-y-6 py-3">
+    <div className="space-y-6 py-3">
       <WorkspaceLogoForm
         workspaceslug={context.workspace}
         initialData={workspaceData}
@@ -73,9 +73,7 @@ export default async function Settings({
 
       <Card className="border-destructive border shadow-none">
         <CardHeader className="">
-          <CardTitle className="text-destructive">
-            Delete Workspace
-          </CardTitle>
+          <CardTitle className="text-destructive">Delete Workspace</CardTitle>
           <CardDescription>
             Permanently delete your workspace, custom domain, and all associated
             links + their stats. This action cannot be undone - please proceed
