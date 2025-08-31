@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
@@ -53,6 +53,7 @@ import {
 import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
 
+// Types
 interface LinkFormFieldsProps {
   form: UseFormReturn<LinkFormValues>;
   code: string;
@@ -73,31 +74,105 @@ interface TagType {
   linkCount: number;
 }
 
-export default function LinkFormFields({
+interface UrlSafetyStatus {
+  isChecking: boolean;
+  isValid: boolean | null;
+  message: string;
+}
+
+// Constants
+const URL_SAFETY_DEBOUNCE_MS = 700;
+const AI_SLUG_ENDPOINT = "/api/ai/link-slug";
+const RANDOM_SLUG_DELAY_MS = 300;
+const DEFAULT_DOMAIN = "slugy.co";
+
+// Memoized components
+const SafetyIndicator = React.memo(({ status }: { status: UrlSafetyStatus }) => {
+  if (status.isChecking) {
+    return (
+      <div className="text-muted-foreground flex items-center gap-1 text-sm">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      </div>
+    );
+  }
+  
+  if (status.isValid === true) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-green-600">
+        <Shield className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  
+  if (status.isValid === false) {
+    return (
+      <div className="flex items-center gap-1 text-xs text-red-600">
+        <ShieldAlert className="h-3.5 w-3.5" />
+      </div>
+    );
+  }
+  
+  return (
+    <div className="text-muted-foreground flex items-center gap-1 text-sm">
+      <Shield className="h-3.5 w-3.5" />
+    </div>
+  );
+});
+
+SafetyIndicator.displayName = "SafetyIndicator";
+
+const TagBadge = React.memo(({ tag }: { tag: TagType }) => {
+  const colorOption = useMemo(() => 
+    COLOR_OPTIONS.find((color) => color.value === tag.color) || COLOR_OPTIONS[0]!,
+    [tag.color]
+  );
+  
+  return (
+    <Badge
+      variant="secondary"
+      className={cn(
+        "flex items-center gap-1 rounded-sm px-1 py-[1px] text-sm font-normal",
+        colorOption.bgColor,
+        colorOption.borderColor,
+      )}
+    >
+      {tag.name}
+    </Badge>
+  );
+});
+
+TagBadge.displayName = "TagBadge";
+
+const LinkFormFields = React.memo(({
   form,
   code,
   onGenerateRandomSlug,
   isEditMode = false,
   workspaceslug,
   onSafetyStatusChange,
-}: LinkFormFieldsProps) {
+}: LinkFormFieldsProps) => {
   const { control, getValues, watch, setValue } = form;
 
+  // State management
   const [currentCode, setCurrentCode] = useState(code);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
-  const [urlSafetyStatus, setUrlSafetyStatus] = useState({
+  const [urlSafetyStatus, setUrlSafetyStatus] = useState<UrlSafetyStatus>({
     isChecking: false,
-    isValid: null as boolean | null,
+    isValid: null,
     message: "",
   });
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchValue, setSearchValue] = useState("");
 
+  // Form values
   const domain = watch("domain");
   const slug = watch("slug");
   const url = watch("url");
 
-  // Use a slight debounce for url safety check
-  const debouncedUrl = useDebounce(url, 700);
+  // Debounced URL for safety checking
+  const debouncedUrl = useDebounce(url, URL_SAFETY_DEBOUNCE_MS);
 
   // Fetch tags for workspace
   const {
@@ -108,19 +183,30 @@ export default function LinkFormFields({
     workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
   );
 
-  useEffect(() => {
-    setCurrentCode(slug ? `${domain}/${slug}` : "");
-  }, [domain, slug]);
+  // Memoized computed values
+  const currentTags = useMemo(() => getValues("tags") || [], [getValues]);
+  
+  const selectedTagObjects = useMemo(() => 
+    tags?.filter((tag) => selectedTags.includes(tag.id)) || [],
+    [tags, selectedTags]
+  );
 
-  useEffect(() => {
-    if (!debouncedUrl) {
-      setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
-      return;
-    }
-    checkUrlSafety(debouncedUrl);
-  }, [debouncedUrl]);
+  const filteredTags = useMemo(() => 
+    tags?.filter((tag) =>
+      tag.name.toLowerCase().includes(searchValue.toLowerCase()),
+    ) || [],
+    [tags, searchValue]
+  );
 
-  const normalizeUrl = (rawUrl: string): string => {
+  const canAddNew = useMemo(() => 
+    searchValue &&
+    tags &&
+    !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase()),
+    [searchValue, tags]
+  );
+
+  // Memoized handlers
+  const normalizeUrl = useCallback((rawUrl: string): string => {
     if (!rawUrl) return rawUrl;
     if (/^https?:\/\//.test(rawUrl)) return rawUrl;
     if (
@@ -130,15 +216,16 @@ export default function LinkFormFields({
       return `https://${rawUrl}`;
     }
     return rawUrl;
-  };
+  }, []);
 
-  const checkUrlSafety = async (checkUrl: string) => {
+  const checkUrlSafety = useCallback(async (checkUrl: string) => {
     if (!checkUrl) {
       const status = { isChecking: false, isValid: null, message: "" };
       setUrlSafetyStatus(status);
       onSafetyStatusChange?.(status);
       return;
     }
+    
     const checkingStatus = { isChecking: true, isValid: null, message: "" };
     setUrlSafetyStatus(checkingStatus);
     onSafetyStatusChange?.(checkingStatus);
@@ -159,14 +246,14 @@ export default function LinkFormFields({
       setUrlSafetyStatus(safeStatus);
       onSafetyStatusChange?.(safeStatus);
     }
-  };
+  }, [normalizeUrl, onSafetyStatusChange]);
 
-  const handleAiRandomize = async (rawUrl: string) => {
+  const handleAiRandomize = useCallback(async (rawUrl: string) => {
     if (!rawUrl) return;
     setIsAiLoading(true);
     try {
       const normalizedUrl = normalizeUrl(rawUrl);
-      const res = await axios.post("/api/ai/link-slug", { url: normalizedUrl });
+      const res = await axios.post(AI_SLUG_ENDPOINT, { url: normalizedUrl });
       const data = res.data as { slug: string };
       setValue("slug", data.slug, { shouldDirty: true });
     } catch (error) {
@@ -174,9 +261,9 @@ export default function LinkFormFields({
     } finally {
       setIsAiLoading(false);
     }
-  };
+  }, [normalizeUrl, setValue]);
 
-  const handleRandomize = () => {
+  const handleRandomize = useCallback(() => {
     setIsRandomLoading(true);
     onGenerateRandomSlug();
     setTimeout(() => {
@@ -184,14 +271,58 @@ export default function LinkFormFields({
       setValue("slug", newSlug, { shouldDirty: true });
       setCurrentCode(`${domain}/${newSlug}`);
       setIsRandomLoading(false);
-    }, 300);
-  };
+    }, RANDOM_SLUG_DELAY_MS);
+  }, [onGenerateRandomSlug, getValues, setValue, domain]);
 
-  // Tag management
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [searchValue, setSearchValue] = useState("");
-  const currentTags = getValues("tags") || [];
+  const handleSelect = useCallback((tagId: string) => {
+    const newSelectedTags = selectedTags.includes(tagId)
+      ? selectedTags.filter((id) => id !== tagId)
+      : [...selectedTags, tagId];
+
+    setSelectedTags(newSelectedTags);
+
+    const selectedTagNames =
+      tags
+        ?.filter((tag) => newSelectedTags.includes(tag.id))
+        .map((tag) => tag.name) || [];
+    setValue("tags", selectedTagNames, { shouldDirty: true });
+  }, [selectedTags, tags, setValue]);
+
+  const handleAddNewTag = useCallback(async () => {
+    if (!workspaceslug || !searchValue.trim()) return;
+    try {
+      const response = await axios.post(
+        `/api/workspace/${workspaceslug}/tags`,
+        { name: searchValue.trim(), color: null },
+      );
+      if (response.status === 201) {
+        const newTag = response.data;
+        handleSelect(newTag.id);
+        setSearchValue("");
+        await mutate(`/api/workspace/${workspaceslug}/tags`);
+      }
+    } catch (error) {
+      console.error("Error creating tag:", error);
+    }
+  }, [workspaceslug, searchValue, handleSelect]);
+
+  const handleUrlBlur = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    const normalizedUrl = normalizeUrl(e.target.value);
+    setValue("url", normalizedUrl, { shouldDirty: true });
+  }, [normalizeUrl, setValue]);
+
+  // Effects
+  useEffect(() => {
+    setCurrentCode(slug ? `${domain}/${slug}` : "");
+  }, [domain, slug]);
+
+  useEffect(() => {
+    if (!debouncedUrl) {
+      setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
+      return;
+    }
+    checkUrlSafety(debouncedUrl);
+  }, [debouncedUrl, checkUrlSafety]);
 
   useEffect(() => {
     if (currentTags.length && tags) {
@@ -211,58 +342,19 @@ export default function LinkFormFields({
     }
   }, [tags, currentTags, selectedTags.length]);
 
-  const handleSelect = (tagId: string) => {
-    const newSelectedTags = selectedTags.includes(tagId)
-      ? selectedTags.filter((id) => id !== tagId)
-      : [...selectedTags, tagId];
-
-    setSelectedTags(newSelectedTags);
-
-    const selectedTagNames =
-      tags
-        ?.filter((tag) => newSelectedTags.includes(tag.id))
-        .map((tag) => tag.name) || [];
-    setValue("tags", selectedTagNames, { shouldDirty: true });
-  };
-
-  const selectedTagObjects =
-    tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
-
-  const getColorOption = (tagColor: string | null) =>
-    COLOR_OPTIONS.find((color) => color.value === tagColor) ||
-    COLOR_OPTIONS[0]!;
-
-  const filteredTags =
-    tags?.filter((tag) =>
-      tag.name.toLowerCase().includes(searchValue.toLowerCase()),
-    ) || [];
-
-  const canAddNew =
-    searchValue &&
-    tags &&
-    !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
-
-  const handleAddNewTag = async () => {
-    if (!workspaceslug || !searchValue.trim()) return;
-    try {
-      const response = await axios.post(
-        `/api/workspace/${workspaceslug}/tags`,
-        { name: searchValue.trim(), color: null },
-      );
-      if (response.status === 201) {
-        const newTag = response.data;
-        handleSelect(newTag.id);
-        setSearchValue("");
-        await mutate(`/api/workspace/${workspaceslug}/tags`);
-      }
-    } catch (error) {
-      console.error("Error creating tag:", error);
-    }
-  };
-
-  function isLinkData(obj: unknown): obj is LinkData {
+  // Type guard
+  const isLinkData = useCallback((obj: unknown): obj is LinkData => {
     return !!obj && typeof obj === "object" && "qrCode" in obj;
-  }
+  }, []);
+
+  // Memoized form values
+  const normalizedUrl = useMemo(() => normalizeUrl(url), [normalizeUrl, url]);
+  const qrCodeCustomization = useMemo(() => {
+    if (isLinkData(form.formState.defaultValues)) {
+      return form.formState.defaultValues.qrCode?.customization;
+    }
+    return undefined;
+  }, [form.formState.defaultValues, isLinkData]);
 
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -276,25 +368,7 @@ export default function LinkFormFields({
             <FormItem className="space-y-2">
               <div className="flex items-center justify-between">
                 <FormLabel>Destination URL</FormLabel>
-                <div className="flex items-center gap-2">
-                  {urlSafetyStatus.isChecking ? (
-                    <div className="text-muted-foreground flex items-center gap-1 text-sm">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    </div>
-                  ) : urlSafetyStatus.isValid === true ? (
-                    <div className="flex items-center gap-1 text-xs text-green-600">
-                      <Shield className="h-3.5 w-3.5" />
-                    </div>
-                  ) : urlSafetyStatus.isValid === false ? (
-                    <div className="flex items-center gap-1 text-xs text-red-600">
-                      <ShieldAlert className="h-3.5 w-3.5" />
-                    </div>
-                  ) : (
-                    <div className="text-muted-foreground flex items-center gap-1 text-sm">
-                      <Shield className="h-3.5 w-3.5" />
-                    </div>
-                  )}
-                </div>
+                <SafetyIndicator status={urlSafetyStatus} />
               </div>
               <FormControl>
                 <Input
@@ -306,10 +380,7 @@ export default function LinkFormFields({
                       ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                       : ""
                   }
-                  onBlur={(e) => {
-                    const normalizedUrl = normalizeUrl(e.target.value);
-                    setValue("url", normalizedUrl, { shouldDirty: true });
-                  }}
+                  onBlur={handleUrlBlur}
                 />
               </FormControl>
               <FormMessage />
@@ -405,7 +476,7 @@ export default function LinkFormFields({
                       <SelectValue placeholder="Domain" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="slugy.co">slugy.co</SelectItem>
+                      <SelectItem value={DEFAULT_DOMAIN}>{DEFAULT_DOMAIN}</SelectItem>
                     </SelectContent>
                   </Select>
                 </FormItem>
@@ -446,22 +517,9 @@ export default function LinkFormFields({
                   {tagsLoading ? (
                     <span className="text-gray-500">Loading tags...</span>
                   ) : selectedTagObjects.length > 0 ? (
-                    selectedTagObjects.map((tag) => {
-                      const colorOption = getColorOption(tag.color);
-                      return (
-                        <Badge
-                          key={tag.id}
-                          variant="secondary"
-                          className={cn(
-                            "flex items-center gap-1 rounded-sm px-1 py-[1px] text-sm font-normal",
-                            colorOption.bgColor,
-                            colorOption.borderColor,
-                          )}
-                        >
-                          {tag.name}
-                        </Badge>
-                      );
-                    })
+                    selectedTagObjects.map((tag) => (
+                      <TagBadge key={tag.id} tag={tag} />
+                    ))
                   ) : (
                     <span className="text-gray-500">Select tags...</span>
                   )}
@@ -497,7 +555,7 @@ export default function LinkFormFields({
                             <Tag
                               className={cn(
                                 "h-4 w-4",
-                                getColorOption(tag.color).textColor,
+                                COLOR_OPTIONS.find((color) => color.value === tag.color)?.textColor || COLOR_OPTIONS[0]!.textColor,
                               )}
                             />
                             <span>{tag.name}</span>
@@ -559,18 +617,18 @@ export default function LinkFormFields({
           <Label>QR Code</Label>
           <LinkQrCode
             code={currentCode}
-            customization={
-              isLinkData(form.formState.defaultValues)
-                ? form.formState.defaultValues.qrCode?.customization
-                : undefined
-            }
+            customization={qrCodeCustomization}
           />
         </div>
         <div className="space-y-2">
           <Label>Link Preview</Label>
-          <LinkPreview url={normalizeUrl(getValues("url"))} />
+          <LinkPreview url={normalizedUrl} />
         </div>
       </div>
     </div>
   );
-}
+});
+
+LinkFormFields.displayName = "LinkFormFields";
+
+export default LinkFormFields;

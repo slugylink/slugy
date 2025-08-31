@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type * as z from "zod";
@@ -27,6 +27,7 @@ import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
 import { useRouter } from "next/navigation";
 
+// Types
 type FormValues = z.infer<typeof linkFormSchema>;
 
 interface LinkSettings {
@@ -35,8 +36,31 @@ interface LinkSettings {
   expirationUrl: string | null;
 }
 
-const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
+interface UTMParams {
+  source: string;
+  medium: string;
+  campaign: string;
+  term: string;
+  content: string;
+  referral: string;
+}
+
+// Constants
+const NANOID_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+const NANOID_LENGTH = 7;
+const DEFAULT_DOMAIN = "slugy.co";
+
+// Memoized nanoid generator
+const useNanoid = () => useMemo(() => 
+  customAlphabet(NANOID_ALPHABET, NANOID_LENGTH), 
+  []
+);
+
+const CreateLinkForm = React.memo(({ workspaceslug }: { workspaceslug: string }) => {
   const router = useRouter();
+  const nanoid = useNanoid();
+  
+  // State management
   const [open, setOpen] = useState(false);
   const [code, setCode] = useState("");
   const [utmOpen, setUtmOpen] = useState(false);
@@ -45,7 +69,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     password: null,
     expirationUrl: null,
   });
-  const [utmParams, setUtmParams] = useState({
+  const [utmParams, setUtmParams] = useState<UTMParams>({
     source: "",
     medium: "",
     campaign: "",
@@ -59,11 +83,12 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     message: string;
   }>({ isChecking: false, isValid: null, message: "" });
 
+  // Form setup
   const form = useForm<FormValues>({
     resolver: zodResolver(linkFormSchema),
     defaultValues: {
       url: "",
-      domain: "slugy.co",
+      domain: DEFAULT_DOMAIN,
       slug: "",
       description: "",
       tags: [],
@@ -75,31 +100,56 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
     formState: { isSubmitting, isValid },
     getValues,
     setValue,
+    reset,
   } = form;
 
-  // Determine if form is safe and valid to submit
-  const isSafeToSubmit =
-    isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false;
-
-  const nanoid = customAlphabet(
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-    7,
+  // Memoized computed values
+  const isSafeToSubmit = useMemo(() => 
+    isValid && !urlSafetyStatus.isChecking && urlSafetyStatus.isValid !== false,
+    [isValid, urlSafetyStatus.isChecking, urlSafetyStatus.isValid]
   );
 
-  const handleGenerateRandomSlug = () => {
+  const currentUrl = useMemo(() => getValues("url"), [getValues]);
+
+  // Memoized handlers
+  const handleGenerateRandomSlug = useCallback(() => {
     const randomSlug = nanoid();
     setValue("slug", randomSlug);
     setCode(randomSlug);
-  };
+  }, [nanoid, setValue]);
 
-  const normalizeExpiresAt = (val: string | Date | null | undefined) => {
+  const normalizeExpiresAt = useCallback((val: string | Date | null | undefined) => {
     if (!val) return null;
     if (val instanceof Date) return val.toISOString();
     const d = new Date(val);
     return isNaN(d.getTime()) ? null : d.toISOString();
-  };
+  }, []);
 
-  const onSubmit = async (data: FormValues) => {
+  const resetForm = useCallback(() => {
+    reset();
+    setLinkSettings({
+      expiresAt: null,
+      password: null,
+      expirationUrl: null,
+    });
+    setUtmParams({
+      source: "",
+      medium: "",
+      campaign: "",
+      term: "",
+      content: "",
+      referral: "",
+    });
+    setCode("");
+  }, [reset]);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    resetForm();
+  }, [resetForm]);
+
+  // Form submission
+  const onSubmit = useCallback(async (data: FormValues) => {
     try {
       const normalizedSettings = {
         ...linkSettings,
@@ -107,6 +157,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
         expirationUrl: linkSettings.expirationUrl || null,
         password: linkSettings.password || null,
       };
+      
       const utmPayload = {
         utm_source: utmParams.source || null,
         utm_medium: utmParams.medium || null,
@@ -126,19 +177,17 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
 
       if (response.status === 201) {
         toast.success("Link created successfully!");
+        
+        // Optimistically update cache
         await mutate(
           (key) => typeof key === "string" && key.includes("/link/get"),
           undefined,
           { revalidate: true },
         );
-        form.reset();
-        setLinkSettings({
-          expiresAt: null,
-          password: null,
-          expirationUrl: null,
-        });
+        
+        resetForm();
         router.refresh();
-        setOpen(false);
+        handleClose();
       } else {
         const errorData = response.data as { message: string };
         toast.error(
@@ -147,6 +196,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       }
     } catch (error) {
       console.error("Error creating link:", error);
+      
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 403) {
           const errorData = error.response.data as {
@@ -157,6 +207,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
               planType: string;
             };
           };
+          
           if (errorData.limitInfo) {
             toast.error(
               `Link limit reached! You have ${errorData.limitInfo.currentLinks}/${errorData.limitInfo.maxLinks} links. Upgrade to Pro for more links.`,
@@ -182,7 +233,33 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
         toast.error("An unexpected error occurred.");
       }
     }
-  };
+  }, [workspaceslug, linkSettings, utmParams, normalizeExpiresAt, resetForm, handleClose, router]);
+
+  // Memoized button content
+  const submitButtonContent = useMemo(() => {
+    if (isSubmitting) {
+      return (
+        <>
+          <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
+          Creating...
+        </>
+      );
+    }
+    
+    if (urlSafetyStatus.isValid === false) {
+      return (
+        <>
+          Unsafe URL <CornerDownLeft size={12} />
+        </>
+      );
+    }
+    
+    return (
+      <>
+        Create link <CornerDownLeft size={12} />
+      </>
+    );
+  }, [isSubmitting, urlSafetyStatus.isValid]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -201,7 +278,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
             <div className="p-5 pt-4 pb-3">
               <DialogHeader>
                 <div className="flex items-center gap-2">
-                  <UrlAvatar url={form.getValues("url")} />
+                  <UrlAvatar url={currentUrl} />
                   <DialogTitle className="font-medium">New link</DialogTitle>
                 </div>
               </DialogHeader>
@@ -221,8 +298,8 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex flex-wrap gap-2">
                   <UTMBuilder
-                    url={getValues("url")}
-                    setValue={(name, value) => form.setValue("url", value)}
+                    url={currentUrl}
+                    setValue={(name, value) => setValue("url", value)}
                     utmOpen={utmOpen}
                     setUtmOpen={setUtmOpen}
                     params={utmParams}
@@ -250,18 +327,7 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
                   className="flex w-full items-center gap-x-2 sm:w-auto"
                   disabled={!isSafeToSubmit || isSubmitting}
                 >
-                  {isSubmitting && (
-                    <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-                  )}
-                  {urlSafetyStatus.isValid === false ? (
-                    <>
-                      Unsafe URL <CornerDownLeft size={12} />
-                    </>
-                  ) : (
-                    <>
-                      Create link <CornerDownLeft size={12} />
-                    </>
-                  )}
+                  {submitButtonContent}
                 </Button>
               </div>
             </div>
@@ -270,6 +336,8 @@ const CreateLinkForm = ({ workspaceslug }: { workspaceslug: string }) => {
       </DialogContent>
     </Dialog>
   );
-};
+});
+
+CreateLinkForm.displayName = "CreateLinkForm";
 
 export default CreateLinkForm;
