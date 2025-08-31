@@ -170,20 +170,3 @@ export async function invalidateWorkspaceBySlug(userId: string, slug: string): P
     console.error(`Failed to invalidate workspace cache for ${userId}:${slug}:`, error);
   }
 }
-
-// Invalidate workspace links cache (for the GET /api/workspace/[slug]/link/get endpoint)
-export async function invalidateWorkspaceLinksCache(workspaceSlug: string): Promise<void> {
-  try {
-    // Pattern to match all workspace links cache keys
-    const pattern = `workspace:links:${workspaceSlug}:*`;
-    const keys = await redis.keys(pattern);
-    
-    if (keys.length > 0) {
-      // Delete all matching keys
-      await Promise.all(keys.map(key => redis.del(key)));
-      console.log(`[Cache] Invalidated ${keys.length} workspace links cache entries for ${workspaceSlug}`);
-    }
-  } catch (error) {
-    console.error(`[Cache] Failed to invalidate workspace links cache for ${workspaceSlug}:`, error);
-  }
-}

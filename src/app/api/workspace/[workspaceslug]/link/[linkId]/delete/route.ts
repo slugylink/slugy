@@ -4,7 +4,6 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
-import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 
 export async function DELETE(
   req: Request,
@@ -17,6 +16,7 @@ export async function DELETE(
     }
 
     const context = await params;
+    // Validate workspace and link ownership
     const workspace = await validateworkspaceslug(
       session.user.id,
       context.workspaceslug,
@@ -31,16 +31,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
+    // Store the slug before deletion for cache invalidation
     const linkSlug = link.slug;
 
     await db.link.delete({
       where: { id: context.linkId },
     });
 
-    await Promise.all([
-      invalidateLinkCache(linkSlug),
-      invalidateWorkspaceLinksCache(context.workspaceslug),
-    ]);
+    // Invalidate cache for the deleted link
+    await invalidateLinkCache(linkSlug);
 
     return NextResponse.json(
       { message: "Link deleted successfully" },

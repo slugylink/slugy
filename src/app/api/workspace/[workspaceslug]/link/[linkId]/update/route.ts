@@ -5,7 +5,6 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
-import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),
@@ -35,6 +34,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
+    // Preprocess: convert empty strings to null for optional fields
     const preprocessedBody = {
       ...body,
       image: body.image === "" ? null : body.image,
@@ -48,6 +48,7 @@ export async function PATCH(
 
     const context = await params;
 
+    // Validate workspace and link ownership
     const workspace = await validateworkspaceslug(
       session.user.id,
       context.workspaceslug,
@@ -62,6 +63,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
+    // If slug is being updated, check for uniqueness
     if (validatedData.slug && validatedData.slug !== link.slug) {
       const existingSlug = await db.link.findUnique({
         where: { slug: validatedData.slug },
@@ -75,6 +77,7 @@ export async function PATCH(
       }
     }
 
+    // Prevent recursive links: do not allow destination URL to be a slugy.co short link
     if (typeof validatedData.url === 'string') {
       const ownDomainPattern = /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
       if (ownDomainPattern.test(validatedData.url)) {
@@ -85,7 +88,9 @@ export async function PATCH(
       }
     }
 
+    // Use transaction to ensure data consistency
     await db.$transaction(async (tx) => {
+      // Prepare update data (only provided fields)
       const updateData: Record<string, unknown> = {};
       for (const key of Object.keys(validatedData)) {
         const value = validatedData[key as keyof typeof validatedData];
@@ -123,11 +128,14 @@ export async function PATCH(
 
       // Handle tags if provided
       if (validatedData.tags !== undefined) {
+        // Remove all existing tag relationships
         await tx.linkTag.deleteMany({
           where: { linkId: context.linkId },
         });
 
+        // Add new tag relationships if tags are provided
         if (validatedData.tags.length > 0) {
+          // Get existing tags for this workspace
           const existingTags = await tx.tag.findMany({
             where: {
               workspaceId: workspace.workspace.id,
@@ -137,13 +145,16 @@ export async function PATCH(
             select: { id: true, name: true },
           });
 
+          // Find tags that don't exist yet
           const existingTagNames = existingTags.map(tag => tag.name);
           const newTagNames = validatedData.tags.filter(
             tagName => !existingTagNames.includes(tagName)
           );
 
+          // Create new tags if needed
           let allTags = [...existingTags];
           if (newTagNames.length > 0) {
+            // Check if we can create more tags (limit of 5 per workspace)
             const currentTagCount = await tx.tag.count({
               where: {
                 workspaceId: workspace.workspace.id,
@@ -176,6 +187,7 @@ export async function PATCH(
             }
           }
 
+          // Create link-tag relationships for all tags
           if (allTags.length > 0) {
             await tx.linkTag.createMany({
               data: allTags.map(tag => ({
@@ -191,6 +203,7 @@ export async function PATCH(
       return link;
     });
 
+    // Fetch the updated link with tags for the response
     const linkWithTags = await db.link.findUnique({
       where: { id: context.linkId },
       select: {
@@ -223,14 +236,11 @@ export async function PATCH(
       },
     });
 
+    // Invalidate cache for the updated link
     if (!linkWithTags) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
-    
-    await Promise.all([
-      invalidateLinkCache(linkWithTags.slug!),
-      invalidateWorkspaceLinksCache(context.workspaceslug),
-    ]);
+    await invalidateLinkCache(linkWithTags.slug!);
 
     return NextResponse.json(linkWithTags, { status: 200 });
   } catch (error) {
