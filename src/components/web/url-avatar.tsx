@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useState, useEffect, useMemo } from "react";
+import React, { memo, useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { getRootDomain } from "@/utils/get-rootdomain";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,26 @@ interface UrlAvatarProps {
   icon?: React.ReactNode;
 }
 
+// Constants for better maintainability
+const SIZE_CLASSES = {
+  4: "h-4 w-4",
+  5: "h-[18px] w-[18px]",
+  6: "h-6 w-6",
+  8: "h-9 w-9",
+  10: "h-10 w-10",
+  12: "h-12 w-12",
+  16: "h-16 w-16",
+} as const;
+
+const IMAGE_QUALITY = {
+  small: 75,   // for sizes 4, 5, 6
+  medium: 85,  // for sizes 8, 10, 12, 16
+} as const;
+
+const MIN_FAVICON_SIZE = 16;
+const FALLBACK_AVATAR_BASE = "https://avatar.vercel.sh";
+const GOOGLE_FAVICON_BASE = "https://www.google.com/s2/favicons";
+
 function UrlAvatar({
   url,
   size = 8,
@@ -20,48 +40,51 @@ function UrlAvatar({
   icon,
 }: UrlAvatarProps) {
   const domain = useMemo(() => getRootDomain(url), [url]);
-  const [loading, setLoading] = useState(true);
-  const [errorCount, setErrorCount] = useState(0);
-
-  // Use only properly configured hosts for images; always end with a fallback
+  
+  // Memoize sources to prevent recreation
   const sources = useMemo(() => {
     if (
       domain === "localhost" ||
       domain.includes("localhost") ||
       domain.includes("127.0.0.1")
     ) {
-      return [`https://avatar.vercel.sh/${domain}?size=32`];
+      return [`${FALLBACK_AVATAR_BASE}/${domain}?size=32`];
     }
+    
     return [
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=64`,
-      // fallback
-      `https://avatar.vercel.sh/${domain}?size=32`,
+      `${GOOGLE_FAVICON_BASE}?domain=${domain}&sz=64`,
+      `${FALLBACK_AVATAR_BASE}/${domain}?size=32`,
     ];
   }, [domain]);
 
+  const [loading, setLoading] = useState(true);
+  const [errorCount, setErrorCount] = useState(0);
   const [src, setSrc] = useState(sources[0]);
 
+  // Reset state when URL changes
   useEffect(() => {
     setLoading(true);
     setErrorCount(0);
     setSrc(sources[0]);
   }, [url, sources]);
 
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
+  // Memoize handlers to prevent recreation
+  const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setLoading(false);
     const target = e.target as HTMLImageElement;
+    
     // If image is too small (bad favicon), fallback to next source
     if (
-      (target.naturalWidth <= 16 || target.naturalHeight <= 16) &&
+      (target.naturalWidth <= MIN_FAVICON_SIZE || target.naturalHeight <= MIN_FAVICON_SIZE) &&
       errorCount === 0 &&
       sources.length > 1
     ) {
       setErrorCount(1);
       setSrc(sources[1]);
     }
-  };
+  }, [errorCount, sources]);
 
-  const handleError = () => {
+  const handleError = useCallback(() => {
     const nextIndex = errorCount + 1;
     if (nextIndex < sources.length) {
       setErrorCount(nextIndex);
@@ -69,54 +92,67 @@ function UrlAvatar({
     } else {
       setLoading(false);
     }
-  };
+  }, [errorCount, sources.length]);
 
-  const sizeClasses = {
-    4: "h-4 w-4",
-    5: "h-[18px] w-[18px]",
-    6: "h-6 w-6",
-    8: "h-9 w-9",
-    10: "h-10 w-10",
-    12: "h-12 w-12",
-    16: "h-16 w-16",
-  } as const;
+  // Memoize computed values
+  const sizeClass = useMemo(() => SIZE_CLASSES[size], [size]);
+  const imageSize = useMemo(() => size * imgSize, [size, imgSize]);
+  const quality = useMemo(() => 
+    size <= 6 ? IMAGE_QUALITY.small : IMAGE_QUALITY.medium, 
+    [size]
+  );
+  const shouldUsePriority = useMemo(() => size > 8, [size]);
+  const shouldUseEager = useMemo(() => size > 8, [size]);
+  const isFallbackAvatar = useMemo(() => 
+    src.startsWith(FALLBACK_AVATAR_BASE), 
+    [src]
+  );
 
-  const imageSize = size * imgSize;
-  const quality = size <= 6 ? 75 : 85;
+  // Early return for icon
+  if (icon) {
+    return (
+      <div
+        className={cn(
+          sizeClass,
+          "flex items-center justify-center overflow-hidden rounded-full border bg-gradient-to-b from-zinc-50/60 to-zinc-100 dark:bg-gradient-to-b dark:from-zinc-900/60 dark:to-zinc-800",
+          className,
+        )}
+        aria-label={`Icon for ${domain}`}
+      >
+        {icon}
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn(
-        sizeClasses[size],
+        sizeClass,
         "flex items-center justify-center overflow-hidden rounded-full border bg-gradient-to-b from-zinc-50/60 to-zinc-100 dark:bg-gradient-to-b dark:from-zinc-900/60 dark:to-zinc-800",
         className,
       )}
       aria-label={`Favicon for ${domain}`}
     >
-      {icon ? (
-        icon
-      ) : (
-        <picture>
-          <source srcSet={src} type="image/png" />
-          <Image
-            alt={domain}
-            title={domain}
-            src={src}
-            width={imageSize}
-            height={imageSize}
-            quality={quality}
-            loading={size > 8 ? "eager" : "lazy"}
-            className={cn(
-              loading ? "opacity-70 blur-[2px]" : "blur-0 opacity-100",
-              "rounded-full transition-all duration-200",
-            )}
-            priority={size > 8}
-            onLoad={handleLoad}
-            onError={handleError}
-            unoptimized={src.startsWith("https://avatar.vercel.sh/")} // avoid next/image remote error warning
-          />
-        </picture>
-      )}
+      <picture>
+        <source srcSet={src} type="image/png" />
+        <Image
+          alt={`Favicon for ${domain}`}
+          title={`Favicon for ${domain}`}
+          src={src}
+          width={imageSize}
+          height={imageSize}
+          quality={quality}
+          loading={shouldUseEager ? "eager" : "lazy"}
+          className={cn(
+            loading ? "opacity-70 blur-[1.5px]" : "blur-0 opacity-100",
+            "rounded-full transition-all duration-200",
+          )}
+          priority={shouldUsePriority}
+          onLoad={handleLoad}
+          onError={handleError}
+          unoptimized={isFallbackAvatar} // avoid next/image remote error warning
+        />
+      </picture>
     </div>
   );
 }

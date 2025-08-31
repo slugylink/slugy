@@ -3,6 +3,8 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 const socialSchema = z.object({
   platform: z.string(),
@@ -78,6 +80,12 @@ export async function PATCH(
         }
       }),
     );
+
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.socials(params.username),           // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json({ message: "Socials updated", socials: results });
   } catch (error) {

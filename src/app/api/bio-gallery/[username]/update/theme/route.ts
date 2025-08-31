@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { z } from "zod";
 import { headers } from "next/headers";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 export async function PATCH(
   req: Request,
@@ -45,6 +47,12 @@ export async function PATCH(
         theme: parsed.data.theme,
       },
     });
+
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.theme(params.username),           // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json({ message: "Theme updated" }, { status: 200 });
   } catch (error) {

@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 // Updated schema to allow empty strings
@@ -71,8 +72,11 @@ export async function PATCH(
       data: updateData,
     });
 
-    // Invalidate bio cache
-    await invalidateBioByUsernameAndUser(params.username, session.user.id);
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.profile(params.username),           // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json(updatedGallery);
   } catch (error) {
@@ -112,8 +116,11 @@ export async function DELETE(
       },
     });
 
-    // Invalidate bio cache
-    await invalidateBioByUsernameAndUser(params.username, session.user.id);
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.delete(params.username),           // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

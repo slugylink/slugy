@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -26,86 +26,107 @@ interface UseAnalyticsParams {
   metrics?: Array<keyof AnalyticsData>; // Allow selective metric fetching
 }
 
-// Function to fetch analytics data with selective metrics
+// Constants for better maintainability
+const DEBOUNCE_DELAY = 500;
+const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
+  "totalClicks",
+  "clicksOverTime",
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+];
+
+// Type for metric mapping
+type MetricMapping = {
+  [K in keyof AnalyticsData]: {
+    key: K;
+    fallback: AnalyticsData[K];
+  };
+};
+
+// Metric mapping configuration
+const METRIC_MAPPING: MetricMapping = {
+  totalClicks: { key: "totalClicks", fallback: 0 },
+  clicksOverTime: { key: "clicksOverTime", fallback: [] },
+  links: { key: "links", fallback: [] },
+  cities: { key: "cities", fallback: [] },
+  countries: { key: "countries", fallback: [] },
+  continents: { key: "continents", fallback: [] },
+  devices: { key: "devices", fallback: [] },
+  browsers: { key: "browsers", fallback: [] },
+  oses: { key: "oses", fallback: [] },
+  referrers: { key: "referrers", fallback: [] },
+  destinations: { key: "destinations", fallback: [] },
+};
+
 const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
   metrics?: Array<keyof AnalyticsData>,
 ): Promise<Partial<AnalyticsData>> => {
-  const searchParams = new URLSearchParams(params);
+  try {
+    const searchParams = new URLSearchParams(params);
 
-  // Add metrics parameter if specified
-  if (metrics && metrics.length > 0) {
-    searchParams.set("metrics", metrics.join(","));
+    // Add metrics parameter if specified
+    if (metrics && metrics.length > 0) {
+      searchParams.set("metrics", metrics.join(","));
+    }
+
+    const response = await fetch(
+      `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(
+        `Failed to fetch analytics data: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
+      );
+    }
+
+    const data = await response.json();
+
+    if (metrics && metrics.length > 0) {
+      const result: Partial<AnalyticsData> = {};
+
+      metrics.forEach((metric) => {
+        const mapping = METRIC_MAPPING[metric];
+        if (mapping) {
+          result[metric] = data[mapping.key] ?? mapping.fallback;
+        }
+      });
+
+      return result;
+    }
+
+    // Return all metrics if none specified (backward compatibility)
+    return {
+      totalClicks: data.totalClicks ?? 0,
+      clicksOverTime: data.clicksOverTime ?? [],
+      links: data.links ?? [],
+      cities: data.cities ?? [],
+      countries: data.countries ?? [],
+      continents: data.continents ?? [],
+      devices: data.devices ?? [],
+      browsers: data.browsers ?? [],
+      oses: data.oses ?? [],
+      referrers: data.referrers ?? [],
+      destinations: data.destinations ?? [],
+    };
+  } catch (error) {
+    console.error("Error fetching analytics data:", error);
+    throw error;
   }
+};
 
-  const response = await fetch(
-    `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
-  );
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch analytics data: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-
-  // Return only the requested metrics with fallbacks
-  if (metrics && metrics.length > 0) {
-    const result: Partial<AnalyticsData> = {};
-    metrics.forEach((metric) => {
-      switch (metric) {
-        case "totalClicks":
-          result.totalClicks = data.totalClicks ?? 0;
-          break;
-        case "clicksOverTime":
-          result.clicksOverTime = data.clicksOverTime ?? [];
-          break;
-        case "links":
-          result.links = data.links ?? [];
-          break;
-        case "cities":
-          result.cities = data.cities ?? [];
-          break;
-        case "countries":
-          result.countries = data.countries ?? [];
-          break;
-        case "continents":
-          result.continents = data.continents ?? [];
-          break;
-        case "devices":
-          result.devices = data.devices ?? [];
-          break;
-        case "browsers":
-          result.browsers = data.browsers ?? [];
-          break;
-        case "oses":
-          result.oses = data.oses ?? [];
-          break;
-        case "referrers":
-          result.referrers = data.referrers ?? [];
-          break;
-        case "destinations":
-          result.destinations = data.destinations ?? [];
-          break;
-      }
-    });
-    return result;
-  }
-
-  // Return all metrics if none specified (backward compatibility)
-  return {
-    totalClicks: data.totalClicks ?? 0,
-    clicksOverTime: data.clicksOverTime ?? [],
-    links: data.links ?? [],
-    cities: data.cities ?? [],
-    countries: data.countries ?? [],
-    continents: data.continents ?? [],
-    devices: data.devices ?? [],
-    browsers: data.browsers ?? [],
-    oses: data.oses ?? [],
-    referrers: data.referrers ?? [],
-    destinations: data.destinations ?? [],
-  };
+// Helper function to sort data by clicks
+const sortByClicks = <T extends { clicks: number }>(data: T[]): T[] => {
+  return [...data].sort((a, b) => b.clicks - a.clicks);
 };
 
 export function useAnalytics({
@@ -113,39 +134,53 @@ export function useAnalytics({
   timePeriod,
   searchParams = {},
   enabled = true,
-  metrics,
+  metrics = DEFAULT_METRICS,
 }: UseAnalyticsParams) {
-  // Create a stable search params object
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
-    // Remove undefined and null values
+
     return Object.fromEntries(
-      Object.entries(params).filter(([_, value]) => value != null),
+      Object.entries(params).filter(
+        ([_, value]) => value != null && String(value).length > 0,
+      ),
     );
   }, [timePeriod, searchParams]);
 
   // Debounce the search params to prevent excessive API calls while filtering
-  const debouncedSearchParams = useDebounce(stableSearchParams, 500);
+  const debouncedSearchParams = useDebounce(stableSearchParams, DEBOUNCE_DELAY);
 
   // Only fetch when enabled and we have a workspace slug
-  const shouldFetch = enabled && Boolean(workspaceslug);
-  const swrKey = shouldFetch
-    ? [
-        "analytics",
-        metrics?.join(",") || "all",
-        workspaceslug,
-        debouncedSearchParams,
-      ]
-    : null;
+  const shouldFetch = enabled && Boolean(workspaceslug?.trim());
 
-  const { data, error, isLoading, mutate } = useSWR<
+  // Create stable SWR key
+  const swrKey = useMemo(() => {
+    if (!shouldFetch) return null;
+
+    return [
+      "analytics",
+      metrics?.join(",") || "all",
+      workspaceslug,
+      debouncedSearchParams,
+    ];
+  }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams]);
+
+  // Fetch data with better error handling
+  const { data, error, isLoading, mutate, isValidating } = useSWR<
     Partial<AnalyticsData>,
     Error
-  >(swrKey, () =>
-    fetchAnalyticsData(workspaceslug, debouncedSearchParams, metrics),
+  >(
+    swrKey,
+    () => fetchAnalyticsData(workspaceslug, debouncedSearchParams, metrics),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      dedupingInterval: 30000, // 30 seconds
+      errorRetryCount: 3,
+      errorRetryInterval: 5000, // 5 seconds
+    },
   );
 
-  // Memoized sorted data for each metric type
+  // Memoized sorted data for each metric type with better performance
   const sortedData = useMemo(() => {
     if (!data) return {};
 
@@ -154,62 +189,61 @@ export function useAnalytics({
       Array<{ clicks: number; [key: string]: unknown }>
     > = {};
 
-    if (data.links) {
-      result.links = [...data.links].sort((a, b) => b.clicks - a.clicks);
-    }
-    if (data.cities) {
-      result.cities = [...data.cities].sort((a, b) => b.clicks - a.clicks);
-    }
-    if (data.countries) {
-      result.countries = [...data.countries].sort(
-        (a, b) => b.clicks - a.clicks,
-      );
-    }
-    if (data.continents) {
-      result.continents = [...data.continents].sort(
-        (a, b) => b.clicks - a.clicks,
-      );
-    }
-    if (data.devices) {
-      result.devices = [...data.devices].sort((a, b) => b.clicks - a.clicks);
-    }
-    if (data.browsers) {
-      result.browsers = [...data.browsers].sort((a, b) => b.clicks - a.clicks);
-    }
-    if (data.oses) {
-      result.oses = [...data.oses].sort((a, b) => b.clicks - a.clicks);
-    }
-    if (data.referrers) {
-      result.referrers = [...data.referrers].sort(
-        (a, b) => b.clicks - a.clicks,
-      );
-    }
-    if (data.destinations) {
-      result.destinations = [...data.destinations].sort(
-        (a, b) => b.clicks - a.clicks,
-      );
-    }
+    // Use the helper function for consistent sorting
+    if (data.links) result.links = sortByClicks(data.links);
+    if (data.cities) result.cities = sortByClicks(data.cities);
+    if (data.countries) result.countries = sortByClicks(data.countries);
+    if (data.continents) result.continents = sortByClicks(data.continents);
+    if (data.devices) result.devices = sortByClicks(data.devices);
+    if (data.browsers) result.browsers = sortByClicks(data.browsers);
+    if (data.oses) result.oses = sortByClicks(data.oses);
+    if (data.referrers) result.referrers = sortByClicks(data.referrers);
+    if (data.destinations)
+      result.destinations = sortByClicks(data.destinations);
 
     return result;
   }, [data]);
 
+  // Memoized convenience getters for better performance
+  const convenienceGetters = useMemo(
+    () => ({
+      totalClicks: data?.totalClicks ?? 0,
+      clicksOverTime: data?.clicksOverTime ?? [],
+      links: sortedData.links ?? [],
+      cities: sortedData.cities ?? [],
+      countries: sortedData.countries ?? [],
+      continents: sortedData.continents ?? [],
+      devices: sortedData.devices ?? [],
+      browsers: sortedData.browsers ?? [],
+      oses: sortedData.oses ?? [],
+      referrers: sortedData.referrers ?? [],
+      destinations: sortedData.destinations ?? [],
+    }),
+    [data, sortedData],
+  );
+
+  // Memoized refresh function
+  const refresh = useCallback(() => {
+    return mutate();
+  }, [mutate]);
+
   return {
+    // Raw data
     data,
     sortedData,
-    error,
+
+    // Loading states
     isLoading,
+    isValidating,
+
+    // Error handling
+    error,
+
+    // Actions
     mutate,
-    // Convenience getters for specific metrics (with fallbacks)
-    totalClicks: data?.totalClicks ?? 0,
-    clicksOverTime: data?.clicksOverTime ?? [],
-    links: sortedData.links ?? [],
-    cities: sortedData.cities ?? [],
-    countries: sortedData.countries ?? [],
-    continents: sortedData.continents ?? [],
-    devices: sortedData.devices ?? [],
-    browsers: sortedData.browsers ?? [],
-    oses: sortedData.oses ?? [],
-    referrers: sortedData.referrers ?? [],
-    destinations: sortedData.destinations ?? [],
+    refresh,
+
+    // Convenience getters (with fallbacks)
+    ...convenienceGetters,
   };
 }

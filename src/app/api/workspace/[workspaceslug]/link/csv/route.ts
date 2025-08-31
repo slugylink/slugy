@@ -7,6 +7,7 @@ import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
+import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 
 export async function GET(
@@ -53,7 +54,6 @@ export async function GET(
         break;
     }
 
-    // Define allowed columns and their DB field mappings to match frontend COLUMNS
     const columnMap: Record<string, string> = {
       slug: "slug",
       url: "url",
@@ -104,7 +104,6 @@ export async function GET(
       );
     }
 
-    // Build where clause for date filtering
     const linkWhere: Record<string, unknown> = { workspaceId: workspace.id };
     if (from && to) {
       linkWhere.createdAt = { gte: from, lte: to };
@@ -114,7 +113,6 @@ export async function GET(
       linkWhere.createdAt = { lte: to };
     }
 
-    // Build select object for Prisma
     const select: Record<string, true> = {};
     columns.forEach((col) => {
       const dbField = columnMap[col];
@@ -127,7 +125,6 @@ export async function GET(
       orderBy: { createdAt: "desc" },
     });
 
-    // Format links for CSV output
     const formattedLinks = links.map((link) => {
       const obj: Record<string, unknown> = {};
       columns.forEach((col) => {
@@ -187,7 +184,6 @@ export async function POST(
 
     const context = await params;
 
-    // Validate workspace access and limits
     const workspaceCheck = await checkWorkspaceAccessAndLimits(
       session.user.id,
       context.workspaceslug,
@@ -245,7 +241,6 @@ export async function POST(
       );
     }
 
-    // Check if importing these links would exceed the allowed limit
     const allowedToCreate = workspaceCheck.maxLinks - workspaceCheck.currentLinks;
     if (records.length > allowedToCreate) {
       return NextResponse.json(
@@ -289,12 +284,10 @@ export async function POST(
 
     const urlsToScan: Array<{ url: string; row: number }> = [];
 
-    // Process each row
     records.forEach((record: Record<string, unknown>, index: number) => {
       const rowErrors: Array<{ message: string; path: string[] }> = [];
       const rowNumber = index + 2; // +2 because index is 0-based and we have header
 
-      // Validate required fields
       const url = record.url as string;
       if (!url || typeof url !== "string" || url.trim() === "") {
         rowErrors.push({
@@ -304,7 +297,6 @@ export async function POST(
       } else {
         try {
           new URL(url);
-          // Add valid URLs to scanning queue
           urlsToScan.push({ url: url.trim(), row: rowNumber });
         } catch {
           rowErrors.push({
@@ -314,12 +306,10 @@ export async function POST(
         }
       }
 
-      // Generate slug if not provided
       let slug = record.slug as string;
       if (!slug || typeof slug !== "string" || slug.trim() === "") {
         slug = nanoid();
       } else {
-        // Validate slug format (alphanumeric and hyphens only)
         if (!/^[a-zA-Z0-9-]+$/.test(slug)) {
           rowErrors.push({
             message: "Slug can only contain letters, numbers, and hyphens",
@@ -369,7 +359,6 @@ export async function POST(
       }
     });
 
-    // If there are validation errors, return them
     if (errors.length > 0) {
       return NextResponse.json(
         {
@@ -380,8 +369,6 @@ export async function POST(
       );
     }
 
-    // Scan URLs for safety in parallel (with concurrency limit)
-    console.log(`Scanning ${urlsToScan.length} URLs for safety...`);
     const CONCURRENCY_LIMIT = 10; // Limit concurrent requests to avoid overwhelming the API
     const unsafeUrls: Array<{ url: string; row: number; threats: string[] }> = [];
 
@@ -396,7 +383,6 @@ export async function POST(
           return null;
         } catch (error) {
           console.warn(`Failed to scan URL ${url} at row ${row}:`, error);
-          // On scan failure, allow URL (graceful fallback)
           return null;
         }
       });
@@ -406,7 +392,6 @@ export async function POST(
       unsafeUrls.push(...batchUnsafeUrls);
     }
 
-    // If unsafe URLs found, return them as validation errors
     if (unsafeUrls.length > 0) {
       const safetyErrors = unsafeUrls.map(({ row, threats }) => ({
         row,
@@ -445,7 +430,6 @@ export async function POST(
         skipDuplicates: true, // Skip if slug already exists
       });
       createdLinksCount = createdLinks.count;
-      // Update usage counters
       await Promise.all([
         tx.workspace.update({
           where: { id: workspaceCheck.workspace.id },
@@ -461,9 +445,11 @@ export async function POST(
       ]);
     });
 
-    // Invalidate cache for all created links
     const slugs = linksToCreate.map(link => link.slug);
-    await invalidateLinkCacheBatch(slugs);
+    await Promise.all([
+      invalidateLinkCacheBatch(slugs),
+      invalidateWorkspaceLinksCache(context.workspaceslug),
+    ]);
 
     return NextResponse.json(
       {

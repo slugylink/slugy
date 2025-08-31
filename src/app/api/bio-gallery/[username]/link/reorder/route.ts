@@ -3,6 +3,8 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 export async function PUT(
   req: Request,
@@ -53,6 +55,12 @@ export async function PUT(
         }),
       ),
     );
+
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.links(params.username),           // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json({ success: true });
   } catch (error) {
