@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 
+// Types for database queries
 type LinkWhereInput = {
   workspaceId: string;
   OR?: Array<{
@@ -18,20 +19,13 @@ type LinkOrderByInput =
   | Array<{ lastClicked: { sort: "desc"; nulls: "last" } }>
   | { createdAt: "desc" };
 
-const VALID_SORT_OPTIONS = [
-  "date-created",
-  "total-clicks",
-  "last-clicked",
-] as const;
+// Constants for better maintainability
+const VALID_SORT_OPTIONS = ["date-created", "total-clicks", "last-clicked"] as const;
 const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
 
-// Cache configuration
-const CACHE_DURATION = 300; // 5 minutes
-const STALE_WHILE_REVALIDATE = 600; // 10 minutes
-const CACHE_VARY_HEADERS = "Accept, Accept-Encoding, Authorization";
-
+// Input validation with better error handling
 const validateInput = (params: {
   search?: string | null;
   showArchived?: string | null;
@@ -41,22 +35,18 @@ const validateInput = (params: {
 }) => {
   const errors: string[] = [];
 
-  if (
-    params.sortBy &&
-    !VALID_SORT_OPTIONS.includes(
-      params.sortBy as (typeof VALID_SORT_OPTIONS)[number],
-    )
-  ) {
-    errors.push(
-      `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
-    );
+  // Validate sortBy
+  if (params.sortBy && !VALID_SORT_OPTIONS.includes(params.sortBy as typeof VALID_SORT_OPTIONS[number])) {
+    errors.push(`Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`);
   }
 
+  // Validate offset
   const offset = parseInt(params.offset ?? String(DEFAULT_OFFSET), 10);
   if (isNaN(offset) || offset < 0) {
     errors.push("Offset must be a non-negative integer");
   }
 
+  // Validate limit
   const limit = parseInt(params.limit ?? String(DEFAULT_LIMIT), 10);
   if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
     errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
@@ -65,12 +55,14 @@ const validateInput = (params: {
   return { errors, offset, limit };
 };
 
+// Generate search conditions optimized for different search term lengths
 const getSearchConditions = (
   search: string,
 ): NonNullable<LinkWhereInput["OR"]> => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return [];
 
+  // For very short queries, use exact matching where possible
   if (trimmedSearch.length <= 2) {
     return [
       { description: { contains: trimmedSearch, mode: "insensitive" } },
@@ -78,6 +70,7 @@ const getSearchConditions = (
     ];
   }
 
+  // For longer queries, use standard contains search
   return [
     { description: { contains: trimmedSearch, mode: "insensitive" } },
     { url: { contains: trimmedSearch, mode: "insensitive" } },
@@ -97,6 +90,7 @@ const getOrderConditions = (sortBy: string): LinkOrderByInput => {
   }
 };
 
+// Optimized database query with better error handling
 const getLinksWithCount = async (
   workspaceId: string,
   conditions: LinkWhereInput,
@@ -154,6 +148,7 @@ const getLinksWithCount = async (
   }
 };
 
+// Helper function to calculate pagination info
 const calculatePaginationInfo = (
   totalLinks: number,
   limit: number,
@@ -172,46 +167,32 @@ const calculatePaginationInfo = (
   };
 };
 
-const setCacheHeaders = (
-  response: NextResponse,
-  data: Record<string, unknown>,
-) => {
-  response.headers.set(
-    "Cache-Control",
-    `private, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-  );
-
-  const etag = `"${Buffer.from(JSON.stringify(data)).toString("base64").slice(0, 8)}"`;
-  response.headers.set("ETag", etag);
-
-  response.headers.set("Vary", CACHE_VARY_HEADERS);
-
-  return response;
-};
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
+    // Get session with better error handling
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 },
+        { status: 401 }
       );
     }
 
+    // Parse and validate params
     const context = await params;
     const { workspaceslug } = context;
 
     if (!workspaceslug?.trim()) {
       return NextResponse.json(
         { error: "Invalid workspace slug", code: "INVALID_WORKSPACE" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
+    // Parse search parameters
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") ?? "";
     const showArchived = searchParams.get("showArchived") === "true";
@@ -219,6 +200,7 @@ export async function GET(
     const offsetParam = searchParams.get("offset") ?? String(DEFAULT_OFFSET);
     const limitParam = searchParams.get("limit") ?? String(DEFAULT_LIMIT);
 
+    // Validate input parameters
     const { errors, offset, limit } = validateInput({
       search,
       showArchived: searchParams.get("showArchived"),
@@ -229,15 +211,16 @@ export async function GET(
 
     if (errors.length > 0) {
       return NextResponse.json(
-        {
-          error: "Invalid parameters",
+        { 
+          error: "Invalid parameters", 
           details: errors,
-          code: "VALIDATION_ERROR",
+          code: "VALIDATION_ERROR"
         },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
+    // Verify workspace access
     const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
@@ -251,11 +234,11 @@ export async function GET(
 
     if (!workspace) {
       return NextResponse.json(
-        {
+        { 
           error: "Workspace not found or access denied",
-          code: "WORKSPACE_NOT_FOUND",
+          code: "WORKSPACE_NOT_FOUND"
         },
-        { status: 404 },
+        { status: 404 }
       );
     }
 
@@ -278,6 +261,7 @@ export async function GET(
       limit,
     );
 
+    // Handle edge case: offset past total results
     if (offset >= totalLinks && totalLinks > 0) {
       const { links: firstPageLinks } = await getLinksWithCount(
         workspace.id,
@@ -289,57 +273,52 @@ export async function GET(
 
       const paginationInfo = calculatePaginationInfo(totalLinks, limit, 0);
 
-      const edgeCaseResponse = NextResponse.json(
+      return NextResponse.json(
         {
           links: firstPageLinks,
           totalLinks,
           ...paginationInfo,
           overallCount: totalLinks,
         },
-        { status: 200 },
+        { status: 200 }
       );
-
-      return setCacheHeaders(edgeCaseResponse, {
-        firstPageLinks,
-        totalLinks,
-        ...paginationInfo,
-      });
     }
 
+    // Calculate pagination info
     const paginationInfo = calculatePaginationInfo(totalLinks, limit, offset);
 
-    const response = NextResponse.json(
+    return NextResponse.json(
       {
         links,
         totalLinks,
         ...paginationInfo,
         overallCount: totalLinks,
       },
-      { status: 200 },
+      { status: 200 }
     );
 
-    return setCacheHeaders(response, { links, totalLinks, ...paginationInfo });
   } catch (error) {
     console.error("Error fetching links:", error);
 
+    // Handle specific error types
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(
-          {
+          { 
             error: "Database connection error",
-            code: "DATABASE_ERROR",
+            code: "DATABASE_ERROR"
           },
-          { status: 503 },
+          { status: 503 }
         );
       }
     }
 
     return NextResponse.json(
-      {
+      { 
         error: "Failed to fetch links",
-        code: "INTERNAL_ERROR",
+        code: "INTERNAL_ERROR"
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
