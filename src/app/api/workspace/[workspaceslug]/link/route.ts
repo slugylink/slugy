@@ -6,6 +6,7 @@ import { z } from "zod"; // Import zod for input validation
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
+import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,
@@ -283,7 +284,12 @@ export async function POST(
     if (!linkWithTags) {
       return NextResponse.json({ message: "Link not found" }, { status: 404 });
     }
-    await invalidateLinkCache(linkWithTags?.slug);
+    
+    // Invalidate both individual link cache and workspace links cache
+    await Promise.all([
+      invalidateLinkCache(linkWithTags?.slug),
+      invalidateWorkspaceLinksCache(context.workspaceslug),
+    ]);
 
     return NextResponse.json(linkWithTags, {
       status: 201,

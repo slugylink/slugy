@@ -2,6 +2,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 //* Update link
 export async function PUT(
@@ -44,6 +46,12 @@ export async function PUT(
     data: { title, url },
   });
 
+  // Invalidate both caches: public gallery + admin dashboard
+  await Promise.all([
+    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+  ]);
+
   return NextResponse.json({ message: "Link updated successfully" });
 }
 
@@ -77,6 +85,12 @@ export async function DELETE(
     },
   });
 
+  // Invalidate both caches: public gallery + admin dashboard
+  await Promise.all([
+    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+  ]);
+
   return NextResponse.json({
     message: "Link deleted successfully",
   });
@@ -99,6 +113,12 @@ export async function PATCH(
     where: { id: params.linkId },
     data: { isPublic },
   });
+
+  // Invalidate both caches: public gallery + admin dashboard
+  await Promise.all([
+    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+  ]);
 
   return NextResponse.json({ message: "Link updated successfully" });
 }

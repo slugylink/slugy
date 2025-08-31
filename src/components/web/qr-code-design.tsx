@@ -24,27 +24,12 @@ import { getQrCode, saveQrCode } from "@/server/actions/save-qrcode";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
-type DotType =
-  | "square"
-  | "dots"
-  | "rounded"
-  | "classy"
-  | "classy-rounded"
-  | "extra-rounded";
-
-interface FormState {
-  url: string;
-  fgColor: string;
-  size: number;
-  dotStyle: DotType;
-  logo?: string;
-}
-
+// Constants for better maintainability
 const STATIC_LOGO = {
-  src: "/logo.svg", // Path to your brand logo
-  size: 0.3, // Size relative to QR code (30%)
-  margin: 5, // Margin around logo
-};
+  src: "/logo.svg",
+  size: 0.3,
+  margin: 5,
+} as const;
 
 const QR_CONFIG = {
   DEFAULT_SIZE: 300,
@@ -52,6 +37,8 @@ const QR_CONFIG = {
   MIN_SIZE: 256,
   MAX_SIZE: 2048,
   LOGO_SIZE: 0.5,
+  CANVAS_SCALE: 4,
+  DEFAULT_MARGIN: 2,
 } as const;
 
 const COLORS = [
@@ -68,7 +55,7 @@ const DEFAULT_QR_OPTIONS: Options = {
   width: QR_CONFIG.DEFAULT_SIZE * 1.3,
   height: QR_CONFIG.DEFAULT_SIZE * 1.3,
   type: "svg",
-  margin: 2,
+  margin: QR_CONFIG.DEFAULT_MARGIN,
   qrOptions: {
     typeNumber: 0,
     mode: "Byte",
@@ -85,12 +72,30 @@ const DEFAULT_QR_OPTIONS: Options = {
   },
 } as const;
 
+// Types for better type safety
+type DotType =
+  | "square"
+  | "dots"
+  | "rounded"
+  | "classy"
+  | "classy-rounded"
+  | "extra-rounded";
+
+interface FormState {
+  url: string;
+  fgColor: string;
+  size: number;
+  dotStyle: DotType;
+  logo?: string;
+}
+
 interface QRCodeDesignerProps {
   linkId: string;
   code: string;
   onOpenChange: (open: boolean) => void;
 }
 
+// Memoized QR Code Preview component
 const QRCodePreview = memo(
   ({
     containerRef,
@@ -116,6 +121,7 @@ const QRCodePreview = memo(
 );
 QRCodePreview.displayName = "QRCodePreview";
 
+// Memoized Color Picker component
 const ColorPicker = memo(
   ({
     color,
@@ -149,6 +155,7 @@ const ColorPicker = memo(
 );
 ColorPicker.displayName = "ColorPicker";
 
+// Memoized Color Buttons component
 const ColorButtons = memo(
   ({
     colors,
@@ -185,31 +192,76 @@ const ColorButtons = memo(
 );
 ColorButtons.displayName = "ColorButtons";
 
+// Utility functions for better performance
+const createCanvasFromSVG = (svg: SVGElement, scale: number = 1) => {
+  const canvas = document.createElement("canvas");
+  const svgElement = svg as SVGElement & { width: { baseVal: { value: number } }; height: { baseVal: { value: number } } };
+  canvas.width = svgElement.width.baseVal.value * scale;
+  canvas.height = svgElement.height.baseVal.value * scale;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not get canvas context");
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  return { canvas, ctx };
+};
+
+const svgToBlob = (svg: SVGElement): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    try {
+      const svgData = new XMLSerializer().serializeToString(svg);
+      const svgBlob = new Blob([svgData], {
+        type: "image/svg+xml;charset=utf-8",
+      });
+      resolve(svgBlob);
+    } catch (error) {
+      reject(error);
+    }
+  });
+};
+
+const blobToImage = (blob: Blob): Promise<HTMLImageElement> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(blob);
+  });
+};
+
 export default function QRCodeDesigner({
   linkId,
   code,
   onOpenChange,
 }: QRCodeDesignerProps) {
+  // Memoized URL to prevent unnecessary recalculations
   const url = useMemo(() => `https://slugy.co/${code}`, [code]);
+  
+  // State management
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
 
-  const [initialState, setInitialState] = useState<FormState>({
+  // Memoized initial state
+  const [initialState, setInitialState] = useState<FormState>(() => ({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
     dotStyle: "square",
-  });
+  }));
 
-  const [formState, setFormState] = useState<FormState>({
+  // Memoized form state
+  const [formState, setFormState] = useState<FormState>(() => ({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
     dotStyle: "square",
-  });
+  }));
 
+  // Memoized form dirty check
   const isFormDirty = useMemo(() => {
     return (
       formState.fgColor !== initialState.fgColor ||
@@ -219,6 +271,7 @@ export default function QRCodeDesigner({
     );
   }, [formState, initialState]);
 
+  // Memoized QR options to prevent unnecessary re-renders
   const [options, setOptions] = useState<Options>(() => ({
     ...DEFAULT_QR_OPTIONS,
     data: url,
@@ -226,9 +279,10 @@ export default function QRCodeDesigner({
       color: formState.fgColor,
       type: formState.dotStyle,
     },
-    image: STATIC_LOGO.src, // Always show the static logo
+    image: STATIC_LOGO.src,
   }));
 
+  // Optimized download function with better error handling
   const downloadHighQualityQR = useCallback(
     async (
       qrCode: QRCodeStyling | undefined,
@@ -240,27 +294,9 @@ export default function QRCodeDesigner({
         const svg = containerRef.current.querySelector("svg");
         if (!svg) throw new Error("SVG element not found");
 
-        const canvas = document.createElement("canvas");
-        const scale = 4;
-        canvas.width = svg.width.baseVal.value * scale;
-        canvas.height = svg.height.baseVal.value * scale;
-
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("Could not get canvas context");
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-
-        const svgData = new XMLSerializer().serializeToString(svg);
-        const svgBlob = new Blob([svgData], {
-          type: "image/svg+xml;charset=utf-8",
-        });
-        const img = new Image();
-        img.src = URL.createObjectURL(svgBlob);
-
-        await new Promise((resolve) => {
-          img.onload = resolve;
-        });
+        const { canvas, ctx } = createCanvasFromSVG(svg, QR_CONFIG.CANVAS_SCALE);
+        const svgBlob = await svgToBlob(svg);
+        const img = await blobToImage(svgBlob);
 
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
@@ -284,12 +320,15 @@ export default function QRCodeDesigner({
         toast.error("Failed to download QR code");
       }
     },
-    [],
+    [createCanvasFromSVG, svgToBlob, blobToImage],
   );
 
+  // Memoized QR code update function
   const updateQRCode = useCallback(() => {
     if (!containerRef.current) return;
+    
     containerRef.current.innerHTML = "";
+    
     if (!qrCodeRef.current) {
       qrCodeRef.current = new QRCodeStyling(options);
       qrCodeRef.current.append(containerRef.current);
@@ -298,11 +337,14 @@ export default function QRCodeDesigner({
     }
   }, [options]);
 
+  // Optimized fetch function with better error handling
   const fetchQrCode = useCallback(async () => {
     if (!linkId) return;
+    
     try {
       setIsFetching(true);
       const qrCodeData = await getQrCode(linkId);
+      
       if (!qrCodeData) return;
 
       const updatedFormState = {
@@ -335,11 +377,14 @@ export default function QRCodeDesigner({
     }
   }, [linkId, url]);
 
+  // Memoized form change handler
   const handleFormChange = useCallback(
     (field: keyof FormState, value: string | number) => {
       setFormState((prev) => ({ ...prev, [field]: value }));
+      
       setOptions((prev) => {
         const newOptions = { ...prev };
+        
         if (field === "size") {
           newOptions.width = Number(value);
           newOptions.height = Number(value);
@@ -350,12 +395,14 @@ export default function QRCodeDesigner({
             ...(field === "dotStyle" && { type: value as DotType }),
           };
         }
+        
         return newOptions;
       });
     },
     [],
   );
 
+  // Optimized copy to clipboard function
   const copyToClipboard = useCallback(async (blob: Blob) => {
     try {
       await navigator.clipboard.write([
@@ -368,6 +415,7 @@ export default function QRCodeDesigner({
     }
   }, []);
 
+  // Memoized copy image handler
   const handleCopyImage = useCallback(async () => {
     if (!containerRef.current) return;
 
@@ -375,23 +423,9 @@ export default function QRCodeDesigner({
       const svg = containerRef.current.querySelector("svg");
       if (!svg) throw new Error("SVG element not found");
 
-      const svgData = new XMLSerializer().serializeToString(svg);
-      const svgBlob = new Blob([svgData], {
-        type: "image/svg+xml;charset=utf-8",
-      });
-      const img = new Image();
-      img.src = URL.createObjectURL(svgBlob);
-
-      await new Promise((resolve) => {
-        img.onload = resolve;
-      });
-
-      const canvas = document.createElement("canvas");
-      canvas.width = svg.width.baseVal.value;
-      canvas.height = svg.height.baseVal.value;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Could not get canvas context");
+      const svgBlob = await svgToBlob(svg);
+      const img = await blobToImage(svgBlob);
+      const { canvas, ctx } = createCanvasFromSVG(svg);
 
       ctx.drawImage(img, 0, 0);
       canvas.toBlob((blob) => blob && void copyToClipboard(blob), "image/png");
@@ -399,17 +433,21 @@ export default function QRCodeDesigner({
       console.error("Error copying image:", error);
       toast.error("Failed to copy QR code");
     }
-  }, [copyToClipboard]);
+  }, [svgToBlob, blobToImage, createCanvasFromSVG, copyToClipboard]);
 
+  // Memoized save handler
   const handleSave = useCallback(async () => {
     if (!qrCodeRef.current || !containerRef.current) return;
+    
     try {
       setIsSaving(true);
       const svg = containerRef.current.querySelector("svg");
       if (!svg) throw new Error("SVG element not found");
+      
       const svgData = new XMLSerializer().serializeToString(svg);
       const blob = new Blob([svgData], { type: "image/svg+xml" });
       const imageUrl = URL.createObjectURL(blob);
+      
       const result = await saveQrCode({
         linkId,
         imageUrl,
@@ -420,6 +458,7 @@ export default function QRCodeDesigner({
           logo: formState.logo,
         },
       });
+      
       if (result.success) {
         toast.success("QR code saved successfully");
         onOpenChange(false);
@@ -436,6 +475,51 @@ export default function QRCodeDesigner({
     }
   }, [linkId, formState, onOpenChange]);
 
+  // Memoized action buttons to prevent unnecessary re-renders
+  const actionButtons = useMemo(() => (
+    <div className="flex gap-2">
+      <Button
+        onClick={() =>
+          downloadHighQualityQR(
+            qrCodeRef.current || undefined,
+            containerRef,
+          )
+        }
+        variant="ghost"
+        size="icon"
+        title="Download High Quality QR Code"
+      >
+        <Download className="h-4 w-4" />
+      </Button>
+      <Button
+        onClick={handleCopyImage}
+        variant="ghost"
+        size="icon"
+        title="Copy QR Code"
+      >
+        <Copy className="h-3 w-3" />
+      </Button>
+    </div>
+  ), [downloadHighQualityQR, handleCopyImage]);
+
+  // Memoized footer buttons
+  const footerButtons = useMemo(() => (
+    <div className="flex justify-end gap-2 pt-4">
+      <Button
+        variant="outline"
+        onClick={() => onOpenChange(false)}
+        disabled={isSaving}
+      >
+        Cancel
+      </Button>
+      <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
+        {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
+        Save
+      </Button>
+    </div>
+  ), [isSaving, isFormDirty, handleSave, onOpenChange]);
+
+  // Effects
   useEffect(() => {
     if (code) {
       void fetchQrCode();
@@ -446,6 +530,7 @@ export default function QRCodeDesigner({
     updateQRCode();
   }, [updateQRCode]);
 
+  // Cleanup effect
   useEffect(() => {
     return () => {
       if (qrCodeRef.current) {
@@ -458,29 +543,7 @@ export default function QRCodeDesigner({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <span className="font-medium">Preview</span>
-        <div className="flex gap-2">
-          <Button
-            onClick={() =>
-              downloadHighQualityQR(
-                qrCodeRef.current || undefined,
-                containerRef,
-              )
-            }
-            variant="ghost"
-            size="icon"
-            title="Download High Quality QR Code"
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={handleCopyImage}
-            variant="ghost"
-            size="icon"
-            title="Copy QR Code"
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
-        </div>
+        {actionButtons}
       </div>
 
       <QRCodePreview
@@ -504,42 +567,7 @@ export default function QRCodeDesigner({
         </div>
       </div>
 
-      {/*
-        Uncomment and enable dot style selection if needed:
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label className="text-sm font-medium" htmlFor="dotStyle">
-            Dot Style
-          </Label>
-          <Select
-            value={formState.dotStyle}
-            onValueChange={(value) =>
-              handleFormChange("dotStyle", value as DotType)
-            }
-          >
-            {DOT_STYLES.map(({ label, value }) => (
-              <SelectItem key={value} value={value}>
-                {label}
-              </SelectItem>
-            ))}
-          </Select>
-        </div>
-      </div>
-      */}
-
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          variant="outline"
-          onClick={() => onOpenChange(false)}
-          disabled={isSaving}
-        >
-          Cancel
-        </Button>
-        <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
-          {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}{" "}
-          Save
-        </Button>
-      </div>
+      {footerButtons}
     </div>
   );
 }

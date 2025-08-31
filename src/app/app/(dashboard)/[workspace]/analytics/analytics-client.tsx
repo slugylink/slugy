@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useAnalytics } from "@/hooks/use-analytics";
 import FilterActions, {
   type CategoryId,
+  type FilterCategory,
 } from "@/components/web/_analytics/filter";
 import {
   Box,
@@ -19,26 +20,60 @@ import {
   Redo2,
 } from "lucide-react";
 
-// Dynamic imports with SSR disabled (client-only)
+// Constants for better maintainability
+const DEFAULT_TIME_PERIOD = "24h";
+const CHART_HEIGHT = "h-[300px] sm:h-[420px]";
+
+// Dynamic imports with optimized loading
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
   ssr: true,
+  loading: () => <ChartSkeleton />,
 });
+
 const UrlClicks = dynamic(
   () => import("@/components/web/_analytics/urlclicks-card"),
-  { ssr: true },
+  {
+    ssr: true,
+    loading: () => <CardSkeleton />,
+  },
 );
+
 const GeoClicks = dynamic(
   () => import("@/components/web/_analytics/geoclicks-card"),
-  { ssr: true },
+  {
+    ssr: true,
+    loading: () => <CardSkeleton />,
+  },
 );
+
 const DeviceClicks = dynamic(
   () => import("@/components/web/_analytics/deviceclicks-card"),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  },
 );
+
 const ReferrerClicks = dynamic(
   () => import("@/components/web/_analytics/referrerclicks-card"),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => <CardSkeleton />,
+  },
 );
+
+// Loading skeleton components
+function ChartSkeleton() {
+  return (
+    <div
+      className={`${CHART_HEIGHT} bg-muted w-full animate-pulse rounded-lg`}
+    />
+  );
+}
+
+function CardSkeleton() {
+  return <div className="bg-muted h-64 w-full animate-pulse rounded-lg" />;
+}
 
 interface AnalyticsClientProps {
   workspace: string;
@@ -46,22 +81,23 @@ interface AnalyticsClientProps {
 
 export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
-  const timePeriod =
-    (searchParams.get("time_period") as
-      | "24h"
-      | "7d"
-      | "30d"
-      | "3m"
-      | "12m"
-      | "all") || "24h";
 
-  // Get all search params as an object
+  // Get time period with better type safety
+  const timePeriod = useMemo(() => {
+    const period = searchParams.get("time_period");
+    const validPeriods = ["24h", "7d", "30d", "3m", "12m", "all"] as const;
+    return validPeriods.includes(period as (typeof validPeriods)[number])
+      ? (period as (typeof validPeriods)[number])
+      : DEFAULT_TIME_PERIOD;
+  }, [searchParams]);
+
+  // Get all search params as an object with better memoization
   const searchParamsObj = useMemo(
     () => Object.fromEntries(searchParams.entries()),
     [searchParams],
   );
 
-  // Use the new analytics hook to fetch all data at once
+  // Use the analytics hook to fetch all data at once
   const {
     data: res,
     links,
@@ -75,6 +111,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     destinations,
     error,
     isLoading,
+    isValidating,
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
@@ -95,7 +132,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     ],
   });
 
-  // Helper function to convert analytics data to FilterOption types
+  // Helper function to convert analytics data to FilterOption types with better performance
   const convertToFilterOptions = useMemo(() => {
     return {
       links:
@@ -174,7 +211,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
 
   // Memoize filter categories to prevent unnecessary re-renders
   const filterCategories = useMemo(
-    () => [
+    (): FilterCategory[] => [
       {
         id: "slug_key" as CategoryId,
         label: "Link",
@@ -233,14 +270,48 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     [convertToFilterOptions],
   );
 
+  // Memoize chart data to prevent unnecessary re-renders
+  const chartData = useMemo(() => {
+    return res?.clicksOverTime?.map((item) => ({
+      time: item.time instanceof Date ? item.time.toISOString() : item.time,
+      clicks: item.clicks,
+    }));
+  }, [res?.clicksOverTime]);
+
+  // Error state with better UX
   if (error) {
     return (
       <div className="flex h-full min-h-[60vh] w-full flex-col items-center justify-center rounded border">
-        <h2 className="mt-2 text-lg font-medium">Error loading analytics</h2>
-        <p className="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
+        <h2 className="text-destructive mt-2 text-lg font-medium">
+          Error loading analytics
+        </h2>
+        <p className="text-muted-foreground mt-2 max-w-md text-center text-sm">
           {error.message ||
             "There was an error loading your analytics. Please try again later."}
         </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 rounded-md px-4 py-2 text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  // Loading state with better UX
+  if (isLoading && !res) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-start">
+          <div className="bg-muted h-10 w-48 animate-pulse rounded" />
+        </div>
+        <ChartSkeleton />
+        <div className="grid gap-4 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <CardSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -251,6 +322,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
       <div className="flex items-center justify-start">
         <FilterActions filterCategories={filterCategories} />
       </div>
+
       <div className="my-6 space-y-4">
         {/* Analytics Chart */}
         <Chart
@@ -258,13 +330,10 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
           timePeriod={timePeriod}
           searchParams={searchParamsObj}
           // Pass data directly to prevent duplicate API calls
-          data={res?.clicksOverTime?.map((item) => ({
-            time:
-              item.time instanceof Date ? item.time.toISOString() : item.time,
-            clicks: item.clicks,
-          }))}
+          data={chartData}
           totalClicks={res?.totalClicks}
-          isLoading={isLoading}
+          isLoading={isLoading || isValidating}
+          error={error}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -276,8 +345,9 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             // Pass data directly to prevent duplicate API calls
             linksData={convertToFilterOptions.links}
             destinationsData={convertToFilterOptions.destinations}
-            isLoading={isLoading}
+            isLoading={isLoading || isValidating}
           />
+
           {/* Geo Clicks */}
           <GeoClicks
             workspaceslug={workspace}
@@ -287,9 +357,10 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             citiesData={convertToFilterOptions.cities}
             countriesData={convertToFilterOptions.countries}
             continentsData={convertToFilterOptions.continents}
-            isLoading={isLoading}
+            isLoading={isLoading || isValidating}
             error={error}
           />
+
           {/* Device Clicks */}
           <DeviceClicks
             workspaceslug={workspace}
@@ -299,14 +370,15 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
             devicesData={convertToFilterOptions.devices}
             browsersData={convertToFilterOptions.browsers}
             osesData={convertToFilterOptions.oses}
-            isLoading={isLoading}
+            isLoading={isLoading || isValidating}
           />
+
           {/* Referrer Clicks */}
           <ReferrerClicks
             workspaceslug={workspace}
             searchParams={searchParamsObj}
             timePeriod={timePeriod}
-            isLoading={isLoading}
+            isLoading={isLoading || isValidating}
             error={error}
             referrersData={convertToFilterOptions.referrers}
           />

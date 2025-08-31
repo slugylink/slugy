@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 
-// Types for database queries
 type LinkWhereInput = {
   workspaceId: string;
   OR?: Array<{
@@ -19,7 +18,20 @@ type LinkOrderByInput =
   | Array<{ lastClicked: { sort: "desc"; nulls: "last" } }>
   | { createdAt: "desc" };
 
-// Input validation
+const VALID_SORT_OPTIONS = [
+  "date-created",
+  "total-clicks",
+  "last-clicked",
+] as const;
+const MAX_LIMIT = 100;
+const MIN_LIMIT = 1;
+const DEFAULT_OFFSET = 0;
+
+// Cache configuration
+const CACHE_DURATION = 300; // 5 minutes
+const STALE_WHILE_REVALIDATE = 600; // 10 minutes
+const CACHE_VARY_HEADERS = "Accept, Accept-Encoding, Authorization";
+
 const validateInput = (params: {
   search?: string | null;
   showArchived?: string | null;
@@ -29,43 +41,43 @@ const validateInput = (params: {
 }) => {
   const errors: string[] = [];
 
-  // Validate sortBy
-  const validSortOptions = ["date-created", "total-clicks", "last-clicked"];
-  if (params.sortBy && !validSortOptions.includes(params.sortBy)) {
-    errors.push("Invalid sortBy parameter");
+  if (
+    params.sortBy &&
+    !VALID_SORT_OPTIONS.includes(
+      params.sortBy as (typeof VALID_SORT_OPTIONS)[number],
+    )
+  ) {
+    errors.push(
+      `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
+    );
   }
 
-  // Validate offset
-  const offset = parseInt(params.offset ?? "0", 10);
+  const offset = parseInt(params.offset ?? String(DEFAULT_OFFSET), 10);
   if (isNaN(offset) || offset < 0) {
-    errors.push("Invalid offset parameter");
+    errors.push("Offset must be a non-negative integer");
   }
 
-  // Validate limit
   const limit = parseInt(params.limit ?? String(DEFAULT_LIMIT), 10);
-  if (isNaN(limit) || limit < 1 || limit > 100) {
-    errors.push("Invalid limit parameter (must be between 1 and 100)");
+  if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
+    errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
   }
 
   return { errors, offset, limit };
 };
 
-// Generate search conditions optimized for short and long search terms
 const getSearchConditions = (
   search: string,
 ): NonNullable<LinkWhereInput["OR"]> => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return [];
 
-  // Use efficient search for short queries (<= 3 characters)
-  if (trimmedSearch.length <= 3) {
+  if (trimmedSearch.length <= 2) {
     return [
       { description: { contains: trimmedSearch, mode: "insensitive" } },
       { url: { contains: trimmedSearch, mode: "insensitive" } },
     ];
   }
 
-  // For longer queries, similar conditions, possible future optimization here
   return [
     { description: { contains: trimmedSearch, mode: "insensitive" } },
     { url: { contains: trimmedSearch, mode: "insensitive" } },
@@ -142,23 +154,60 @@ const getLinksWithCount = async (
   }
 };
 
+const calculatePaginationInfo = (
+  totalLinks: number,
+  limit: number,
+  offset: number,
+) => {
+  const totalPages = Math.ceil(totalLinks / limit);
+  const currentPage = Math.floor(offset / limit) + 1;
+  const hasNextPage = currentPage < totalPages;
+  const hasPreviousPage = currentPage > 1;
+
+  return {
+    totalPages,
+    currentPage,
+    hasNextPage,
+    hasPreviousPage,
+  };
+};
+
+const setCacheHeaders = (
+  response: NextResponse,
+  data: Record<string, unknown>,
+) => {
+  response.headers.set(
+    "Cache-Control",
+    `private, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+  );
+
+  const etag = `"${Buffer.from(JSON.stringify(data)).toString("base64").slice(0, 8)}"`;
+  response.headers.set("ETag", etag);
+
+  response.headers.set("Vary", CACHE_VARY_HEADERS);
+
+  return response;
+};
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
     const session = await auth.api.getSession({ headers: await headers() });
-
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized", code: "UNAUTHORIZED" },
+        { status: 401 },
+      );
     }
 
     const context = await params;
     const { workspaceslug } = context;
 
-    if (!workspaceslug || workspaceslug.length < 1) {
+    if (!workspaceslug?.trim()) {
       return NextResponse.json(
-        { error: "Invalid workspace slug" },
+        { error: "Invalid workspace slug", code: "INVALID_WORKSPACE" },
         { status: 400 },
       );
     }
@@ -167,7 +216,7 @@ export async function GET(
     const search = searchParams.get("search") ?? "";
     const showArchived = searchParams.get("showArchived") === "true";
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
-    const offsetParam = searchParams.get("offset") ?? "0";
+    const offsetParam = searchParams.get("offset") ?? String(DEFAULT_OFFSET);
     const limitParam = searchParams.get("limit") ?? String(DEFAULT_LIMIT);
 
     const { errors, offset, limit } = validateInput({
@@ -180,7 +229,11 @@ export async function GET(
 
     if (errors.length > 0) {
       return NextResponse.json(
-        { error: "Invalid parameters", details: errors },
+        {
+          error: "Invalid parameters",
+          details: errors,
+          code: "VALIDATION_ERROR",
+        },
         { status: 400 },
       );
     }
@@ -198,11 +251,15 @@ export async function GET(
 
     if (!workspace) {
       return NextResponse.json(
-        { error: "Workspace not found or access denied" },
+        {
+          error: "Workspace not found or access denied",
+          code: "WORKSPACE_NOT_FOUND",
+        },
         { status: 404 },
       );
     }
 
+    // Build query conditions
     const searchConditions = getSearchConditions(search);
     const conditions: LinkWhereInput = {
       workspaceId: workspace.id,
@@ -212,6 +269,7 @@ export async function GET(
 
     const orderBy = getOrderConditions(sortBy);
 
+    // Fetch data
     const { totalLinks, links } = await getLinksWithCount(
       workspace.id,
       conditions,
@@ -220,9 +278,6 @@ export async function GET(
       limit,
     );
 
-    const totalPages = Math.ceil(totalLinks / limit);
-
-    // Pagination edge case: offset past total, reset to first page
     if (offset >= totalLinks && totalLinks > 0) {
       const { links: firstPageLinks } = await getLinksWithCount(
         workspace.id,
@@ -232,47 +287,58 @@ export async function GET(
         limit,
       );
 
-      return NextResponse.json(
+      const paginationInfo = calculatePaginationInfo(totalLinks, limit, 0);
+
+      const edgeCaseResponse = NextResponse.json(
         {
           links: firstPageLinks,
           totalLinks,
-          totalPages,
-          currentPage: 1,
-          hasNextPage: totalPages > 1,
-          hasPreviousPage: false,
+          ...paginationInfo,
+          overallCount: totalLinks,
         },
         { status: 200 },
       );
+
+      return setCacheHeaders(edgeCaseResponse, {
+        firstPageLinks,
+        totalLinks,
+        ...paginationInfo,
+      });
     }
 
-    const currentPage = Math.floor(offset / limit) + 1;
-    const hasNextPage = currentPage < totalPages;
-    const hasPreviousPage = currentPage > 1;
+    const paginationInfo = calculatePaginationInfo(totalLinks, limit, offset);
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         links,
         totalLinks,
-        totalPages,
-        currentPage,
-        hasNextPage,
-        hasPreviousPage,
+        ...paginationInfo,
         overallCount: totalLinks,
       },
       { status: 200 },
     );
+
+    return setCacheHeaders(response, { links, totalLinks, ...paginationInfo });
   } catch (error) {
     console.error("Error fetching links:", error);
 
-    if (error instanceof Error && error.message.includes("database")) {
-      return NextResponse.json(
-        { error: "Database connection error" },
-        { status: 503 },
-      );
+    if (error instanceof Error) {
+      if (error.message.includes("database")) {
+        return NextResponse.json(
+          {
+            error: "Database connection error",
+            code: "DATABASE_ERROR",
+          },
+          { status: 503 },
+        );
+      }
     }
 
     return NextResponse.json(
-      { error: "Failed to fetch links" },
+      {
+        error: "Failed to fetch links",
+        code: "INTERNAL_ERROR",
+      },
       { status: 500 },
     );
   }

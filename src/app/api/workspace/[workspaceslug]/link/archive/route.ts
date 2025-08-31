@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
+import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 
 const bulkArchiveSchema = z.object({
   linkIds: z.array(z.string()).min(1, "At least one link ID is required"),
@@ -33,7 +34,6 @@ export async function POST(
     const body = await req.json();
     const { linkIds } = bulkArchiveSchema.parse(body);
 
-    // Verify all links belong to the workspace and get their slugs for cache invalidation
     const links = await db.link.findMany({
       where: {
         id: { in: linkIds },
@@ -58,9 +58,11 @@ export async function POST(
       data: { isArchived: true },
     });
 
-    // Invalidate cache for all archived links
     const slugs = links.map(link => link.slug);
-    await invalidateLinkCacheBatch(slugs);
+    await Promise.all([
+      invalidateLinkCacheBatch(slugs),
+      invalidateWorkspaceLinksCache(context.workspaceslug),
+    ]);
 
     return NextResponse.json(
       { message: `Successfully archived ${linkIds.length} links` },

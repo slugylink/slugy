@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
+import { invalidateWorkspaceLinksCache } from "@/lib/cache-utils/workspace-cache";
 
 const bulkDeleteSchema = z.object({
   linkIds: z.array(z.string()).min(1, "At least one link ID is required"),
@@ -22,7 +23,6 @@ export async function POST(
 
     const context = await params;
     
-    // Validate workspace access
     const workspace = await validateworkspaceslug(
       session.user.id,
       context.workspaceslug,
@@ -33,7 +33,6 @@ export async function POST(
     const body = await req.json();
     const { linkIds } = bulkDeleteSchema.parse(body);
 
-    // Verify all links belong to the workspace and get their slugs for cache invalidation
     const links = await db.link.findMany({
       where: {
         id: { in: linkIds },
@@ -57,9 +56,11 @@ export async function POST(
       },
     });
 
-    // Invalidate cache for all deleted links
     const slugs = links.map(link => link.slug);
-    await invalidateLinkCacheBatch(slugs);
+    await Promise.all([
+      invalidateLinkCacheBatch(slugs),
+      invalidateWorkspaceLinksCache(context.workspaceslug),
+    ]);
 
     return NextResponse.json(
       { message: `Successfully deleted ${linkIds.length} links` },
