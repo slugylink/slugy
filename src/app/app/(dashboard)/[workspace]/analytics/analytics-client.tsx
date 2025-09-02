@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAnalytics } from "@/hooks/use-analytics";
+import { useRedisAnalytics } from "@/hooks/use-redis-analytics";
 import FilterActions, {
   type CategoryId,
   type FilterCategory,
@@ -98,6 +99,48 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
   );
 
   // Use the analytics hook to fetch all data at once
+  const useRedis = timePeriod === "24h";
+  const redis = useRedisAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: searchParamsObj,
+    metrics: [
+      "totalClicks",
+      "clicksOverTime",
+      "links",
+      "cities",
+      "countries",
+      "continents",
+      "devices",
+      "browsers",
+      "oses",
+      "referrers",
+      "destinations",
+    ],
+    enabled: useRedis,
+  });
+
+  const sql = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: searchParamsObj,
+    metrics: [
+      "totalClicks",
+      "clicksOverTime",
+      "links",
+      "cities",
+      "countries",
+      "continents",
+      "devices",
+      "browsers",
+      "oses",
+      "referrers",
+      "destinations",
+    ],
+    enabled: !useRedis,
+  });
+
+  const dataSource = useRedis ? redis : sql;
   const {
     data: res,
     links,
@@ -112,25 +155,7 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     error,
     isLoading,
     isValidating,
-  } = useAnalytics({
-    workspaceslug: workspace,
-    timePeriod,
-    searchParams: searchParamsObj,
-    // Fetch all metrics for the main analytics dashboard
-    metrics: [
-      "totalClicks",
-      "clicksOverTime",
-      "links",
-      "cities",
-      "countries",
-      "continents",
-      "devices",
-      "browsers",
-      "oses",
-      "referrers",
-      "destinations",
-    ],
-  });
+  } = dataSource;
 
   // Helper function to convert analytics data to FilterOption types with better performance
   const convertToFilterOptions = useMemo(() => {

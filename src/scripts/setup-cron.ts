@@ -1,8 +1,11 @@
-import { createUsageCronSchedule } from "@/lib/qstash";
+import { createUsageCronSchedule, createAnalyticsBatchCronSchedule } from "@/lib/qstash";
 
 async function main() {
-  console.log("Setting up usage cron schedule...");
+  console.log("Setting up cron schedules...");
+  
   await createUsageCronSchedule();
+  await createAnalyticsBatchCronSchedule();
+  
   console.log("Setup complete!");
 }
 

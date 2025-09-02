@@ -1,6 +1,7 @@
 import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
+import { recordAnalyticsEvent } from "../cache-utils/redis-analytics";
 import { getLink } from "./get-link";
 
 interface AnalyticsData {
@@ -25,6 +26,7 @@ async function trackAnalytics(
   linkId: string,
   slug: string,
   workspaceId: string,
+  destinationUrl?: string,
 ): Promise<void> {
   try {
     const ua = userAgent(req);
@@ -45,7 +47,7 @@ async function trackAnalytics(
       linkId,
       workspaceId,
       slug,
-      url: req.nextUrl.href,
+      url: destinationUrl ?? req.nextUrl.href,
       ip: analytics.ipAddress,
       country: analytics.country ?? UNKNOWN_VALUE,
       city: analytics.city ?? "Unknown",
@@ -60,24 +62,26 @@ async function trackAnalytics(
     // Use waitUntil for non-blocking analytics
     waitUntil(
       Promise.allSettled([
-        // Tinybird analytics
-        sendEventsToTinybird(tbEvent).catch((err) => 
-          console.error("[Tinybird Analytics Error]", err)
+        // Tinybird analytics (best-effort)
+        sendEventsToTinybird(tbEvent).catch((err) =>
+          console.error("[Tinybird Analytics Error]", err),
         ),
-        
-        // Internal analytics API
-        fetch(`${req.nextUrl.origin}/api/analytics/track`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            linkId,
-            slug,
-            workspaceId,
-            analyticsData: analytics,
-          }),
-        }).catch((err) => 
-          console.error("[Internal Analytics Error]", err)
-        ),
+        // Redis ZSET ingestion for last 24h analytics (authoritative for 24h)
+        recordAnalyticsEvent({
+          ts: Date.now(),
+          workspaceId,
+          linkId,
+          slug,
+          url: destinationUrl ?? req.nextUrl.href,
+          ip: analytics.ipAddress,
+          country: analytics.country,
+          city: analytics.city,
+          continent: analytics.continent,
+          device: analytics.device,
+          browser: analytics.browser,
+          os: analytics.os,
+          referer: analytics.referer,
+        }).catch((err: unknown) => console.error("[Redis Analytics Error]", err)),
       ]),
     );
   } catch (err) {
@@ -123,7 +127,7 @@ export async function URLRedirects(
     // Handle successful redirects
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
       // Track analytics asynchronously
-      void trackAnalytics(req, linkData.linkId, shortCode, linkData.workspaceId);
+      void trackAnalytics(req, linkData.linkId, shortCode, linkData.workspaceId, linkData.url);
       
       // Perform redirect
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);

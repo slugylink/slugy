@@ -77,7 +77,11 @@ export default function TableCard<T>({
         const href = `${currentPath}${paramJoiner}${keyPrefix}_key=${encodeURIComponent(keyId)}`;
 
         return (
-          <Link key={`${keyPrefix}-${keyId}`} href={href} scroll={false}>
+          <Link
+            key={`${keyPrefix}-${keyId}-${index}`}
+            href={href}
+            scroll={false}
+          >
             <div
               className="hover:bg-muted/30 focus:bg-muted/40 relative flex cursor-pointer items-center border-none transition-colors"
               role="listitem"

@@ -16,4 +16,16 @@ export async function createUsageCronSchedule() {
   }
 }
 
+export async function createAnalyticsBatchCronSchedule() {
+  try {
+    await client.schedules.create({
+      destination: "https://slugy.co/api/cron/analytics",
+      cron: "0 */4 * * *", // Every 4 hours - processes Redis analytics to database
+    });
+    console.log("Analytics batch cron schedule created successfully");
+  } catch (error) {
+    console.error("Failed to create analytics batch cron schedule:", error);
+  }
+}
+
 export { client };

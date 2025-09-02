@@ -25,9 +25,9 @@ export async function sendEventsToTinybird(event: AnalyticsEvent) {
     const sanitizedEvent = {
       linkId: event.linkId,
       clickId: event.clickId,
+      workspaceId: event.workspaceId,
       slug: event.slug,
       url: event.url,
-      workspaceId: event.workspaceId,
       ip: event.ip,
       country: event.country,
       city: event.city,
