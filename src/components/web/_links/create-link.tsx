@@ -241,7 +241,7 @@ const CreateLinkForm = React.memo(({ workspaceslug }: { workspaceslug: string })
       return (
         <>
           <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-          Creating...
+          Create link <CornerDownLeft size={12} />
         </>
       );
     }
