@@ -1,72 +1,123 @@
 import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse, userAgent } from "next/server";
-import { sendEventsToTinybird, AnalyticsEvent } from "../tinybird/tintbird";
 import { getLink } from "./get-link";
+import { detectTrigger } from "./detect-trigger";
+import { sendLinkClickEvent } from "@/lib/tinybird/slugy_click_events";
+import {
+  cacheAnalyticsEvent,
+  type CachedAnalyticsData,
+} from "@/lib/cache-utils/analytics-cache";
 
 interface AnalyticsData {
   ipAddress: string;
-  country?: string;
-  city?: string;
-  continent?: string;
-  referer?: string;
+  country: string;
+  city: string;
+  continent: string;
+  referer: string;
   device: string;
   browser: string;
   os: string;
+  trigger: string;
 }
 
-// Constants for better maintainability
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
 const DIRECT_REFERER = "Direct";
 
-// Analytics tracking with better error handling and performance
 async function trackAnalytics(
   req: NextRequest,
   linkId: string,
   slug: string,
+  url: string,
   workspaceId: string,
 ): Promise<void> {
   try {
     const ua = userAgent(req);
     const headers = req.headers;
+    const trigger = detectTrigger(req);
+    const timestamp = new Date().toISOString();
 
     const analytics: AnalyticsData = {
       ipAddress: headers.get("x-forwarded-for") ?? UNKNOWN_VALUE,
-      country: headers.get("x-vercel-ip-country")?.toLowerCase() ?? UNKNOWN_VALUE,
-      city: decodeURIComponent(headers.get("x-vercel-ip-city") ?? "Unknown"),
-      continent: headers.get("x-vercel-ip-continent")?.toLowerCase() ?? UNKNOWN_VALUE,
+      country:
+        headers.get("x-vercel-ip-country")?.toLowerCase() ?? UNKNOWN_VALUE,
+      city: decodeURIComponent(
+        headers.get("x-vercel-ip-city") ?? UNKNOWN_VALUE,
+      ),
+      continent:
+        headers.get("x-vercel-ip-continent")?.toLowerCase() ?? UNKNOWN_VALUE,
       device: ua.device?.type?.toLowerCase() ?? "desktop",
       browser: ua.browser?.name?.toLowerCase() ?? "chrome",
       os: ua.os?.name?.toLowerCase() ?? "windows",
       referer: headers.get("referer") ?? DIRECT_REFERER,
+      trigger,
     };
 
-    const tbEvent: AnalyticsEvent = {
+    function extractUTMParams(url: string) {
+      const params = new URL(url).searchParams;
+      return {
+        utm_source: params.get("utm_source") || null,
+        utm_medium: params.get("utm_medium") || null,
+        utm_campaign: params.get("utm_campaign") || null,
+        utm_term: params.get("utm_term") || null,
+        utm_content: params.get("utm_content") || null,
+      };
+    }
+
+    const utmParams = extractUTMParams(url);
+
+    // Prepare analytics data for Redis caching
+    const cachedData: CachedAnalyticsData = {
       linkId,
-      workspaceId,
       slug,
-      url: req.nextUrl.href,
-      ip: analytics.ipAddress,
-      country: analytics.country ?? UNKNOWN_VALUE,
-      city: analytics.city ?? "Unknown",
-      continent: analytics.continent ?? UNKNOWN_VALUE,
+      workspaceId,
+      url,
+      timestamp,
+      ipAddress: analytics.ipAddress,
+      country: analytics.country,
+      city: analytics.city,
+      continent: analytics.continent,
       device: analytics.device,
       browser: analytics.browser,
       os: analytics.os,
-      ua: headers.get("user-agent") ?? UNKNOWN_VALUE,
-      referer: analytics.referer ?? DIRECT_REFERER,
+      referer: analytics.referer,
+      trigger: analytics.trigger,
+      utm_source: utmParams.utm_source || undefined,
+      utm_medium: utmParams.utm_medium || undefined,
+      utm_campaign: utmParams.utm_campaign || undefined,
+      utm_term: utmParams.utm_term || undefined,
+      utm_content: utmParams.utm_content || undefined,
     };
 
-    // Use waitUntil for non-blocking analytics
     waitUntil(
       Promise.allSettled([
-        // Tinybird analytics
-        sendEventsToTinybird(tbEvent).catch((err) => 
-          console.error("[Tinybird Analytics Error]", err)
-        ),
-        
-        // Internal analytics API
-        fetch(`${req.nextUrl.origin}/api/analytics/track`, {
+        // Send to Tinybird
+        sendLinkClickEvent({
+          timestamp,
+          link_id: linkId,
+          workspace_id: workspaceId,
+          slug,
+          url,
+          domain: "slugy.co",
+          ip: analytics.ipAddress,
+          country: analytics.country,
+          city: analytics.city,
+          continent: analytics.continent,
+          device: analytics.device,
+          browser: analytics.browser,
+          os: analytics.os,
+          ua: req.headers.get("user-agent") ?? "",
+          referer: analytics.referer,
+          trigger: analytics.trigger,
+          utm_source: utmParams.utm_source ?? "",
+          utm_medium: utmParams.utm_medium ?? "",
+          utm_campaign: utmParams.utm_campaign ?? "",
+          utm_term: utmParams.utm_term ?? "",
+          utm_content: utmParams.utm_content ?? "",
+        }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
+
+        // Send to internal usage analytics
+        fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -74,10 +125,13 @@ async function trackAnalytics(
             slug,
             workspaceId,
             analyticsData: analytics,
+            trigger,
+            timestamp,
           }),
-        }).catch((err) => 
-          console.error("[Internal Analytics Error]", err)
-        ),
+        }).catch((err) => console.error("[Internal Analytics Error]", err)),
+
+        //batch processing
+        cacheAnalyticsEvent(cachedData),
       ]),
     );
   } catch (err) {
@@ -85,57 +139,52 @@ async function trackAnalytics(
   }
 }
 
-// Main redirection function with better error handling
 export async function URLRedirects(
   req: NextRequest,
   shortCode: string,
 ): Promise<NextResponse | null> {
   try {
-    // Early validation
-    if (!shortCode || shortCode.trim().length === 0) {
+    if (!shortCode?.trim()) {
       console.warn("Empty shortCode provided to URLRedirects");
       return null;
     }
 
-    const cookieHeader = req.headers.get("cookie");
+    const cookieHeader = req.headers.get("cookie") ?? "";
     const origin = req.nextUrl.origin;
-    
-    // Get link data with error handling
     const linkData = await getLink(shortCode, cookieHeader, origin);
 
-    // Handle different response scenarios
     if (!linkData.success) {
-      console.warn(`Link lookup failed for slug "${shortCode}":`, linkData.error);
+      console.warn(
+        `Link lookup failed for slug "${shortCode}":`,
+        linkData.error,
+      );
       return null;
     }
 
-    // Handle password protection
     if (linkData.requiresPassword) {
-      // Redirect to password page or show password form
-      return null; // Let the main app handle password protection
+      return null;
     }
 
-    // Handle expired links
     if (linkData.expired && linkData.url) {
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
 
-    // Handle successful redirects
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      // Track analytics asynchronously
-      void trackAnalytics(req, linkData.linkId, shortCode, linkData.workspaceId);
-      
-      // Perform redirect
+      void trackAnalytics(
+        req,
+        linkData.linkId,
+        shortCode,
+        linkData.url,
+        linkData.workspaceId,
+      );
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
 
-    // Handle not found
-    if (linkData.url && linkData.url.includes("status=not-found")) {
+    if (linkData.url?.includes("status=not-found")) {
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
 
     return null;
-
   } catch (error) {
     console.error(`Link redirect error for slug "${shortCode}":`, error);
     return null;

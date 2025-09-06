@@ -4,6 +4,8 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
+import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
+import { waitUntil } from "@vercel/functions";
 
 export async function DELETE(
   req: Request,
@@ -26,6 +28,17 @@ export async function DELETE(
 
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
+      include: {
+        tags: {
+          select: {
+            tag: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
     });
     if (!link) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
@@ -40,6 +53,19 @@ export async function DELETE(
 
     // Invalidate cache for the deleted link
     await invalidateLinkCache(linkSlug);
+
+    // Mark link as deleted in Tinybird
+    const linkData = {
+      id: link.id,
+      domain: "slugy.co",
+      slug: link.slug,
+      url: link.url,
+      workspaceId: workspace.workspace.id,
+      createdAt: link.createdAt,
+      tags: link.tags.map(t => ({ tagId: t.tag.id })),
+    };
+
+    waitUntil(deleteLink(linkData));
 
     return NextResponse.json(
       { message: "Link deleted successfully" },

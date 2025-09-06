@@ -1,0 +1,29 @@
+
+SCHEMA >
+    `timestamp` DateTime64(3) `json:$.timestamp`,
+    `link_id` String `json:$.link_id`,
+    `workspace_id` String `json:$.workspace_id`,
+    `click_id` Nullable(String) `json:$.click_id`,
+    `slug` LowCardinality(String) `json:$.slug`,
+    `url` LowCardinality(String) `json:$.url`,
+    `domain` LowCardinality(String) `json:$.domain`,
+    `ip` String `json:$.ip`,
+    `country` LowCardinality(String) `json:$.country`,
+    `city` String `json:$.city`,
+    `continent` LowCardinality(String) `json:$.continent`,
+    `device` LowCardinality(String) `json:$.device`,
+    `browser` LowCardinality(String) `json:$.browser`,
+    `os` LowCardinality(String) `json:$.os`,
+    `ua` String `json:$.ua`,
+    `referer` String `json:$.referer`,
+    `trigger` Nullable(String) `json:$.trigger`,
+    `user_id` Nullable(String) `json:$.user_id`,
+    `utm_source` LowCardinality(String) `json:$.utm_source`,
+    `utm_medium` LowCardinality(String) `json:$.utm_medium`,
+    `utm_campaign` LowCardinality(String) `json:$.utm_campaign`,
+    `utm_term` LowCardinality(String) `json:$.utm_term`,
+    `utm_content` LowCardinality(String) `json:$.utm_content`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "timestamp, link_id, workspace_id"

@@ -6,6 +6,8 @@ import { z } from "zod"; // Import zod for input validation
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
+import { waitUntil } from "@vercel/functions";
+import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,
@@ -284,6 +286,19 @@ export async function POST(
       return NextResponse.json({ message: "Link not found" }, { status: 404 });
     }
     await invalidateLinkCache(linkWithTags?.slug);
+
+    // Send link metadata to Tinybird
+    const linkMetadata = {
+      link_id: linkWithTags.id,
+      domain: "slugy.co",
+      slug: linkWithTags.slug,
+      url: linkWithTags.url,
+      tag_ids: linkWithTags.tags.map((t) => t.tag.id),
+      workspace_id: workspaceCheck.workspace.id,
+      created_at: linkWithTags.createdAt.toISOString(),
+    };
+
+    waitUntil(sendLinkMetadata(linkMetadata));
 
     return NextResponse.json(linkWithTags, {
       status: 201,

@@ -1,0 +1,17 @@
+#slugy_links_metadata:
+
+
+SCHEMA >
+    `link_id` String `json:$.link_id`,
+    `domain` String `json:$.domain`,
+    `slug` String `json:$.slug`,
+    `url` String `json:$.url`,
+    `tag_ids` Array(String) `json:$.tag_ids[:]`,
+    `workspace_id` String `json:$.workspace_id`,
+    `created_at` DateTime64(3) `json:$.created_at`,
+    `deleted` UInt8 `json:$.deleted` DEFAULT 0,
+    `timestamp` DateTime `json:$.timestamp` DEFAULT now()
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYear(timestamp)"
+ENGINE_SORTING_KEY "timestamp, link_id, workspace_id"

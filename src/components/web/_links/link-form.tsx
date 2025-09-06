@@ -559,7 +559,7 @@ const LinkFormFields = React.memo(
                   variant="outline"
                   role="combobox"
                   aria-expanded={popoverOpen}
-                  className="h-auto min-h-[40px] w-full justify-between bg-transparent px-3 py-1 hover:bg-transparent"
+                  className="h-auto min-h-[40px] w-full justify-between bg-transparent px-3 hover:bg-transparent"
                   disabled={tagsLoading}
                 >
                   <div className="flex flex-wrap gap-1.5">

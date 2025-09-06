@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
+import { updateLink } from "@/lib/tinybird/slugy-links-metadata";
+import { waitUntil } from "@vercel/functions";
 
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),
@@ -241,6 +243,19 @@ export async function PATCH(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
     await invalidateLinkCache(linkWithTags.slug!);
+
+    // Update link metadata in Tinybird
+    const linkData = {
+      id: linkWithTags.id,
+      domain: "slugy.co",
+      slug: linkWithTags.slug,
+      url: linkWithTags.url,
+      workspaceId: workspace.workspace.id,
+      createdAt: linkWithTags.createdAt,
+      tags: linkWithTags.tags.map(t => ({ tagId: t.tag.id })),
+    };
+
+    waitUntil(updateLink(linkData));
 
     return NextResponse.json(linkWithTags, { status: 200 });
   } catch (error) {

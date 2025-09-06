@@ -1,14 +1,16 @@
 import { tb } from "@/constants/tinybird";
 
-const TINYBIRD_API_URL = `https://api.us-east.aws.tinybird.co/v0/events?name=${tb.click_events}`;
-const TINYBIRD_API_KEY_DATASOURCE = process.env.TINYBIRD_API_KEY_DATASOURCE!;
+const TINYBIRD_API_URL = `https://api.us-east.aws.tinybird.co/v0/events?name=${tb.link_click_events}`;
+const TINYBIRD_API_KEY = process.env.TINYBIRD_API_KEY!;
 
 export interface AnalyticsEvent {
-  linkId: string;
-  clickId?: string; // Optional
   workspaceId: string;
+  linkId: string;
+  alias_linkId: string | null;
+  clickId: string | null;
   slug: string;
   url: string;
+  domain: string;
   ip: string;
   country: string;
   city: string;
@@ -18,32 +20,41 @@ export interface AnalyticsEvent {
   os: string;
   ua: string;
   referer: string;
+  referer_url: string;
+  trigger: string;
+  user_id: string | null;
+  timestamp?: string;
 }
 
 export async function sendEventsToTinybird(event: AnalyticsEvent) {
   try {
     const sanitizedEvent = {
+      workspaceId: event.workspaceId,
       linkId: event.linkId,
+      alias_linkId: event.alias_linkId,
       clickId: event.clickId,
       slug: event.slug,
       url: event.url,
-      workspaceId: event.workspaceId,
+      domain: event.domain,
       ip: event.ip,
       country: event.country,
       city: event.city,
       continent: event.continent,
+      device: event.device,
       browser: event.browser,
       os: event.os,
-      device: event.device,
       ua: event.ua,
       referer: event.referer,
+      referer_url: event.referer_url,
+      trigger: event.trigger,
+      user_id: event.user_id,
       timestamp: new Date().toISOString(),
     };
 
     const response = await fetch(TINYBIRD_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${TINYBIRD_API_KEY_DATASOURCE}`,
+        Authorization: `Bearer ${TINYBIRD_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(sanitizedEvent),

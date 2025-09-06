@@ -24,6 +24,7 @@ interface UseAnalyticsParams {
   searchParams?: Record<string, string>;
   enabled?: boolean;
   metrics?: Array<keyof AnalyticsData>; // Allow selective metric fetching
+  useTinybird?: boolean; // New option to use Tinybird endpoint
 }
 
 // Constants for better maintainability
@@ -69,6 +70,7 @@ const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
   metrics?: Array<keyof AnalyticsData>,
+  useTinybird: boolean = true,
 ): Promise<Partial<AnalyticsData>> => {
   try {
     const searchParams = new URLSearchParams(params);
@@ -77,10 +79,13 @@ const fetchAnalyticsData = async (
     if (metrics && metrics.length > 0) {
       searchParams.set("metrics", metrics.join(","));
     }
+    const endpoint = useTinybird
+      ? `/api/workspace/${workspaceslug}/analytics/tinybird`
+      : `/api/workspace/${workspaceslug}/analytics`;
 
-    const response = await fetch(
-      `/api/workspace/${workspaceslug}/analytics?${searchParams}`,
-    );
+    // const endpoint = `/api/workspace/${workspaceslug}/analytics/tinybird`;
+
+    const response = await fetch(`${endpoint}?${searchParams}`);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -135,13 +140,14 @@ export function useAnalytics({
   searchParams = {},
   enabled = true,
   metrics = DEFAULT_METRICS,
+  useTinybird = false,
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
 
     return Object.fromEntries(
       Object.entries(params).filter(
-        ([_, value]) => value != null && String(value).length > 0,
+        ([, value]) => value != null && String(value).length > 0,
       ),
     );
   }, [timePeriod, searchParams]);
@@ -157,12 +163,12 @@ export function useAnalytics({
     if (!shouldFetch) return null;
 
     return [
-      "analytics",
+      useTinybird ? "analytics-tinybird" : "analytics",
       metrics?.join(",") || "all",
       workspaceslug,
       debouncedSearchParams,
     ];
-  }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams]);
+  }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams, useTinybird]);
 
   // Fetch data with better error handling
   const { data, error, isLoading, mutate, isValidating } = useSWR<
@@ -170,7 +176,13 @@ export function useAnalytics({
     Error
   >(
     swrKey,
-    () => fetchAnalyticsData(workspaceslug, debouncedSearchParams, metrics),
+    () =>
+      fetchAnalyticsData(
+        workspaceslug,
+        debouncedSearchParams,
+        metrics,
+        (useTinybird = true),
+      ),
     {
       revalidateOnFocus: false,
       revalidateOnReconnect: true,

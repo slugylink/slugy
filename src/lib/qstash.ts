@@ -16,4 +16,23 @@ export async function createUsageCronSchedule() {
   }
 }
 
+export async function createAnalyticsBatchSchedule() {
+  try {
+    await client.schedules.create({
+      destination: "https://slugy.co/api/analytics/batch",
+      cron: "0 */4 * * *", // Every 4 hours
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        maxBatchSize: 1000, // Process up to 1000 events per batch
+      }),
+    });
+    console.log("Analytics batch processing schedule created successfully");
+  } catch (error) {
+    console.error("Failed to create analytics batch schedule:", error);
+  }
+}
+
 export { client };

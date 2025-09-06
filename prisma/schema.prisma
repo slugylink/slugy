@@ -311,6 +311,12 @@ model Analytics {
   referer   String?
   ipAddress String?
   userAgent String?
+  trigger   String?
+  utm_source String?
+  utm_medium String?
+  utm_campaign String?
+  utm_term String?
+  utm_content String?
   createdAt DateTime @default(now())
   link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
 

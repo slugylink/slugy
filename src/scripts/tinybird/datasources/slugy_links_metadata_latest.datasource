@@ -1,0 +1,17 @@
+# Data Source created from Pipe 'slugy_links_metadata_pipe'
+
+SCHEMA >
+    `link_id` String,
+    `domain` String,
+    `slug` String,
+    `url` String,
+    `tag_ids` Array(String),
+    `workspace_id` String,
+    `created_at` DateTime64(3),
+    `deleted` UInt8,
+    `timestamp` DateTime
+
+ENGINE "ReplacingMergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "link_id"
+ENGINE_VER "timestamp"

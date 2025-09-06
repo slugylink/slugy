@@ -3,28 +3,16 @@ import { db } from "@/server/db";
 import { z } from "zod";
 
 // Input validation schema
-const analyticsSchema = z.object({
+const usagesSchema = z.object({
   linkId: z.string().min(1),
   slug: z.string().min(1),
   workspaceId: z.string().min(1),
-  analyticsData: z.object({
-    ipAddress: z.string().ip().optional(),
-    country: z.string().max(100),
-    city: z.string().max(100),
-    continent: z.string().max(50),
-    browser: z.string().max(50),
-    os: z.string().max(50),
-    device: z.string().max(50),
-    trigger: z.string().max(50),
-    referer: z.string().max(200),
-
-  }),
 });
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const validationResult = analyticsSchema.safeParse(body);
+    const validationResult = usagesSchema.safeParse(body);
 
     if (!validationResult.success) {
       console.error(
@@ -40,12 +28,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { linkId, slug, workspaceId, analyticsData } = validationResult.data;
+    const { slug, workspaceId } = validationResult.data;
 
     const usageRecord = await db.usage.findFirst({
       where: { workspaceId },
       select: { id: true },
-      orderBy: { createdAt: "desc" }, 
+      orderBy: { createdAt: "desc" }, // Get the latest usage record
     });
 
     if (!usageRecord) {
@@ -66,7 +54,7 @@ export async function POST(req: NextRequest) {
               lastClicked: new Date(),
             },
           }),
-          tx.usage.update({ // possible to use - redis
+          tx.usage.update({
             where: { id: usageRecord.id },
             data: {
               clicksTracked: { increment: 1 },
@@ -79,28 +67,11 @@ export async function POST(req: NextRequest) {
         }
         if (usageUpdate.status === "rejected") {
           throw new Error(`Failed to update usage: ${usageUpdate.reason}`);
-        } // Create analytics record (less critical, can be async)
-
-        const analyticsRecord = await tx.analytics.create({ // use redis & batch operations
-          data: {
-            linkId,
-            clickedAt: new Date(),
-            ipAddress: analyticsData.ipAddress?.substring(0, 45),
-            country: analyticsData.country?.substring(0, 100),
-            city: analyticsData.city?.substring(0, 100),
-            continent: analyticsData.continent?.substring(0, 50),
-            browser: analyticsData.browser,
-            os: analyticsData.os,
-            device: analyticsData.device,
-            trigger: analyticsData.trigger,
-            referer: analyticsData.referer?.substring(0, 500) || "Direct",
-          },
-        });
+        }
 
         return {
           linkUpdate: linkUpdate.value,
           usageUpdate: usageUpdate.value,
-          analyticsRecord,
         };
       },
       {
