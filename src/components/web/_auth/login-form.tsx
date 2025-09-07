@@ -33,11 +33,18 @@ export function LoginForm({
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isPasswordLogin, setIsPasswordLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
 
   useEffect(() => {
     setIsGoogleLoading(false);
     setIsGithubLoading(false);
     setIsLoading(false);
+    
+    // Load last used provider from localStorage
+    const savedProvider = localStorage.getItem('lastUsedProvider');
+    if (savedProvider && ['google', 'github', 'credential'].includes(savedProvider)) {
+      setLastUsedProvider(savedProvider);
+    }
   }, []);
 
   const {
@@ -60,6 +67,9 @@ export function LoginForm({
             setIsGoogleLoading(true);
           },
           onSuccess: () => {
+            // Save last used provider
+            localStorage.setItem('lastUsedProvider', 'google');
+            setLastUsedProvider('google');
             router.push("/?status=success");
           },
           onError: (err) => {
@@ -91,6 +101,9 @@ export function LoginForm({
             setIsGithubLoading(true);
           },
           onSuccess: () => {
+            // Save last used provider
+            localStorage.setItem('lastUsedProvider', 'github');
+            setLastUsedProvider('github');
             router.push("/?status=success");
           },
           onError: (err) => {
@@ -124,6 +137,9 @@ export function LoginForm({
         },
         {
           onSuccess: () => {
+            // Save last used provider
+            localStorage.setItem('lastUsedProvider', 'credential');
+            setLastUsedProvider('credential');
             router.push("/?status=success");
           },
           onError: (err) => {
@@ -321,6 +337,7 @@ export function LoginForm({
                isSubmitting={isSubmitting}
                isGoogleLoading={isGoogleLoading}
                isGithubLoading={isGithubLoading}
+               lastUsedProvider={lastUsedProvider}
              />
 
             <div className="text-center text-sm">
