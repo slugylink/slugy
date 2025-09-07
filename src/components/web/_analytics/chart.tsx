@@ -290,6 +290,7 @@ const AnalyticsChart = ({
                   tickLine={false}
                   allowDecimals={false}
                   domain={[0, "auto"]}
+                  tickFormatter={(value) => formatNumber(Number(value))}
                   style={{ fontSize: "12px", fill: CHART_THEME.muted }}
                   width={30}
                 />
