@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo } from "react";
 
 interface TableCardProps<T> {
   data: T[];
@@ -33,8 +33,7 @@ export default function TableCard<T>({
 }: TableCardProps<T>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [animateProgress, setAnimateProgress] = useState(false);
-  const previousDataKeyRef = useRef<string | undefined>(undefined);
+  // Progress is rendered instantly without animation
 
   // Build the current full path with params
   const currentPath = useMemo(() => {
@@ -47,27 +46,7 @@ export default function TableCard<T>({
     [data, getClicks],
   );
 
-  // Trigger animation when data source changes and has data
-  useEffect(() => {
-    const dataKeyChanged = previousDataKeyRef.current !== dataKey;
-    const nowHasData = data.length > 0 && !loading;
-
-    if (dataKeyChanged && nowHasData) {
-      // Reset animation state and trigger new animation
-      setAnimateProgress(false);
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        setAnimateProgress(true);
-      }, 50);
-      return () => clearTimeout(timer);
-    } else if (data.length === 0) {
-      // Reset when no data
-      setAnimateProgress(false);
-    }
-
-    // Update the ref with current data key
-    previousDataKeyRef.current = dataKey;
-  }, [data, loading]);
+  // No animation state/effect; progress width is static
 
   if (loading) {
     return (
@@ -98,7 +77,7 @@ export default function TableCard<T>({
       {data.map((item, index) => {
         const clicks = getClicks(item);
         const targetWidthPercentage = maxClicks ? (clicks / maxClicks) * 100 : 0;
-        const widthPercentage = animateProgress ? targetWidthPercentage : 0;
+        const widthPercentage = targetWidthPercentage;
         const keyId = getKey(item, index);
         const paramJoiner = currentPath.includes("?") ? "&" : "?";
         const href = `${currentPath}${paramJoiner}${dataKey}_key=${encodeURIComponent(keyId)}`;
@@ -112,7 +91,7 @@ export default function TableCard<T>({
               {/* progress fill */}
               <span
                 className={cn(
-                  "absolute inset-y-1 left-0 my-auto h-[90%] rounded-md transition-all duration-1000 ease-out",
+                  "absolute inset-y-1 left-0 my-auto h-[90%] rounded-md",
                   progressColor,
                 )}
                 style={{ width: `${widthPercentage}%` }}
