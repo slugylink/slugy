@@ -18,7 +18,21 @@ const batchProcessSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    // Safely parse request body with error handling
+    let body;
+    try {
+      const text = await req.text();
+      if (!text || text.trim() === '') {
+        body = {}; // Use default values if body is empty
+      } else {
+        body = JSON.parse(text);
+      }
+    } catch (jsonError) {
+      console.error("JSON parsing error:", jsonError);
+      // Use default values if JSON parsing fails
+      body = {};
+    }
+
     const validationResult = batchProcessSchema.safeParse(body);
 
     if (!validationResult.success) {
@@ -41,10 +55,22 @@ export async function POST(req: NextRequest) {
       `Starting analytics batch processing (dryRun: ${dryRun}, maxBatchSize: ${maxBatchSize})`,
     );
 
-    // Get cached analytics events
-    const cachedEvents = await getCachedAnalyticsEvents();
+    // Get cached analytics events with error handling
+    let cachedEvents;
+    try {
+      cachedEvents = await getCachedAnalyticsEvents();
+    } catch (cacheError) {
+      console.error("Failed to get cached analytics events:", cacheError);
+      return NextResponse.json(
+        {
+          error: "Failed to retrieve cached analytics events",
+          details: cacheError instanceof Error ? cacheError.message : "Unknown error",
+        },
+        { status: 500 },
+      );
+    }
 
-    if (cachedEvents.length === 0) {
+    if (!Array.isArray(cachedEvents) || cachedEvents.length === 0) {
       console.log("No cached analytics events to process");
       return NextResponse.json({
         success: true,
@@ -60,14 +86,34 @@ export async function POST(req: NextRequest) {
       `Processing ${eventsToProcess.length} of ${cachedEvents.length} cached events`,
     );
 
+    // Validate event structure before processing
+    const validEvents = eventsToProcess.filter((event, index) => {
+      if (!event || typeof event !== 'object') {
+        console.warn(`Invalid event at index ${index}: not an object`);
+        return false;
+      }
+      if (!event.linkId || !event.timestamp) {
+        console.warn(`Invalid event at index ${index}: missing required fields`, {
+          linkId: event.linkId,
+          timestamp: event.timestamp,
+        });
+        return false;
+      }
+      return true;
+    });
+
+    if (validEvents.length !== eventsToProcess.length) {
+      console.warn(`Filtered out ${eventsToProcess.length - validEvents.length} invalid events`);
+    }
+
     if (dryRun) {
       console.log("Dry run mode - not processing events");
       return NextResponse.json({
         success: true,
         message: "Dry run completed",
-        processedCount: eventsToProcess.length,
+        processedCount: validEvents.length,
         cachedCount: cachedEvents.length,
-        events: eventsToProcess.slice(0, 5), // Return first 5 for inspection
+        events: validEvents.slice(0, 5), // Return first 5 for inspection
       });
     }
 
@@ -80,14 +126,18 @@ export async function POST(req: NextRequest) {
 
     // Get the actual Redis keys for the events we're processing
     // Since we're using ZSET, we need to get the keys that correspond to our events
-    const allEventKeys = (await redis.zrange(
-      ANALYTICS_ZSET_KEY,
-      0,
-      maxBatchSize - 1,
-    )) as string[];
+    let allEventKeys: string[] = [];
+    try {
+      const redisResult = await redis.zrange(ANALYTICS_ZSET_KEY, 0, maxBatchSize - 1);
+      allEventKeys = Array.isArray(redisResult) ? redisResult.map(String) : [];
+    } catch (redisError) {
+      console.error("Failed to get Redis event keys:", redisError);
+      // Continue processing without Redis keys if Redis fails
+      allEventKeys = [];
+    }
 
-    for (let i = 0; i < eventsToProcess.length; i += BATCH_SIZE) {
-      const batch = eventsToProcess.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < validEvents.length; i += BATCH_SIZE) {
+      const batch = validEvents.slice(i, i + BATCH_SIZE);
       // Get corresponding Redis keys for this batch
       const batchKeys = allEventKeys.slice(i, i + BATCH_SIZE);
 
@@ -139,10 +189,22 @@ export async function POST(req: NextRequest) {
 
     // Clear processed events from Redis (only successful ones)
     if (processedEventKeys.length > 0) {
-      await clearProcessedAnalyticsEvents(processedEventKeys);
+      try {
+        await clearProcessedAnalyticsEvents(processedEventKeys);
+      } catch (cleanupError) {
+        console.error("Failed to clear processed events from Redis:", cleanupError);
+        // Don't fail the entire operation if cleanup fails
+      }
     }
 
-    const remainingCount = await getCachedAnalyticsCount();
+    // Get remaining count with error handling
+    let remainingCount = 0;
+    try {
+      remainingCount = await getCachedAnalyticsCount();
+    } catch (countError) {
+      console.error("Failed to get remaining analytics count:", countError);
+      // Continue with 0 if count retrieval fails
+    }
 
     console.log(
       `Batch processing completed: ${successCount} successful, ${errorCount} errors, ${remainingCount} remaining`,
@@ -182,7 +244,13 @@ export async function POST(req: NextRequest) {
 // GET endpoint for monitoring batch status
 export async function GET() {
   try {
-    const cachedCount = await getCachedAnalyticsCount();
+    let cachedCount = 0;
+    try {
+      cachedCount = await getCachedAnalyticsCount();
+    } catch (countError) {
+      console.error("Failed to get cached analytics count:", countError);
+      // Return 0 if count retrieval fails, but don't fail the endpoint
+    }
 
     return NextResponse.json({
       cachedEventsCount: cachedCount,
@@ -191,7 +259,10 @@ export async function GET() {
   } catch (error) {
     console.error("Failed to get batch status:", error);
     return NextResponse.json(
-      { error: "Failed to get batch status" },
+      {
+        error: "Failed to get batch status",
+        details: error instanceof Error ? error.message : "Unknown error",
+      },
       { status: 500 },
     );
   }
