@@ -6,7 +6,6 @@ import axios from "axios";
 import useSWR, { mutate } from "swr";
 import { cn } from "@/lib/utils";
 import { validateUrlSafety } from "@/server/actions/url-scan";
-import { useDebounce } from "@/hooks/use-debounce";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -82,7 +81,6 @@ interface UrlSafetyStatus {
 }
 
 // Constants
-const URL_SAFETY_DEBOUNCE_MS = 700;
 const AI_SLUG_ENDPOINT = "/api/ai/link-slug";
 const RANDOM_SLUG_DELAY_MS = 300;
 const DEFAULT_DOMAIN = "slugy.co";
@@ -179,8 +177,14 @@ const LinkFormFields = React.memo(
     const slug = watch("slug");
     const url = watch("url");
 
-    // Debounced URL for safety checking
-    const debouncedUrl = useDebounce(url, URL_SAFETY_DEBOUNCE_MS);
+    // Instant URL for safety checking
+    const instantUrl = url;
+
+    // URL validation state
+    const [urlValidation, setUrlValidation] = useState<{
+      isValid: boolean;
+      message: string;
+    }>({ isValid: true, message: "" });
 
     // Fetch tags for workspace
     const {
@@ -192,7 +196,7 @@ const LinkFormFields = React.memo(
     );
 
     // Memoized computed values
-    const currentTags = useMemo(() => getValues("tags") || [], [getValues]);
+    const currentTags = useMemo(() => getValues("tags") || [], []);
 
     const selectedTagObjects = useMemo(
       () => tags?.filter((tag) => selectedTags.includes(tag.id)) || [],
@@ -218,6 +222,34 @@ const LinkFormFields = React.memo(
     );
 
     // Memoized handlers
+    const validateUrlFormat = useCallback((rawUrl: string) => {
+      if (!rawUrl.trim()) {
+        return { isValid: true, message: "" };
+      }
+
+      try {
+        const url = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+          return { isValid: false, message: "URL must use HTTP or HTTPS protocol" };
+        }
+        if (!url.hostname || url.hostname.length < 3) {
+          return { isValid: false, message: "Invalid domain name" };
+        }
+        return { isValid: true, message: "" };
+      } catch {
+        // Try with https prefix if it doesn't have protocol
+        if (!rawUrl.startsWith('http') && rawUrl.includes('.')) {
+          try {
+            new URL(`https://${rawUrl}`);
+            return { isValid: true, message: "" };
+          } catch {
+            return { isValid: false, message: "Invalid URL format" };
+          }
+        }
+        return { isValid: false, message: "Invalid URL format" };
+      }
+    }, []);
+
     const normalizeUrl = useCallback((rawUrl: string): string => {
       if (!rawUrl) return rawUrl;
       if (/^https?:\/\//.test(rawUrl)) return rawUrl;
@@ -271,7 +303,7 @@ const LinkFormFields = React.memo(
           onSafetyStatusChange?.(safeStatus);
         }
       },
-      [normalizeUrl, onSafetyStatusChange],
+      [onSafetyStatusChange],
     );
 
     const handleAiRandomize = useCallback(
@@ -291,7 +323,7 @@ const LinkFormFields = React.memo(
           setIsAiLoading(false);
         }
       },
-      [normalizeUrl, setValue],
+      [setValue],
     );
 
     const handleRandomize = useCallback(() => {
@@ -345,7 +377,7 @@ const LinkFormFields = React.memo(
         const normalizedUrl = normalizeUrl(e.target.value);
         setValue("url", normalizedUrl, { shouldDirty: true });
       },
-      [normalizeUrl, setValue],
+      [setValue],
     );
 
     // Effects
@@ -353,13 +385,20 @@ const LinkFormFields = React.memo(
       setCurrentCode(slug ? `${domain}/${slug}` : "");
     }, [domain, slug]);
 
+    // Instant URL validation
     useEffect(() => {
-      if (!debouncedUrl) {
+      const validation = validateUrlFormat(instantUrl);
+      setUrlValidation(validation);
+    }, [instantUrl, validateUrlFormat]);
+
+    // URL safety checking
+    useEffect(() => {
+      if (!instantUrl) {
         setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
         return;
       }
-      checkUrlSafety(debouncedUrl);
-    }, [debouncedUrl, checkUrlSafety]);
+      checkUrlSafety(instantUrl);
+    }, [instantUrl, checkUrlSafety]);
 
     useEffect(() => {
       if (currentTags.length && tags) {
@@ -385,13 +424,13 @@ const LinkFormFields = React.memo(
     }, []);
 
     // Memoized form values
-    const normalizedUrl = useMemo(() => normalizeUrl(url), [normalizeUrl, url]);
+    const normalizedUrl = useMemo(() => normalizeUrl(url), [url]);
     const qrCodeCustomization = useMemo(() => {
       if (isLinkData(form.formState.defaultValues)) {
         return form.formState.defaultValues.qrCode?.customization;
       }
       return undefined;
-    }, [form.formState.defaultValues, isLinkData]);
+    }, [form.formState.defaultValues]);
 
     return (
       <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -413,14 +452,27 @@ const LinkFormFields = React.memo(
                     placeholder="https://slugy.co/blogs/project-x"
                     autoComplete="off"
                     className={
-                      urlSafetyStatus.isValid === false
+                      !urlValidation.isValid
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                        : urlSafetyStatus.isValid === false
                         ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                         : ""
                     }
                     onBlur={handleUrlBlur}
+                    onChange={(e) => {
+                      field.onChange(e);
+                      // Instant validation as user types
+                      const validation = validateUrlFormat(e.target.value);
+                      setUrlValidation(validation);
+                    }}
                   />
                 </FormControl>
                 <FormMessage />
+                {!urlValidation.isValid && urlValidation.message && (
+                  <div className="text-sm text-red-600 flex items-center gap-1">
+                    <span>{urlValidation.message}</span>
+                  </div>
+                )}
               </FormItem>
             )}
           />
@@ -673,7 +725,7 @@ const LinkFormFields = React.memo(
           </div>
           <div className="space-y-2">
             <Label>Link Preview</Label>
-            <LinkPreview url={normalizedUrl} />
+            <LinkPreview url={normalizedUrl} key={normalizedUrl} />
           </div>
         </div>
       </div>
