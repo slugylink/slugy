@@ -28,17 +28,21 @@ const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 
 /**
- * Checks if the IP address has made a recent analytics request within the rate limit window
+ * Checks if the IP address has made a recent analytics request for a given slug within the rate limit window
  * @param ipAddress - The IP address to check
+ * @param slug - The slug to scope the rate limiting to
  * @returns true if rate limited (should skip analytics), false if analytics should proceed
  */
-async function checkAnalyticsRateLimit(ipAddress: string): Promise<boolean> {
+async function checkAnalyticsRateLimit(
+  ipAddress: string,
+  slug: string,
+): Promise<boolean> {
   if (!ipAddress || ipAddress === UNKNOWN_VALUE) {
     return false; // Don't rate limit if we don't have a valid IP
   }
 
   try {
-    const key = `${RATE_LIMIT_KEY_PREFIX}:${ipAddress}`;
+    const key = `${RATE_LIMIT_KEY_PREFIX}:${ipAddress}:${slug}`;
     // Atomic set-if-not-exists with TTL. If it returns null, key exists => rate limited
     const result = await redis.set(key, "1", {
       nx: true,
@@ -46,7 +50,7 @@ async function checkAnalyticsRateLimit(ipAddress: string): Promise<boolean> {
     });
     const limited = result === null;
     if (limited) {
-      console.log(`[Rate Limit] Skipping analytics for IP ${ipAddress}`);
+      console.log(`[Rate Limit] Skipping analytics for IP ${ipAddress} on slug ${slug}`);
     }
     return limited;
   } catch (error) {
@@ -206,7 +210,7 @@ export async function URLRedirects(
       const xff = req.headers.get("x-forwarded-for") ?? "";
       const xri = req.headers.get("x-real-ip") ?? "";
       const ipAddress = (xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE);
-      const isRateLimited = await checkAnalyticsRateLimit(ipAddress);
+      const isRateLimited = await checkAnalyticsRateLimit(ipAddress, shortCode);
 
       if (!isRateLimited) {
         void trackAnalytics(
