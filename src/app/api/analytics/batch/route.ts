@@ -9,10 +9,11 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 
 const ANALYTICS_ZSET_KEY = "analytics:batch";
+const BATCH_PROCESS = 5000;
 
 // Input validation schema for batch processing
 const batchProcessSchema = z.object({
-  maxBatchSize: z.number().min(1).max(10000).optional().default(1000),
+  maxBatchSize: z.number().min(1).max(BATCH_PROCESS).optional().default(BATCH_PROCESS),
   dryRun: z.boolean().optional().default(false),
 });
 
