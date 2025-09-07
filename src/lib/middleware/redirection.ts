@@ -7,6 +7,7 @@ import {
   cacheAnalyticsEvent,
   type CachedAnalyticsData,
 } from "@/lib/cache-utils/analytics-cache";
+import { redis } from "@/lib/redis";
 
 interface AnalyticsData {
   ipAddress: string;
@@ -23,6 +24,37 @@ interface AnalyticsData {
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
 const DIRECT_REFERER = "Direct";
+const RATE_LIMIT_WINDOW_SECONDS = 10;
+const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
+
+/**
+ * Checks if the IP address has made a recent analytics request within the rate limit window
+ * @param ipAddress - The IP address to check
+ * @returns true if rate limited (should skip analytics), false if analytics should proceed
+ */
+async function checkAnalyticsRateLimit(ipAddress: string): Promise<boolean> {
+  if (!ipAddress || ipAddress === UNKNOWN_VALUE) {
+    return false; // Don't rate limit if we don't have a valid IP
+  }
+
+  try {
+    const key = `${RATE_LIMIT_KEY_PREFIX}:${ipAddress}`;
+    // Atomic set-if-not-exists with TTL. If it returns null, key exists => rate limited
+    const result = await redis.set(key, "1", {
+      nx: true,
+      ex: RATE_LIMIT_WINDOW_SECONDS,
+    });
+    const limited = result === null;
+    if (limited) {
+      console.log(`[Rate Limit] Skipping analytics for IP ${ipAddress}`);
+    }
+    return limited;
+  } catch (error) {
+    // If Redis fails, allow analytics to proceed (fail open)
+    console.error("[Rate Limit Error]", error);
+    return false;
+  }
+}
 
 async function trackAnalytics(
   req: NextRequest,
@@ -170,13 +202,24 @@ export async function URLRedirects(
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      void trackAnalytics(
-        req,
-        linkData.linkId,
-        shortCode,
-        linkData.url,
-        linkData.workspaceId,
-      );
+      // Check rate limiting before tracking analytics
+      const xff = req.headers.get("x-forwarded-for") ?? "";
+      const xri = req.headers.get("x-real-ip") ?? "";
+      const ipAddress = (xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE);
+      const isRateLimited = await checkAnalyticsRateLimit(ipAddress);
+
+      if (!isRateLimited) {
+        void trackAnalytics(
+          req,
+          linkData.linkId,
+          shortCode,
+          linkData.url,
+          linkData.workspaceId,
+        );
+      } else {
+        console.log(`[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`);
+      }
+
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
 
