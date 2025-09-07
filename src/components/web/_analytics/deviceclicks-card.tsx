@@ -174,7 +174,8 @@ const DeviceClicks = ({
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}
                 error={error}
-                keyPrefix={currentTabConfig.dataKey}
+                keyPrefix={currentTabConfig.key}
+                dataKey={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
                   const value = getTabValue(item);
@@ -197,6 +198,7 @@ const DeviceClicks = ({
         loading={isLoading ?? false}
         error={error}
         keyPrefix={currentTabConfig.dataKey}
+        dataKey={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
           const value = getTabValue(item);

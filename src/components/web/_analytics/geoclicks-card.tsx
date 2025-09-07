@@ -237,7 +237,8 @@ const Geoclicks = ({
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}
                 error={error}
-                keyPrefix={currentTabConfig.dataKey}
+                keyPrefix={currentTabConfig.key}
+                dataKey={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) =>
                   (
@@ -266,7 +267,8 @@ const Geoclicks = ({
         data={sortedData}
         loading={isLoading ?? false}
         error={error}
-        keyPrefix={currentTabConfig.dataKey}
+        keyPrefix={currentTabConfig.key}
+        dataKey={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) =>
           (

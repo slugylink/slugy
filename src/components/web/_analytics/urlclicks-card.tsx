@@ -29,7 +29,7 @@ interface TabConfig {
   key: TabKey;
   label: string; // used for tab label
   linkLabel: string; // used for TableHeader
-  keyPrefix: string;
+  dataKey: string;
   progressColor: string;
   renderName: (item: UrlClickData) => JSX.Element;
 }
@@ -50,7 +50,7 @@ const tabConfigs: TabConfig[] = [
     key: "slug-links",
     label: "Short Links",
     linkLabel: "Link",
-    keyPrefix: "slug",
+    dataKey: "slug",
     progressColor: "bg-orange-200/40",
     renderName: (item) => {
       // Type guard to check if item has slug and url
@@ -76,7 +76,7 @@ const tabConfigs: TabConfig[] = [
     key: "destination-links",
     label: "Destination URLs",
     linkLabel: "URL",
-    keyPrefix: "destination",
+    dataKey: "destination",
     progressColor: "bg-orange-200/45",
     renderName: (item) => {
       // Type guard to check if item has destination
@@ -167,12 +167,13 @@ const UrlClicks = ({
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}
                 error={error}
-                keyPrefix={currentTabConfig.keyPrefix}
+                keyPrefix={currentTabConfig.dataKey}
+                dataKey={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
                   if ("slug" in item) return item.slug;
                   if ("destination" in item) return item.destination;
-                  return `${currentTabConfig.keyPrefix}-${index}`;
+                  return `${currentTabConfig.dataKey}-${index}`;
                 }}
                 progressColor={currentTabConfig.progressColor}
                 renderName={currentTabConfig.renderName}
@@ -188,12 +189,13 @@ const UrlClicks = ({
         data={sortedData}
         loading={isLoading ?? false}
         error={error}
-        keyPrefix={currentTabConfig.keyPrefix}
+        keyPrefix={currentTabConfig.dataKey}
+        dataKey={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
           if ("slug" in item) return item.slug;
           if ("destination" in item) return item.destination;
-          return `${currentTabConfig.keyPrefix}-${index}`;
+          return `${currentTabConfig.dataKey}-${index}`;
         }}
         progressColor={currentTabConfig.progressColor}
         renderName={currentTabConfig.renderName}

@@ -84,9 +84,7 @@ const ReferrerClicks = ({
     () =>
       sortedData.map((item) => ({
         ...item,
-        safeKey: item.referrer
-          .replace(/^https?:\/\//, "")
-          .replace(/[^\w]/g, "-"),
+        safeKey: item.referrer,
       })),
     [sortedData],
   );
@@ -123,6 +121,7 @@ const ReferrerClicks = ({
                 loading={isLoading ?? false}
                 error={error}
                 keyPrefix="referrer"
+                dataKey="referrer"
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
                 progressColor="bg-red-200/40"
@@ -139,6 +138,7 @@ const ReferrerClicks = ({
         loading={isLoading ?? false}
         error={error}
         keyPrefix="referrer"
+        dataKey="referrer"
         getClicks={(item) => item.clicks}
         getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
         progressColor="bg-red-200/40"

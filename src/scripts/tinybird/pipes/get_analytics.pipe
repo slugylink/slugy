@@ -12,10 +12,8 @@
     END AS start_day
 SELECT
     ev.link_id,
-    CASE
+    CASE 
         WHEN dr = '24h' THEN toString(toStartOfHour(ev.timestamp))
-        WHEN dr = '7d' OR dr = '30d' THEN toString(toDate(ev.timestamp))
-        WHEN dr = '3m' OR dr = '12m' OR dr = 'all' THEN toString(toStartOfMonth(ev.timestamp))
         ELSE toString(toDate(ev.timestamp))
     END AS day,
     count() AS clicks,
@@ -33,13 +31,11 @@ INNER JOIN (SELECT * FROM slugy_links_metadata_latest FINAL) AS meta
     ON ev.link_id = meta.link_id
    AND ev.workspace_id = meta.workspace_id
 WHERE
-    ev.workspace_id = {{ String(workspace_id, required=True) }}
-    AND CASE
-        WHEN dr = '24h' THEN toStartOfHour(ev.timestamp) >= toStartOfHour(subtractHours(now, 24))
-        ELSE toDate(ev.timestamp) >= start_day
-    END
+    ev.workspace_id = {{String(workspace_id, "", required=True)}}
+    AND toDate(ev.timestamp) >= start_day
     AND meta.deleted = 0
     AND ({{ String(slug, "", required=False) }} = '' OR meta.slug = {{ String(slug, "", required=False) }})
+    AND ({{ String(url, "", required=False) }} = '' OR meta.url = {{ String(url, "", required=False) }})
     AND ({{ String(country, "", required=False) }} = '' OR ev.country = {{ String(country, "", required=False) }})
     AND ({{ String(city, "", required=False) }} = '' OR ev.city = {{ String(city, "", required=False) }})
     AND ({{ String(continent, "", required=False) }} = '' OR ev.continent = {{ String(continent, "", required=False) }})
@@ -51,12 +47,7 @@ GROUP BY
     ev.link_id,
     meta.slug,
     meta.url,
-    CASE
-        WHEN dr = '24h' THEN toString(toStartOfHour(ev.timestamp))
-        WHEN dr = '7d' OR dr = '30d' THEN toString(toDate(ev.timestamp))
-        WHEN dr = '3m' OR dr = '12m' OR dr = 'all' THEN toString(toStartOfMonth(ev.timestamp))
-        ELSE toString(toDate(ev.timestamp))
-    END,
+    day,
     ev.country,
     ev.city,
     ev.continent,

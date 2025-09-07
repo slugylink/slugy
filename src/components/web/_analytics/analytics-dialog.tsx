@@ -11,6 +11,7 @@ interface AnalyticsDialogProps<T> {
   loading: boolean;
   error?: Error;
   keyPrefix: string;
+  dataKey?: string;
   getClicks: (item: T) => number;
   getKey: (item: T, index: number) => string;
   progressColor?: string;
@@ -27,6 +28,7 @@ export default function AnalyticsDialog<T>({
   loading,
   error,
   keyPrefix,
+  dataKey,
   getClicks,
   getKey,
   progressColor = "bg-muted",
@@ -40,9 +42,9 @@ export default function AnalyticsDialog<T>({
   if (!showButton) return null;
 
   return (
-    <div className="absolute bottom-1 left-1/2 -translate-x-1/2">
+    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-full mx-auto flex items-center justify-center bg-transparent z-10 py-1">
       <Dialog open={dialogOpen} onOpenChange={onDialogOpenChange}>
-        <DialogTrigger asChild>
+        <DialogTrigger asChild className="">
           <Button size="xs" variant="secondary">
             <Scan className="mr-1 h-3 w-3" /> View All
           </Button>
@@ -63,7 +65,8 @@ export default function AnalyticsDialog<T>({
                 data={data}
                 loading={loading}
                 error={error}
-                keyPrefix={`${keyPrefix}-dialog`}
+                keyPrefix={`${keyPrefix}`}
+                dataKey={dataKey ? `${dataKey}` : undefined}
                 getClicks={getClicks}
                 getKey={getKey}
                 progressColor={progressColor}
