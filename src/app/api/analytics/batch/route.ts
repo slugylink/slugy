@@ -9,12 +9,14 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 
 const ANALYTICS_ZSET_KEY = "analytics:batch";
-const BATCH_PROCESS = 15000;
+const BATCH_PROCESS = 5000;
+const MAX_PROCESS_ALL = 20000; // Max events to process in one go
 
 // Input validation schema for batch processing
 const batchProcessSchema = z.object({
-  maxBatchSize: z.number().min(1).max(BATCH_PROCESS).optional().default(BATCH_PROCESS),
+  maxBatchSize: z.number().min(1).max(MAX_PROCESS_ALL).optional().default(BATCH_PROCESS),
   dryRun: z.boolean().optional().default(false),
+  processAll: z.boolean().optional().default(false), // New option to process all cached events
 });
 
 export async function POST(req: NextRequest) {
@@ -50,10 +52,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { maxBatchSize, dryRun } = validationResult.data;
+    const { maxBatchSize, dryRun, processAll } = validationResult.data;
 
     console.log(
-      `Starting analytics batch processing (dryRun: ${dryRun}, maxBatchSize: ${maxBatchSize})`,
+      `Starting analytics batch processing (dryRun: ${dryRun}, maxBatchSize: ${maxBatchSize}, processAll: ${processAll})`,
     );
 
     // Get cached analytics events with error handling
@@ -81,10 +83,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Limit batch size for processing
-    const eventsToProcess = cachedEvents.slice(0, maxBatchSize);
+    // Determine how many events to process
+    const effectiveBatchSize = processAll ? Math.min(cachedEvents.length, MAX_PROCESS_ALL) : maxBatchSize;
+    const eventsToProcess = cachedEvents.slice(0, effectiveBatchSize);
     console.log(
-      `Processing ${eventsToProcess.length} of ${cachedEvents.length} cached events`,
+      `Processing ${eventsToProcess.length} of ${cachedEvents.length} cached events (processAll: ${processAll})`,
     );
 
     // Validate event structure before processing
@@ -119,7 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Process events in batches to avoid database timeouts
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 500; // Increased batch size for better performance
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
@@ -129,7 +132,7 @@ export async function POST(req: NextRequest) {
     // Since we're using ZSET, we need to get the keys that correspond to our events
     let allEventKeys: string[] = [];
     try {
-      const redisResult = await redis.zrange(ANALYTICS_ZSET_KEY, 0, maxBatchSize - 1);
+      const redisResult = await redis.zrange(ANALYTICS_ZSET_KEY, 0, effectiveBatchSize - 1);
       allEventKeys = Array.isArray(redisResult) ? redisResult.map(String) : [];
     } catch (redisError) {
       console.error("Failed to get Redis event keys:", redisError);
@@ -141,6 +144,8 @@ export async function POST(req: NextRequest) {
       const batch = validEvents.slice(i, i + BATCH_SIZE);
       // Get corresponding Redis keys for this batch
       const batchKeys = allEventKeys.slice(i, i + BATCH_SIZE);
+      
+      console.log(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(validEvents.length / BATCH_SIZE)} (${batch.length} events)`);
 
       try {
         await db.$transaction(
@@ -169,28 +174,30 @@ export async function POST(req: NextRequest) {
               console.warn(`Skipped ${skippedCount} events with non-existent or deleted link IDs:`, skippedLinkIds);
             }
 
-            // Only process events for existing links
-            for (const event of validBatchEvents) {
-              // Create analytics record
-              await tx.analytics.create({
-                data: {
-                  linkId: event.linkId,
-                  clickedAt: new Date(event.timestamp),
-                  ipAddress: event.ipAddress?.substring(0, 45),
-                  country: event.country?.substring(0, 100),
-                  city: event.city?.substring(0, 100),
-                  continent: event.continent?.substring(0, 50),
-                  browser: event.browser,
-                  os: event.os,
-                  device: event.device,
-                  trigger: event.trigger,
-                  referer: event.referer?.substring(0, 500) || "Direct",
-                  utm_source: event.utm_source,
-                  utm_medium: event.utm_medium,
-                  utm_campaign: event.utm_campaign,
-                  utm_term: event.utm_term,
-                  utm_content: event.utm_content,
-                },
+            // Only process events for existing links - use bulk insert
+            if (validBatchEvents.length > 0) {
+              const analyticsData = validBatchEvents.map(event => ({
+                linkId: event.linkId,
+                clickedAt: new Date(event.timestamp),
+                ipAddress: event.ipAddress?.substring(0, 45),
+                country: event.country?.substring(0, 100),
+                city: event.city?.substring(0, 100),
+                continent: event.continent?.substring(0, 50),
+                browser: event.browser,
+                os: event.os,
+                device: event.device,
+                trigger: event.trigger,
+                referer: event.referer?.substring(0, 500) || "Direct",
+                utm_source: event.utm_source,
+                utm_medium: event.utm_medium,
+                utm_campaign: event.utm_campaign,
+                utm_term: event.utm_term,
+                utm_content: event.utm_content,
+              }));
+
+              await tx.analytics.createMany({
+                data: analyticsData,
+                skipDuplicates: true, // Skip duplicates to prevent errors
               });
             }
 
@@ -198,8 +205,8 @@ export async function POST(req: NextRequest) {
             successCount += validBatchEvents.length;
           },
           {
-            timeout: 30000, // 30 second timeout for batch
-            maxWait: 10000, // Max wait for connection
+            timeout: 60000, // 60 second timeout for batch
+            maxWait: 15000, // Max wait for connection
           },
         );
 
