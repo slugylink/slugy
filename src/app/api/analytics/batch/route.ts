@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
     console.error("Batch processing error details:", errorDetails);
 
     return NextResponse.json(
-      { error: "Failed to process analytics batch" },
+      { error: "Failed to process analytics batch", errorDetails },
       { status: 500 },
     );
   }
