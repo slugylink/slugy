@@ -146,7 +146,30 @@ export async function POST(req: NextRequest) {
           async (tx) => {
             // Group events by workspace for usage updates
 
-            for (const event of batch) {
+            // First, validate that all links in this batch exist
+            const linkIds = [...new Set(batch.map(event => event.linkId))];
+            const existingLinks = await tx.link.findMany({
+              where: {
+                id: { in: linkIds },
+                deletedAt: null, // Only include non-deleted links
+              },
+              select: { id: true },
+            });
+
+            const existingLinkIds = new Set(existingLinks.map(link => link.id));
+            const validBatchEvents = batch.filter(event => existingLinkIds.has(event.linkId));
+
+            // Log skipped events if any
+            if (validBatchEvents.length !== batch.length) {
+              const skippedCount = batch.length - validBatchEvents.length;
+              const skippedLinkIds = batch
+                .filter(event => !existingLinkIds.has(event.linkId))
+                .map(event => event.linkId);
+              console.warn(`Skipped ${skippedCount} events with non-existent or deleted link IDs:`, skippedLinkIds);
+            }
+
+            // Only process events for existing links
+            for (const event of validBatchEvents) {
               // Create analytics record
               await tx.analytics.create({
                 data: {
@@ -169,6 +192,9 @@ export async function POST(req: NextRequest) {
                 },
               });
             }
+
+            // Update success count to reflect actual processed events
+            successCount += validBatchEvents.length;
           },
           {
             timeout: 30000, // 30 second timeout for batch
@@ -176,9 +202,10 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        successCount += batch.length;
         processedEventKeys.push(...batchKeys);
       } catch (batchError) {
+        // Since we validate links inside the transaction, any error here is unexpected
+        // but we still count all events in this batch as failed for safety
         errorCount += batch.length;
         const errorMsg = `Batch processing error: ${batchError instanceof Error ? batchError.message : "Unknown error"}`;
         console.error("Detailed batch error:", batchError);
