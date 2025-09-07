@@ -104,27 +104,71 @@ interface TinybirdResponse {
 function transformTinybirdData(
   tinybirdData: TinybirdResponse["data"],
   requestedMetrics: AnalyticsMetric[],
+  timePeriod: TimePeriod = "7d",
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
 
   if (requestedMetrics.includes("totalClicks")) {
-    result.totalClicks = tinybirdData.reduce((sum, item) => sum + item.clicks, 0);
+    result.totalClicks = tinybirdData.reduce(
+      (sum, item) => sum + item.clicks,
+      0,
+    );
   }
 
   if (requestedMetrics.includes("clicksOverTime")) {
     const timeMap = new Map<string, number>();
+
     tinybirdData.forEach((item) => {
-      const timeKey = item.day;
+      // Parse the day string and create a proper date for grouping
+      const dayDate = new Date(item.day);
+
+      // Determine grouping granularity based on time period
+      let timeKey: string;
+
+      if (timePeriod === "24h") {
+        // For 24h period, group by hour
+        // Normalize to start of hour to ensure consistent grouping
+        const hourDate = new Date(dayDate);
+        hourDate.setMinutes(0, 0, 0); // Set to start of hour
+        timeKey = hourDate.toISOString();
+      } else if (timePeriod === "7d" || timePeriod === "30d") {
+        // For 7d, 30d periods, group by day
+        if (item.day.includes("T")) {
+          timeKey = dayDate.toISOString().split("T")[0]; // YYYY-MM-DD format
+        } else {
+          timeKey = item.day;
+        }
+      } else {
+        // For 3m, 12m, all periods, group by month
+        if (item.day.includes("T")) {
+          // Extract year-month from timestamp (e.g., "2024-09-02T14:30:00" -> "2024-09")
+          const yearMonth = dayDate.toISOString().substring(0, 7); // YYYY-MM format
+          timeKey = yearMonth + "-01"; // Add day 1 for consistency
+        } else {
+          // If it's already a date string, extract year-month
+          const yearMonth = item.day.substring(0, 7); // YYYY-MM format
+          timeKey = yearMonth + "-01"; // Add day 1 for consistency
+        }
+      }
+
       timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + item.clicks);
     });
-    result.clicksOverTime = Array.from(timeMap.entries()).map(([time, clicks]) => ({
-      time: new Date(time),
-      clicks,
-    })).sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    const aggregatedData = Array.from(timeMap.entries())
+      .map(([time, clicks]) => ({
+        time: new Date(time),
+        clicks,
+      }))
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
+    result.clicksOverTime = aggregatedData;
   }
 
   if (requestedMetrics.includes("links")) {
-    const linksMap = new Map<string, { slug: string; url: string; clicks: number }>();
+    const linksMap = new Map<
+      string,
+      { slug: string; url: string; clicks: number }
+    >();
     tinybirdData.forEach((item) => {
       const key = `${item["meta.slug"]}-${item["meta.url"]}`;
       const existing = linksMap.get(key);
@@ -138,11 +182,16 @@ function transformTinybirdData(
         });
       }
     });
-    result.links = Array.from(linksMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.links = Array.from(linksMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("cities")) {
-    const citiesMap = new Map<string, { city: string; country: string; clicks: number }>();
+    const citiesMap = new Map<
+      string,
+      { city: string; country: string; clicks: number }
+    >();
     tinybirdData.forEach((item) => {
       if (item.city) {
         const key = `${item.city}-${item.country}`;
@@ -158,7 +207,9 @@ function transformTinybirdData(
         }
       }
     });
-    result.cities = Array.from(citiesMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.cities = Array.from(citiesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("countries")) {
@@ -176,11 +227,16 @@ function transformTinybirdData(
         }
       }
     });
-    result.countries = Array.from(countriesMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.countries = Array.from(countriesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("continents")) {
-    const continentsMap = new Map<string, { continent: string; clicks: number }>();
+    const continentsMap = new Map<
+      string,
+      { continent: string; clicks: number }
+    >();
     tinybirdData.forEach((item) => {
       if (item.continent) {
         const existing = continentsMap.get(item.continent);
@@ -194,7 +250,9 @@ function transformTinybirdData(
         }
       }
     });
-    result.continents = Array.from(continentsMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.continents = Array.from(continentsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("devices")) {
@@ -212,7 +270,9 @@ function transformTinybirdData(
         }
       }
     });
-    result.devices = Array.from(devicesMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.devices = Array.from(devicesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("browsers")) {
@@ -230,7 +290,9 @@ function transformTinybirdData(
         }
       }
     });
-    result.browsers = Array.from(browsersMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.browsers = Array.from(browsersMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("oses")) {
@@ -248,11 +310,16 @@ function transformTinybirdData(
         }
       }
     });
-    result.oses = Array.from(osesMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.oses = Array.from(osesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("referrers")) {
-    const referrersMap = new Map<string, { referrer: string; clicks: number }>();
+    const referrersMap = new Map<
+      string,
+      { referrer: string; clicks: number }
+    >();
     tinybirdData.forEach((item) => {
       if (item.referer) {
         const existing = referrersMap.get(item.referer);
@@ -266,11 +333,16 @@ function transformTinybirdData(
         }
       }
     });
-    result.referrers = Array.from(referrersMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.referrers = Array.from(referrersMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   if (requestedMetrics.includes("destinations")) {
-    const destinationsMap = new Map<string, { destination: string; clicks: number }>();
+    const destinationsMap = new Map<
+      string,
+      { destination: string; clicks: number }
+    >();
     tinybirdData.forEach((item) => {
       const existing = destinationsMap.get(item["meta.url"]);
       if (existing) {
@@ -282,7 +354,9 @@ function transformTinybirdData(
         });
       }
     });
-    result.destinations = Array.from(destinationsMap.values()).sort((a, b) => b.clicks - a.clicks);
+    result.destinations = Array.from(destinationsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
   }
 
   return result;
@@ -395,9 +469,14 @@ export async function GET(
     });
 
     if (!response.ok) {
-      console.error(`Tinybird API error: ${response.status} ${response.statusText}`);
+      console.error(
+        `Tinybird API error: ${response.status} ${response.statusText}`,
+      );
       return NextResponse.json(
-        { error: "Analytics service temporarily unavailable", code: "SERVICE_UNAVAILABLE" },
+        {
+          error: "Analytics service temporarily unavailable",
+          code: "SERVICE_UNAVAILABLE",
+        },
         { status: 503 },
       );
     }
@@ -405,7 +484,11 @@ export async function GET(
     const tinybirdResponse: TinybirdResponse = await response.json();
 
     // Transform data to expected format
-    const analyticsData = transformTinybirdData(tinybirdResponse.data, normalizedMetrics);
+    const analyticsData = transformTinybirdData(
+      tinybirdResponse.data,
+      normalizedMetrics,
+      props.timePeriod,
+    );
 
     // Set response headers for better performance
     const responseObj = NextResponse.json(analyticsData);
@@ -420,8 +503,14 @@ export async function GET(
     responseObj.headers.set("X-Analytics-Metrics", normalizedMetrics.join(","));
     responseObj.headers.set("X-Analytics-Period", props.timePeriod);
     responseObj.headers.set("X-Analytics-Cache", `${CACHE_DURATION}s`);
-    responseObj.headers.set("X-Tinybird-Rows", tinybirdResponse.rows.toString());
-    responseObj.headers.set("X-Tinybird-Elapsed", tinybirdResponse.statistics.elapsed.toString());
+    responseObj.headers.set(
+      "X-Tinybird-Rows",
+      tinybirdResponse.rows.toString(),
+    );
+    responseObj.headers.set(
+      "X-Tinybird-Elapsed",
+      tinybirdResponse.statistics.elapsed.toString(),
+    );
 
     return responseObj;
   } catch (err) {

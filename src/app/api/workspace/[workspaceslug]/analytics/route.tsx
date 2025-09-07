@@ -492,6 +492,8 @@ export async function GET(
       }
     });
 
+    console.log("Analytics API response:", results);
+
     // Set response headers for better performance
     const response = NextResponse.json({
       ...results,

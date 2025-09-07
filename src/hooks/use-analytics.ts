@@ -140,7 +140,7 @@ export function useAnalytics({
   searchParams = {},
   enabled = true,
   metrics = DEFAULT_METRICS,
-  useTinybird = false,
+  useTinybird = true,
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
@@ -181,7 +181,7 @@ export function useAnalytics({
         workspaceslug,
         debouncedSearchParams,
         metrics,
-        (useTinybird = true),
+        useTinybird,
       ),
     {
       revalidateOnFocus: false,

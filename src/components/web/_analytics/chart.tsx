@@ -64,6 +64,7 @@ const AnalyticsChart = ({
   const processedData = useMemo(() => {
     if (!propData) return [];
 
+
     const formattedData = propData.map((item) => {
       const date = new Date(item.time);
       if (isNaN(date.getTime())) {
@@ -80,9 +81,37 @@ const AnalyticsChart = ({
       };
     });
 
-    const sortedData = [...formattedData].sort(
+    // Deduplicate based on time period granularity
+    const deduplicatedMap = new Map<string, { time: string; timestamp: number; clicks: number }>();
+    formattedData.forEach((item) => {
+      const date = new Date(item.timestamp);
+      let dateKey: string;
+      
+      if (timePeriod === "24h") {
+        // For 24h period, group by hour (normalize to start of hour)
+        const hourDate = new Date(date);
+        hourDate.setMinutes(0, 0, 0); // Set to start of hour
+        dateKey = hourDate.toISOString().substring(0, 13); // YYYY-MM-DDTHH
+      } else if (timePeriod === "7d" || timePeriod === "30d") {
+        // For 7d, 30d periods, group by day
+        dateKey = date.toDateString(); // e.g., "Mon Sep 02 2024"
+      } else {
+        // For 3m, 12m, all periods, group by month
+        dateKey = date.toISOString().substring(0, 7); // YYYY-MM
+      }
+      
+      const existing = deduplicatedMap.get(dateKey);
+      if (existing) {
+        existing.clicks += item.clicks;
+      } else {
+        deduplicatedMap.set(dateKey, { ...item });
+      }
+    });
+
+    const sortedData = Array.from(deduplicatedMap.values()).sort(
       (a, b) => a.timestamp - b.timestamp,
     );
+
 
     return sortedData.length > CHART_CONFIG.MAX_DATA_POINTS
       ? sortedData.filter(
@@ -103,22 +132,21 @@ const AnalyticsChart = ({
         if (isNaN(date.getTime())) return "";
 
         if (timePeriod === "24h") {
-          // Round to the nearest hour for 24h period
-          const roundedDate = new Date(date);
-          roundedDate.setMinutes(0, 0, 0); // Set minutes and seconds to 0
-
-          return roundedDate.toLocaleTimeString("en-US", {
+          // For 24h period, show hour format
+          return date.toLocaleTimeString("en-US", {
             hour: "numeric",
             minute: "2-digit",
             hour12: true,
           });
         }
         if (timePeriod === "7d" || timePeriod === "30d") {
+          // For 7d, 30d periods, show day format
           return date.toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
           });
         }
+        // For 3m, 12m, all periods, show month format
         return date.toLocaleDateString("en-US", {
           month: "short",
           year: "numeric",
