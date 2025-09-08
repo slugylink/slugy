@@ -13,6 +13,7 @@ import HeroLinkCard from "./hero-linkcard";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 
 // ----------------- Constants -----------------
 const API_ENDPOINT = "/api/temp";
@@ -184,7 +185,8 @@ const HeroLinkForm = () => {
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
             )}
-            Shorten✨
+            Shorten{" "}
+            <Image src="/icons/star.svg" alt="" width={16} height={16} />
           </Button>
         </div>
         {/* Links */}

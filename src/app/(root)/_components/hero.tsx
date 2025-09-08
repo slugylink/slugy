@@ -20,14 +20,25 @@ const data = {
     backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
     backgroundAlt: "Background texture",
     announcement: {
-      text: <>Not Backed by <span className="bg-orange-500 text-white aspect-square size-5 p-[1px] text-center mx-2">Y</span> Combinator</>,
+      text: (
+        <>
+          Not Backed by{" "}
+          <span className="mx-2 aspect-square size-5 bg-orange-500 p-[1px] text-center text-white">
+            Y
+          </span>{" "}
+          Combinator
+        </>
+      ),
       href: null,
     },
     heading1: "Simplify Links Like",
     heading2: (
-      <>
-        <span className="text-[#ffaa40]">✨</span>Magic
-      </>
+      <div className="flex items-center gap-2">
+        <span className="text-[#ffaa40]">
+          <Image src={"/icons/star.svg"} width={50} height={50} alt="Magic" />
+        </span>
+        Magic
+      </div>
     ),
     heading2Gradient:
       "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text- [text-fill-color:transparent]",
@@ -163,43 +174,6 @@ const Hero = () => {
             )}
           </div>
         </div>
-
-        {/* Product Hunt / Peerlist Badge */}
-        <motion.div
-          className="mt-6 flex items-center justify-center gap-2 sm:gap-4"
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {/* <a href={hero.badge.href} target="_blank" rel="noopener noreferrer">
-            <Image
-              src={hero.badge.imageUrl}
-              alt={hero.badge.alt}
-              style={{
-                width: `${hero.badge.width}px`,
-                height: `${hero.badge.height}px`,
-              }}
-              width={hero.badge.width}
-              height={hero.badge.height}
-            />
-          </a> */}
-          <a
-            href="https://peerlist.io/sandipsarkar/project/slugy--magic-links"
-            target="_blank"
-            rel="noreferrer"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="https://peerlist.io/api/v1/projects/embed/PRJHKKD8MG6L9DDBECOARK8G8GEPBR?showUpvote=true"
-              alt="Slugy - Magic Links 🔥"
-              style={{
-                width: `${hero.badge.width}px`,
-                height: `${hero.badge.height}px`,
-              }}
-            />
-          </a>
-        </motion.div>
 
         {/* Form */}
         <motion.div
