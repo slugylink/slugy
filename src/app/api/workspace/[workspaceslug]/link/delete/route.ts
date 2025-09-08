@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
+import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
+import { waitUntil } from "@vercel/functions";
 
 const bulkDeleteSchema = z.object({
   linkIds: z.array(z.string()).min(1, "At least one link ID is required"),
@@ -33,13 +35,27 @@ export async function POST(
     const body = await req.json();
     const { linkIds } = bulkDeleteSchema.parse(body);
 
-    // Verify all links belong to the workspace and get their slugs for cache invalidation
+    // Verify all links belong to the workspace and get their data for cache invalidation and Tinybird
     const links = await db.link.findMany({
       where: {
         id: { in: linkIds },
         workspaceId: workspace.workspace.id,
       },
-      select: { id: true, slug: true },
+      select: {
+        id: true,
+        slug: true,
+        url: true,
+        createdAt: true,
+        tags: {
+          select: {
+            tag: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (links.length !== linkIds.length) {
@@ -60,6 +76,20 @@ export async function POST(
     // Invalidate cache for all deleted links
     const slugs = links.map(link => link.slug);
     await invalidateLinkCacheBatch(slugs);
+
+    // Mark links as deleted in Tinybird (non-blocking)
+    links.forEach((link) => {
+      const linkData = {
+        id: link.id,
+        domain: "slugy.co",
+        slug: link.slug,
+        url: link.url,
+        workspaceId: workspace.workspace.id,
+        createdAt: link.createdAt,
+        tags: link.tags.map(t => ({ tagId: t.tag.id })),
+      };
+      waitUntil(deleteLink(linkData));
+    });
 
     return NextResponse.json(
       { message: `Successfully deleted ${linkIds.length} links` },

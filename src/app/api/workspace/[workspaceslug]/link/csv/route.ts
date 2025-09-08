@@ -8,6 +8,8 @@ import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
+import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
+import { waitUntil } from "@vercel/functions";
 
 export async function GET(
   req: Request,
@@ -245,6 +247,11 @@ export async function POST(
       );
     }
 
+    // Add warning for very large files
+    if (records.length > 5000) {
+      console.warn(`Large CSV import detected: ${records.length} records. This may take several minutes to process.`);
+    }
+
     // Check if importing these links would exceed the allowed limit
     const allowedToCreate = workspaceCheck.maxLinks - workspaceCheck.currentLinks;
     if (records.length > allowedToCreate) {
@@ -288,6 +295,7 @@ export async function POST(
     }> = [];
 
     const urlsToScan: Array<{ url: string; row: number }> = [];
+    const seenSlugsInCsv = new Set<string>();
 
     // Process each row
     records.forEach((record: Record<string, unknown>, index: number) => {
@@ -325,6 +333,15 @@ export async function POST(
             message: "Slug can only contain letters, numbers, and hyphens",
             path: ["slug"],
           });
+        }
+        // Detect duplicate slugs within the CSV itself
+        if (seenSlugsInCsv.has(slug)) {
+          rowErrors.push({
+            message: "Duplicate slug in CSV",
+            path: ["slug"],
+          });
+        } else {
+          seenSlugsInCsv.add(slug);
         }
       }
 
@@ -378,6 +395,46 @@ export async function POST(
         },
         { status: 400 },
       );
+    }
+
+    // Pre-check for existing slugs in the database to provide clearer errors up-front
+    const requestedSlugs = linksToCreate.map((l) => l.slug);
+    if (requestedSlugs.length > 0) {
+      const existing = await db.link.findMany({
+        where: {
+          slug: { in: requestedSlugs },
+        },
+        select: { slug: true },
+      });
+      if (existing.length > 0) {
+        const existingSet = new Set(existing.map((e) => e.slug));
+        const conflictErrors = records
+          .map((record: Record<string, unknown>, index: number) => {
+            const slug = (record.slug as string) || "";
+            if (slug && existingSet.has(slug)) {
+              return {
+                row: index + 2,
+                errors: [
+                  {
+                    message: "Slug already exists",
+                    path: ["slug"],
+                  },
+                ],
+              };
+            }
+            return null;
+          })
+          .filter(Boolean) as Array<{ row: number; errors: Array<{ message: string; path: string[] }> }>;
+        if (conflictErrors.length > 0) {
+          return NextResponse.json(
+            {
+              message: "Validation errors found in CSV",
+              errors: conflictErrors,
+            },
+            { status: 400 },
+          );
+        }
+      }
     }
 
     // Scan URLs for safety in parallel (with concurrency limit)
@@ -434,40 +491,188 @@ export async function POST(
       );
     }
 
-    console.log(`All ${urlsToScan.length} URLs passed safety checks`);
-    
+    // Memory optimization: clear large arrays we no longer need after processing
+    const originalUrlsToScan = [...urlsToScan]; // Keep copy for safety checks
+    urlsToScan.length = 0; // Clear the array to free memory
 
-    // Create links in database
-    let createdLinksCount = 0;
-    await db.$transaction(async (tx) => {
-      const createdLinks = await tx.link.createMany({
-        data: linksToCreate,
-        skipDuplicates: true, // Skip if slug already exists
+    console.log(`All ${originalUrlsToScan.length} URLs passed safety checks`);
+
+    // Optimized batch processing: create links individually to get IDs, process tags efficiently
+    // Dynamically adjust batch size based on total records for optimal performance
+    const TOTAL_RECORDS = linksToCreate.length;
+    const BATCH_SIZE = TOTAL_RECORDS > 1000 ? 25 : TOTAL_RECORDS > 500 ? 50 : 100;
+
+    // Add progress tracking for large imports
+    const shouldTrackProgress = TOTAL_RECORDS > 100;
+    let processedCount = 0;
+
+    if (shouldTrackProgress) {
+      console.log(`Starting batch import of ${TOTAL_RECORDS} links (batch size: ${BATCH_SIZE})`);
+    }
+    let totalCreatedCount = 0;
+    const createdSlugs: string[] = [];
+    const slugToId = new Map<string, string>();
+    const tagNameToId = new Map<string, string>();
+
+    // Pre-create all tags in one batch to avoid repeated queries
+    const allTagNames = Array.from(
+      new Set(tagsToCreate.flatMap((t) => t.tagNames)),
+    );
+
+    if (allTagNames.length > 0) {
+      // Use individual upserts for better control and to ensure all tags exist
+      // This is more reliable than createMany + skipDuplicates for concurrent operations
+      await db.$transaction(async (tx) => {
+        for (const tagName of allTagNames) {
+          const existing = await tx.tag.upsert({
+            where: {
+              name_workspaceId: {
+                name: tagName,
+                workspaceId: workspaceCheck.workspace.id,
+              },
+            },
+            update: {}, // No updates needed, just ensure it exists
+            create: {
+              name: tagName,
+              workspaceId: workspaceCheck.workspace.id,
+            },
+            select: { id: true, name: true },
+          });
+          tagNameToId.set(existing.name, existing.id);
+        }
       });
-      createdLinksCount = createdLinks.count;
-      // Update usage counters
-      await Promise.all([
-        tx.workspace.update({
-          where: { id: workspaceCheck.workspace.id },
-          data: { linksUsage: { increment: createdLinks.count } },
-        }),
-        tx.usage.updateMany({
-          where: {
-            workspaceId: workspaceCheck.workspace.id,
-            userId: session.user.id,
-          },
-          data: { linksCreated: { increment: createdLinks.count } },
-        }),
-      ]);
-    });
+    }
+
+    // Process links in batches
+    for (let i = 0; i < linksToCreate.length; i += BATCH_SIZE) {
+      const batch = linksToCreate.slice(i, i + BATCH_SIZE);
+      const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
+      const totalBatches = Math.ceil(linksToCreate.length / BATCH_SIZE);
+
+      if (shouldTrackProgress) {
+        console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} links)`);
+      }
+
+      await db.$transaction(async (tx) => {
+        const batchResults: Array<{ id: string; slug: string }> = [];
+
+        // Create links individually to get their IDs (more efficient than createMany + findMany)
+        for (const linkData of batch) {
+          try {
+            const created = await tx.link.create({
+              data: linkData,
+              select: { id: true, slug: true },
+            });
+            batchResults.push(created);
+            slugToId.set(created.slug, created.id);
+            createdSlugs.push(created.slug);
+          } catch (error) {
+            // Skip duplicates (slug already exists)
+            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') continue;
+            throw error;
+          }
+        }
+
+        // Create link-tag associations for this batch
+        const batchLinkTags: Array<{ linkId: string; tagId: string }> = [];
+        const processedPairs = new Set<string>();
+
+        tagsToCreate
+          .filter((tagData) => batchResults.some((link) => link.slug === tagData.linkSlug))
+          .forEach(({ linkSlug, tagNames }) => {
+            const linkId = slugToId.get(linkSlug);
+            if (!linkId) return;
+
+            tagNames.forEach((name) => {
+              const tagId = tagNameToId.get(name);
+              if (!tagId) return;
+
+              const key = `${linkId}:${tagId}`;
+              if (!processedPairs.has(key)) {
+                processedPairs.add(key);
+                batchLinkTags.push({ linkId, tagId });
+              }
+            });
+          });
+
+        if (batchLinkTags.length > 0) {
+          await tx.linkTag.createMany({
+            data: batchLinkTags,
+            skipDuplicates: true,
+          });
+        }
+
+        totalCreatedCount += batchResults.length;
+        processedCount += batch.length;
+
+        if (shouldTrackProgress && batchNumber % 5 === 0) {
+          const progress = ((processedCount / TOTAL_RECORDS) * 100).toFixed(1);
+          console.log(`Progress: ${progress}% (${processedCount}/${TOTAL_RECORDS} processed, ${totalCreatedCount} created)`);
+        }
+      });
+    }
+
+    if (shouldTrackProgress) {
+      console.log(`Import completed: ${totalCreatedCount} links created from ${TOTAL_RECORDS} records`);
+    }
+
+    // Update usage counters once at the end
+    if (totalCreatedCount > 0) {
+      await db.$transaction(async (tx) => {
+        await Promise.all([
+          tx.workspace.update({
+            where: { id: workspaceCheck.workspace.id },
+            data: { linksUsage: { increment: totalCreatedCount } },
+          }),
+          tx.usage.updateMany({
+            where: {
+              workspaceId: workspaceCheck.workspace.id,
+              userId: session.user.id,
+            },
+            data: { linksCreated: { increment: totalCreatedCount } },
+          }),
+        ]);
+      });
+    }
 
     // Invalidate cache for all created links
-    const slugs = linksToCreate.map(link => link.slug);
-    await invalidateLinkCacheBatch(slugs);
+    await invalidateLinkCacheBatch(createdSlugs);
+
+    // Send link metadata to Tinybird (non-blocking) - use cached data instead of DB query
+    createdSlugs.forEach((slug) => {
+      const linkId = slugToId.get(slug);
+      if (!linkId) return;
+
+      const originalLink = linksToCreate.find((l) => l.slug === slug);
+      if (!originalLink) return;
+
+      const linkTags = tagsToCreate.find((t) => t.linkSlug === slug)?.tagNames || [];
+      const tagIds = linkTags
+        .map((name) => tagNameToId.get(name))
+        .filter(Boolean) as string[];
+
+      const linkMetadata = {
+        link_id: linkId,
+        domain: "slugy.co",
+        slug: slug,
+        url: originalLink.url,
+        tag_ids: tagIds,
+        workspace_id: workspaceCheck.workspace!.id,
+        created_at: originalLink.createdAt.toISOString(),
+      };
+      waitUntil(sendLinkMetadata(linkMetadata));
+    });
+
+    // Memory cleanup: clear large data structures we no longer need
+    linksToCreate.length = 0;
+    tagsToCreate.length = 0;
+    slugToId.clear();
+    tagNameToId.clear();
+    createdSlugs.length = 0;
 
     return NextResponse.json(
       {
-        message: `Successfully imported ${createdLinksCount} links`,
+        message: `Successfully imported ${totalCreatedCount} links`,
       },
       { status: 200 },
     );

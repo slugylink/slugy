@@ -184,11 +184,9 @@ export function useAnalytics({
         useTinybird,
       ),
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: true,
-      dedupingInterval: 30000, // 30 seconds
-      errorRetryCount: 3,
-      errorRetryInterval: 5000, // 5 seconds
+      dedupingInterval: 8000, // 8 seconds
+      errorRetryCount: 2,
+      errorRetryInterval: 3000, // 3 seconds
     },
   );
 

@@ -3,7 +3,7 @@ import type { SWRConfiguration } from "swr";
 
 export const swrConfig: SWRConfiguration = {
   fetcher,
-  dedupingInterval: 30000, // 30 seconds
+  dedupingInterval: 12000, // 12 seconds
   errorRetryCount: 2,
   errorRetryInterval: 3000,
   revalidateOnMount: true,
