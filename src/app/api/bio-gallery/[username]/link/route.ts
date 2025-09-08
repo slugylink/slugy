@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod"; // Import zod for input validation
 import { checkBioGalleryLinkLimit } from "@/server/actions/limit";
 import { headers } from "next/headers";
+import { validateUrlSafety } from "@/server/actions/url-scan";
 
 // Updated input validation schema
 const createLinkSchema = z.object({
@@ -68,6 +69,32 @@ export async function POST(
         },
         { status: 403 },
       );
+    }
+
+    // Check URL safety
+    try {
+      const safetyResult = await validateUrlSafety(url);
+      if (!safetyResult.isValid) {
+        const threats = safetyResult.threats || [];
+        return NextResponse.json(
+          {
+            error: `Unsafe URL detected - contains ${threats.map(t => {
+              switch (t) {
+                case "MALWARE": return "malware";
+                case "SOCIAL_ENGINEERING": return "phishing";
+                case "UNWANTED_SOFTWARE": return "unwanted software";
+                case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
+                default: return "security threat";
+              }
+            }).join(", ")}`,
+            code: "unsafe_url",
+          },
+          { status: 400 },
+        );
+      }
+    } catch (error) {
+      console.warn(`Failed to scan URL ${url}:`, error);
+      // On scan failure, allow URL (graceful fallback)
     }
 
     const newLink = await db.bioLinks.create({

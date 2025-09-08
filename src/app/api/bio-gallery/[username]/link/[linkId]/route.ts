@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
+import { validateUrlSafety } from "@/server/actions/url-scan";
 
 //* Update link
 export async function PUT(
@@ -40,6 +41,42 @@ export async function PUT(
   }
 
   const { title, url } = (await req.json()) as { title: string; url: string };
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid URL format" },
+      { status: 400 },
+    );
+  }
+
+  // Check URL safety
+  try {
+    const safetyResult = await validateUrlSafety(url);
+    if (!safetyResult.isValid) {
+      const threats = safetyResult.threats || [];
+      return NextResponse.json(
+        {
+          error: `Unsafe URL detected - contains ${threats.map(t => {
+            switch (t) {
+              case "MALWARE": return "malware";
+              case "SOCIAL_ENGINEERING": return "phishing";
+              case "UNWANTED_SOFTWARE": return "unwanted software";
+              case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
+              default: return "security threat";
+            }
+          }).join(", ")}`,
+          code: "unsafe_url",
+        },
+        { status: 400 },
+      );
+    }
+  } catch (error) {
+    console.warn(`Failed to scan URL ${url}:`, error);
+    // On scan failure, allow URL (graceful fallback)
+  }
 
   await db.bioLinks.update({
     where: { id: params.linkId },
