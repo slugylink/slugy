@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo } from "react";
+import { useMemo, memo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAnalytics } from "@/hooks/use-analytics";
 import FilterActions, {
@@ -62,7 +62,6 @@ const ReferrerClicks = dynamic(
   },
 );
 
-// Loading skeleton components
 function ChartSkeleton() {
   return (
     <div
@@ -79,10 +78,11 @@ interface AnalyticsClientProps {
   workspace: string;
 }
 
-export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
+export const AnalyticsClient = memo(function AnalyticsClient({
+  workspace
+}: AnalyticsClientProps) {
   const searchParams = useSearchParams();
 
-  // Get time period with better type safety
   const timePeriod = useMemo(() => {
     const period = searchParams.get("time_period");
     const validPeriods = ["24h", "7d", "30d", "3m", "12m", "all"] as const;
@@ -91,13 +91,11 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
       : DEFAULT_TIME_PERIOD;
   }, [searchParams]);
 
-  // Get all search params as an object with better memoization
   const searchParamsObj = useMemo(
     () => Object.fromEntries(searchParams.entries()),
     [searchParams],
   );
 
-  // Use the analytics hook to fetch all data at once
   const {
     data: res,
     links,
@@ -116,7 +114,6 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     workspaceslug: workspace,
     timePeriod,
     searchParams: searchParamsObj,
-    // Fetch all metrics for the main analytics dashboard
     metrics: [
       "totalClicks",
       "clicksOverTime",
@@ -132,145 +129,173 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     ],
   });
 
-  // Helper function to convert analytics data to FilterOption types with better performance
-  const convertToFilterOptions = useMemo(() => {
-    return {
-      links:
-        (links as Array<{ slug: string; url: string; clicks: number }>)?.map(
-          (item) => ({
-            slug: item.slug,
-            url: item.url,
-            clicks: item.clicks,
-          }),
-        ) || [],
-      countries:
-        (countries as Array<{ country: string; clicks: number }>)?.map(
-          (item) => ({
-            country: item.country,
-            clicks: item.clicks,
-          }),
-        ) || [],
-      cities:
-        (
-          cities as Array<{ city: string; country: string; clicks: number }>
-        )?.map((item) => ({
-          city: item.city,
+  const linksFilterOptions = useMemo(
+    () =>
+      (links as Array<{ slug: string; url: string; clicks: number }>)?.map(
+        (item) => ({
+          slug: item.slug,
+          url: item.url,
+          clicks: item.clicks,
+        }),
+      ) || [],
+    [links],
+  );
+
+  const countriesFilterOptions = useMemo(
+    () =>
+      (countries as Array<{ country: string; clicks: number }>)?.map(
+        (item) => ({
           country: item.country,
           clicks: item.clicks,
-        })) || [],
-      continents:
-        (continents as Array<{ continent: string; clicks: number }>)?.map(
-          (item) => ({
-            continent: item.continent,
-            clicks: item.clicks,
-          }),
-        ) || [],
-      browsers:
-        (browsers as Array<{ browser: string; clicks: number }>)?.map(
-          (item) => ({
-            browser: item.browser,
-            clicks: item.clicks,
-          }),
-        ) || [],
-      oses:
-        (oses as Array<{ os: string; clicks: number }>)?.map((item) => ({
-          os: item.os,
-          clicks: item.clicks,
-        })) || [],
-      devices:
-        (devices as Array<{ device: string; clicks: number }>)?.map((item) => ({
-          device: item.device,
-          clicks: item.clicks,
-        })) || [],
-      referrers:
-        (referrers as Array<{ referrer: string; clicks: number }>)?.map(
-          (item) => ({
-            referrer: item.referrer,
-            clicks: item.clicks,
-          }),
-        ) || [],
-      destinations:
-        (destinations as Array<{ destination: string; clicks: number }>)?.map(
-          (item) => ({
-            destination: item.destination,
-            clicks: item.clicks,
-          }),
-        ) || [],
-    };
-  }, [
-    links,
-    countries,
-    cities,
-    continents,
-    browsers,
-    oses,
-    devices,
-    referrers,
-    destinations,
-  ]);
+        }),
+      ) || [],
+    [countries],
+  );
 
-  // Memoize filter categories to prevent unnecessary re-renders
+  const citiesFilterOptions = useMemo(
+    () =>
+      (
+        cities as Array<{ city: string; country: string; clicks: number }>
+      )?.map((item) => ({
+        city: item.city,
+        country: item.country,
+        clicks: item.clicks,
+      })) || [],
+    [cities],
+  );
+
+  const continentsFilterOptions = useMemo(
+    () =>
+      (continents as Array<{ continent: string; clicks: number }>)?.map(
+        (item) => ({
+          continent: item.continent,
+          clicks: item.clicks,
+        }),
+      ) || [],
+    [continents],
+  );
+
+  const browsersFilterOptions = useMemo(
+    () =>
+      (browsers as Array<{ browser: string; clicks: number }>)?.map(
+        (item) => ({
+          browser: item.browser,
+          clicks: item.clicks,
+        }),
+      ) || [],
+    [browsers],
+  );
+
+  const osesFilterOptions = useMemo(
+    () =>
+      (oses as Array<{ os: string; clicks: number }>)?.map((item) => ({
+        os: item.os,
+        clicks: item.clicks,
+      })) || [],
+    [oses],
+  );
+
+  const devicesFilterOptions = useMemo(
+    () =>
+      (devices as Array<{ device: string; clicks: number }>)?.map((item) => ({
+        device: item.device,
+        clicks: item.clicks,
+      })) || [],
+    [devices],
+  );
+
+  const referrersFilterOptions = useMemo(
+    () =>
+      (referrers as Array<{ referrer: string; clicks: number }>)?.map(
+        (item) => ({
+          referrer: item.referrer,
+          clicks: item.clicks,
+        }),
+      ) || [],
+    [referrers],
+  );
+
+  const destinationsFilterOptions = useMemo(
+    () =>
+      (destinations as Array<{ destination: string; clicks: number }>)?.map(
+        (item) => ({
+          destination: item.destination,
+          clicks: item.clicks,
+        }),
+      ) || [],
+    [destinations],
+  );
+
   const filterCategories = useMemo(
     (): FilterCategory[] => [
       {
         id: "slug_key" as CategoryId,
         label: "Link",
         icon: <LinkIcon className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.links,
+        options: linksFilterOptions,
       },
       {
         id: "country_key" as CategoryId,
         label: "Country",
         icon: <Flag className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.countries,
+        options: countriesFilterOptions,
       },
       {
         id: "city_key" as CategoryId,
         label: "City",
         icon: <MapPinned className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.cities,
+        options: citiesFilterOptions,
       },
       {
         id: "continent_key" as CategoryId,
         label: "Continent",
         icon: <Map className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.continents,
+        options: continentsFilterOptions,
       },
       {
         id: "browser_key" as CategoryId,
         label: "Browser",
         icon: <Chrome className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.browsers,
+        options: browsersFilterOptions,
       },
       {
         id: "os_key" as CategoryId,
         label: "OS",
         icon: <Box className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.oses,
+        options: osesFilterOptions,
       },
       {
         id: "device_key" as CategoryId,
         label: "Device",
         icon: <Smartphone className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.devices,
+        options: devicesFilterOptions,
       },
       {
         id: "referrer_key" as CategoryId,
         label: "Referrer",
         icon: <Share2 className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.referrers,
+        options: referrersFilterOptions,
       },
       {
         id: "destination_key" as CategoryId,
         label: "Destination URL",
         icon: <Redo2 className="h-4 w-4" strokeWidth={1.3} />,
-        options: convertToFilterOptions.destinations,
+        options: destinationsFilterOptions,
       },
     ],
-    [convertToFilterOptions],
+    [
+      linksFilterOptions,
+      countriesFilterOptions,
+      citiesFilterOptions,
+      continentsFilterOptions,
+      browsersFilterOptions,
+      osesFilterOptions,
+      devicesFilterOptions,
+      referrersFilterOptions,
+      destinationsFilterOptions,
+    ],
   );
 
-  // Memoize chart data to prevent unnecessary re-renders
   const chartData = useMemo(() => {
     return res?.clicksOverTime?.map((item) => ({
       time: item.time instanceof Date ? item.time.toISOString() : item.time,
@@ -278,7 +303,17 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     }));
   }, [res?.clicksOverTime]);
 
-  // Error state with better UX
+  const sharedProps = useMemo(
+    () => ({
+      workspaceslug: workspace,
+      searchParams: searchParamsObj,
+      timePeriod,
+      isLoading: isLoading || isValidating,
+      error,
+    }),
+    [workspace, searchParamsObj, timePeriod, isLoading, isValidating, error],
+  );
+
   if (error) {
     return (
       <div className="flex h-full min-h-[60vh] w-full flex-col items-center justify-center rounded border">
@@ -299,7 +334,6 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
     );
   }
 
-  // Loading state with better UX
   if (isLoading && !res) {
     return (
       <div className="space-y-6">
@@ -326,64 +360,42 @@ export function AnalyticsClient({ workspace }: AnalyticsClientProps) {
       <div className="my-6 space-y-4">
         {/* Analytics Chart */}
         <Chart
-          workspaceslug={workspace}
-          timePeriod={timePeriod}
-          searchParams={searchParamsObj}
-          // Pass data directly to prevent duplicate API calls
+          {...sharedProps}
           data={chartData}
           totalClicks={res?.totalClicks}
-          isLoading={isLoading || isValidating}
-          error={error}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           {/* URL Clicks */}
           <UrlClicks
-            workspaceslug={workspace}
-            searchParams={searchParamsObj}
-            timePeriod={timePeriod}
-            // Pass data directly to prevent duplicate API calls
-            linksData={convertToFilterOptions.links}
-            destinationsData={convertToFilterOptions.destinations}
-            isLoading={isLoading || isValidating}
+            {...sharedProps}
+            linksData={linksFilterOptions}
+            destinationsData={destinationsFilterOptions}
           />
 
           {/* Geo Clicks */}
           <GeoClicks
-            workspaceslug={workspace}
-            searchParams={searchParamsObj}
-            timePeriod={timePeriod}
-            // Pass data directly to prevent duplicate API calls
-            citiesData={convertToFilterOptions.cities}
-            countriesData={convertToFilterOptions.countries}
-            continentsData={convertToFilterOptions.continents}
-            isLoading={isLoading || isValidating}
-            error={error}
+            {...sharedProps}
+            citiesData={citiesFilterOptions}
+            countriesData={countriesFilterOptions}
+            continentsData={continentsFilterOptions}
           />
 
           {/* Device Clicks */}
           <DeviceClicks
-            workspaceslug={workspace}
-            searchParams={searchParamsObj}
-            timePeriod={timePeriod}
-            // Pass data directly to prevent duplicate API calls
-            devicesData={convertToFilterOptions.devices}
-            browsersData={convertToFilterOptions.browsers}
-            osesData={convertToFilterOptions.oses}
-            isLoading={isLoading || isValidating}
+            {...sharedProps}
+            devicesData={devicesFilterOptions}
+            browsersData={browsersFilterOptions}
+            osesData={osesFilterOptions}
           />
 
           {/* Referrer Clicks */}
           <ReferrerClicks
-            workspaceslug={workspace}
-            searchParams={searchParamsObj}
-            timePeriod={timePeriod}
-            isLoading={isLoading || isValidating}
-            error={error}
-            referrersData={convertToFilterOptions.referrers}
+            {...sharedProps}
+            referrersData={referrersFilterOptions}
           />
         </div>
       </div>
     </section>
   );
-}
+});
