@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { headers } from "next/headers";
 import { magicLink, admin, organization } from "better-auth/plugins";
 import { sendMagicLinkEmail } from "@/utils/magiclink";
 import { db } from "@/server/db";
@@ -134,3 +135,16 @@ export const getUserByEmail = async (email: string) => {
 };
 
 export type Session = typeof auth.$Infer.Session;
+
+// Optimized layout utilities for better performance and code reuse
+export async function getAuthSession() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session?.user?.id) {
+    return { success: false, redirectTo: "/login" } as const;
+  }
+
+  return { success: true, session } as const;
+}

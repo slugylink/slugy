@@ -1,12 +1,7 @@
 import WorkspaceNotFound from "@/components/web/_workspace/not-found";
 import { SharedLayout } from "@/components/web/shared-layout";
-import { auth } from "@/lib/auth";
-import {
-  fetchAllWorkspaces,
-  validateworkspaceslug,
-} from "@/server/actions/workspace/workspace";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { getLayoutData } from "@/lib/layout-utils";
+import { filterValidWorkspaces } from "@/lib/workspace-utils";
 
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
@@ -19,28 +14,23 @@ export default async function WorkspaceLayout({
   children,
   params,
 }: WorkspaceLayoutProps) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  if (!session?.user?.id) return redirect("/login");
-
   const awaitedParams = await params;
-  const validSlug = await validateworkspaceslug(
-    session.user.id,
-    awaitedParams.workspace,
-  );
+  const layoutData = await getLayoutData(awaitedParams.workspace);
 
-  if (!validSlug.success) return <WorkspaceNotFound />;
+  // Handle workspace not found
+  if (layoutData.workspaceNotFound) {
+    return <WorkspaceNotFound />;
+  }
 
-  const allWorkspaces = await fetchAllWorkspaces(session.user.id);
   return (
     <SharedLayout
-      workspaceslug={awaitedParams.workspace}
-      workspaces={
-        allWorkspaces.success && allWorkspaces.workspaces
-          ? allWorkspaces.workspaces.filter((workspace): workspace is NonNullable<typeof workspace> => workspace !== null)
-          : []
-      }
+      workspaceslug={layoutData.workspaceslug}
+      workspaces={filterValidWorkspaces(layoutData.workspaces) as {
+        id: string;
+        name: string;
+        slug: string;
+        userRole: "owner" | "admin" | "member" | null;
+      }[]}
     >
       {children}
     </SharedLayout>

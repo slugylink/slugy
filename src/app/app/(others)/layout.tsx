@@ -1,27 +1,24 @@
 import { SharedLayout } from "@/components/web/shared-layout";
-import { auth } from "@/lib/auth";
-import { fetchAllWorkspaces } from "@/server/actions/workspace/workspace";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { getLayoutData } from "@/lib/layout-utils";
+import { filterValidWorkspaces } from "@/lib/workspace-utils";
 
 export default async function OthersLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user?.id) {
-    return redirect("/login");
-  }
-
-  const allWorkspaces = await fetchAllWorkspaces(session.user.id);
-  const workspaces = allWorkspaces.success && allWorkspaces.workspaces
-    ? allWorkspaces.workspaces.filter((workspace): workspace is NonNullable<typeof workspace> => workspace !== null)
-    : [];
-  const workspaceslug = workspaces.length > 0 ? workspaces[0].slug : "";
+  const layoutData = await getLayoutData();
 
   return (
-    <SharedLayout workspaceslug={workspaceslug} workspaces={workspaces}>
+    <SharedLayout
+      workspaceslug={layoutData.workspaceslug}
+      workspaces={filterValidWorkspaces(layoutData.workspaces) as {
+        id: string;
+        name: string;
+        slug: string;
+        userRole: "owner" | "admin" | "member" | null;
+      }[]}
+    >
       {children}
     </SharedLayout>
   );
