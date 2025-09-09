@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { memo, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import FeatureLinkCard, {
@@ -9,7 +9,8 @@ import FeatureQRCodeDesign from "@/components/web/_features/feature-qr-code-desi
 import FeatureAnalyticsChart from "@/components/web/_features/feature-chart";
 import FeatureLinkPreview from "@/components/web/_features/feature-preview";
 
-const featureCards = [
+// Memoized feature cards data for better performance
+const featureCardsData = [
   {
     title: "Link Shortening",
     description: "Create branded, concise links for effective sharing.",
@@ -64,10 +65,11 @@ const featureCards = [
       />
     ),
   },
-];
+] as const;
 
-const Features = () => (
-  <div className="dark:bg-background mx-auto mt-10 max-w-[80rem] px-1 py-12 text-center sm:mt-0 sm:py-16">
+const Features = memo(function Features() {
+  return (
+    <div className="dark:bg-background mx-auto mt-10 max-w-6xl px-4 py-12 text-center sm:mt-0 sm:py-16">
     {/* Heading */}
     <div className="mb-5 space-y-4 text-2xl font-medium sm:text-4xl">
       <h2 className="text-balance">Elevate your brand</h2>
@@ -80,7 +82,7 @@ const Features = () => (
     </p>
     {/* Feature Cards Grid */}
     <div className="mb-16 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-2">
-      {featureCards.map((feat, idx) => (
+      {featureCardsData.map((feat, idx) => (
         <Card
           key={feat.title}
           className="rounded-none border-none bg-transparent p-3 pt-10 shadow-none sm:p-14"
@@ -116,6 +118,9 @@ const Features = () => (
       ))}
     </div>
   </div>
-);
+  );
+});
+
+Features.displayName = "Features";
 
 export default Features;

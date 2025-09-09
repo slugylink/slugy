@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa6";
+import { memo } from "react";
 
-const OpenSource = () => {
+const OpenSource = memo(function OpenSource() {
   return (
     <section className="relative mx-auto mt-20 max-w-6xl px-4 md:mt-36">
       <div className="relative overflow-hidden rounded-xl border bg-zinc-200/50 p-1.5 sm:rounded-2xl">
@@ -57,6 +58,8 @@ const OpenSource = () => {
       </div>
     </section>
   );
-};
+});
+
+OpenSource.displayName = "OpenSource";
 
 export default OpenSource;

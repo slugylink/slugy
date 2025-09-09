@@ -92,7 +92,7 @@ const Footer: React.FC = () => {
   }
 
   return (
-    <footer className="border-border relative mx-auto mt-24 flex w-full max-w-[80rem] flex-col items-center justify-center border-t bg-transparent bg-[radial-gradient(35%_128px_at_50%_0%,theme(backgroundColor.white/8%),transparent)] px-4 pt-16 pb-8 md:mt-40 md:pb-0 lg:px-8 lg:pt-24">
+    <footer className="border-border relative mx-auto mt-24 flex w-full max-w-6xl flex-col items-center justify-center border-t bg-transparent bg-[radial-gradient(35%_128px_at_50%_0%,theme(backgroundColor.white/8%),transparent)] px-4 pt-16 pb-8 md:mt-40 md:pb-0 lg:px-4 lg:pt-24">
       <div className="bg-foreground absolute top-0 right-1/2 left-1/2 h-1.5 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full" />
       <div className="grid w-full gap-8 xl:grid-cols-3 xl:gap-8">
         <div className="flex flex-col items-start justify-start md:max-w-[300px]">

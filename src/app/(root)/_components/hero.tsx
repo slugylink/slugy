@@ -7,71 +7,73 @@ import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { motion } from "motion/react";
 import { Bricolage_Grotesque } from "next/font/google";
+import { memo, useMemo } from "react";
 
 // ---------------------
-// Data-Driven Content
+// Optimized Data-Driven Content
 // ---------------------
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
-const data = {
-  hero: {
-    backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
-    backgroundAlt: "Background texture",
-    announcement: {
-      text: (
-        <>
-          Not Backed by{" "}
-          <span className="mx-2 aspect-square size-5 bg-orange-500 p-[1px] text-center text-white">
-            Y
-          </span>{" "}
-          Combinator
-        </>
-      ),
-      href: null,
-    },
-    heading1: "Simplify Links Like",
-    heading2: (
-      <div className="flex items-center gap-2">
-        <span className="text-[#ffaa40]">
-          <Image src={"/icons/star.svg"} width={50} height={50} alt="Magic" />
-        </span>
-        Magic
-      </div>
-    ),
-    heading2Gradient:
-      "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text- [text-fill-color:transparent]",
-    fontFamily: "var(--font-bricolage)",
-    subheading1: (
+
+// Memoized data object for better performance
+const heroData = {
+  backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
+  backgroundAlt: "Background texture",
+  announcement: {
+    text: (
       <>
-        A modern link platform where creators, entrepreneurs{" "}
-        <br className="hidden sm:block" /> and teams turn clicks into growth.
+        Not Backed by{" "}
+        <span className="mx-2 aspect-square size-5 bg-orange-500 p-[1px] text-center text-white">
+          Y
+        </span>{" "}
+        Combinator
       </>
     ),
-    subheading2: "",
-    badge: {
-      imageUrl:
-        "https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464",
-      alt: "Slugy - Simplify links like magic | Product Hunt",
-      href: "https://www.producthunt.com/products/slugy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-slugy",
-      width: 180,
-      height: 50,
-    },
+    href: null,
   },
-};
+  heading1: "Simplify Links Like",
+  heading2: (
+    <div className="flex items-center gap-2">
+      <span className="text-[#ffaa40]">
+        <Image src={"/icons/star.svg"} width={50} height={50} alt="Magic" />
+      </span>
+      Magic
+    </div>
+  ),
+  heading2Gradient:
+    "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text- [text-fill-color:transparent]",
+  fontFamily: "var(--font-bricolage)",
+  subheading1: (
+    <>
+      A modern link platform where creators, entrepreneurs{" "}
+      <br className="hidden sm:block" /> and teams turn clicks into growth.
+    </>
+  ),
+  subheading2: "",
+  badge: {
+    imageUrl:
+      "https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464",
+    alt: "Slugy - Simplify links like magic | Product Hunt",
+    href: "https://www.producthunt.com/products/slugy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_source=badge-slugy",
+    width: 180,
+    height: 50,
+  },
+} as const;
 
-const Hero = () => {
-  const { hero } = data;
+const Hero = memo(function Hero() {
+  // Memoized hero data access
+  const hero = useMemo(() => heroData, []);
 
   return (
-    <section className="container mx-auto px-4">
+    <section className="mx-auto max-w-6xl px-4">
       {/* Decorative Background */}
       <motion.div
         className="absolute top-36 right-0 left-1/2 z-0 h-[400px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-48 sm:h-[580px]"
         initial={{ opacity: 0, scale: 1.02 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       >
         <Image
           src={hero.backgroundImage}
@@ -187,6 +189,8 @@ const Hero = () => {
       </div>
     </section>
   );
-};
+});
+
+Hero.displayName = "Hero";
 
 export default Hero;

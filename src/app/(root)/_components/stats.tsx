@@ -45,12 +45,21 @@ const statsData = [
   },
 ] as const;
 
-// Memoize growth data calculation
-const generateGrowthData = () =>
-  Array.from({ length: 100 }, (_, i) => ({
-    x: i,
-    y: Math.pow(1.045, i) * 10,
-  }));
+// Memoized growth data calculation for better performance
+const generateGrowthData = (() => {
+  const cache = new Map<number, Array<{ x: number; y: number }>>();
+  return (length: number = 100) => {
+    if (cache.has(length)) {
+      return cache.get(length)!;
+    }
+    const data = Array.from({ length }, (_, i) => ({
+      x: i,
+      y: Math.pow(1.045, i) * 10,
+    }));
+    cache.set(length, data);
+    return data;
+  };
+})();
 
 const animations = {
   container: {
@@ -139,10 +148,10 @@ function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
 export default function Stats() {
   const chartRef = useRef(null);
   const isInView = useInView(chartRef, { once: true, amount: 0.5 });
-  const growthData = useMemo(generateGrowthData, []);
+  const growthData = useMemo(() => generateGrowthData(100), []);
 
   return (
-    <section className="relative mx-auto mt-20 max-w-6xl md:mt-16">
+    <section className="relative mx-auto mt-20 max-w-6xl px-4 md:mt-16">
       <motion.div
         className="text-center"
         initial={{ opacity: 0, y: 20 }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,30 +25,32 @@ const DEFAULT_LINK = {
   expires: null,
 } as const;
 
-// ----------------- Validation Schema -----------------
-const urlPattern = /^https?:\/\//;
-const createLinkSchema = z.object({
-  url: z
-    .string()
-    .min(1, "Destination URL is required")
-    .refine(
-      (url) => {
-        if (urlPattern.test(url)) {
-          try {
-            new URL(url);
-            return true;
-          } catch {
-            return false;
+// Memoized validation schema for better performance
+const createLinkSchema = (() => {
+  const urlPattern = /^https?:\/\//;
+  return z.object({
+    url: z
+      .string()
+      .min(1, "Destination URL is required")
+      .refine(
+        (url) => {
+          if (urlPattern.test(url)) {
+            try {
+              new URL(url);
+              return true;
+            } catch {
+              return false;
+            }
           }
-        }
-        return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(url);
-      },
-      {
-        message:
-          "Please enter a valid URL (e.g., https://example.com or example.com)",
-      },
-    ),
-});
+          return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(url);
+        },
+        {
+          message:
+            "Please enter a valid URL (e.g., https://example.com or example.com)",
+        },
+      ),
+  });
+})();
 
 type FormData = z.infer<typeof createLinkSchema>;
 
@@ -74,7 +76,7 @@ interface GetLinksResponse {
 }
 
 // ----------------- Component -----------------
-const HeroLinkForm = () => {
+const HeroLinkForm = memo(function HeroLinkForm() {
   const [links, setLinks] = useState<Link[]>([DEFAULT_LINK]);
 
   // SWR: fetching existing links
@@ -220,6 +222,8 @@ const HeroLinkForm = () => {
       </div>
     </div>
   );
-};
+});
+
+HeroLinkForm.displayName = "HeroLinkForm";
 
 export default HeroLinkForm;

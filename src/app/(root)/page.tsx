@@ -1,28 +1,37 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { memo } from "react";
 import Hero from "./_components/hero";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import PricingSection from "@/components/web/_pricing/pricing-section";
 
+// Constants moved outside component for better performance
 const LOADING_HEIGHT = {
   features: "h-[400px]",
   stats: "h-[300px]",
   pricing: "h-[500px]",
   openSource: "h-[300px]",
-};
+} as const;
 
-function LoadingSection({ height = "h-[200px]" }: { height?: string }) {
+// Memoized loading components for better performance
+const LoadingSpinner = memo(() => (
+  <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+));
+LoadingSpinner.displayName = "LoadingSpinner";
+
+const LoadingSection = memo(function LoadingSection({
+  height = "h-[200px]"
+}: {
+  height?: string;
+}) {
   return (
     <div className={`flex w-full items-center justify-center ${height}`}>
       <LoadingSpinner />
     </div>
   );
-}
-
-const LoadingSpinner = () => (
-  <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-);
+});
+LoadingSection.displayName = "LoadingSection";
 
 const Features = dynamic(() => import("./_components/feature"), {
   loading: () => <LoadingSection height={LOADING_HEIGHT.features} />,
