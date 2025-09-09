@@ -44,12 +44,6 @@ Easily shorten URLs, generate QR codes, track performance, and share everything 
 
 ---
 
-## 📄 License
-
-Slugy is open-source under the **MIT License**. See [LICENSE](./LICENSE) for more.
-
----
-
 ## 💖 Sponsor
 
 [![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)
