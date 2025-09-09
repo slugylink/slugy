@@ -38,7 +38,7 @@ Easily shorten URLs, generate QR codes, track performance, and share everything 
 | [`Prisma`](https://www.prisma.io)               | ORM                      |
 | [`Neon`](https://neon.tech)                     | Database                 |
 | [`Upstash`](https://upstash.com/)               | Caching                  |
-| [`Recharts`](https://recharts.org)              | Analytics Visualization  |
+| [`Tinybird`](https://tinybird.co)               | Analytics                |
 | [`Resend`](https://resend.com)                  | Email Notifications      |
 | [`Vercel`](https://vercel.com)                  | Hosting & Deployment     |
 
@@ -50,6 +50,12 @@ Slugy is open-source under the **MIT License**. See [LICENSE](./LICENSE) for mor
 
 ---
 
+## 💖 Sponsor
+
+[![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)
+
+---
+
 ## 🔗 Connect
 
 - [Twitter](https://x.com/slugydotco)
@@ -57,10 +63,6 @@ Slugy is open-source under the **MIT License**. See [LICENSE](./LICENSE) for mor
 
 ---
 
-## 💖 Sponsor
 
-[![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)
-
----
 
 > Built with 🐌 by the Slugy.
