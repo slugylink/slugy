@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
-import { headers } from "next/headers";
 
 export async function GET(
   req: Request,
@@ -11,17 +10,15 @@ export async function GET(
     const { workspaceslug } = await params;
     
     // Authenticate session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    const userId = session?.user?.id;
-    if (!userId) {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       );
     }
+    const session = authResult.session;
+    const userId = session.user.id;
 
     // Fetch workspace
     const workspace = await db.workspace.findFirst({

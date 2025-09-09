@@ -1,17 +1,14 @@
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { getActiveSubscription } from "@/server/actions/subscription";
 import { getDefaultWorkspace } from "@/server/actions/workspace/workspace";
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 export default async function App() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session?.user?.id) {
-    return redirect("/login");
+  const authResult = await getAuthSession();
+  if (!authResult.success) {
+    redirect(authResult.redirectTo);
   }
+  const session = authResult.session;
 
   const [subscriptionStatus, defaultWorkspace] = await Promise.all([
     getActiveSubscription(session?.user?.id),

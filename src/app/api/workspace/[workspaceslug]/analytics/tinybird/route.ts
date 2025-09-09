@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 
 // Types for better type safety
@@ -299,13 +298,14 @@ export async function GET(
     const props = analyticsPropsSchema.parse(raw);
 
     // Authenticate user
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED" },
         { status: 401 },
       );
     }
+    const session = authResult.session;
 
     // Get workspace ID from database
     const workspaceResult = await sql`

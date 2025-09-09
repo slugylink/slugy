@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 
 // Types for database queries
@@ -173,13 +172,14 @@ export async function GET(
 ) {
   try {
     // Get session with better error handling
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED" },
         { status: 401 }
       );
     }
+    const session = authResult.session;
 
     // Parse and validate params
     const context = await params;

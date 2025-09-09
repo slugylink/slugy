@@ -1,8 +1,7 @@
 "use server";
 
 import { db } from "@/server/db";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getAuthSession } from "@/lib/auth";
 
 interface WorkspaceData {
   maxClicksLimit: number;
@@ -29,14 +28,12 @@ export async function getUsages({
 }): Promise<UsageData> {
   try {
     // Authenticate session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    const userId = session?.user?.id;
-    if (!userId) {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
       return { workspace: null, usage: null };
     }
+    const session = authResult.session;
+    const userId = session.user.id;
 
     // Parallel database queries for better performance
     const [workspace, usage] = await Promise.all([

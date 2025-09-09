@@ -21,8 +21,7 @@ interface SharedLayoutProps {
 const LayoutSkeleton = memo(() => (
   <div className="flex h-screen items-center justify-center">
     <div className="flex flex-col items-center gap-4">
-      <LoaderCircle className="h-8 w-8 animate-spin" />
-      <p className="text-sm text-muted-foreground">Loading workspace...</p>
+      <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
     </div>
   </div>
 ));

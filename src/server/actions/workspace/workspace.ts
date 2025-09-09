@@ -1,7 +1,6 @@
 "use server";
-import { auth } from "@/lib/auth";
+import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
-import { headers } from "next/headers";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
@@ -28,15 +27,12 @@ export async function createWorkspace({
   isDefault?: boolean;
 }) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user?.id) {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
       return { success: false, error: "Unauthorized" };
     }
 
-    const userId = session.user.id;
+    const userId = authResult.session.user.id;
 
     // Check if workspace slug already exists
     const existingWorkspace = await db.workspace.findUnique({
