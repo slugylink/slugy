@@ -3,7 +3,6 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-
 // Components
 import SearchInput from "./search-input";
 import LinkActions from "./link-actions";

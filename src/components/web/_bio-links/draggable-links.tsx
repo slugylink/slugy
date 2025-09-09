@@ -52,7 +52,10 @@ interface DraggableLinksProps {
 }
 
 const EmptyState = React.memo(() => (
-  <div className={EMPTY_STATE_CLASSES} aria-label="No links found">
+  <div
+    className={`${EMPTY_STATE_CLASSES} animate-in fade-in slide-in-from-bottom-2 duration-500`}
+    aria-label="No links found"
+  >
     <Smartphone className="animate-fade-in" size={50} strokeWidth={1.1} />
     <h2 className="mt-2 text-lg font-medium">No bio links found</h2>
     <p className="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
@@ -216,6 +219,11 @@ const DraggableLinks = ({
               ref={provided.innerRef}
               {...provided.draggableProps}
               {...provided.dragHandleProps}
+              className="animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out"
+              style={{
+                animationDelay: `${Math.min(index * 30, 500)}ms`,
+                animationFillMode: 'both'
+              }}
             >
               <GalleryLinkCard
                 link={link}

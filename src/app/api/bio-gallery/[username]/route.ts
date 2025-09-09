@@ -142,14 +142,8 @@ export async function GET(
       })),
     };
 
-    // Set appropriate cache headers based on content
-    const hasPublicContent =
-      safeGallery.links.some((link) => link.isPublic) ||
-      safeGallery.socials.some((social) => social.isPublic);
-
-    const cacheControl = hasPublicContent
-      ? `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`
-      : `private, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`;
+    // For admin dashboard, use no-cache to ensure fresh data after updates
+    const cacheControl = `private, no-cache, no-store, must-revalidate`;
 
     return createSuccessResponse(safeGallery, cacheControl);
   } catch (error) {

@@ -22,6 +22,7 @@ import {
 import { LuMail } from "react-icons/lu";
 import { useThemeUpdate } from "@/hooks/use-theme-update";
 import { useThemeStore } from "@/store/theme-store";
+import { KeyedMutator } from "swr";
 
 type Theme = {
   id: string;
@@ -31,6 +32,28 @@ type Theme = {
   textColor: string;
   accentColor: string;
 };
+
+interface Gallery {
+  links: Array<{
+    id: string;
+    title: string;
+    url: string;
+    isPublic: boolean;
+    position: number;
+    clicks: number;
+    galleryId: string;
+  }>;
+  username: string;
+  name?: string | null;
+  bio?: string | null;
+  logo?: string | null;
+  socials?: Array<{
+    platform: string;
+    url?: string;
+    isPublic?: boolean;
+  }>;
+  theme?: string;
+}
 
 interface Link {
   id: string;
@@ -51,6 +74,7 @@ interface GalleryLinkPreviewProps {
     url?: string;
     isPublic?: boolean;
   }[];
+  mutate?: KeyedMutator<Gallery>;
 }
 
 const getTheme = (themeId: string): Theme => {
@@ -71,13 +95,14 @@ const GalleryLinkPreview = ({
   name,
   bio,
   logo,
+  mutate,
 }: GalleryLinkPreviewProps) => {
   const {
     isSheetOpen,
     setIsSheetOpen,
     theme,
     handleThemeClick,
-  } = useThemeUpdate(username, initialTheme, onThemeChange);
+  } = useThemeUpdate(username, initialTheme, onThemeChange, mutate);
   const setTheme = useThemeStore((state) => state.setTheme);
   // Sync Zustand store with initialTheme from props
   React.useEffect(() => {
@@ -87,7 +112,7 @@ const GalleryLinkPreview = ({
 
   return (
     <>
-      <div className="relative flex w-fit flex-col items-start">
+      <div className="relative flex w-fit flex-col items-start bg-white">
         {/* iPhone Frame Container */}
         <div className="relative mx-auto w-[305px]">
           {/* iPhone Notch */}

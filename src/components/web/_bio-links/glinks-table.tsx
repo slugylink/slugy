@@ -110,6 +110,16 @@ const GalleryLinkTable = ({
         bio={gallery?.bio}
         logo={gallery?.logo}
         initialTheme={gallery?.theme ?? "default"}
+        mutate={mutate}
+        onThemeChange={(newTheme) => {
+          mutate((currentData) => {
+            if (!currentData) return currentData;
+            return {
+              ...currentData,
+              theme: newTheme,
+            };
+          }, false);
+        }}
       />
     ),
     [
@@ -120,6 +130,7 @@ const GalleryLinkTable = ({
       gallery?.bio,
       gallery?.logo,
       gallery?.theme,
+      mutate,
     ],
   );
 

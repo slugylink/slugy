@@ -3,8 +3,36 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
 import { ThemeConfirmToast } from "@/components/ui/theme-confirm-toast";
+import { KeyedMutator } from "swr";
 
-export function useThemeUpdate(username: string, initialTheme: string, onThemeChange?: (theme: string) => void) {
+interface Gallery {
+  links: Array<{
+    id: string;
+    title: string;
+    url: string;
+    isPublic: boolean;
+    position: number;
+    clicks: number;
+    galleryId: string;
+  }>;
+  username: string;
+  name?: string | null;
+  bio?: string | null;
+  logo?: string | null;
+  socials?: Array<{
+    platform: string;
+    url?: string;
+    isPublic?: boolean;
+  }>;
+  theme?: string;
+}
+
+export function useThemeUpdate(
+  username: string,
+  initialTheme: string,
+  onThemeChange?: (theme: string) => void,
+  mutate?: KeyedMutator<Gallery>
+) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const router = useRouter();
@@ -51,19 +79,43 @@ export function useThemeUpdate(username: string, initialTheme: string, onThemeCh
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme: themeId }),
       });
+
+      const responseData = await res.json();
+
       if (!res.ok) {
-        const data: unknown = await res.json();
         let errorMsg = "Failed to update theme";
         if (
-          data &&
-          typeof data === "object" &&
-          "error" in data &&
-          typeof (data as { error?: unknown }).error === "string"
+          responseData &&
+          typeof responseData === "object" &&
+          "error" in responseData &&
+          typeof (responseData as { error?: unknown }).error === "string"
         ) {
-          errorMsg = (data as { error: string }).error;
+          errorMsg = (responseData as { error: string }).error;
         }
         throw new Error(errorMsg);
       }
+
+      // Update the cache with the new theme - use API response data if available
+      if (mutate) {
+        try {
+          // If we have updated gallery data from the API, use it
+          if (responseData.gallery) {
+            mutate(responseData.gallery, false); // false prevents revalidation
+          } else {
+            // Fallback: just update the theme field
+            mutate((currentData) => {
+              if (!currentData) return currentData;
+              return {
+                ...currentData,
+                theme: themeId,
+              };
+            }, false); // false prevents revalidation
+          }
+        } catch (cacheError) {
+          console.error("Failed to update cache:", cacheError);
+        }
+      }
+
       onThemeChange?.(themeId);
       router.refresh();
     } catch (err: unknown) {

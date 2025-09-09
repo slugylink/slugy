@@ -77,12 +77,12 @@ interface ActionsProps {
   mutate: KeyedMutator<Gallery>;
 }
 
-const Actions = ({ gallery, username }: ActionsProps) => {
+const Actions = ({ gallery, username, mutate }: ActionsProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const { isSheetOpen, setIsSheetOpen, theme, handleThemeClick } =
-    useThemeUpdate(username, gallery.theme ?? "music");
+    useThemeUpdate(username, gallery.theme ?? "default", undefined, mutate);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -331,6 +331,16 @@ const Actions = ({ gallery, username }: ActionsProps) => {
                   bio={gallery.bio}
                   logo={gallery.logo}
                   initialTheme={gallery.theme ?? "default"}
+                  mutate={mutate}
+                  onThemeChange={(newTheme) => {
+                    mutate((currentData) => {
+                      if (!currentData) return currentData;
+                      return {
+                        ...currentData,
+                        theme: newTheme,
+                      };
+                    }, false);
+                  }}
                 />
               </div>
             </div>

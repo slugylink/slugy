@@ -48,13 +48,64 @@ export async function PATCH(
       },
     });
 
+
     // Invalidate both caches: public gallery + admin dashboard
     await Promise.all([
       invalidateBioCache.theme(params.username),           // Public cache
       invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
     ]);
 
-    return NextResponse.json({ message: "Theme updated" }, { status: 200 });
+
+    // Fetch the updated gallery data to return to frontend for immediate cache update
+    const updatedGallery = await db.bio.findUnique({
+      where: {
+        userId: session.user.id,
+        username: params.username,
+      },
+      include: {
+        socials: {
+          orderBy: { platform: "asc" },
+        },
+        links: {
+          orderBy: { position: "asc" },
+        },
+      },
+    });
+
+    if (!updatedGallery) {
+      return NextResponse.json({ error: "Failed to fetch updated gallery" }, { status: 500 });
+    }
+
+    // Transform the data to match the frontend expectations
+    const safeGallery = {
+      username: updatedGallery.username,
+      name: updatedGallery.name,
+      bio: updatedGallery.bio,
+      logo: updatedGallery.logo,
+      theme: updatedGallery.theme ?? "default",
+      socials: updatedGallery.socials
+        .filter((s) => s.platform && s.platform.trim())
+        .map((s) => ({
+          platform: s.platform!.trim(),
+          url: s.url?.trim() ?? "",
+          isPublic: Boolean(s.isPublic),
+        })),
+      links: updatedGallery.links.map((link) => ({
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        isPublic: Boolean(link.isPublic),
+        position: link.position,
+        clicks: link.clicks,
+        galleryId: link.bioId,
+      })),
+    };
+
+
+    return NextResponse.json({
+      message: "Theme updated",
+      gallery: safeGallery
+    }, { status: 200 });
   } catch (error) {
     console.error(error);
     return NextResponse.json(
