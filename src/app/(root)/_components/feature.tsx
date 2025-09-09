@@ -69,7 +69,7 @@ const featureCardsData = [
 
 const Features = memo(function Features() {
   return (
-    <div className="dark:bg-background mx-auto mt-10 max-w-6xl px-4 py-12 text-center sm:mt-0 sm:py-16">
+    <div className="dark:bg-background mx-auto mt-10 max-w-6xl px-[2px] sm:px-4 py-12 text-center sm:mt-0 sm:py-16">
     {/* Heading */}
     <div className="mb-5 space-y-4 text-2xl font-medium sm:text-4xl">
       <h2 className="text-balance">Elevate your brand</h2>
