@@ -164,10 +164,10 @@ const HeroLinkForm = memo(function HeroLinkForm() {
       <motion.form
         onSubmit={handleSubmit(onSubmit)}
         className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 1.0, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
           <Input
@@ -188,7 +188,14 @@ const HeroLinkForm = memo(function HeroLinkForm() {
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
             )}
             Shorten{" "}
-            <Image src="/icons/star.svg" alt="" width={16} height={16} />
+            <Image
+              src="/icons/star.svg"
+              alt=""
+              width={16}
+              height={16}
+              priority
+              sizes="16px"
+            />
           </Button>
         </div>
         {/* Links */}
@@ -197,10 +204,10 @@ const HeroLinkForm = memo(function HeroLinkForm() {
             {links.map((link) => (
               <motion.div
                 key={link.short}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
                 layout
               >
                 <HeroLinkCard link={link} />

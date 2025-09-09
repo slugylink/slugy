@@ -15,6 +15,8 @@ import { memo, useMemo } from "react";
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  preload: true,
+  display: "swap",
 });
 
 // Memoized data object for better performance
@@ -37,7 +39,14 @@ const heroData = {
   heading2: (
     <div className="flex items-center gap-2">
       <span className="text-[#ffaa40]">
-        <Image src={"/icons/star.svg"} width={50} height={50} alt="Magic" />
+        <Image
+          src={"/icons/star.svg"}
+          width={50}
+          height={50}
+          alt="Magic"
+          priority
+          sizes="50px"
+        />
       </span>
       Magic
     </div>
@@ -73,14 +82,17 @@ const Hero = memo(function Hero() {
         className="absolute top-36 right-0 left-1/2 z-0 h-[400px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-48 sm:h-[580px]"
         initial={{ opacity: 0, scale: 1.02 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <Image
           src={hero.backgroundImage}
           alt={hero.backgroundAlt}
           fill
           priority
-          sizes="100vw"
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
+          quality={75}
+          placeholder="blur"
+          blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R+IRjWjBqO6O2mhP//Z"
           className="object-cover opacity-20 mix-blend-multiply"
         />
       </motion.div>
@@ -91,12 +103,12 @@ const Hero = memo(function Hero() {
           {/* Announcement Banner */}
           <motion.div
             className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{
-              duration: 0.2,
-              ease: [0.22, 1, 0.36, 1],
-              delay: 0.05,
+              duration: 0.25,
+              ease: [0.25, 0.46, 0.45, 0.94],
+              delay: 0.1,
             }}
           >
             <div
@@ -114,18 +126,18 @@ const Hero = memo(function Hero() {
           {/* Large Gradient Heading */}
           <motion.div
             className="space-y-1 text-3xl font-medium md:space-y-2 md:text-4xl lg:text-[53px]"
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.15 }}
           >
             <motion.h2
               className={bricolage.className}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.5,
-                ease: [0.22, 1, 0.36, 1],
-                delay: 0.12,
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94],
+                delay: 0.2,
               }}
             >
               {hero.heading1}
@@ -136,12 +148,12 @@ const Hero = memo(function Hero() {
                 hero.heading2Gradient,
                 "font-medium",
               )}
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.5,
-                ease: [0.22, 1, 0.36, 1],
-                delay: 0.18,
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94],
+                delay: 0.25,
               }}
             >
               {hero.heading2}
@@ -150,12 +162,12 @@ const Hero = memo(function Hero() {
           <div className="mx-auto max-w-2xl text-zinc-700">
             <motion.p
               className="mt-4 text-sm sm:mt-6 sm:text-base md:text-xl"
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
-                duration: 0.5,
-                ease: [0.22, 1, 0.36, 1],
-                delay: 0.24,
+                duration: 0.3,
+                ease: [0.25, 0.46, 0.45, 0.94],
+                delay: 0.3,
               }}
             >
               {hero.subheading1}
@@ -163,12 +175,12 @@ const Hero = memo(function Hero() {
             {hero.subheading2 && (
               <motion.p
                 className="text-sm sm:text-base md:text-lg"
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  duration: 0.5,
-                  ease: [0.22, 1, 0.36, 1],
-                  delay: 0.28,
+                  duration: 0.3,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                  delay: 0.35,
                 }}
               >
                 {hero.subheading2}
@@ -179,10 +191,10 @@ const Hero = memo(function Hero() {
 
         {/* Form */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1], delay: 0.05 }}
+          transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94], delay: 0.4 }}
         >
           <HeroLinkForm />
         </motion.div>

@@ -2,9 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { memo } from "react";
-import Hero from "./_components/hero";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import PricingSection from "@/components/web/_pricing/pricing-section";
 
 // Constants moved outside component for better performance
 const LOADING_HEIGHT = {
@@ -33,6 +31,36 @@ const LoadingSection = memo(function LoadingSection({
 });
 LoadingSection.displayName = "LoadingSection";
 
+// Skeleton loader for Hero section
+const HeroSkeleton = memo(function HeroSkeleton() {
+  return (
+    <section className="mx-auto max-w-6xl px-4">
+      {/* Announcement Banner Skeleton */}
+      <div className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12">
+        <div className="h-8 w-48 animate-pulse rounded-full bg-muted/50" />
+      </div>
+
+      {/* Heading Skeleton */}
+      <div className="space-y-2 text-center">
+        <div className="h-12 w-64 animate-pulse rounded bg-muted/50 mx-auto sm:h-16 sm:w-80 md:h-20 md:w-96" />
+        <div className="h-12 w-56 animate-pulse rounded bg-muted/50 mx-auto sm:h-16 sm:w-72 md:h-20 md:w-80" />
+      </div>
+
+      {/* Subheading Skeleton */}
+      <div className="mx-auto mt-6 max-w-2xl">
+        <div className="h-4 w-full animate-pulse rounded bg-muted/50 sm:h-5" />
+        <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-muted/50 mx-auto sm:h-5" />
+      </div>
+
+      {/* Form Skeleton */}
+      <div className="mt-8 flex justify-center">
+        <div className="h-32 w-full max-w-md animate-pulse rounded-lg bg-muted/50" />
+      </div>
+    </section>
+  );
+});
+HeroSkeleton.displayName = "HeroSkeleton";
+
 const Features = dynamic(() => import("./_components/feature"), {
   loading: () => <LoadingSection height={LOADING_HEIGHT.features} />,
   ssr: true,
@@ -45,6 +73,16 @@ const Stats = dynamic(() => import("./_components/stats"), {
 
 const OpenSource = dynamic(() => import("./_components/open-source"), {
   loading: () => <LoadingSection height={LOADING_HEIGHT.openSource} />,
+  ssr: true,
+});
+
+const Hero = dynamic(() => import("./_components/hero"), {
+  loading: () => <HeroSkeleton />,
+  ssr: true,
+});
+
+const PricingSection = dynamic(() => import("@/components/web/_pricing/pricing-section"), {
+  loading: () => <LoadingSection height={LOADING_HEIGHT.pricing} />,
   ssr: true,
 });
 

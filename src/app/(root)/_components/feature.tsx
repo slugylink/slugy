@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useMemo } from "react";
+import React, { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import FeatureLinkCard, {
@@ -81,11 +81,11 @@ const Features = memo(function Features() {
       platform that includes robust analytics.
     </p>
     {/* Feature Cards Grid */}
-    <div className="mb-16 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-2">
+    <div className="mb-16 grid grid-cols-1 gap-6 sm:gap-14 sm:grid-cols-2 xl:grid-cols-2">
       {featureCardsData.map((feat, idx) => (
         <Card
           key={feat.title}
-          className="rounded-none border-none bg-transparent p-3 pt-10 shadow-none sm:p-14"
+          className="rounded-none border-none bg-transparent p-3 pt-10 shadow-none"
         >
           <div>
             <div className="relative">

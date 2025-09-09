@@ -11,11 +11,15 @@ import { Metadata } from "next";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  preload: true,
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  preload: true,
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -167,6 +171,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(geistSans.variable, geistMono.variable)}
     >
+      <head>
+        {/* Preconnect to external domains for better performance */}
+        <link rel="preconnect" href="https://assets.sandipsarkar.dev" />
+        <link rel="preconnect" href="https://api.producthunt.com" />
+        <link rel="dns-prefetch" href="https://assets.sandipsarkar.dev" />
+        <link rel="dns-prefetch" href="https://api.producthunt.com" />
+      </head>
       <body>
         <NuqsAdapter>
           <Providers>
