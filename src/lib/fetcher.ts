@@ -1,9 +1,10 @@
 // fetcher.ts
 import axios, { AxiosRequestConfig } from "axios";
 
-export const fetcher = <T = unknown>(
+export const fetcher = async <T = unknown>(
   url: string,
   config?: AxiosRequestConfig,
 ): Promise<T> => {
-  return axios.get<T>(url, config).then((res) => res.data);
+  const res = await axios.get<T>(url, config);
+  return res.data;
 };
