@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, memo } from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
@@ -25,7 +25,8 @@ interface FilterSelectedButtonsProps {
   onRemoveFilter: (categoryId: CategoryId, value: string) => void;
 }
 
-const CONTINENT_NAMES: Record<string, string> = {
+// Memoize continent names to prevent object recreation
+const CONTINENT_NAMES = Object.freeze({
   af: "Africa",
   an: "Antarctica",
   as: "Asia",
@@ -34,9 +35,10 @@ const CONTINENT_NAMES: Record<string, string> = {
   oc: "Oceania",
   sa: "South America",
   unknown: "Unknown",
-};
+} as const);
 
-const CATEGORY_BG_CLASSES: Record<CategoryId, string> = {
+// Memoize category background classes to prevent object recreation
+const CATEGORY_BG_CLASSES = Object.freeze({
   slug_key: "bg-orange-200/40 hover:bg-orange-200/50",
   destination_key: "bg-orange-200/40 hover:bg-orange-200/50",
   continent_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
@@ -46,7 +48,52 @@ const CATEGORY_BG_CLASSES: Record<CategoryId, string> = {
   os_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
   device_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
   referrer_key: "bg-red-200/40 hover:bg-red-200/50",
-};
+} as const);
+
+// Memoized filter button component to prevent unnecessary re-renders
+interface FilterButtonProps {
+  category: FilterCategory;
+  value: string;
+  getOptionLabel: (category: FilterCategory, value: string) => string;
+  onRemoveFilter: (categoryId: CategoryId, value: string) => void;
+}
+
+const FilterButton = memo<FilterButtonProps>(({
+  category,
+  value,
+  getOptionLabel,
+  onRemoveFilter
+}) => {
+  const optionLabel = getOptionLabel(category, value);
+
+  return (
+    <Button
+      size="sm"
+      variant="secondary"
+      className={cn(
+        "flex items-center gap-1.5 py-1 pr-1 pl-2 font-normal transition-all",
+        CATEGORY_BG_CLASSES[category.id as keyof typeof CATEGORY_BG_CLASSES] ?? "",
+      )}
+      type="button"
+      aria-label={`Remove filter: ${optionLabel}`}
+      onClick={() => onRemoveFilter(category.id, value)}
+    >
+      <span className="max-w-[150px] truncate">
+        {optionLabel
+          .replace("https://", "")
+          .replace("http://", "")
+          .replace("www.", "")}
+      </span>
+      <X
+        className="text-muted-foreground h-3 w-3 cursor-pointer"
+        aria-hidden="true"
+        focusable={false}
+      />
+    </Button>
+  );
+});
+
+FilterButton.displayName = "FilterButton";
 
 const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
   filterCategories,
@@ -66,35 +113,58 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
     }
   }, []);
 
-  const getOptionByValue = useCallback(
-    (category: FilterCategory, value: string): FilterOption | undefined => {
-      if (!category?.options?.length) return undefined;
-      return category.options.find((option) => {
+  // Create lookup maps for faster option retrieval
+  const optionLookupMaps = useMemo(() => {
+    const maps = new Map<CategoryId, Map<string, FilterOption>>();
+
+    filterCategories.forEach((category) => {
+      const categoryMap = new Map<string, FilterOption>();
+      category.options.forEach((option) => {
+        let key: string;
         switch (category.id) {
           case "slug_key":
-            return "slug" in option && option.slug === value;
+            key = (option as LinkAnalytics).slug;
+            break;
           case "continent_key":
-            return "continent" in option && option.continent === value;
+            key = (option as ContinentAnalytics).continent;
+            break;
           case "country_key":
-            return "country" in option && option.country === value;
+            key = (option as CountryAnalytics).country;
+            break;
           case "city_key":
-            return "city" in option && option.city === value;
+            key = (option as CityAnalytics).city;
+            break;
           case "browser_key":
-            return "browser" in option && option.browser === value;
+            key = (option as BrowserAnalytics).browser;
+            break;
           case "os_key":
-            return "os" in option && option.os === value;
+            key = (option as OsAnalytics).os;
+            break;
           case "device_key":
-            return "device" in option && option.device === value;
+            key = (option as DeviceAnalytics).device;
+            break;
           case "referrer_key":
-            return "referrer" in option && option.referrer === value;
+            key = (option as ReferrerAnalytics).referrer;
+            break;
           case "destination_key":
-            return "destination" in option && option.destination === value;
+            key = (option as DestinationAnalytics).destination;
+            break;
           default:
-            return false;
+            return;
         }
+        categoryMap.set(key, option);
       });
+      maps.set(category.id, categoryMap);
+    });
+
+    return maps;
+  }, [filterCategories]);
+
+  const getOptionByValue = useCallback(
+    (category: FilterCategory, value: string): FilterOption | undefined => {
+      return optionLookupMaps.get(category.id)?.get(value);
     },
-    [],
+    [optionLookupMaps],
   );
 
   const getOptionLabel = useCallback(
@@ -108,7 +178,7 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
           const code = (
             (option as ContinentAnalytics).continent || value
           ).toLowerCase();
-          return CONTINENT_NAMES[code] || code;
+          return CONTINENT_NAMES[code as keyof typeof CONTINENT_NAMES] || code;
         }
         case "country_key": {
           const code = (option as CountryAnalytics).country || value;
@@ -170,35 +240,15 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
                 <span className="mr-1 flex items-center">{category.icon}</span>
                 {category.label}
               </Button>
-              {values.map((value) => {
-                const optionLabel = getOptionLabel(category, value);
-                return (
-                  <Button
-                    key={`${category.id}-${value}`}
-                    size="sm"
-                    variant="secondary"
-                    className={cn(
-                      "flex items-center gap-1.5 py-1 pr-1 pl-2 font-normal transition-all",
-                      CATEGORY_BG_CLASSES[category.id] ?? "",
-                    )}
-                    type="button"
-                    aria-label={`Remove filter: ${optionLabel}`}
-                    onClick={() => onRemoveFilter(category.id, value)}
-                  >
-                    <span className="max-w-[150px] truncate">
-                      {optionLabel
-                        .replace("https://", "")
-                        .replace("http://", "")
-                        .replace("www.", "")}
-                    </span>
-                    <X
-                      className="text-muted-foreground h-3 w-3 cursor-pointer"
-                      aria-hidden="true"
-                      focusable={false}
-                    />
-                  </Button>
-                );
-              })}
+              {values.map((value) => (
+                <FilterButton
+                  key={`${category.id}-${value}`}
+                  category={category}
+                  value={value}
+                  getOptionLabel={getOptionLabel}
+                  onRemoveFilter={onRemoveFilter}
+                />
+              ))}
             </div>
           ))}
         </div>

@@ -128,7 +128,7 @@ export const themes = [
   {
     id: "prism",
     name: "Prism",
-    background: "bg-animated-rainbow",
+    background: "bg-animated-rainbow bg-[length:400%_400%] animate-rainbow",
     buttonStyle: "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-lg transition-all duration-300",
     textColor: "text-white",
     accentColor: "text-white",

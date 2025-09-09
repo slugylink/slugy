@@ -20,8 +20,25 @@ interface CacheResult {
   userId: string;
 }
 
+// Helper function to detect static generation context
+async function isStaticGeneration(): Promise<boolean> {
+  try {
+    const headersList = await headers();
+    // During static generation, some headers may not be available
+    return !headersList.has('host');
+  } catch {
+    // If headers() fails, we're likely in static generation
+    return true;
+  }
+}
+
 // Helper function to get user session with better error handling
 async function getUserSession() {
+  // Skip authentication during static generation
+  if (await isStaticGeneration()) {
+    throw new Error("Authentication skipped during static generation");
+  }
+
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -32,8 +49,7 @@ async function getUserSession() {
     }
 
     return session;
-  } catch (error) {
-    console.error("Failed to get user session:", error);
+  } catch {
     throw new Error("Authentication failed");
   }
 }
@@ -59,8 +75,7 @@ async function fetchBioData(userId: string): Promise<BioData | null> {
       username: bio.username,
       userId,
     };
-  } catch (error) {
-    console.error("Failed to fetch bio data:", error);
+  } catch {
     throw new Error("Failed to fetch bio data from database");
   }
 }
@@ -88,13 +103,29 @@ async function handleCacheOperations(userId: string, bioData: BioData | null) {
       // Cache null result to avoid repeated DB queries
       await setDefaultBioCache(userId, null);
     }
-  } catch (error) {
-    // Log cache errors but don't fail the request
-    console.warn("Failed to update cache:", error);
+  } catch {
+    // Silently handle cache errors
   }
 }
 
 export default async function BioLinks() {
+  // Handle static generation case
+  if (await isStaticGeneration()) {
+    // During static generation, return a loading state or basic component
+    return (
+      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-muted-foreground text-lg font-semibold">
+            Loading Bio Links
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Please wait while we load your content...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   try {
     const session = await getUserSession();
     const userId = session.user.id;
@@ -102,8 +133,8 @@ export default async function BioLinks() {
     let cachedBio: CacheResult | null = null;
     try {
       cachedBio = await getDefaultBioCache(userId);
-    } catch (error) {
-      console.warn("Cache read failed, falling back to database:", error);
+    } catch {
+      // Silently handle cache failures
     }
 
     if (cachedBio?.username) {
@@ -112,7 +143,9 @@ export default async function BioLinks() {
 
     const bioData = await fetchBioData(userId);
 
-    handleCacheOperations(userId, bioData).catch(console.warn);
+    handleCacheOperations(userId, bioData).catch(() => {
+      // Silently handle cache failures
+    });
 
     if (!bioData) {
       return <CreateBioGallery />;
@@ -120,10 +153,9 @@ export default async function BioLinks() {
 
     return handleRedirect(bioData.username);
   } catch (error) {
-    console.error("BioLinks page error:", error);
 
     if (error instanceof Error) {
-      if (error.message.includes("Authentication failed")) {
+      if (error.message.includes("Authentication failed") || error.message.includes("Authentication skipped")) {
         return redirect("/login");
       }
       if (error.message.includes("Failed to fetch bio data")) {

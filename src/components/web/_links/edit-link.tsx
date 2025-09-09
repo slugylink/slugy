@@ -130,7 +130,6 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
     const {
       handleSubmit,
       formState: { isSubmitting, isValid, isDirty },
-      getValues,
       setValue,
     } = form;
 
@@ -187,7 +186,15 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       ],
     );
 
-    const currentUrl = useMemo(() => getValues("url"), [getValues]);
+    const [currentUrl, setCurrentUrl] = useState(initialData.url || "");
+
+    // Update currentUrl when form values change
+    React.useEffect(() => {
+      const subscription = form.watch((value) => {
+        setCurrentUrl(value.url || "");
+      });
+      return () => subscription.unsubscribe();
+    }, [form]);
 
     // Form submission
     const onSubmit = useCallback(

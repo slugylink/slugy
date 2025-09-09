@@ -95,13 +95,12 @@ const CreateLinkForm = React.memo(({ workspaceslug }: { workspaceslug: string })
     },
   });
 
-  const {
-    handleSubmit,
-    formState: { isSubmitting, isValid },
-    getValues,
-    setValue,
-    reset,
-  } = form;
+    const {
+      handleSubmit,
+      formState: { isSubmitting, isValid },
+      setValue,
+      reset,
+    } = form;
 
   // Memoized computed values
   const isSafeToSubmit = useMemo(() => 
@@ -109,7 +108,15 @@ const CreateLinkForm = React.memo(({ workspaceslug }: { workspaceslug: string })
     [isValid, urlSafetyStatus.isChecking, urlSafetyStatus.isValid]
   );
 
-  const currentUrl = useMemo(() => getValues("url"), [getValues]);
+  const [currentUrl, setCurrentUrl] = useState("");
+
+  // Update currentUrl when form values change
+  React.useEffect(() => {
+    const subscription = form.watch((value) => {
+      setCurrentUrl(value.url || "");
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   // Memoized handlers
   const handleGenerateRandomSlug = useCallback(() => {

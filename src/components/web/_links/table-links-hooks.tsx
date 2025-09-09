@@ -1,21 +1,47 @@
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { mutate } from "swr";
 import { toast } from "sonner";
+import { LAYOUT_OPTIONS, LayoutOption } from "@/constants/links";
 
-// Custom hook for layout preference
+// Custom hook for layout preference with smooth transitions
 export const useLayoutPreference = () => {
   const [layout, setLayout] = useState("grid-cols-1");
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
-    const cookieLayout =
-      document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("layout="))
-        ?.split("=")[1] ?? "grid-cols-1";
-    setLayout(cookieLayout);
+    if (typeof window !== "undefined") {
+      const savedLayout = window.localStorage.getItem("layout") as LayoutOption | null;
+      const initialLayout = savedLayout && LAYOUT_OPTIONS.some((o) => o.value === savedLayout)
+        ? savedLayout
+        : "grid-cols-1";
+      setLayout(initialLayout);
+    }
   }, []);
 
-  return { layout, setLayout };
+  const enhancedSetLayout = useCallback((value: React.SetStateAction<string>) => {
+    const newLayout = typeof value === 'function' ? value(layout) : value;
+
+    if (newLayout === layout) return;
+
+    setIsTransitioning(true);
+
+    // Add a small delay for smoother transition
+    setTimeout(() => {
+      setLayout(newLayout);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("layout", newLayout);
+        // Dispatch custom event to notify other components of layout change
+        window.dispatchEvent(new CustomEvent("layoutChange"));
+      }
+
+      // Reset transition state after animation completes
+      setTimeout(() => {
+        setIsTransitioning(false);
+      }, 350); // Slightly longer than the CSS transition duration
+    }, 50);
+  }, [layout]);
+
+  return { layout, setLayout: enhancedSetLayout, isTransitioning };
 };
 
 // Generic bulk operation handler using SWR

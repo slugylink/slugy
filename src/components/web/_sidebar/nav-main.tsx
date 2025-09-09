@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import { memo, useMemo, useCallback, useEffect, useRef } from "react";
+import { useSidebar } from "@/components/ui/sidebar";
 
 // --------------------------
 // Types
@@ -153,7 +154,8 @@ const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
   renderSubItems: (items: NavSubItem[]) => React.ReactNode;
-}>(({ item, isActive, renderSubItems }) => {
+  onNavItemClick?: () => void;
+}>(({ item, isActive, renderSubItems, onNavItemClick }) => {
   // Memoize the chevron icon to prevent unnecessary re-renders
   const chevronIcon = useMemo(
     () => (
@@ -191,7 +193,7 @@ const NavItemComponent = memo<{
     >
       <SidebarMenuItem>
         {item.url ? (
-          <Link href={item.url} prefetch>
+          <Link href={item.url} prefetch onClick={onNavItemClick}>
             <SidebarMenuButton
               tooltip={item.title}
               className={baseButtonClasses}
@@ -214,7 +216,9 @@ const NavItemComponent = memo<{
         )}
 
         {item.items && (
-          <CollapsibleContent>
+          <CollapsibleContent
+            className="overflow-hidden duration-200 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1"
+          >
             <SidebarMenuSub className="mt-1">
               {renderSubItems(item.items)}
             </SidebarMenuSub>
@@ -232,7 +236,8 @@ NavItemComponent.displayName = "NavItemComponent";
 const SubItemComponent = memo<{
   subItem: NavSubItem;
   isActive: boolean;
-}>(({ subItem, isActive }) => {
+  onClick?: () => void;
+}>(({ subItem, isActive, onClick }) => {
   const buttonClasses = useMemo(
     () =>
       cn(
@@ -251,7 +256,7 @@ const SubItemComponent = memo<{
   return (
     <SidebarMenuSubItem key={subItem.title}>
       <SidebarMenuSubButton asChild className={buttonClasses}>
-        <Link href={subItem.url} prefetch>
+        <Link href={subItem.url} prefetch onClick={onClick}>
           <span className={titleClasses}>{subItem.title}</span>
         </Link>
       </SidebarMenuSubButton>
@@ -269,6 +274,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
 }) {
   const pathname = usePathname();
   const prefetchRef = useRef<Set<string>>(new Set());
+  const { isMobile, setOpenMobile } = useSidebar();
 
   // Workspace & role with better memoization
   const { userRole, baseUrl } = useMemo(() => {
@@ -326,6 +332,13 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     };
   }, [pathname]);
 
+  // Handle navigation item click - close mobile sidebar
+  const handleNavItemClick = useCallback(() => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile, setOpenMobile]);
+
   // Sub-item renderer with better memoization
   const renderSubItems = useCallback(
     (items: NavSubItem[]) =>
@@ -334,9 +347,10 @@ export const NavMain = memo<NavMainProps>(function NavMain({
           key={subItem.title}
           subItem={subItem}
           isActive={activeStateChecker.isSubItemActive(subItem.url)}
+          onClick={handleNavItemClick}
         />
       )),
-    [activeStateChecker],
+    [activeStateChecker, handleNavItemClick],
   );
 
   useEffect(() => {
@@ -418,6 +432,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
             item={item}
             isActive={activeStateChecker.isItemActive(item)}
             renderSubItems={renderSubItems}
+            onNavItemClick={handleNavItemClick}
           />
         ))}
       </SidebarMenu>

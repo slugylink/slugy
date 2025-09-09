@@ -125,7 +125,7 @@ const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
       height={16}
       loading="lazy"
       onLoad={() => setLoading(false)}
-      className={cn(loading ? "blur-[2px]" : "blur-0", "transition-all")}
+      className={cn(loading ? "blur-[2px]" : "blur-0", "transition-all duration-300 ease-in-out")}
       onError={() => setError(true)}
     />
   );
@@ -160,7 +160,7 @@ const FilterOptionItem = memo(
       <DropdownMenuCheckboxItem
         checked={isSelected}
         onSelect={onSelect}
-        className="px-3 py-1.5 pl-8"
+        className="px-3 py-1.5 pl-8 transition-all duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
       >
         <div className="flex cursor-pointer items-center gap-2">
           {category.id === "slug_key" && (
@@ -221,6 +221,248 @@ const FilterOptionItem = memo(
   },
 );
 FilterOptionItem.displayName = "FilterOptionItem";
+
+// Time period selector component
+interface TimePeriodSelectorProps {
+  timePeriod: string;
+  onTimePeriodChange: (value: string) => void;
+}
+
+const TimePeriodSelector = memo<TimePeriodSelectorProps>(({
+  timePeriod,
+  onTimePeriodChange
+}) => (
+  <Select value={timePeriod} onValueChange={onTimePeriodChange}>
+    <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300">
+      <Calendar /> <SelectValue placeholder="Select time range" />
+    </SelectTrigger>
+    <SelectContent className="w-fit cursor-pointer animate-in fade-in slide-in-from-top-2 duration-150 ease-out">
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
+        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="24h">
+          Last 24 hours
+        </SelectItem>
+      </div>
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '30ms', animationFillMode: 'both' }}>
+        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="7d">
+          Last 7 days
+        </SelectItem>
+      </div>
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '60ms', animationFillMode: 'both' }}>
+        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="30d">
+          Last 30 days
+        </SelectItem>
+      </div>
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '90ms', animationFillMode: 'both' }}>
+        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="3m" disabled>
+          Last 3 months
+          <Lock
+            size={10}
+            className="text-muted-foreground absolute right-2 h-2.5 w-2"
+          />
+        </SelectItem>
+      </div>
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
+        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="12m" disabled>
+          Last 12 months
+          <Lock
+            size={10}
+            className="text-muted-foreground absolute right-2 h-2.5 w-2"
+          />
+        </SelectItem>
+      </div>
+      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
+        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="all" disabled>
+          All Time
+          <Lock
+            size={10}
+            className="text-muted-foreground absolute right-2 h-2.5 w-2"
+          />
+        </SelectItem>
+      </div>
+    </SelectContent>
+  </Select>
+));
+
+TimePeriodSelector.displayName = "TimePeriodSelector";
+
+// Filter groups component for better organization
+interface FilterGroupsProps {
+  filteredCategories: FilterCategory[];
+  onCategoryClick: (categoryId: CategoryId) => void;
+}
+
+const FilterGroups = memo<FilterGroupsProps>(({ filteredCategories, onCategoryClick }) => {
+  const hasGroup1 = filteredCategories.some(cat => cat.id === "slug_key" || cat.id === "destination_key");
+  const hasGroup2 = filteredCategories.some(cat =>
+    cat.id === "country_key" || cat.id === "city_key" || cat.id === "continent_key"
+  );
+  const hasGroup3 = filteredCategories.some(cat =>
+    cat.id === "device_key" || cat.id === "browser_key" || cat.id === "os_key"
+  );
+  const hasGroup4 = filteredCategories.some(cat => cat.id === "referrer_key");
+
+  return (
+    <div
+      className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200 overflow-x-hidden"
+      style={{
+        maxHeight: "400px",
+        scrollbarWidth: "thin",
+        scrollbarColor: "rgb(203 213 225) transparent",
+      }}
+    >
+      {/* Group 1 */}
+      {hasGroup1 && (
+        <DropdownMenuGroup>
+          {filteredCategories
+            .filter(cat => cat.id === "slug_key" || cat.id === "destination_key")
+            .map((category, index) => (
+              <div
+                key={category.id}
+                className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
+                style={{
+                  animationDelay: `${index * 50}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                <DropdownMenuLabel
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  onClick={() => onCategoryClick(category.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onCategoryClick(category.id);
+                    }
+                  }}
+                >
+                  {category.icon}
+                  <span className="ml-2 font-normal">{category.label}</span>
+                </DropdownMenuLabel>
+              </div>
+            ))}
+        </DropdownMenuGroup>
+      )}
+
+      {/* Separator */}
+      {hasGroup1 && hasGroup2 && <Separator className="my-1 bg-zinc-200/70" />}
+
+      {/* Group 2 */}
+      {hasGroup2 && (
+        <DropdownMenuGroup>
+          {filteredCategories
+            .filter(cat =>
+              cat.id === "country_key" || cat.id === "city_key" || cat.id === "continent_key"
+            )
+            .map((category, index) => (
+              <div
+                key={category.id}
+                className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
+                style={{
+                  animationDelay: `${(index + 2) * 50}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                <DropdownMenuLabel
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  onClick={() => onCategoryClick(category.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onCategoryClick(category.id);
+                    }
+                  }}
+                >
+                  {category.icon}
+                  <span className="ml-2 font-normal">{category.label}</span>
+                </DropdownMenuLabel>
+              </div>
+            ))}
+        </DropdownMenuGroup>
+      )}
+
+      {/* Separator */}
+      {hasGroup2 && hasGroup3 && <Separator className="my-1 bg-zinc-200/70" />}
+
+      {/* Group 3 */}
+      {hasGroup3 && (
+        <DropdownMenuGroup>
+          {filteredCategories
+            .filter(cat =>
+              cat.id === "device_key" || cat.id === "browser_key" || cat.id === "os_key"
+            )
+            .map((category, index) => (
+              <div
+                key={category.id}
+                className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
+                style={{
+                  animationDelay: `${(index + 5) * 50}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                <DropdownMenuLabel
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  onClick={() => onCategoryClick(category.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onCategoryClick(category.id);
+                    }
+                  }}
+                >
+                  {category.icon}
+                  <span className="ml-2 font-normal">{category.label}</span>
+                </DropdownMenuLabel>
+              </div>
+            ))}
+        </DropdownMenuGroup>
+      )}
+
+      {/* Separator */}
+      {hasGroup3 && hasGroup4 && <Separator className="my-1 bg-zinc-200/70" />}
+
+      {/* Group 4 */}
+      {hasGroup4 && (
+        <DropdownMenuGroup>
+          {filteredCategories
+            .filter(cat => cat.id === "referrer_key")
+            .map((category, index) => (
+              <div
+                key={category.id}
+                className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
+                style={{
+                  animationDelay: `${(index + 8) * 50}ms`,
+                  animationFillMode: 'both'
+                }}
+              >
+                <DropdownMenuLabel
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  onClick={() => onCategoryClick(category.id)}
+                  tabIndex={0}
+                  role="button"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onCategoryClick(category.id);
+                    }
+                  }}
+                >
+                  {category.icon}
+                  <span className="ml-2 font-normal">{category.label}</span>
+                </DropdownMenuLabel>
+              </div>
+            ))}
+        </DropdownMenuGroup>
+      )}
+    </div>
+  );
+});
+
+FilterGroups.displayName = "FilterGroups";
 
 const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   // nuqs query states for all category filters & time period
@@ -416,10 +658,12 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
     [],
   );
 
-  const formatNameForUrl = useCallback((name: string): string => {
+  // Memoize format function to prevent recreation
+  const formatNameForUrl = useMemo(() => (name: string): string => {
     return name.toLowerCase().replace(/\s+/g, "-");
   }, []);
 
+  // Memoize icon URLs to prevent recalculation
   const getOptionIcon = useCallback(
     (category: FilterCategory, option: FilterOption): string | undefined => {
       switch (category.id) {
@@ -451,29 +695,51 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
     [formatNameForUrl],
   );
 
+  // Optimize filtered categories with separate memo for search results
+  const searchFilteredOptions = useMemo(() => {
+    if (!searchQuery) return new Map();
+
+    const q = searchQuery.toLowerCase();
+    const results = new Map<CategoryId, Set<string>>();
+
+    filterCategories.forEach((category) => {
+      const matchingValues = new Set<string>();
+
+      if (category.label.toLowerCase().includes(q)) {
+        // If category label matches, include all options
+        category.options.forEach((option) => {
+          const value = getOptionValue(category, option);
+          matchingValues.add(value);
+        });
+      } else {
+        // Check individual options
+        category.options.forEach((option) => {
+          if (getOptionLabel(category, option).toLowerCase().includes(q)) {
+            const value = getOptionValue(category, option);
+            matchingValues.add(value);
+          }
+        });
+      }
+
+      if (matchingValues.size > 0) {
+        results.set(category.id, matchingValues);
+      }
+    });
+
+    return results;
+  }, [filterCategories, searchQuery, getOptionValue, getOptionLabel]);
+
   const filteredCategories = useMemo(() => {
     return filterCategories.filter((category) => {
       if (activeCategory && category.id !== activeCategory) return false;
 
       if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        if (activeCategory) {
-          return category.options.some((option) =>
-            getOptionLabel(category, option).toLowerCase().includes(q),
-          );
-        }
-
-        return (
-          category.label.toLowerCase().includes(q) ||
-          category.options.some((option) =>
-            getOptionLabel(category, option).toLowerCase().includes(q),
-          )
-        );
+        return searchFilteredOptions.has(category.id);
       }
 
       return true;
     });
-  }, [filterCategories, activeCategory, searchQuery, getOptionLabel]);
+  }, [filterCategories, activeCategory, searchQuery, searchFilteredOptions]);
 
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
@@ -485,12 +751,12 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="flex items-center font-normal"
+                className="flex items-center font-normal transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300"
               >
-                <Filter strokeWidth={1.5} className="mr-1 h-4 w-4" />
+                <Filter strokeWidth={1.5} className=" h-4 w-4" />
                 Filter
                 {selectedFilterCount > 0 && (
-                  <span className="bg-primary text-primary-foreground ml-1 flex h-[18px] w-[18px] items-center justify-center rounded-full text-[11px]">
+                  <span className="bg-primary text-primary-foreground flex h-[18px] w-[18px] text-center items-center justify-center rounded-full text-[11px]">
                     {selectedFilterCount}
                   </span>
                 )}
@@ -498,7 +764,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="relative w-[210px] p-2 transition-all duration-300 ease-in-out"
+              className="relative w-[212px] p-2 animate-in fade-in slide-in-from-top-2 duration-200 ease-out overflow-x-hidden"
               align="start"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
@@ -518,21 +784,21 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
                     e.stopPropagation();
                     setSearchQuery(e.target.value);
                   }}
-                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:ring-[1px] focus:outline-none"
+                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:ring-[1px] focus:outline-none transition-all duration-200 ease-in-out focus:border-zinc-300 focus:shadow-sm"
                   autoComplete="off"
                   aria-label="Filter options"
                 />
               </div>
 
               {activeCategory ? (
-                <div className="animate-in slide-in-from-top-2 relative duration-200">
+                <div className="animate-in slide-in-from-top-2 relative duration-200 overflow-x-hidden">
                   {filteredCategories
                     .filter((cat) => cat.id === activeCategory)
                     .map((category) => (
                       <DropdownMenuGroup key={category.id}>
-                        <div className="sticky top-0 z-50 mb-2">
+                        <div className="sticky top-0 z-50 mb-2 ">
                           <DropdownMenuLabel
-                            className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-colors duration-200"
+                            className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             onClick={() => setActiveCategory(null)}
                           >
                             <div className="flex items-center">
@@ -545,7 +811,7 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
                           </DropdownMenuLabel>
                         </div>
                         <div
-                          className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200"
+                          className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200 overflow-x-hidden"
                           style={{
                             maxHeight: "320px",
                             scrollbarWidth: "thin",
@@ -561,24 +827,32 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
                                       .includes(searchQuery.toLowerCase())
                                   : true,
                               )
-                              .map((option) => {
+                              .map((option, index) => {
                                 const val = getOptionValue(category, option);
                                 return (
-                                  <FilterOptionItem
+                                  <div
                                     key={val}
-                                    category={category}
-                                    option={option}
-                                    isSelected={selectedFilters[
-                                      category.id
-                                    ]?.includes(val)}
-                                    onSelect={(event) => {
-                                      event.preventDefault();
-                                      handleFilterChange(category.id, val);
+                                    className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
+                                    style={{
+                                      animationDelay: `${index * 30}ms`,
+                                      animationFillMode: 'both'
                                     }}
-                                    getOptionValue={getOptionValue}
-                                    getOptionLabel={getOptionLabel}
-                                    getOptionIcon={getOptionIcon}
-                                  />
+                                  >
+                                    <FilterOptionItem
+                                      category={category}
+                                      option={option}
+                                      isSelected={selectedFilters[
+                                        category.id
+                                      ]?.includes(val)}
+                                      onSelect={(event) => {
+                                        event.preventDefault();
+                                        handleFilterChange(category.id, val);
+                                      }}
+                                      getOptionValue={getOptionValue}
+                                      getOptionLabel={getOptionLabel}
+                                      getOptionIcon={getOptionIcon}
+                                    />
+                                  </div>
                                 );
                               })}
                           </div>
@@ -587,211 +861,19 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
                     ))}
                 </div>
               ) : (
-                <div
-                  className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200"
-                  style={{
-                    maxHeight: "400px",
-                    scrollbarWidth: "thin",
-                    scrollbarColor: "rgb(203 213 225) transparent",
-                  }}
-                >
-                  {/* Group 1 */}
-                  <DropdownMenuGroup>
-                    {filteredCategories
-                      .filter(
-                        (cat) =>
-                          cat.id === "slug_key" || cat.id === "destination_key",
-                      )
-                      .map((category) => (
-                        <DropdownMenuLabel
-                          key={category.id}
-                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
-                          onClick={() => setActiveCategory(category.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveCategory(category.id);
-                            }
-                          }}
-                        >
-                          {category.icon}
-                          <span className="ml-2 font-normal">
-                            {category.label}
-                          </span>
-                        </DropdownMenuLabel>
-                      ))}
-                  </DropdownMenuGroup>
-
-                  {/* Separator */}
-                  {filteredCategories.some(
-                    (cat) =>
-                      cat.id === "slug_key" || cat.id === "destination_key",
-                  ) &&
-                    filteredCategories.some(
-                      (cat) =>
-                        cat.id === "country_key" ||
-                        cat.id === "city_key" ||
-                        cat.id === "continent_key",
-                    ) && <Separator className="my-1 bg-zinc-200/70" />}
-
-                  {/* Group 2 */}
-                  <DropdownMenuGroup>
-                    {filteredCategories
-                      .filter(
-                        (cat) =>
-                          cat.id === "country_key" ||
-                          cat.id === "city_key" ||
-                          cat.id === "continent_key",
-                      )
-                      .map((category) => (
-                        <DropdownMenuLabel
-                          key={category.id}
-                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
-                          onClick={() => setActiveCategory(category.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveCategory(category.id);
-                            }
-                          }}
-                        >
-                          {category.icon}
-                          <span className="ml-2 font-normal">
-                            {category.label}
-                          </span>
-                        </DropdownMenuLabel>
-                      ))}
-                  </DropdownMenuGroup>
-
-                  {/* Separator */}
-                  {filteredCategories.some(
-                    (cat) =>
-                      cat.id === "country_key" ||
-                      cat.id === "city_key" ||
-                      cat.id === "continent_key",
-                  ) &&
-                    filteredCategories.some(
-                      (cat) =>
-                        cat.id === "device_key" ||
-                        cat.id === "browser_key" ||
-                        cat.id === "os_key",
-                    ) && <Separator className="my-1 bg-zinc-200/70" />}
-
-                  {/* Group 3 */}
-                  <DropdownMenuGroup>
-                    {filteredCategories
-                      .filter(
-                        (cat) =>
-                          cat.id === "device_key" ||
-                          cat.id === "browser_key" ||
-                          cat.id === "os_key",
-                      )
-                      .map((category) => (
-                        <DropdownMenuLabel
-                          key={category.id}
-                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
-                          onClick={() => setActiveCategory(category.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveCategory(category.id);
-                            }
-                          }}
-                        >
-                          {category.icon}
-                          <span className="ml-2 font-normal">
-                            {category.label}
-                          </span>
-                        </DropdownMenuLabel>
-                      ))}
-                  </DropdownMenuGroup>
-
-                  {/* Separator */}
-                  {filteredCategories.some(
-                    (cat) =>
-                      cat.id === "device_key" ||
-                      cat.id === "browser_key" ||
-                      cat.id === "os_key",
-                  ) &&
-                    filteredCategories.some(
-                      (cat) => cat.id === "referrer_key",
-                    ) && <Separator className="my-1 bg-zinc-200/70" />}
-
-                  {/* Group 4 */}
-                  <DropdownMenuGroup>
-                    {filteredCategories
-                      .filter((cat) => cat.id === "referrer_key")
-                      .map((category) => (
-                        <DropdownMenuLabel
-                          key={category.id}
-                          className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-colors duration-200"
-                          onClick={() => setActiveCategory(category.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" || e.key === " ") {
-                              e.preventDefault();
-                              setActiveCategory(category.id);
-                            }
-                          }}
-                        >
-                          {category.icon}
-                          <span className="ml-2 font-normal">
-                            {category.label}
-                          </span>
-                        </DropdownMenuLabel>
-                      ))}
-                  </DropdownMenuGroup>
-                </div>
+                <FilterGroups
+                  filteredCategories={filteredCategories}
+                  onCategoryClick={setActiveCategory}
+                />
               )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
 
-        {/* Time period select */}
-        <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
-          <SelectTrigger className="w-fit text-sm shadow-none">
-            <Calendar /> <SelectValue placeholder="Select time range" />
-          </SelectTrigger>
-          <SelectContent className="w-fit cursor-pointer">
-            <SelectItem className="cursor-pointer" value="24h">
-              Last 24 hours
-            </SelectItem>
-            <SelectItem className="cursor-pointer" value="7d">
-              Last 7 days
-            </SelectItem>
-            <SelectItem className="cursor-pointer" value="30d">
-              Last 30 days
-            </SelectItem>
-            <SelectItem value="3m" disabled>
-              Last 3 months
-              <Lock
-                size={10}
-                className="text-muted-foreground absolute right-2 h-2.5 w-2"
-              />
-            </SelectItem>
-            <SelectItem value="12m" disabled>
-              Last 12 months
-              <Lock
-                size={10}
-                className="text-muted-foreground absolute right-2 h-2.5 w-2"
-              />
-            </SelectItem>
-            <SelectItem value="all" disabled>
-              All Time
-              <Lock
-                size={10}
-                className="text-muted-foreground absolute right-2 h-2.5 w-2"
-              />
-            </SelectItem>
-          </SelectContent>
-        </Select>
+        <TimePeriodSelector
+          timePeriod={timePeriod}
+          onTimePeriodChange={handleTimePeriodChange}
+        />
       </div>
 
       {/* Selected filters tags bar */}

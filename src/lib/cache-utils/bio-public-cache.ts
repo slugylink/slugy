@@ -37,6 +37,17 @@ export async function setBioPublicCache(
   data: Omit<BioPublicCache, "cachedAt" | "expiresAt">,
 ): Promise<void> {
   try {
+    // Validate input data
+    if (!username || typeof username !== 'string') {
+      console.error(`[Cache] Invalid username provided for caching: ${username}`);
+      return;
+    }
+
+    if (!data || typeof data !== 'object') {
+      console.error(`[Cache] Invalid data provided for caching username: ${username}`);
+      return;
+    }
+
     const cacheKey = generateCacheKey(username);
     const cacheData: BioPublicCache = {
       ...data,
@@ -44,14 +55,17 @@ export async function setBioPublicCache(
       expiresAt: Date.now() + CACHE_TTL * 1000,
     };
 
-    await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(cacheData));
+    // Ensure data is serializable
+    const serializedData = JSON.stringify(cacheData);
+
+    await redis.setex(cacheKey, CACHE_TTL, serializedData);
 
     // Set a longer TTL for stale-while-revalidate (48 hours)
     const staleKey = `${cacheKey}:stale`;
     await redis.setex(
       staleKey,
       STALE_WHILE_REVALIDATE,
-      JSON.stringify(cacheData),
+      serializedData,
     );
 
     console.log(
@@ -73,11 +87,11 @@ export async function getBioPublicCache(
   try {
     const cacheKey = generateCacheKey(username);
 
-    let cachedData = await redis.get(cacheKey);
+    let cachedData = await redis.get<BioPublicCache | string>(cacheKey);
 
     if (!cachedData) {
       const staleKey = `${cacheKey}:stale`;
-      cachedData = await redis.get(staleKey);
+      cachedData = await redis.get<BioPublicCache | string>(staleKey);
 
       if (cachedData) {
         console.log(`[Cache] Using stale cache for ${username} (48h)`);
@@ -88,7 +102,29 @@ export async function getBioPublicCache(
       return null;
     }
 
-    const parsedData: BioPublicCache = JSON.parse(cachedData as string);
+    // Handle both parsed object and JSON string cases (Upstash Redis can return parsed objects)
+    let parsedData: BioPublicCache;
+
+    if (typeof cachedData === 'string') {
+      try {
+        parsedData = JSON.parse(cachedData);
+      } catch (parseError) {
+        console.error(`[Cache] Failed to parse cached data for ${username}:`, parseError);
+        return null;
+      }
+    } else if (typeof cachedData === 'object' && cachedData !== null) {
+      // Upstash Redis returns parsed object directly
+      parsedData = cachedData as BioPublicCache;
+    } else {
+      console.error(`[Cache] Invalid cached data type for ${username}:`, typeof cachedData);
+      return null;
+    }
+
+    // Validate that we have the required fields
+    if (!parsedData.username || !parsedData.cachedAt || !parsedData.expiresAt) {
+      console.error(`[Cache] Invalid cached data structure for ${username}`);
+      return null;
+    }
 
     // Check if cache is expired
     if (parsedData.expiresAt < Date.now()) {
@@ -156,11 +192,19 @@ export async function clearAllBioPublicCache(): Promise<void> {
     const pattern = `${CACHE_PREFIX}*`;
     const keys = await redis.keys(pattern);
 
-    if (keys.length > 0) {
-      for (const key of keys) {
-        await redis.del(key);
+    // Handle Upstash Redis keys format
+    const keyStrings = keys.map(key =>
+      typeof key === 'string' ? key : String(key)
+    );
+
+    if (keyStrings.length > 0) {
+      // Delete keys in batches to avoid overwhelming Redis
+      const batchSize = 100;
+      for (let i = 0; i < keyStrings.length; i += batchSize) {
+        const batch = keyStrings.slice(i, i + batchSize);
+        await redis.del(...batch);
       }
-      console.log(`[Cache] Cleared ${keys.length} bio public cache entries`);
+      console.log(`[Cache] Cleared ${keyStrings.length} bio public cache entries`);
     }
   } catch (error) {
     console.error(`[Cache] Failed to clear all bio public cache:`, error);
@@ -176,11 +220,16 @@ export async function getBioPublicCacheStats(): Promise<{
     const pattern = `${CACHE_PREFIX}*`;
     const keys = await redis.keys(pattern);
 
-    const freshKeys = keys.filter((key) => !key.includes(":stale")).length;
-    const staleKeys = keys.filter((key) => key.includes(":stale")).length;
+    // Handle Upstash Redis keys format (might return strings or objects)
+    const keyStrings = keys.map(key =>
+      typeof key === 'string' ? key : String(key)
+    );
+
+    const freshKeys = keyStrings.filter((key) => !key.includes(":stale")).length;
+    const staleKeys = keyStrings.filter((key) => key.includes(":stale")).length;
 
     return {
-      totalKeys: keys.length,
+      totalKeys: keyStrings.length,
       freshKeys,
       staleKeys,
     };
@@ -199,5 +248,53 @@ export async function warmUpBioPublicCache(usernames: string[]): Promise<void> {
     }
   } catch (error) {
     console.error(`[Cache] Failed to warm up bio public cache:`, error);
+  }
+}
+
+// Utility function to clean up corrupted cache entries
+export async function cleanCorruptedCache(): Promise<void> {
+  try {
+    const pattern = `${CACHE_PREFIX}*`;
+    const keys = await redis.keys(pattern);
+
+    let cleanedCount = 0;
+    for (const key of keys) {
+      const keyString = typeof key === 'string' ? key : String(key);
+      try {
+        const cachedData = await redis.get<BioPublicCache | string>(keyString);
+
+        if (cachedData) {
+          // Try to validate the cache data
+          let parsedData: BioPublicCache;
+
+          if (typeof cachedData === 'string') {
+            parsedData = JSON.parse(cachedData);
+          } else if (typeof cachedData === 'object' && cachedData !== null) {
+            parsedData = cachedData as BioPublicCache;
+          } else {
+            // Invalid data type, delete the key
+            await redis.del(keyString);
+            cleanedCount++;
+            continue;
+          }
+
+          // Validate required fields
+          if (!parsedData.username || !parsedData.cachedAt || !parsedData.expiresAt) {
+            await redis.del(keyString);
+            cleanedCount++;
+          }
+        }
+      } catch (error) {
+        // If we can't parse or validate, delete the corrupted entry
+        await redis.del(keyString);
+        cleanedCount++;
+      }
+    }
+
+    if (cleanedCount > 0) {
+      console.log(`[Cache] Cleaned ${cleanedCount} corrupted cache entries`);
+    }
+  } catch (error) {
+    console.error(`[Cache] Failed to clean corrupted cache:`, error);
   }
 }

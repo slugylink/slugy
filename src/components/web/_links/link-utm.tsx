@@ -24,17 +24,42 @@ interface UTMParams {
 }
 
 const isValidUrl = (urlString: string): boolean => {
+  if (!urlString || typeof urlString !== 'string') return false;
+
+  const trimmedUrl = urlString.trim();
+  if (!trimmedUrl) return false;
+
+  // Check for basic URL patterns
+  const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
+
+  // If it matches basic URL pattern, consider it valid
+  if (urlPattern.test(trimmedUrl)) return true;
+
+  // Try URL constructor with protocol
   try {
-    new URL(urlString);
+    const urlWithProtocol = trimmedUrl.startsWith('http')
+      ? trimmedUrl
+      : `https://${trimmedUrl}`;
+    new URL(urlWithProtocol);
     return true;
   } catch {
+    // Additional fallback checks
     try {
-      new URL(`https://${urlString}`);
-      return true;
+      // Handle localhost URLs
+      if (trimmedUrl.includes('localhost') || trimmedUrl.includes('127.0.0.1')) {
+        new URL(`http://${trimmedUrl}`);
+        return true;
+      }
+      // Handle relative URLs (though not ideal for UTM)
+      if (trimmedUrl.startsWith('/')) {
+        return true;
+      }
     } catch {
       return false;
     }
   }
+
+  return false;
 };
 
 const parseUTMParams = (url: string): UTMParams => {
@@ -109,7 +134,8 @@ export default function UTMBuilderDialog({
     };
 
   const handleSave = () => {
-    if (isValidUrl(baseUrl)) {
+    const trimmedUrl = baseUrl?.trim();
+    if (trimmedUrl && isValidUrl(trimmedUrl)) {
       setValue("url", generatePreviewURL());
     }
     setUtmOpen(false);
@@ -128,9 +154,21 @@ export default function UTMBuilderDialog({
   };
 
   useEffect(() => {
-    if (utmOpen && baseUrl && isValidUrl(baseUrl)) {
-      const parsedParams = parseUTMParams(baseUrl);
-      setParams(parsedParams);
+    if (utmOpen) {
+      if (baseUrl && isValidUrl(baseUrl)) {
+        const parsedParams = parseUTMParams(baseUrl);
+        setParams(parsedParams);
+      } else if (baseUrl) {
+        // Reset to empty params if URL is invalid
+        setParams({
+          source: "",
+          medium: "",
+          campaign: "",
+          term: "",
+          content: "",
+          referral: "",
+        });
+      }
     }
   }, [utmOpen, baseUrl, setParams]);
 
@@ -243,7 +281,6 @@ export default function UTMBuilderDialog({
                   Cancel
                 </Button>
                 <Button
-                  disabled={!baseUrl || !isValidUrl(baseUrl)}
                   onClick={handleSave}
                 >
                   Save
