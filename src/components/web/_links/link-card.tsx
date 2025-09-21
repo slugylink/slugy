@@ -294,7 +294,7 @@ export default function LinkCard({
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "flex w-full flex-row items-start space-y-0 rounded-xl border p-4 transition-shadow hover:shadow-[0_0_16px_rgba(0,0,0,0.07)] sm:items-center sm:space-x-3",
+          "flex w-full flex-row items-start space-y-0 rounded-xl border p-4 transition-shadow hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] sm:items-center sm:space-x-3",
           isSelectModeOn &&
             "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900",
           isSelected && "bg-zinc-50 dark:bg-zinc-900",

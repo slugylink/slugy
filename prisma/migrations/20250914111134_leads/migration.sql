@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "links" ADD COLUMN     "conversions" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "leads" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "publicStats" BOOLEAN NOT NULL DEFAULT false;

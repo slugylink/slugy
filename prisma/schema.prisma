@@ -282,6 +282,10 @@ model Link {
   qrCode          QrCode?
   SharedAnalytics SharedAnalytics?
 
+  publicStats Boolean @default(false) // whether to show public stats or not
+  leads       Int     @default(0) // number of leads
+  conversions Int     @default(0) // number of leads that converted to sales
+
   @@index([slug])
   @@index([url])
   @@index([userId])
@@ -297,28 +301,28 @@ model Link {
 }
 
 model Analytics {
-  id        String   @id @default(cuid())
-  linkId    String
-  clickId   String?
-  clickedAt DateTime @default(now())
-  country   String?
-  city      String?
-  region    String? // good addition for finer geo
-  continent String?
-  device    String?
-  browser   String?
-  os        String?
-  referer   String?
-  ipAddress String?
-  userAgent String?
-  trigger   String?
-  utm_source String?
-  utm_medium String?
+  id           String   @id @default(cuid())
+  linkId       String
+  clickId      String?
+  clickedAt    DateTime @default(now())
+  country      String?
+  city         String?
+  region       String? // good addition for finer geo
+  continent    String?
+  device       String?
+  browser      String?
+  os           String?
+  referer      String?
+  ipAddress    String?
+  userAgent    String?
+  trigger      String?
+  utm_source   String?
+  utm_medium   String?
   utm_campaign String?
-  utm_term String?
-  utm_content String?
-  createdAt DateTime @default(now())
-  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  utm_term     String?
+  utm_content  String?
+  createdAt    DateTime @default(now())
+  link         Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, clickedAt])
   @@index([clickedAt])
