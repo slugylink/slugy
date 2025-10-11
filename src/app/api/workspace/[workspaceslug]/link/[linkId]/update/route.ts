@@ -23,6 +23,7 @@ const updateLinkSchema = z.object({
   utm_content: z.string().optional().nullable(),
   utm_term: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
+  customDomainId: z.string().optional().nullable(),
 });
 
 export async function PATCH(
@@ -51,7 +52,7 @@ export async function PATCH(
     const context = await params;
 
     // Validate workspace and link ownership
-    const workspace = await validateworkspaceslug(
+    const workspace = await validateworkspaceslug(  
       session.user.id,
       context.workspaceslug,
     );
@@ -90,6 +91,32 @@ export async function PATCH(
       }
     }
 
+    // If customDomainId is being updated, verify it belongs to the workspace and get the domain name
+    let customDomainName: string | null = null;
+    if (validatedData.customDomainId !== undefined) {
+      if (validatedData.customDomainId) {
+        const customDomain = await db.customDomain.findFirst({
+          where: {
+            id: validatedData.customDomainId,
+            workspaceId: workspace.workspace.id,
+            verified: true,
+            dnsConfigured: true,
+          },
+          select: { domain: true },
+        });
+
+        if (!customDomain) {
+          return NextResponse.json(
+            { error: "Invalid or unverified custom domain" },
+            { status: 400 }
+          );
+        }
+
+        customDomainName = customDomain.domain;
+      }
+      // If customDomainId is null, we're removing the custom domain (reverting to default)
+    }
+
     // Use transaction to ensure data consistency
     await db.$transaction(async (tx) => {
       // Prepare update data (only provided fields)
@@ -103,6 +130,11 @@ export async function PATCH(
             updateData[key] = value;
           }
         }
+      }
+      
+      // If customDomainId is being updated, also update the domain field
+      if (validatedData.customDomainId !== undefined) {
+        updateData.domain = customDomainName;
       }
 
       // Update the link
@@ -212,6 +244,7 @@ export async function PATCH(
         id: true,
         url: true,
         slug: true,
+        domain: true,
         image: true,
         title: true,
         description: true,
@@ -247,7 +280,7 @@ export async function PATCH(
     // Update link metadata in Tinybird
     const linkData = {
       id: linkWithTags.id,
-      domain: "slugy.co",
+      domain: linkWithTags.domain || "slugy.co", // Use custom domain if set, otherwise default
       slug: linkWithTags.slug,
       url: linkWithTags.url,
       workspaceId: workspace.workspace.id,

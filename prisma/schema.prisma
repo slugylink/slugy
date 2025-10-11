@@ -281,6 +281,8 @@ model Link {
   workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   qrCode          QrCode?
   SharedAnalytics SharedAnalytics?
+  customDomainId  String?
+  customDomain    CustomDomain? @relation(fields: [customDomainId], references: [id])
 
   publicStats Boolean @default(false) // whether to show public stats or not
   leads       Int     @default(0) // number of leads
@@ -430,16 +432,39 @@ model QrCode {
 }
 
 model CustomDomain {
-  id          String    @id @default(cuid())
-  workspaceId String
-  domain      String    @unique
-  verified    Boolean   @default(false)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  deletedAt   DateTime?
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-
-  @@index([workspaceId])
+  id            String   @id @default(cuid())
+  domain        String   @unique
+  workspaceId   String
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  
+  // Domain verification status
+  verified      Boolean  @default(false)
+  verificationToken String?
+  
+  // DNS configuration
+  dnsConfigured Boolean  @default(false)
+  lastChecked   DateTime?
+  
+  // SSL status
+  sslEnabled    Boolean  @default(false)
+  sslIssuer     String?
+  sslExpiresAt  DateTime?
+  
+  // Cloudflare for SaaS integration
+  cloudflareCustomHostnameId String?  // Custom Hostname ID from Cloudflare
+  cloudflareCnameTarget      String?  // CNAME target provided by Cloudflare
+  cloudflareStatus           String?  // Status from Cloudflare (active, pending, etc.)
+  cloudflareSslStatus        String?  // SSL status from Cloudflare
+  
+  // Redirect configuration
+  redirectToWww Boolean  @default(false)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Links using this domain
+  links         Link[]
+  
   @@map("custom_domains")
 }
 

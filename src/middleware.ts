@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
 import { getCachedSession } from "@/lib/middleware/get-sesstion";
+import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 
 import {
   checkRateLimit,
@@ -122,12 +123,20 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       return NextResponse.next();
     }
 
-    const clientIP = getClientIP(req);
-    const isFastUser = isFastApiRoute(pathname);
+    const hostname = normalizeHostname(req.headers.get("host"));
 
-    // API Routes Rate Limit
+    // API Routes handling (skip rate limiting for now on custom domains)
     if (pathname.startsWith("/api/")) {
-      if (process.env.NODE_ENV !== "development") {
+      const clientIP = getClientIP(req);
+      const isFastUser = isFastApiRoute(pathname);
+
+      // Only apply rate limiting for known domains, not custom domains
+      const isKnownDomain = hostname === ROOT_DOMAIN || 
+                           hostname === SUBDOMAINS.bio || 
+                           hostname === SUBDOMAINS.app || 
+                           hostname === SUBDOMAINS.admin;
+
+      if (process.env.NODE_ENV !== "development" && isKnownDomain) {
         const limitResult = isFastUser
           ? checkFastRateLimit(clientIP)
           : await checkRateLimit(clientIP);
@@ -140,14 +149,12 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       return addSecurityHeaders(NextResponse.next());
     }
 
-    // HTTPS redirect (should be early)
+    // HTTPS redirect (should be early) - Vercel handles SSL for custom domains
     if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
       const httpsURL = new URL(req.url);
       httpsURL.protocol = "https:";
       return redirectTo(httpsURL.toString(), 308);
     }
-
-    const hostname = normalizeHostname(req.headers.get("host"));
 
     switch (hostname) {
       case SUBDOMAINS.bio: {
@@ -171,7 +178,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       }
 
       default:
-        return handleCustomDomain(url, hostname, req.url);
+        return handleCustomDomain(url, hostname, req.url, req);
     }
   } catch (err) {
     console.error("Middleware Error:", err);
@@ -279,18 +286,50 @@ async function handleRootDomain(
   return addSecurityHeaders(NextResponse.next());
 }
 
-function handleCustomDomain(
+async function handleCustomDomain(
   url: URL,
   hostname: string,
   baseUrl: string,
-): NextResponse {
+  req: NextRequest,
+): Promise<NextResponse> {
   const { pathname, search } = url;
 
-  // FIXED: Redirect /app paths on custom domains to app subdomain
+  // Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
     return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
   }
 
-  return rewriteTo(`/${hostname}${pathname}${search}`, baseUrl);
+  // Root path on custom domain - show a default page or redirect
+  if (pathname === "/") {
+    // You can customize this behavior
+    // Option 1: Show a custom page
+    // return rewriteTo(`/custom-domain-home`, baseUrl);
+    // Option 2: Return a 404
+    return new NextResponse("Domain configured successfully. Add a slug to create a short link.", {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    });
+  }
+
+  // Check if this is a verified custom domain and handle link redirection
+  try {
+    const customDomainResponse = await handleCustomDomainRequest(req, hostname);
+    if (customDomainResponse) {
+      return customDomainResponse;
+    }
+  } catch (error) {
+    console.error("Error handling custom domain request:", error);
+    // Continue to fallback
+  }
+
+  // Fallback: show 404 
+  return new NextResponse("Link not found", {
+    status: 404,
+    headers: {
+      "Content-Type": "text/plain",
+    },
+  });
 }
