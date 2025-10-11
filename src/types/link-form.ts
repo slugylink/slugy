@@ -28,6 +28,7 @@ export const linkFormSchema = z.object({
       },
     ),
   domain: z.string().min(1, "Domain is required"),
+  customDomainId: z.string().nullable().optional(),
   slug: z
     .string()
     .max(50, "Max 50 characters")

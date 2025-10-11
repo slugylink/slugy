@@ -35,6 +35,7 @@ const createLinkSchema = z.object({
   utm_content: z.string().optional().nullable(),
   utm_term: z.string().optional().nullable(),
   tags: z.array(z.string()).optional(),
+  customDomainId: z.string().optional().nullable(),
 });
 
 type CreateLinkRequest = z.infer<typeof createLinkSchema>;
@@ -122,6 +123,29 @@ export async function POST(
       );
     }
 
+    // If customDomainId is provided, verify it belongs to the workspace and get the domain name
+    let customDomainName: string | null = null;
+    if (validatedData.customDomainId) {
+      const customDomain = await db.customDomain.findFirst({
+        where: {
+          id: validatedData.customDomainId,
+          workspaceId: workspaceCheck.workspace.id,
+          verified: true,
+          dnsConfigured: true,
+        },
+        select: { domain: true },
+      });
+
+      if (!customDomain) {
+        return NextResponse.json(
+          { error: "Invalid or unverified custom domain" },
+          { status: 400 }
+        );
+      }
+
+      customDomainName = customDomain.domain;
+    }
+
     // Use transaction to ensure data consistency
     const result = await db.$transaction(async (tx) => {
       // Create link with optimized query
@@ -144,6 +168,8 @@ export async function POST(
           utm_campaign: validatedData.utm_campaign,
           utm_content: validatedData.utm_content,
           utm_term: validatedData.utm_term,
+          customDomainId: validatedData.customDomainId || null,
+          domain: customDomainName, // Set the domain name for quick access
         },
         select: {
           id: true,
@@ -290,7 +316,7 @@ export async function POST(
     // Send link metadata to Tinybird
     const linkMetadata = {
       link_id: linkWithTags.id,
-      domain: "slugy.co",
+      domain: customDomainName || "slugy.co", // Use custom domain if set, otherwise default
       slug: linkWithTags.slug,
       url: linkWithTags.url,
       tag_ids: linkWithTags.tags.map((t) => t.tag.id),

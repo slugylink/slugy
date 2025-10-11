@@ -195,6 +195,14 @@ const LinkFormFields = React.memo(
       workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
     );
 
+    // Fetch custom domains for workspace
+    const {
+      data: domainsData,
+      isLoading: domainsLoading,
+    } = useSWR<{ domains: Array<{ id: string; domain: string; verified: boolean; dnsConfigured: boolean }> }>(
+      workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null,
+    );
+
     // Memoized computed values
     const currentTags = useMemo(() => getValues("tags") || [], []);
 
@@ -202,6 +210,22 @@ const LinkFormFields = React.memo(
       () => tags?.filter((tag) => selectedTags.includes(tag.id)) || [],
       [tags, selectedTags],
     );
+
+    // Filter only verified and configured custom domains
+    const availableDomains = useMemo(() => {
+      const domains: Array<{ value: string; label: string; id: string | null }> = [
+        { value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null }
+      ];
+      
+      if (domainsData?.domains) {
+        const customDomains = domainsData.domains
+          .filter((d) => d.verified && d.dnsConfigured)
+          .map((d) => ({ value: d.domain, label: d.domain, id: d.id }));
+        domains.push(...customDomains);
+      }
+      
+      return domains;
+    }, [domainsData]);
 
     const filteredTags = useMemo(
       () =>
@@ -378,6 +402,17 @@ const LinkFormFields = React.memo(
         setValue("url", normalizedUrl, { shouldDirty: true });
       },
       [setValue],
+    );
+
+    const handleDomainChange = useCallback(
+      (selectedDomain: string) => {
+        setValue("domain", selectedDomain, { shouldDirty: true });
+        
+        // Find the domain object and set customDomainId
+        const domainObj = availableDomains.find((d) => d.value === selectedDomain);
+        setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
+      },
+      [setValue, availableDomains],
     );
 
     // Effects
@@ -562,16 +597,28 @@ const LinkFormFields = React.memo(
                 render={({ field }) => (
                   <FormItem>
                     <Select
-                      onValueChange={field.onChange}
+                      onValueChange={handleDomainChange}
                       defaultValue={field.value}
+                      disabled={domainsLoading}
                     >
-                      <SelectTrigger className="w-full rounded-r-none border-r-0 shadow-none sm:w-[120px]">
+                      <SelectTrigger className="w-full rounded-r-none border-r-0 shadow-none sm:w-[180px]">
                         <SelectValue placeholder="Domain" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={DEFAULT_DOMAIN}>
-                          {DEFAULT_DOMAIN}
-                        </SelectItem>
+                        {availableDomains.map((domain) => (
+                          <SelectItem key={domain.value} value={domain.value}>
+                            {domain.label}
+                          </SelectItem>
+                        ))}
+                        {domainsData?.domains && domainsData.domains.length > 0 && (
+                          <div className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground">
+                            {domainsData.domains.filter((d) => !d.verified || !d.dnsConfigured).length > 0 && (
+                              <div className="italic">
+                                {domainsData.domains.filter((d) => !d.verified || !d.dnsConfigured).length} domain(s) pending verification
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                   </FormItem>
