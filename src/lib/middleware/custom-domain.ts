@@ -126,10 +126,7 @@ async function URLRedirectsWithDomain(
           AND l."deletedAt" IS NULL
           AND l."isArchived" = false
           AND l."workspaceId" = ${workspaceId}
-          AND (
-            cd.domain = ${customDomain}
-            OR l."customDomainId" IS NULL
-          )
+          AND cd.domain = ${customDomain}
         LIMIT 1
       `;
 
@@ -139,7 +136,7 @@ async function URLRedirectsWithDomain(
     }
 
     // Use the existing URLRedirects function for the actual redirect logic
-    return await URLRedirects(req, shortCode);
+    return await URLRedirects(req, shortCode, customDomain);
   } catch (error) {
     console.error("Error in URLRedirectsWithDomain:", error);
     return null;
