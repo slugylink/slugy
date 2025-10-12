@@ -34,9 +34,15 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
   sslStatus?: string;
 }> {
   try {
-    console.log("🔧 Cloudflare API Token exists:", !!process.env.CLOUDFLARE_API_TOKEN);
-    console.log("🔧 Cloudflare Zone ID exists:", !!process.env.CLOUDFLARE_ZONE_ID);
-    
+    console.log(
+      "🔧 Cloudflare API Token exists:",
+      !!process.env.CLOUDFLARE_API_TOKEN,
+    );
+    console.log(
+      "🔧 Cloudflare Zone ID exists:",
+      !!process.env.CLOUDFLARE_ZONE_ID,
+    );
+
     if (!process.env.CLOUDFLARE_API_TOKEN) {
       throw new Error("CLOUDFLARE_API_TOKEN is not configured");
     }
@@ -65,7 +71,7 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
             },
           },
         }),
-      }
+      },
     );
 
     const data: CloudflareCustomHostnameResponse = await response.json();
@@ -80,7 +86,8 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
     });
 
     if (!response.ok || !data.success) {
-      const errorMessage = data.errors?.[0]?.message || "Failed to add custom hostname";
+      const errorMessage =
+        data.errors?.[0]?.message || "Failed to add custom hostname";
       console.error("❌ Cloudflare API Error:", errorMessage);
       return {
         success: false,
@@ -98,7 +105,8 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
 
     // Cloudflare returns cname_target in the ssl object, but it might be undefined initially
     // The CNAME format is: {hostname}.cdn.cloudflare.net
-    const cnameTarget = data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
+    const cnameTarget =
+      data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
 
     console.log("✅ Cloudflare hostname added:", {
       id: data.result.id,
@@ -117,7 +125,10 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
     console.error("Error adding custom hostname to Cloudflare:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to add custom hostname",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to add custom hostname",
     };
   }
 }
@@ -125,7 +136,9 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
 /**
  * Verify custom hostname status on Cloudflare for SaaS
  */
-export async function verifyCustomHostnameOnCloudflare(customHostnameId: string): Promise<{
+export async function verifyCustomHostnameOnCloudflare(
+  customHostnameId: string,
+): Promise<{
   success: boolean;
   verified: boolean;
   sslStatus?: string;
@@ -145,7 +158,7 @@ export async function verifyCustomHostnameOnCloudflare(customHostnameId: string)
           Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     const data: CloudflareCustomHostnameResponse = await response.json();
@@ -158,8 +171,8 @@ export async function verifyCustomHostnameOnCloudflare(customHostnameId: string)
       };
     }
 
-    const isVerified = data.result.status === "active" && 
-                       data.result.ssl.status === "active";
+    const isVerified =
+      data.result.status === "active" && data.result.ssl.status === "active";
 
     return {
       success: true,
@@ -172,7 +185,8 @@ export async function verifyCustomHostnameOnCloudflare(customHostnameId: string)
     return {
       success: false,
       verified: false,
-      error: error instanceof Error ? error.message : "Failed to verify hostname",
+      error:
+        error instanceof Error ? error.message : "Failed to verify hostname",
     };
   }
 }
@@ -180,7 +194,9 @@ export async function verifyCustomHostnameOnCloudflare(customHostnameId: string)
 /**
  * Remove custom hostname from Cloudflare for SaaS
  */
-export async function removeCustomHostnameFromCloudflare(customHostnameId: string): Promise<{
+export async function removeCustomHostnameFromCloudflare(
+  customHostnameId: string,
+): Promise<{
   success: boolean;
   error?: string;
 }> {
@@ -197,7 +213,7 @@ export async function removeCustomHostnameFromCloudflare(customHostnameId: strin
           Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -213,7 +229,8 @@ export async function removeCustomHostnameFromCloudflare(customHostnameId: strin
     console.error("Error removing custom hostname:", error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to remove hostname",
+      error:
+        error instanceof Error ? error.message : "Failed to remove hostname",
     };
   }
 }
@@ -236,7 +253,7 @@ export async function addDomainToVercel(domain: string): Promise<{
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: domain }),
-      }
+      },
     );
 
     const data = await response.json();
@@ -251,7 +268,8 @@ export async function addDomainToVercel(domain: string): Promise<{
     // Get verification record if domain needs verification
     if (data.verification && data.verification.length > 0) {
       const txtRecord = data.verification.find(
-        (v: { type: string; domain: string; value: string }) => v.type === "TXT"
+        (v: { type: string; domain: string; value: string }) =>
+          v.type === "TXT",
       );
       return {
         success: true,
@@ -290,7 +308,7 @@ export async function removeDomainFromVercel(domain: string): Promise<{
         headers: {
           Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -328,7 +346,7 @@ export async function verifyDomainOnVercel(domain: string): Promise<{
           Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     const data = await response.json();
@@ -367,10 +385,10 @@ export async function verifyDomainViaDNS(domain: string): Promise<{
   try {
     // Check CNAME record using DNS-over-HTTPS (Cloudflare)
     const dnsApiUrl = `https://cloudflare-dns.com/dns-query?name=${domain}&type=CNAME`;
-    
+
     const response = await fetch(dnsApiUrl, {
       headers: {
-        'Accept': 'application/dns-json',
+        Accept: "application/dns-json",
       },
     });
 
@@ -382,15 +400,15 @@ export async function verifyDomainViaDNS(domain: string): Promise<{
       };
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       Answer?: Array<{ type: number; data: string }>;
     };
-    
+
     // Check if CNAME points to cname.slugy.co
     const hasCNAME = data.Answer?.some(
-      (record) => 
+      (record) =>
         record.type === 5 && // CNAME type
-        record.data?.includes('cname.slugy.co')
+        record.data?.includes("cname.slugy.co"),
     );
 
     if (hasCNAME) {
@@ -414,7 +432,6 @@ export async function verifyDomainViaDNS(domain: string): Promise<{
     };
   }
 }
-
 
 /**
  * Get domain configuration instructions
@@ -456,10 +473,8 @@ export function validateDomain(domain: string): {
   valid: boolean;
   error?: string;
 } {
-  // Remove protocol if present
   domain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-  // Basic domain validation regex
   const domainRegex =
     /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/i;
 
@@ -470,11 +485,7 @@ export function validateDomain(domain: string): {
     };
   }
 
-  // Check for localhost or IP addresses
-  if (
-    domain.includes("localhost") ||
-    /^(\d{1,3}\.){3}\d{1,3}$/.test(domain)
-  ) {
+  if (domain.includes("localhost") || /^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) {
     return {
       valid: false,
       error: "Cannot use localhost or IP addresses",
@@ -489,7 +500,7 @@ export function validateDomain(domain: string): {
  */
 export async function checkDomainLimit(
   workspaceId: string,
-  maxDomains: number
+  maxDomains: number,
 ): Promise<{
   canAdd: boolean;
   currentCount: number;
@@ -532,4 +543,3 @@ export async function isDomainInUse(domain: string): Promise<boolean> {
     return false;
   }
 }
-
