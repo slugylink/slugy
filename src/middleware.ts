@@ -300,18 +300,9 @@ async function handleCustomDomain(
     return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
   }
 
-  // Root path on custom domain - show a default page or redirect
+  // Root path on custom domain - show a custom landing page
   if (pathname === "/") {
-    // You can customize this behavior
-    // Option 1: Show a custom page
-    // return rewriteTo(`/custom-domain-home`, baseUrl);
-    // Option 2: Return a 404
-    return new NextResponse("Domain configured successfully. Add a slug to create a short link.", {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain",
-      },
-    });
+    return rewriteTo("/custom-domain", baseUrl);
   }
 
   // Check if this is a verified custom domain and handle link redirection
@@ -325,11 +316,6 @@ async function handleCustomDomain(
     // Continue to fallback
   }
 
-  // Fallback: show 404 
-  return new NextResponse("Link not found", {
-    status: 404,
-    headers: {
-      "Content-Type": "text/plain",
-    },
-  });
+  // Fallback: show custom 404 page
+  return rewriteTo("/custom-domain/not-found", baseUrl);
 }
