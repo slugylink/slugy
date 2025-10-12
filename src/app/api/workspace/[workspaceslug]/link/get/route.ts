@@ -111,6 +111,7 @@ const getLinksWithCount = async (
           password: true,
           expiresAt: true,
           isArchived: true,
+          domain: true,
           qrCode: {
             select: {
               id: true,

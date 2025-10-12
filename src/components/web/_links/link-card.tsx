@@ -40,7 +40,6 @@ import {
   SelectionCheckbox,
   LinkAvatar,
   DeleteConfirmationDialog,
-  SHORT_URL_BASE,
 } from "@/components/web/_links/link-card-components";
 import { useWorkspaceStore } from "@/store/workspace";
 
@@ -218,7 +217,10 @@ export default function LinkCard({
     link.id,
   );
   const [isCopied, setIsCopied] = useState(false);
-  const shortUrl = useMemo(() => `${SHORT_URL_BASE}${link.slug}`, [link.slug]);
+  const shortUrl = useMemo(() => {
+    const domain = link.domain || "slugy.co";
+    return `https://${domain}/${link.slug}`;
+  }, [link.domain, link.slug]);
   const editFormData = useMemo(() => createEditFormData(link), [link]);
   const handleCopy = useCallback(async () => {
     try {
@@ -317,8 +319,7 @@ export default function LinkCard({
                 link.isArchived && "text-muted-foreground",
               )}
             >
-              {SHORT_URL_BASE.replace("https://", "")}
-              {link.slug}
+              {link.domain || "slugy.co"}/{link.slug}
             </p>
             <div className="flex items-center gap-2">
               <CopyButton isCopied={isCopied} onClick={handleCopy} />
