@@ -66,6 +66,7 @@ async function trackAnalytics(
   slug: string,
   url: string,
   workspaceId: string,
+  domain?: string,
 ): Promise<void> {
   try {
     const ua = userAgent(req);
@@ -134,7 +135,7 @@ async function trackAnalytics(
           workspace_id: workspaceId,
           slug,
           url,
-          domain: "slugy.co",
+          domain: domain || "slugy.co",
           ip: analytics.ipAddress,
           country: analytics.country,
           city: analytics.city,
@@ -178,6 +179,7 @@ async function trackAnalytics(
 export async function URLRedirects(
   req: NextRequest,
   shortCode: string,
+  domain?: string,
 ): Promise<NextResponse | null> {
   try {
     if (!shortCode?.trim()) {
@@ -219,6 +221,7 @@ export async function URLRedirects(
           shortCode,
           linkData.url,
           linkData.workspaceId,
+          domain,
         );
       } else {
         console.log(`[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`);
