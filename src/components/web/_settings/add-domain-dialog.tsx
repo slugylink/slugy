@@ -11,9 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { z } from "zod";
 
 interface CustomDomain {
   id: string;
@@ -48,11 +49,45 @@ export function AddDomainDialog({
   const [domain, setDomain] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const subdomainSchema = z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, { message: "Please enter a domain" })
+    .refine(
+      (val) => !val.startsWith("http://") && !val.startsWith("https://"),
+      {
+        message: "Do not include http(s)://",
+      },
+    )
+    .refine((val) => !val.includes("/"), {
+      message: "Do not include paths or slashes",
+    })
+    .refine((val) => val.split(".").length >= 3, {
+      message: "Enter a subdomain like go.example.com",
+    })
+    .refine(
+      (val) => {
+        const labels = val.split(".");
+        return labels.every(
+          (label) =>
+            /^[a-z0-9-]{1,63}$/i.test(label) &&
+            !label.startsWith("-") &&
+            !label.endsWith("-"),
+        );
+      },
+      {
+        message: "Use letters, numbers, and hyphens only",
+      },
+    );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!domain.trim()) {
-      toast.error("Please enter a domain");
+    const parsed = subdomainSchema.safeParse(domain);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || "Invalid subdomain";
+      toast.error(msg);
       return;
     }
 
@@ -62,8 +97,8 @@ export function AddDomainDialog({
       const response = await axios.post(
         `/api/workspace/${workspaceslug}/domains`,
         {
-          domain: domain.trim(),
-        }
+          domain: parsed.data,
+        },
       );
 
       const addedDomain = response.data.domain;
@@ -74,7 +109,7 @@ export function AddDomainDialog({
       } else {
         toast.success("Domain added successfully!");
       }
-      
+
       // Pass the domain and indicate if setup dialog should open
       onDomainAdded(addedDomain, needsVerification);
       setDomain("");
@@ -102,22 +137,21 @@ export function AddDomainDialog({
           <DialogHeader>
             <DialogTitle>Add Custom Domain</DialogTitle>
             <DialogDescription>
-              Enter the domain you want to use for your short links. Make sure you
-              have access to configure DNS records for this domain.
+              Enter the domain you want to use for your short links. Make sure
+              you have access to configure DNS records for this domain.
             </DialogDescription>
           </DialogHeader>
 
           <div className="my-6">
             <Input
-              placeholder="example.com or go.example.com"
+              placeholder="go.example.com"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               disabled={isLoading}
               autoFocus
             />
             <p className="text-muted-foreground mt-2 text-xs">
-              You can use either an apex domain (example.com) or a subdomain
-              (go.example.com)
+              Recommended to use a subdomain (e.g., go.example.com)
             </p>
           </div>
 
@@ -130,8 +164,8 @@ export function AddDomainDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="animate-spin" />}
+            <Button type="submit" disabled={isLoading || domain.trim().length === 0}>
+              {isLoading && <LoaderCircle className="animate-spin" />}
               Add Domain
             </Button>
           </DialogFooter>
@@ -140,4 +174,3 @@ export function AddDomainDialog({
     </Dialog>
   );
 }
-

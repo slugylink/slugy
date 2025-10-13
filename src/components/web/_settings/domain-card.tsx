@@ -6,18 +6,37 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Globe,
-  CheckCircle2,
-  XCircle,
   AlertCircle,
-  Loader2,
   Trash2,
   RefreshCw,
-  Settings,
+  Settings2,
+  ChevronDown,
+  ClockFading,
+  MoreVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
-import { DomainConfigDialog } from "./domain-config-dialog";
+import { DomainConfigContent } from "./domain-config-dialog";
 import { DeleteDomainDialog } from "./delete-domain-dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+} from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface CustomDomain {
   id: string;
@@ -54,15 +73,14 @@ export function DomainCard({
   onSetupClick,
 }: DomainCardProps) {
   const [isVerifying, setIsVerifying] = useState(false);
-  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const handleSetupClick = () => {
     if (onSetupClick) {
       onSetupClick();
-    } else {
-      setIsConfigDialogOpen(true);
     }
+    setIsConfigOpen((prev) => !prev);
   };
 
   const handleVerify = async () => {
@@ -74,13 +92,13 @@ export function DomainCard({
         {
           domainId: domain.id,
           action: "verify",
-        }
+        },
       );
 
       if (response.data.verified && response.data.configured) {
         toast.success("Domain verified and configured successfully");
       } else if (response.data.verified) {
-        toast.success("Domain verified! Please configure DNS records.");
+        toast.success("Domain verified successfully");
       } else {
         toast.warning("Domain verification pending. Please check DNS records.");
       }
@@ -99,23 +117,28 @@ export function DomainCard({
   const getStatusBadge = () => {
     if (domain.verified && domain.dnsConfigured) {
       return (
-        <Badge variant="default" className="bg-green-500">
-          <CheckCircle2 className="mr-1 size-3" />
+        <Badge
+          variant="default"
+          className="rounded-sm bg-green-100/70 text-green-500"
+        >
           Active
         </Badge>
       );
     } else if (domain.verified) {
       return (
-        <Badge variant="secondary">
+        <Badge variant="secondary" className="rounded-sm">
           <AlertCircle className="mr-1 size-3" />
           DNS Pending
         </Badge>
       );
     } else {
       return (
-        <Badge variant="outline">
-          <XCircle className="mr-1 size-3" />
-          Verification Pending
+        <Badge
+          variant="secondary"
+          className="rounded-sm bg-red-100/70 text-red-500"
+        >
+          <ClockFading className="mr-1 size-3" />
+          Pending
         </Badge>
       );
     }
@@ -123,71 +146,128 @@ export function DomainCard({
 
   return (
     <>
-      <Card className="border shadow-none">
-        <CardContent className="flex items-center justify-between p-4">
+      <Card className="gap-0 border shadow-none">
+        <CardContent className="flex items-center justify-between gap-0">
           <div className="flex items-center gap-4">
-            <div className="bg-muted flex size-10 items-center justify-center rounded-lg">
-              <Globe className="text-muted-foreground size-5" />
+            <div className="hidden size-10 items-center justify-center rounded-full border bg-gradient-to-b from-zinc-50/60 to-zinc-100 md:flex">
+              <Globe className="size-5 text-zinc-700" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm">
                 <p className="font-medium">{domain.domain}</p>
                 {getStatusBadge()}
               </div>
               <p className="text-muted-foreground mt-1 text-xs">
                 {domain.verified && domain.dnsConfigured
                   ? "Ready to use"
-                  : domain.verified
-                    ? "Configure DNS records"
-                    : "Verify domain ownership"}
+                  : "Configure DNS records"}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
             {(!domain.verified || !domain.dnsConfigured) && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSetupClick}
-              >
-                <Settings />
-                Setup
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={handleSetupClick}
+                  >
+                    <Settings2 />
+                    <ChevronDown
+                      className={cn(
+                        "text-muted-foreground",
+                        isConfigOpen && "rotate-180",
+                      )}
+                    />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Configure</TooltipContent>
+              </Tooltip>
             )}
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleVerify}
-              disabled={isVerifying}
-            >
-              {isVerifying ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <RefreshCw />
-              )}
-              Verify
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="xs"
+                  variant="outline"
+                  onClick={handleVerify}
+                  disabled={isVerifying}
+                >
+                  {isVerifying ? (
+                    <RefreshCw className="animate-spin" />
+                  ) : (
+                    <RefreshCw />
+                  )}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Refresh</TooltipContent>
+            </Tooltip>
 
             {isOwnerOrAdmin && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsDeleteDialogOpen(true)}
-              >
-                <Trash2 />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setIsDeleteDialogOpen(true)}
+                  >
+                    <Trash2 />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete</TooltipContent>
+              </Tooltip>
             )}
           </div>
+          {/* mobile dropdown */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="xs" variant="outline">
+                  <MoreVertical />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                {(!domain.verified || !domain.dnsConfigured) && (
+                  <DropdownMenuItem onClick={handleSetupClick}>
+                    <Settings2 className="mr-2 size-4" /> Configure
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={handleVerify} disabled={isVerifying}>
+                  <RefreshCw className="mr-2 size-4" /> Refresh
+                </DropdownMenuItem>
+                {isOwnerOrAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => setIsDeleteDialogOpen(true)}
+                    >
+                      <Trash2 className="mr-2 size-4" /> Delete
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardContent>
+        {/* Inline configuration accordion */}
+        <div className="p-0">
+          <Accordion
+            type="single"
+            collapsible
+            value={isConfigOpen ? "config" : undefined}
+            onValueChange={(v) => setIsConfigOpen(v === "config")}
+            className="w-full gap-0 p-0"
+          >
+            <AccordionItem value="config" className="p-0">
+              <AccordionContent className="border-none p-0">
+                <DomainConfigContent domain={domain} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       </Card>
-
-      <DomainConfigDialog
-        open={isConfigDialogOpen}
-        onOpenChange={setIsConfigDialogOpen}
-        domain={domain}
-      />
 
       {isOwnerOrAdmin && (
         <DeleteDomainDialog
@@ -201,4 +281,3 @@ export function DomainCard({
     </>
   );
 }
-

@@ -1,7 +1,6 @@
 "use client";
 import {
   AlertDialog,
-  // AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -26,7 +25,9 @@ export function AlertDialogBox({ workspaceslug }: { workspaceslug: string }) {
 
   const handleDelete = async () => {
     if (confirmationText !== workspaceslug) {
-      toast.error("Please type the workspace slug correctly to confirm deletion.");
+      toast.error(
+        "Please type the workspace slug correctly to confirm deletion.",
+      );
       return;
     }
 
@@ -55,7 +56,7 @@ export function AlertDialogBox({ workspaceslug }: { workspaceslug: string }) {
       <AlertDialogTrigger asChild>
         <Button variant="destructive">Delete Workspace</Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-background sm:max-w-md p-4">
+      <AlertDialogContent className="bg-background p-4 sm:max-w-md">
         <AlertDialogHeader>
           <AlertDialogTitle className="text-xl font-medium">
             Are you absolutely sure?
@@ -65,11 +66,15 @@ export function AlertDialogBox({ workspaceslug }: { workspaceslug: string }) {
             workspace and remove your data from our servers.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
+
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="confirmation" className="font-normal">
-              To verify, type <span className="font-mono text-sm bg-muted px-1 py-0.5 rounded font-medium">{workspaceslug}</span> below:
+              To verify, type{" "}
+              <span className="bg-muted rounded px-1 py-0.5 font-mono text-sm font-medium">
+                {workspaceslug}
+              </span>{" "}
+              below:
             </Label>
             <Input
               id="confirmation"

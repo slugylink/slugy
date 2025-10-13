@@ -2,18 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { AddDomainDialog } from "./add-domain-dialog";
 import { DomainCard } from "./domain-card";
-import { DomainConfigDialog } from "./domain-config-dialog";
 import { Badge } from "@/components/ui/badge";
 
 interface CustomDomain {
@@ -49,23 +41,16 @@ export default function DomainsClient({
   const router = useRouter();
   const [domains, setDomains] = useState<CustomDomain[]>(initialDomains);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [selectedDomainForSetup, setSelectedDomainForSetup] = useState<CustomDomain | null>(null);
+  // No dialog state needed; configuration is inline within each DomainCard
 
   const canAddDomain = maxDomains > 0 && domains.length < maxDomains;
 
-  const handleDomainAdded = (newDomain: CustomDomain, showSetup?: boolean) => {
+  const handleDomainAdded = (newDomain: CustomDomain) => {
     setDomains((prev) => [newDomain, ...prev]);
     setIsAddDialogOpen(false);
     
     // Refresh server data
     router.refresh();
-    
-    // Automatically open setup dialog if verification is needed
-    if (showSetup) {
-      setTimeout(() => {
-        setSelectedDomainForSetup(newDomain);
-      }, 300);
-    }
   };
 
   const handleDomainDeleted = (domainId: string) => {
@@ -84,36 +69,31 @@ export default function DomainsClient({
 
   return (
     <>
-      <Card className="border shadow-none">
-        <CardHeader>
+      <div className="">
+        <div className="">
           <div className="flex items-start justify-between">
             <div>
-              <CardTitle>Custom Domains</CardTitle>
-              <CardDescription className="mt-1.5">
-                Add custom domains to use for your short links. You can add up to{" "}
-                {maxDomains} custom domain{maxDomains !== 1 ? "s" : ""}.
-              </CardDescription>
+              
             </div>
-            <Button
-                size="sm"
-                onClick={() => setIsAddDialogOpen(true)}
-              >
+            <div className="flex gap-2">
+              <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
                 <Plus />
                 Add Domain
               </Button>
-            {isOwnerOrAdmin && maxDomains > 0 && (
-              <Button
-                size="sm"
-                onClick={() => setIsAddDialogOpen(true)}
-                disabled={!canAddDomain}
-              >
-                <Plus />
-                Add Domain
-              </Button>
-            )}
+              {isOwnerOrAdmin && maxDomains > 0 && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsAddDialogOpen(true)}
+                  disabled={!canAddDomain}
+                >
+                  <Plus />
+                  Add Domain
+                </Button>
+              )}
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="mt-8">
           {maxDomains === 0 && domains.length === 0 ? (
             <div className="rounded-lg border border-dashed bg-muted/50 p-8 text-center">
               <p className="text-muted-foreground mb-4 text-sm">
@@ -163,31 +143,20 @@ export default function DomainsClient({
                   isOwnerOrAdmin={isOwnerOrAdmin}
                   onDeleted={handleDomainDeleted}
                   onUpdated={handleDomainUpdated}
-                  onSetupClick={() => setSelectedDomainForSetup(domain)}
                 />
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {isOwnerOrAdmin && (
-        <>
-          <AddDomainDialog
-            open={isAddDialogOpen}
-            onOpenChange={setIsAddDialogOpen}
-            workspaceslug={workspaceslug}
-            onDomainAdded={handleDomainAdded}
-          />
-          
-          {selectedDomainForSetup && (
-            <DomainConfigDialog
-              open={!!selectedDomainForSetup}
-              onOpenChange={(open) => !open && setSelectedDomainForSetup(null)}
-              domain={selectedDomainForSetup}
-            />
-          )}
-        </>
+        <AddDomainDialog
+          open={isAddDialogOpen}
+          onOpenChange={setIsAddDialogOpen}
+          workspaceslug={workspaceslug}
+          onDomainAdded={handleDomainAdded}
+        />
       )}
     </>
   );

@@ -3,28 +3,53 @@ import { db } from "@/server/db";
 const VERCEL_API_URL = "https://api.vercel.com";
 const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
 
+// Types
 interface CloudflareCustomHostnameResponse {
   result?: {
     id: string;
     hostname: string;
     ssl: {
       status: string;
-      validation_records?: Array<{
-        txt_name: string;
-        txt_value: string;
-      }>;
       cname_target?: string;
     };
     status: string;
-    verification_errors?: string[];
   };
   success: boolean;
   errors?: Array<{ message: string }>;
 }
 
+interface ApiResult {
+  success: boolean;
+  error?: string;
+}
+
+// Helper: Get Cloudflare credentials
+function getCloudflareCredentials() {
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+
+  if (!apiToken || !zoneId) {
+    throw new Error("Cloudflare credentials not configured");
+  }
+
+  return { apiToken, zoneId };
+}
+
+// Helper: Get Vercel credentials
+function getVercelCredentials() {
+  const token = process.env.VERCEL_TOKEN;
+  const projectId = process.env.VERCEL_PROJECT_ID;
+  const teamId = process.env.VERCEL_TEAM_ID;
+
+  if (!token || !projectId || !teamId) {
+    throw new Error("Vercel credentials not configured");
+  }
+
+  return { token, projectId, teamId };
+}
+
 /**
  * Add a custom hostname to Cloudflare for SaaS
- * See: https://developers.cloudflare.com/cloudflare-for-platforms/cloudflare-for-saas/domain-support/create-custom-hostnames/
  */
 export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
   success: boolean;
@@ -34,28 +59,14 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
   sslStatus?: string;
 }> {
   try {
-    console.log(
-      "🔧 Cloudflare API Token exists:",
-      !!process.env.CLOUDFLARE_API_TOKEN,
-    );
-    console.log(
-      "🔧 Cloudflare Zone ID exists:",
-      !!process.env.CLOUDFLARE_ZONE_ID,
-    );
-
-    if (!process.env.CLOUDFLARE_API_TOKEN) {
-      throw new Error("CLOUDFLARE_API_TOKEN is not configured");
-    }
-    if (!process.env.CLOUDFLARE_ZONE_ID) {
-      throw new Error("CLOUDFLARE_ZONE_ID is not configured");
-    }
+    const { apiToken, zoneId } = getCloudflareCredentials();
 
     const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${process.env.CLOUDFLARE_ZONE_ID}/custom_hostnames`,
+      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+          Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -67,53 +78,20 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
               http2: "on",
               min_tls_version: "1.2",
               tls_1_3: "on",
-              early_hints: "on",
             },
           },
         }),
-      },
+      }
     );
 
     const data: CloudflareCustomHostnameResponse = await response.json();
 
-    console.log("🌐 Cloudflare API Response:", {
-      ok: response.ok,
-      status: response.status,
-      success: data.success,
-      hasResult: !!data.result,
-      cnameTarget: data.result?.ssl?.cname_target,
-      errors: data.errors,
-    });
-
-    if (!response.ok || !data.success) {
-      const errorMessage =
-        data.errors?.[0]?.message || "Failed to add custom hostname";
-      console.error("❌ Cloudflare API Error:", errorMessage);
-      return {
-        success: false,
-        error: errorMessage,
-      };
+    if (!response.ok || !data.success || !data.result) {
+      const errorMessage = data.errors?.[0]?.message || "Failed to add custom hostname";
+      return { success: false, error: errorMessage };
     }
 
-    if (!data.result) {
-      console.error("❌ No result from Cloudflare");
-      return {
-        success: false,
-        error: "No result returned from Cloudflare",
-      };
-    }
-
-    // Cloudflare returns cname_target in the ssl object, but it might be undefined initially
-    // The CNAME format is: {hostname}.cdn.cloudflare.net
-    const cnameTarget =
-      data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
-
-    console.log("✅ Cloudflare hostname added:", {
-      id: data.result.id,
-      cnameTarget,
-      status: data.result.status,
-      sslStatus: data.result.ssl.status,
-    });
+    const cnameTarget = data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
 
     return {
       success: true,
@@ -125,19 +103,16 @@ export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
     console.error("Error adding custom hostname to Cloudflare:", error);
     return {
       success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to add custom hostname",
+      error: error instanceof Error ? error.message : "Failed to add custom hostname",
     };
   }
 }
 
 /**
- * Verify custom hostname status on Cloudflare for SaaS
+ * Verify custom hostname status on Cloudflare
  */
 export async function verifyCustomHostnameOnCloudflare(
-  customHostnameId: string,
+  customHostnameId: string
 ): Promise<{
   success: boolean;
   verified: boolean;
@@ -146,19 +121,16 @@ export async function verifyCustomHostnameOnCloudflare(
   error?: string;
 }> {
   try {
-    if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ZONE_ID) {
-      throw new Error("Cloudflare credentials not configured");
-    }
+    const { apiToken, zoneId } = getCloudflareCredentials();
 
     const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${process.env.CLOUDFLARE_ZONE_ID}/custom_hostnames/${customHostnameId}`,
+      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
       {
-        method: "GET",
         headers: {
-          Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+          Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
-      },
+      }
     );
 
     const data: CloudflareCustomHostnameResponse = await response.json();
@@ -171,8 +143,7 @@ export async function verifyCustomHostnameOnCloudflare(
       };
     }
 
-    const isVerified =
-      data.result.status === "active" && data.result.ssl.status === "active";
+    const isVerified = data.result.status === "active" && data.result.ssl.status === "active";
 
     return {
       success: true,
@@ -185,35 +156,29 @@ export async function verifyCustomHostnameOnCloudflare(
     return {
       success: false,
       verified: false,
-      error:
-        error instanceof Error ? error.message : "Failed to verify hostname",
+      error: error instanceof Error ? error.message : "Failed to verify hostname",
     };
   }
 }
 
 /**
- * Remove custom hostname from Cloudflare for SaaS
+ * Remove custom hostname from Cloudflare
  */
 export async function removeCustomHostnameFromCloudflare(
-  customHostnameId: string,
-): Promise<{
-  success: boolean;
-  error?: string;
-}> {
+  customHostnameId: string
+): Promise<ApiResult> {
   try {
-    if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ZONE_ID) {
-      throw new Error("Cloudflare credentials not configured");
-    }
+    const { apiToken, zoneId } = getCloudflareCredentials();
 
     const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${process.env.CLOUDFLARE_ZONE_ID}/custom_hostnames/${customHostnameId}`,
+      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`,
+          Authorization: `Bearer ${apiToken}`,
           "Content-Type": "application/json",
         },
-      },
+      }
     );
 
     if (!response.ok) {
@@ -229,8 +194,7 @@ export async function removeCustomHostnameFromCloudflare(
     console.error("Error removing custom hostname:", error);
     return {
       success: false,
-      error:
-        error instanceof Error ? error.message : "Failed to remove hostname",
+      error: error instanceof Error ? error.message : "Failed to remove hostname",
     };
   }
 }
@@ -244,16 +208,18 @@ export async function addDomainToVercel(domain: string): Promise<{
   verificationRecord?: { type: string; name: string; value: string };
 }> {
   try {
+    const { token, projectId, teamId } = getVercelCredentials();
+
     const response = await fetch(
-      `${VERCEL_API_URL}/v10/projects/${process.env.VERCEL_PROJECT_ID}/domains?teamId=${process.env.VERCEL_TEAM_ID}`,
+      `${VERCEL_API_URL}/v10/projects/${projectId}/domains?teamId=${teamId}`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: domain }),
-      },
+      }
     );
 
     const data = await response.json();
@@ -266,29 +232,25 @@ export async function addDomainToVercel(domain: string): Promise<{
     }
 
     // Get verification record if domain needs verification
-    if (data.verification && data.verification.length > 0) {
-      const txtRecord = data.verification.find(
-        (v: { type: string; domain: string; value: string }) =>
-          v.type === "TXT",
-      );
-      return {
-        success: true,
-        verificationRecord: txtRecord
-          ? {
-              type: txtRecord.type,
-              name: txtRecord.domain,
-              value: txtRecord.value,
-            }
-          : undefined,
-      };
-    }
+    const txtRecord = data.verification?.find(
+      (v: { type: string; domain: string; value: string }) => v.type === "TXT"
+    );
 
-    return { success: true };
+    return {
+      success: true,
+      verificationRecord: txtRecord
+        ? {
+            type: txtRecord.type,
+            name: txtRecord.domain,
+            value: txtRecord.value,
+          }
+        : undefined,
+    };
   } catch (error) {
     console.error("Error adding domain to Vercel:", error);
     return {
       success: false,
-      error: "Failed to add domain to Vercel",
+      error: error instanceof Error ? error.message : "Failed to add domain to Vercel",
     };
   }
 }
@@ -296,19 +258,18 @@ export async function addDomainToVercel(domain: string): Promise<{
 /**
  * Remove a domain from Vercel project
  */
-export async function removeDomainFromVercel(domain: string): Promise<{
-  success: boolean;
-  error?: string;
-}> {
+export async function removeDomainFromVercel(domain: string): Promise<ApiResult> {
   try {
+    const { token, projectId, teamId } = getVercelCredentials();
+
     const response = await fetch(
-      `${VERCEL_API_URL}/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domain}?teamId=${process.env.VERCEL_TEAM_ID}`,
+      `${VERCEL_API_URL}/v9/projects/${projectId}/domains/${domain}?teamId=${teamId}`,
       {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+          Authorization: `Bearer ${token}`,
         },
-      },
+      }
     );
 
     if (!response.ok) {
@@ -324,7 +285,7 @@ export async function removeDomainFromVercel(domain: string): Promise<{
     console.error("Error removing domain from Vercel:", error);
     return {
       success: false,
-      error: "Failed to remove domain from Vercel",
+      error: error instanceof Error ? error.message : "Failed to remove domain from Vercel",
     };
   }
 }
@@ -338,15 +299,17 @@ export async function verifyDomainOnVercel(domain: string): Promise<{
   error?: string;
 }> {
   try {
+    const { token, projectId, teamId } = getVercelCredentials();
+
     const response = await fetch(
-      `${VERCEL_API_URL}/v9/projects/${process.env.VERCEL_PROJECT_ID}/domains/${domain}/verify?teamId=${process.env.VERCEL_TEAM_ID}`,
+      `${VERCEL_API_URL}/v9/projects/${projectId}/domains/${domain}/verify?teamId=${teamId}`,
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      },
+      }
     );
 
     const data = await response.json();
@@ -368,103 +331,11 @@ export async function verifyDomainOnVercel(domain: string): Promise<{
     return {
       success: false,
       verified: false,
-      error: "Failed to verify domain on Vercel",
+      error: error instanceof Error ? error.message : "Failed to verify domain on Vercel",
     };
   }
 }
 
-/**
- * Verify domain configuration via DNS (Cloudflare-compatible)
- */
-export async function verifyDomainViaDNS(domain: string): Promise<{
-  verified: boolean;
-  configured: boolean;
-  verificationRecord?: { type: string; name: string; value: string };
-  error?: string;
-}> {
-  try {
-    // Check CNAME record using DNS-over-HTTPS (Cloudflare)
-    const dnsApiUrl = `https://cloudflare-dns.com/dns-query?name=${domain}&type=CNAME`;
-
-    const response = await fetch(dnsApiUrl, {
-      headers: {
-        Accept: "application/dns-json",
-      },
-    });
-
-    if (!response.ok) {
-      return {
-        verified: false,
-        configured: false,
-        error: "Failed to check DNS records",
-      };
-    }
-
-    const data = (await response.json()) as {
-      Answer?: Array<{ type: number; data: string }>;
-    };
-
-    // Check if CNAME points to cname.slugy.co
-    const hasCNAME = data.Answer?.some(
-      (record) =>
-        record.type === 5 && // CNAME type
-        record.data?.includes("cname.slugy.co"),
-    );
-
-    if (hasCNAME) {
-      return {
-        verified: true,
-        configured: true,
-      };
-    }
-
-    return {
-      verified: false,
-      configured: false,
-      error: "CNAME record not found or not pointing to cname.slugy.co",
-    };
-  } catch (error) {
-    console.error("Error verifying domain via DNS:", error);
-    return {
-      verified: false,
-      configured: false,
-      error: "Failed to verify domain via DNS",
-    };
-  }
-}
-
-/**
- * Get domain configuration instructions
- */
-export function getDomainConfigInstructions(domain: string): {
-  aRecord: { type: string; name: string; value: string };
-  cnameRecord?: { type: string; name: string; value: string };
-} {
-  const isApex = !domain.includes("www") && domain.split(".").length === 2;
-
-  if (isApex) {
-    return {
-      aRecord: {
-        type: "A",
-        name: "@",
-        value: "76.76.21.21", // Vercel's IP
-      },
-      cnameRecord: {
-        type: "CNAME",
-        name: "www",
-        value: "cname.slugy.co",
-      },
-    };
-  }
-
-  return {
-    aRecord: {
-      type: "CNAME",
-      name: domain.split(".")[0] || "@",
-      value: "cname.slugy.co",
-    },
-  };
-}
 
 /**
  * Validate domain format
@@ -473,60 +344,19 @@ export function validateDomain(domain: string): {
   valid: boolean;
   error?: string;
 } {
-  domain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
-  const domainRegex =
-    /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/i;
+  const domainRegex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/i;
 
-  if (!domainRegex.test(domain)) {
-    return {
-      valid: false,
-      error: "Invalid domain format",
-    };
+  if (!domainRegex.test(cleanDomain)) {
+    return { valid: false, error: "Invalid domain format" };
   }
 
-  if (domain.includes("localhost") || /^(\d{1,3}\.){3}\d{1,3}$/.test(domain)) {
-    return {
-      valid: false,
-      error: "Cannot use localhost or IP addresses",
-    };
+  if (cleanDomain.includes("localhost") || /^(\d{1,3}\.){3}\d{1,3}$/.test(cleanDomain)) {
+    return { valid: false, error: "Cannot use localhost or IP addresses" };
   }
 
   return { valid: true };
-}
-
-/**
- * Check if user has reached domain limit
- */
-export async function checkDomainLimit(
-  workspaceId: string,
-  maxDomains: number,
-): Promise<{
-  canAdd: boolean;
-  currentCount: number;
-  error?: string;
-}> {
-  try {
-    const currentCount = await db.customDomain.count({
-      where: { workspaceId },
-    });
-
-    return {
-      canAdd: currentCount < maxDomains,
-      currentCount,
-      error:
-        currentCount >= maxDomains
-          ? `You've reached the maximum limit of ${maxDomains} custom domains`
-          : undefined,
-    };
-  } catch (error) {
-    console.error("Error checking domain limit:", error);
-    return {
-      canAdd: false,
-      currentCount: 0,
-      error: "Failed to check domain limit",
-    };
-  }
 }
 
 /**
