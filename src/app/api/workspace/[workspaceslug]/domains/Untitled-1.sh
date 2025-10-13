@@ -1,1 +1,0 @@
-curl -X GET "https://api.cloudflare.com/client/v4/zones/2f58cbee0fc7a6e574425760fda8b276"  -H "Authorization: Bearer jFw00ULzSlYb9lFqVOsqEwap5RHW3YaTJ1e9CR7v"  -H "Content-Type: application/json"

@@ -78,6 +78,7 @@ const SIDEBAR_DATA = {
       icon: Settings,
       items: [
         { title: "General", url: "/settings" },
+        { title: "Domains", url: "/settings/domains" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
       ],

@@ -10,9 +10,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { LoaderCircle } from "@/utils/icons/loader-circle";
 
 interface CustomDomain {
   id: string;
@@ -41,7 +41,7 @@ export function DeleteDomainDialog({
 
     try {
       await axios.delete(
-        `/api/workspace/${workspaceslug}/domains?domainId=${domain.id}`
+        `/api/workspace/${workspaceslug}/domains?domainId=${domain.id}`,
       );
 
       toast.success("Domain deleted successfully");
@@ -59,23 +59,20 @@ export function DeleteDomainDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] gap-0">
         <DialogHeader>
-          <div className="bg-destructive/10 mb-2 flex size-12 items-center justify-center rounded-full">
-            <AlertTriangle className="text-destructive size-6" />
-          </div>
           <DialogTitle>Delete Custom Domain</DialogTitle>
           <DialogDescription>
             Are you sure you want to delete{" "}
-            <span className="font-medium text-foreground">{domain.domain}</span>?
-            This action cannot be undone.
+            <span className="text-foreground font-medium">{domain.domain}</span>
+            ? This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="bg-muted/50 my-4 rounded-lg p-4">
+        <div className="bg-muted/50 my-4 rounded-lg p-3">
           <p className="text-muted-foreground text-sm">
-            Any short links using this domain will stop working. Make sure to update
-            or remove them before deleting this domain.
+            Any short links using this domain will stop working. Make sure to
+            update or remove them before deleting this domain.
           </p>
         </div>
 
@@ -92,12 +89,11 @@ export function DeleteDomainDialog({
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            {isDeleting && <Loader2 className="animate-spin" />}
-            Delete Domain
+            {isDeleting && <LoaderCircle className="animate-spin" />}
+            Delete
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-

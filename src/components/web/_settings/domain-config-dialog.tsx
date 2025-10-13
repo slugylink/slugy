@@ -1,20 +1,6 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  CheckCircle2,
-  Copy,
-  ExternalLink,
-  AlertCircle,
-} from "lucide-react";
+import { Check, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
 
@@ -28,17 +14,12 @@ interface CustomDomain {
   cloudflareStatus: string | null;
 }
 
-interface DomainConfigDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface DomainConfigContentProps {
   domain: CustomDomain;
 }
 
-export function DomainConfigDialog({
-  open,
-  onOpenChange,
-  domain,
-}: DomainConfigDialogProps) {
+// Inline domain configuration content (used inside accordion)
+export function DomainConfigContent({ domain }: DomainConfigContentProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, field: string) => {
@@ -58,7 +39,7 @@ export function DomainConfigDialog({
   const getDnsRecords = () => {
     // Always use Vercel's CNAME target for SSL
     const cnameTarget = "cname.vercel-dns.com";
-    
+
     if (isApexDomain) {
       return [
         {
@@ -98,184 +79,231 @@ export function DomainConfigDialog({
   const dnsRecords = getDnsRecords();
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>Domain Configuration</DialogTitle>
-          <DialogDescription>
-            Follow these steps to configure your custom domain{" "}
-            <span className="font-medium text-foreground">{domain.domain}</span>
-          </DialogDescription>
-        </DialogHeader>
+    <div className="mt-4 space-y-6">
+      {/* TXT Verification is skipped for Cloudflare DNS - users only need CNAME */}
 
-        <div className="space-y-6">
-          {/* TXT Verification is skipped for Cloudflare DNS - users only need CNAME */}
+      {/* Step 2: DNS Configuration */}
+      <div className="p-3 pb-0 sm:p-4">
+        <p className="text-muted-foreground mb-4 text-sm">
+          Set the following records on your DNS provider:
+        </p>
 
-          {/* Step 2: DNS Configuration */}
-          <div className="rounded-lg border p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-primary text-primary-foreground flex size-6 items-center justify-center rounded-full text-xs font-medium">
-                  1
-                </div>
-                <h3 className="font-medium">Configure DNS Record</h3>
-              </div>
-              {domain.dnsConfigured ? (
-                <Badge variant="default" className="bg-green-500">
-                  <CheckCircle2 className="mr-1 size-3" />
-                  Configured
-                </Badge>
-              ) : (
-                <Badge variant="outline">
-                  <AlertCircle className="mr-1 size-3" />
-                  Pending
-                </Badge>
-              )}
-            </div>
-
-            <p className="text-muted-foreground mb-4 text-sm">
-              Add these DNS records in your Cloudflare (or DNS provider) to point your domain to Vercel:
-            </p>
-
-            <div className="space-y-3">
+        {/* Desktop/tablet table */}
+        <div className="hidden overflow-x-auto rounded-md border sm:block">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr className="text-left">
+                <th className="px-4 py-2 text-sm font-medium">Type</th>
+                <th className="px-4 py-2 text-sm font-medium">Name</th>
+                <th className="px-4 py-2 text-sm font-medium">Value</th>
+              </tr>
+            </thead>
+            <tbody>
               {dnsRecords.map((record, index) => (
-                <div key={index} className="bg-muted rounded-lg p-3">
-                  <div className="mb-2 flex items-center justify-between">
-                    <Badge variant="secondary" className="text-xs">
-                      {record.type} Record
-                    </Badge>
-                    <p className="text-muted-foreground text-xs">
-                      {record.description}
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-muted-foreground text-xs">Name</p>
-                        <p className="font-mono text-sm">{record.name}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                <tr key={index} className="border-t text-sm">
+                  <td className="px-4 py-3 text-sm">{record.type}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono">{record.name}</span>
+                      <button
+                        className="cursor-pointer"
                         onClick={() =>
                           copyToClipboard(record.name, `dns-name-${index}`)
                         }
                       >
                         {copiedField === `dns-name-${index}` ? (
-                          <CheckCircle2 className="size-4 text-green-500" />
+                          <Check className="size-[14px] text-green-500" />
                         ) : (
-                          <Copy className="size-4" />
+                          <Copy className="size-[14px]" />
                         )}
-                      </Button>
+                      </button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-muted-foreground text-xs">Value</p>
-                        <p className="font-mono text-sm">{record.value}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono break-all">
+                        {record.value}
+                      </span>
+                      <button
+                        className="cursor-pointer"
                         onClick={() =>
                           copyToClipboard(record.value, `dns-value-${index}`)
                         }
                       >
                         {copiedField === `dns-value-${index}` ? (
-                          <CheckCircle2 className="size-4 text-green-500" />
+                          <Check className="size-[14px] text-green-500" />
                         ) : (
-                          <Copy className="size-4" />
+                          <Copy className="size-[14px]" />
                         )}
-                      </Button>
+                      </button>
                     </div>
-                  </div>
-                </div>
+                  </td>
+                </tr>
               ))}
-              
-              {/* Verification Record (if needed) */}
               {verificationRecord && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                  <div className="mb-2 flex items-center justify-between">
-                    <Badge variant="default" className="text-xs bg-blue-600">
-                      {verificationRecord.type} Record (Verification)
-                    </Badge>
-                    <p className="text-muted-foreground text-xs">
-                      Required for Vercel domain verification
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-muted-foreground text-xs">Name</p>
-                        <p className="font-mono text-sm">{verificationRecord.name}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                <tr className="border-t text-sm">
+                  <td className="px-4 py-3 text-sm">
+                    {verificationRecord.type}
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono">
+                        {verificationRecord.name}
+                      </span>
+                      <button
+                        className="cursor-pointer"
                         onClick={() =>
-                          copyToClipboard(verificationRecord.name, `verification-name`)
+                          copyToClipboard(
+                            verificationRecord.name,
+                            `verification-name`,
+                          )
                         }
                       >
                         {copiedField === `verification-name` ? (
-                          <CheckCircle2 className="size-4 text-green-500" />
+                          <Check className="size-[14px] text-green-500" />
                         ) : (
-                          <Copy className="size-4" />
+                          <Copy className="size-[14px]" />
                         )}
-                      </Button>
+                      </button>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="text-muted-foreground text-xs">Value</p>
-                        <p className="font-mono break-all text-xs">{verificationRecord.value}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs break-all sm:text-sm">
+                        {verificationRecord.value}
+                      </span>
+                      <button
+                        className="cursor-pointer"
                         onClick={() =>
-                          copyToClipboard(verificationRecord.value, `verification-value`)
+                          copyToClipboard(
+                            verificationRecord.value,
+                            `verification-value`,
+                          )
                         }
                       >
                         {copiedField === `verification-value` ? (
-                          <CheckCircle2 className="size-4 text-green-500" />
+                          <Check className="size-[14px] text-green-500" />
                         ) : (
-                          <Copy className="size-4" />
+                          <Copy className="size-[14px]" />
                         )}
-                      </Button>
+                      </button>
                     </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile stacked list */}
+        <div className="space-y-3 sm:hidden">
+          {dnsRecords.map((record, index) => (
+            <div key={index} className="rounded-md border p-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-muted-foreground min-w-14 text-[11px]">
+                    Name
+                  </div>
+                  <div className="flex flex-1 items-center justify-between gap-2">
+                    <span className="font-mono text-xs">{record.name}</span>
+                    <button
+                      className="cursor-pointer"
+                      onClick={() =>
+                        copyToClipboard(record.name, `dns-name-${index}`)
+                      }
+                    >
+                      {copiedField === `dns-name-${index}` ? (
+                        <Check className="size-[14px] text-green-500" />
+                      ) : (
+                        <Copy className="size-[14px]" />
+                      )}
+                    </button>
                   </div>
                 </div>
-              )}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-muted-foreground min-w-14 pt-1 text-[11px]">
+                    Value
+                  </div>
+                  <div className="flex flex-1 items-start justify-between gap-2">
+                    <span className="line-clamp-1 font-mono text-xs break-all">
+                      {record.value}
+                    </span>
+                    <button
+                      className="cursor-pointer"
+                      onClick={() =>
+                        copyToClipboard(record.value, `dns-value-${index}`)
+                      }
+                    >
+                      {copiedField === `dns-value-${index}` ? (
+                        <Check className="size-[14px] text-green-500" />
+                      ) : (
+                        <Copy className="size-[14px]" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          ))}
 
-          {/* Help Section */}
-          <div className="bg-muted/50 rounded-lg p-4">
-            <h4 className="mb-2 flex items-center gap-2 text-sm font-medium">
-              <AlertCircle className="size-4" />
-              Need Help?
-            </h4>
-            <p className="text-muted-foreground mb-3 text-sm">
-              DNS changes can take up to 48 hours to propagate, though they usually
-              happen much faster. After adding the records, click the &quot;Verify&quot; button
-              to check the status.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              asChild
-            >
-              <a
-                href="https://vercel.com/docs/projects/domains/add-a-domain"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <ExternalLink className="size-4" />
-                View Vercel Domain Documentation
-              </a>
-            </Button>
-          </div>
+          {verificationRecord && (
+            <div className="rounded-md border p-3">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-muted-foreground min-w-14 text-[11px]">
+                    Name
+                  </div>
+                  <div className="flex flex-1 items-center justify-between gap-2">
+                    <span className="line-clamp-1 font-mono text-xs">
+                      {verificationRecord.name}
+                    </span>
+                    <button
+                      className="cursor-pointer"
+                      onClick={() =>
+                        copyToClipboard(
+                          verificationRecord.name,
+                          `verification-name`,
+                        )
+                      }
+                    >
+                      {copiedField === `verification-name` ? (
+                        <Check className="size-[14px] text-green-500" />
+                      ) : (
+                        <Copy className="size-[14px]" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="text-muted-foreground min-w-14 pt-1 text-[11px]">
+                    Value
+                  </div>
+                  <div className="flex flex-1 items-start justify-between gap-2">
+                    <span className="font-mono text-xs break-all">
+                      {verificationRecord.value}
+                    </span>
+                    <button
+                      className="cursor-pointer"
+                      onClick={() =>
+                        copyToClipboard(
+                          verificationRecord.value,
+                          `verification-value`,
+                        )
+                      }
+                    >
+                      {copiedField === `verification-value` ? (
+                        <Check className="size-[14px] text-green-500" />
+                      ) : (
+                        <Copy className="size-[14px]" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
-
