@@ -216,12 +216,12 @@ export async function DELETE(
     // Remove from Cloudflare (continue on failure)
     if (customDomain.cloudflareCustomHostnameId) {
       const cfResult = await removeCustomHostnameFromCloudflare(
-        customDomain.cloudflareCustomHostnameId,
+        customDomain.cloudflareCustomHostnameId
       );
       if (!cfResult.success) {
         console.error(
           "Failed to remove domain from Cloudflare:",
-          cfResult.error,
+          cfResult.error
         );
       }
     }
