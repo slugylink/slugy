@@ -196,12 +196,14 @@ const LinkFormFields = React.memo(
     );
 
     // Fetch custom domains for workspace
-    const {
-      data: domainsData,
-      isLoading: domainsLoading,
-    } = useSWR<{ domains: Array<{ id: string; domain: string; verified: boolean; dnsConfigured: boolean }> }>(
-      workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null,
-    );
+    const { data: domainsData, isLoading: domainsLoading } = useSWR<{
+      domains: Array<{
+        id: string;
+        domain: string;
+        verified: boolean;
+        dnsConfigured: boolean;
+      }>;
+    }>(workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null);
 
     // Memoized computed values
     const currentTags = useMemo(() => getValues("tags") || [], []);
@@ -213,17 +215,19 @@ const LinkFormFields = React.memo(
 
     // Filter only verified and configured custom domains
     const availableDomains = useMemo(() => {
-      const domains: Array<{ value: string; label: string; id: string | null }> = [
-        { value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null }
-      ];
-      
+      const domains: Array<{
+        value: string;
+        label: string;
+        id: string | null;
+      }> = [{ value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null }];
+
       if (domainsData?.domains) {
         const customDomains = domainsData.domains
           .filter((d) => d.verified && d.dnsConfigured)
           .map((d) => ({ value: d.domain, label: d.domain, id: d.id }));
         domains.push(...customDomains);
       }
-      
+
       return domains;
     }, [domainsData]);
 
@@ -252,9 +256,14 @@ const LinkFormFields = React.memo(
       }
 
       try {
-        const url = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
-        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-          return { isValid: false, message: "URL must use HTTP or HTTPS protocol" };
+        const url = new URL(
+          rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`,
+        );
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+          return {
+            isValid: false,
+            message: "URL must use HTTP or HTTPS protocol",
+          };
         }
         if (!url.hostname || url.hostname.length < 3) {
           return { isValid: false, message: "Invalid domain name" };
@@ -262,7 +271,7 @@ const LinkFormFields = React.memo(
         return { isValid: true, message: "" };
       } catch {
         // Try with https prefix if it doesn't have protocol
-        if (!rawUrl.startsWith('http') && rawUrl.includes('.')) {
+        if (!rawUrl.startsWith("http") && rawUrl.includes(".")) {
           try {
             new URL(`https://${rawUrl}`);
             return { isValid: true, message: "" };
@@ -407,10 +416,14 @@ const LinkFormFields = React.memo(
     const handleDomainChange = useCallback(
       (selectedDomain: string) => {
         setValue("domain", selectedDomain, { shouldDirty: true });
-        
+
         // Find the domain object and set customDomainId
-        const domainObj = availableDomains.find((d) => d.value === selectedDomain);
-        setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
+        const domainObj = availableDomains.find(
+          (d) => d.value === selectedDomain,
+        );
+        setValue("customDomainId", domainObj?.id || null, {
+          shouldDirty: true,
+        });
       },
       [setValue, availableDomains],
     );
@@ -490,8 +503,8 @@ const LinkFormFields = React.memo(
                       !urlValidation.isValid
                         ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                         : urlSafetyStatus.isValid === false
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                        : ""
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                          : ""
                     }
                     onBlur={handleUrlBlur}
                     onChange={(e) => {
@@ -504,7 +517,7 @@ const LinkFormFields = React.memo(
                 </FormControl>
                 <FormMessage />
                 {!urlValidation.isValid && urlValidation.message && (
-                  <div className="text-sm text-red-600 flex items-center gap-1">
+                  <div className="flex items-center gap-1 text-sm text-red-600">
                     <span>{urlValidation.message}</span>
                   </div>
                 )}
@@ -610,15 +623,6 @@ const LinkFormFields = React.memo(
                             {domain.label}
                           </SelectItem>
                         ))}
-                        {domainsData?.domains && domainsData.domains.length > 0 && (
-                          <div className="border-t border-border px-2 py-1.5 text-xs text-muted-foreground">
-                            {domainsData.domains.filter((d) => !d.verified || !d.dnsConfigured).length > 0 && (
-                              <div className="italic">
-                                {domainsData.domains.filter((d) => !d.verified || !d.dnsConfigured).length} domain(s) pending verification
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </SelectContent>
                     </Select>
                   </FormItem>

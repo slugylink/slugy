@@ -282,7 +282,7 @@ model Link {
   qrCode          QrCode?
   SharedAnalytics SharedAnalytics?
   customDomainId  String?
-  customDomain    CustomDomain? @relation(fields: [customDomainId], references: [id])
+  customDomain    CustomDomain? @relation(fields: [customDomainId], references: [id], onDelete: Cascade)
 
   publicStats Boolean @default(false) // whether to show public stats or not
   leads       Int     @default(0) // number of leads

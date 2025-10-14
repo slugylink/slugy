@@ -51,7 +51,6 @@ const getClientIP = (req: NextRequest): string => {
   return normalizeIp(ip);
 };
 
-// const isAppPath = (path: string): boolean => path.startsWith("/app");
 
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
@@ -125,7 +124,6 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 
     const hostname = normalizeHostname(req.headers.get("host"));
 
-    // API Routes handling (skip rate limiting for now on custom domains)
     if (pathname.startsWith("/api/")) {
       const clientIP = getClientIP(req);
       const isFastUser = isFastApiRoute(pathname);
@@ -184,7 +182,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     console.error("Middleware Error:", err);
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/login", req.url)),
-    ); // FIXED: Better error handling
+    );
   }
 }
 
@@ -212,30 +210,25 @@ function handleAppSubdomain(
 
   // Auth-related paths
   if (isAuthPage) {
-    // Redirect authenticated users away from login/signup
     if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
       return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
     }
 
-    // Rewrite public auth paths to /app/* equivalents
     if (!isAlreadyInApp) {
       return addSecurityHeaders(
         NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
       );
     }
 
-    // Allow access to valid /app/* auth routes
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Protect private routes: Require authentication
   if (!isPublicPath(pathname) && !isAuthenticated) {
     return addSecurityHeaders(
       NextResponse.redirect(new URL("/app/login", baseUrl)),
     );
   }
 
-  // Rewrite everything else to /app/* unless already prefixed
   if (!isAlreadyInApp) {
     return addSecurityHeaders(
       NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
@@ -253,7 +246,6 @@ async function handleRootDomain(
   const { pathname } = url;
   const shortCode = pathname.slice(1);
 
-  // Redirect logged-in root user to app
   if (pathname === "/" && token) {
     const appUrl = new URL(req.url);
     appUrl.hostname = SUBDOMAINS.app;
@@ -273,7 +265,6 @@ async function handleRootDomain(
   }
 
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
-    // Handle /abc&c temp redirect
     if (shortCode.endsWith("&c")) {
       const tempRedirect = await handleTempRedirect(req, shortCode);
       if (tempRedirect) return tempRedirect;
@@ -294,18 +285,15 @@ async function handleCustomDomain(
 ): Promise<NextResponse> {
   const { pathname, search } = url;
 
-  // Redirect /app paths on custom domains to app subdomain
   if (pathname.startsWith("/app")) {
     const redirectPath = pathname.replace(/^\/app/, "") || "/";
     return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
   }
 
-  // Root path on custom domain - show a custom landing page
   if (pathname === "/") {
     return rewriteTo("/custom-domain", baseUrl);
   }
 
-  // Check if this is a verified custom domain and handle link redirection
   try {
     const customDomainResponse = await handleCustomDomainRequest(req, hostname);
     if (customDomainResponse) {
@@ -313,9 +301,7 @@ async function handleCustomDomain(
     }
   } catch (error) {
     console.error("Error handling custom domain request:", error);
-    // Continue to fallback
   }
 
-  // Fallback: show custom 404 page
   return rewriteTo("/custom-domain/not-found", baseUrl);
 }
