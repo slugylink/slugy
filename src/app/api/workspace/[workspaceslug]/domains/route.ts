@@ -4,9 +4,9 @@ import { getAuthSession } from "@/lib/auth";
 import {
   validateDomain,
   isDomainInUse,
-  addCustomHostnameToCloudflare,
-  verifyCustomHostnameOnCloudflare,
-  removeCustomHostnameFromCloudflare,
+  // addCustomHostnameToCloudflare,
+  // verifyCustomHostnameOnCloudflare,
+  // removeCustomHostnameFromCloudflare,
   addDomainToVercel,
   removeDomainFromVercel,
   verifyDomainOnVercel,
@@ -132,16 +132,16 @@ export async function POST(
       );
     }
 
-    // Add domain to Cloudflare for SaaS (for tracking)
-    const cfResult = await addCustomHostnameToCloudflare(domain);
-    if (!cfResult.success) {
-      // Rollback: Remove from Vercel if Cloudflare fails
-      await removeDomainFromVercel(domain);
-      return NextResponse.json(
-        { error: cfResult.error || "Failed to add domain to Cloudflare" },
-        { status: 500 },
-      );
-    }
+    // Add domain to Cloudflare for SaaS (for tracking) - DISABLED
+    // const cfResult = await addCustomHostnameToCloudflare(domain);
+    // if (!cfResult.success) {
+    //   // Rollback: Remove from Vercel if Cloudflare fails
+    //   await removeDomainFromVercel(domain);
+    //   return NextResponse.json(
+    //     { error: cfResult.error || "Failed to add domain to Cloudflare" },
+    //     { status: 500 },
+    //   );
+    // }
 
     // Create domain in database
     const customDomain = await db.customDomain.create({
@@ -151,10 +151,10 @@ export async function POST(
         verificationToken: vercelResult.verificationRecord?.value || null,
         verified: false,
         dnsConfigured: false,
-        cloudflareCustomHostnameId: cfResult.customHostnameId,
-        cloudflareCnameTarget: cfResult.cnameTarget,
-        cloudflareStatus: "pending",
-        cloudflareSslStatus: cfResult.sslStatus,
+        // cloudflareCustomHostnameId: cfResult.customHostnameId,
+        // cloudflareCnameTarget: cfResult.cnameTarget,
+        // cloudflareStatus: "pending",
+        // cloudflareSslStatus: cfResult.sslStatus,
       },
     });
 
@@ -213,18 +213,18 @@ export async function DELETE(
       console.error("Failed to remove domain from Vercel:", vercelResult.error);
     }
 
-    // Remove from Cloudflare (continue on failure)
-    if (customDomain.cloudflareCustomHostnameId) {
-      const cfResult = await removeCustomHostnameFromCloudflare(
-        customDomain.cloudflareCustomHostnameId
-      );
-      if (!cfResult.success) {
-        console.error(
-          "Failed to remove domain from Cloudflare:",
-          cfResult.error
-        );
-      }
-    }
+    // Remove from Cloudflare (continue on failure) - DISABLED
+    // if (customDomain.cloudflareCustomHostnameId) {
+    //   const cfResult = await removeCustomHostnameFromCloudflare(
+    //     customDomain.cloudflareCustomHostnameId
+    //   );
+    //   if (!cfResult.success) {
+    //     console.error(
+    //       "Failed to remove domain from Cloudflare:",
+    //       cfResult.error
+    //     );
+    //   }
+    // }
 
     // Delete from database
     await db.customDomain.delete({ where: { id: domainId } });
@@ -288,22 +288,22 @@ export async function PATCH(
         customDomain.domain,
       );
 
-      // Check Cloudflare status (for tracking)
-      let cloudflareVerified = false;
-      let cloudflareStatus = customDomain.cloudflareStatus;
-      let cloudflareSslStatus = customDomain.cloudflareSslStatus;
+      // Check Cloudflare status (for tracking) - DISABLED
+      // let cloudflareVerified = false;
+      // let cloudflareStatus = customDomain.cloudflareStatus;
+      // let cloudflareSslStatus = customDomain.cloudflareSslStatus;
 
-      if (customDomain.cloudflareCustomHostnameId) {
-        const cfResult = await verifyCustomHostnameOnCloudflare(
-          customDomain.cloudflareCustomHostnameId,
-        );
+      // if (customDomain.cloudflareCustomHostnameId) {
+      //   const cfResult = await verifyCustomHostnameOnCloudflare(
+      //     customDomain.cloudflareCustomHostnameId,
+      //   );
 
-        if (cfResult.success) {
-          cloudflareVerified = cfResult.verified;
-          cloudflareStatus = cfResult.status ?? null;
-          cloudflareSslStatus = cfResult.sslStatus ?? null;
-        }
-      }
+      //   if (cfResult.success) {
+      //     cloudflareVerified = cfResult.verified;
+      //     cloudflareStatus = cfResult.status ?? null;
+      //     cloudflareSslStatus = cfResult.sslStatus ?? null;
+      //   }
+      // }
 
       const isVerified = vercelVerifyResult.verified;
 
@@ -314,8 +314,8 @@ export async function PATCH(
           verified: isVerified,
           dnsConfigured: isVerified,
           sslEnabled: isVerified,
-          cloudflareStatus,
-          cloudflareSslStatus,
+          // cloudflareStatus,
+          // cloudflareSslStatus,
           lastChecked: new Date(),
         },
       });
@@ -325,7 +325,7 @@ export async function PATCH(
         verified: isVerified,
         configured: isVerified,
         vercelVerified: vercelVerifyResult.verified,
-        cloudflareVerified,
+        // cloudflareVerified,
         error: !vercelVerifyResult.success
           ? vercelVerifyResult.error
           : undefined,

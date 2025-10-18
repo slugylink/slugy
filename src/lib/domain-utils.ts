@@ -1,39 +1,39 @@
 import { db } from "@/server/db";
 
 const VERCEL_API_URL = "https://api.vercel.com";
-const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
+// const CLOUDFLARE_API_URL = "https://api.cloudflare.com/client/v4";
 
 // Types
-interface CloudflareCustomHostnameResponse {
-  result?: {
-    id: string;
-    hostname: string;
-    ssl: {
-      status: string;
-      cname_target?: string;
-    };
-    status: string;
-  };
-  success: boolean;
-  errors?: Array<{ message: string }>;
-}
+// interface CloudflareCustomHostnameResponse {
+//   result?: {
+//     id: string;
+//     hostname: string;
+//     ssl: {
+//       status: string;
+//       cname_target?: string;
+//     };
+//     status: string;
+//   };
+//   success: boolean;
+//   errors?: Array<{ message: string }>;
+// }
 
 interface ApiResult {
   success: boolean;
   error?: string;
 }
 
-// Helper: Get Cloudflare credentials
-function getCloudflareCredentials() {
-  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
-  const zoneId = process.env.CLOUDFLARE_ZONE_ID;
+// Helper: Get Cloudflare credentials - DISABLED
+// function getCloudflareCredentials() {
+//   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+//   const zoneId = process.env.CLOUDFLARE_ZONE_ID;
 
-  if (!apiToken || !zoneId) {
-    throw new Error("Cloudflare credentials not configured");
-  }
+//   if (!apiToken || !zoneId) {
+//     throw new Error("Cloudflare credentials not configured");
+//   }
 
-  return { apiToken, zoneId };
-}
+//   return { apiToken, zoneId };
+// }
 
 // Helper: Get Vercel credentials
 function getVercelCredentials() {
@@ -49,155 +49,155 @@ function getVercelCredentials() {
 }
 
 /**
- * Add a custom hostname to Cloudflare for SaaS
+ * Add a custom hostname to Cloudflare for SaaS - DISABLED
  */
-export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
-  success: boolean;
-  error?: string;
-  customHostnameId?: string;
-  cnameTarget?: string;
-  sslStatus?: string;
-}> {
-  try {
-    const { apiToken, zoneId } = getCloudflareCredentials();
+// export async function addCustomHostnameToCloudflare(hostname: string): Promise<{
+//   success: boolean;
+//   error?: string;
+//   customHostnameId?: string;
+//   cnameTarget?: string;
+//   sslStatus?: string;
+// }> {
+//   try {
+//     const { apiToken, zoneId } = getCloudflareCredentials();
 
-    const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          hostname,
-          ssl: {
-            method: "http",
-            type: "dv",
-            settings: {
-              http2: "on",
-              min_tls_version: "1.2",
-              tls_1_3: "on",
-            },
-          },
-        }),
-      }
-    );
+//     const response = await fetch(
+//       `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames`,
+//       {
+//         method: "POST",
+//         headers: {
+//           Authorization: `Bearer ${apiToken}`,
+//           "Content-Type": "application/json",
+//         },
+//         body: JSON.stringify({
+//           hostname,
+//           ssl: {
+//             method: "http",
+//             type: "dv",
+//             settings: {
+//               http2: "on",
+//               min_tls_version: "1.2",
+//               tls_1_3: "on",
+//             },
+//           },
+//         }),
+//       }
+//     );
 
-    const data: CloudflareCustomHostnameResponse = await response.json();
+//     const data: CloudflareCustomHostnameResponse = await response.json();
 
-    if (!response.ok || !data.success || !data.result) {
-      const errorMessage = data.errors?.[0]?.message || "Failed to add custom hostname";
-      return { success: false, error: errorMessage };
-    }
+//     if (!response.ok || !data.success || !data.result) {
+//       const errorMessage = data.errors?.[0]?.message || "Failed to add custom hostname";
+//       return { success: false, error: errorMessage };
+//     }
 
-    const cnameTarget = data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
+//     const cnameTarget = data.result.ssl.cname_target || `${hostname}.cdn.cloudflare.net`;
 
-    return {
-      success: true,
-      customHostnameId: data.result.id,
-      cnameTarget,
-      sslStatus: data.result.ssl.status,
-    };
-  } catch (error) {
-    console.error("Error adding custom hostname to Cloudflare:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to add custom hostname",
-    };
-  }
-}
+//     return {
+//       success: true,
+//       customHostnameId: data.result.id,
+//       cnameTarget,
+//       sslStatus: data.result.ssl.status,
+//     };
+//   } catch (error) {
+//     console.error("Error adding custom hostname to Cloudflare:", error);
+//     return {
+//       success: false,
+//       error: error instanceof Error ? error.message : "Failed to add custom hostname",
+//     };
+//   }
+// }
 
 /**
- * Verify custom hostname status on Cloudflare
+ * Verify custom hostname status on Cloudflare - DISABLED
  */
-export async function verifyCustomHostnameOnCloudflare(
-  customHostnameId: string
-): Promise<{
-  success: boolean;
-  verified: boolean;
-  sslStatus?: string;
-  status?: string;
-  error?: string;
-}> {
-  try {
-    const { apiToken, zoneId } = getCloudflareCredentials();
+// export async function verifyCustomHostnameOnCloudflare(
+//   customHostnameId: string
+// ): Promise<{
+//   success: boolean;
+//   verified: boolean;
+//   sslStatus?: string;
+//   status?: string;
+//   error?: string;
+// }> {
+//   try {
+//     const { apiToken, zoneId } = getCloudflareCredentials();
 
-    const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+//     const response = await fetch(
+//       `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
+//       {
+//         headers: {
+//           Authorization: `Bearer ${apiToken}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
 
-    const data: CloudflareCustomHostnameResponse = await response.json();
+//     const data: CloudflareCustomHostnameResponse = await response.json();
 
-    if (!response.ok || !data.success || !data.result) {
-      return {
-        success: false,
-        verified: false,
-        error: data.errors?.[0]?.message || "Failed to verify hostname",
-      };
-    }
+//     if (!response.ok || !data.success || !data.result) {
+//       return {
+//         success: false,
+//         verified: false,
+//         error: data.errors?.[0]?.message || "Failed to verify hostname",
+//       };
+//     }
 
-    const isVerified = data.result.status === "active" && data.result.ssl.status === "active";
+//     const isVerified = data.result.status === "active" && data.result.ssl.status === "active";
 
-    return {
-      success: true,
-      verified: isVerified,
-      sslStatus: data.result.ssl.status,
-      status: data.result.status,
-    };
-  } catch (error) {
-    console.error("Error verifying custom hostname:", error);
-    return {
-      success: false,
-      verified: false,
-      error: error instanceof Error ? error.message : "Failed to verify hostname",
-    };
-  }
-}
+//     return {
+//       success: true,
+//       verified: isVerified,
+//       sslStatus: data.result.ssl.status,
+//       status: data.result.status,
+//     };
+//   } catch (error) {
+//     console.error("Error verifying custom hostname:", error);
+//     return {
+//       success: false,
+//       verified: false,
+//       error: error instanceof Error ? error.message : "Failed to verify hostname",
+//     };
+//   }
+// }
 
 /**
- * Remove custom hostname from Cloudflare
+ * Remove custom hostname from Cloudflare - DISABLED
  */
-export async function removeCustomHostnameFromCloudflare(
-  customHostnameId: string
-): Promise<ApiResult> {
-  try {
-    const { apiToken, zoneId } = getCloudflareCredentials();
+// export async function removeCustomHostnameFromCloudflare(
+//   customHostnameId: string
+// ): Promise<ApiResult> {
+//   try {
+//     const { apiToken, zoneId } = getCloudflareCredentials();
 
-    const response = await fetch(
-      `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
-      {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${apiToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+//     const response = await fetch(
+//       `${CLOUDFLARE_API_URL}/zones/${zoneId}/custom_hostnames/${customHostnameId}`,
+//       {
+//         method: "DELETE",
+//         headers: {
+//           Authorization: `Bearer ${apiToken}`,
+//           "Content-Type": "application/json",
+//         },
+//       }
+//     );
 
-    if (!response.ok) {
-      const data = await response.json();
-      return {
-        success: false,
-        error: data.errors?.[0]?.message || "Failed to remove custom hostname",
-      };
-    }
+//     if (!response.ok) {
+//       const data = await response.json();
+//       return {
+//         success: false,
+//         error: data.errors?.[0]?.message || "Failed to remove custom hostname",
+//       };
+//     }
 
-    return { success: true };
-  } catch (error) {
-    console.error("Error removing custom hostname:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to remove hostname",
-    };
-  }
-}
+//     return { success: true };
+//   } catch (error) {
+//     console.error("Error removing custom hostname:", error);
+//     return {
+//       success: false,
+//       error: error instanceof Error ? error.message : "Failed to remove hostname",
+//     };
+//   }
+// }
 
 /**
  * Add a custom domain to Vercel project
