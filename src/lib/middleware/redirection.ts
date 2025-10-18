@@ -9,6 +9,32 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 
+/**
+ * Extracts geolocation data from request headers, supporting both Vercel and Cloudflare
+ */
+function getGeoData(req: NextRequest) {
+  const headers = req.headers;
+  
+  // Try Cloudflare headers first (since you're using Cloudflare now)
+  const cfCountry = headers.get("cf-ipcountry");
+  const cfCity = headers.get("cf-ipcity");
+  const cfContinent = headers.get("cf-ipcontinent");
+  const cfRegion = headers.get("cf-region");
+  
+  // Fallback to Vercel headers if Cloudflare headers are not available
+  const vercelCountry = headers.get("x-vercel-ip-country");
+  const vercelCity = headers.get("x-vercel-ip-city");
+  const vercelContinent = headers.get("x-vercel-ip-continent");
+  const vercelRegion = headers.get("x-vercel-ip-country-region");
+  
+  return {
+    country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
+    city: decodeURIComponent(cfCity || vercelCity || UNKNOWN_VALUE),
+    continent: (cfContinent || vercelContinent)?.toLowerCase() ?? UNKNOWN_VALUE,
+    region: cfRegion || vercelRegion || UNKNOWN_VALUE,
+  };
+}
+
 interface AnalyticsData {
   ipAddress: string;
   country: string;
@@ -74,15 +100,13 @@ async function trackAnalytics(
     const trigger = detectTrigger(req);
     const timestamp = new Date().toISOString();
 
+    const geoData = getGeoData(req);
+    
     const analytics: AnalyticsData = {
       ipAddress: headers.get("x-forwarded-for") ?? UNKNOWN_VALUE,
-      country:
-        headers.get("x-vercel-ip-country")?.toLowerCase() ?? UNKNOWN_VALUE,
-      city: decodeURIComponent(
-        headers.get("x-vercel-ip-city") ?? UNKNOWN_VALUE,
-      ),
-      continent:
-        headers.get("x-vercel-ip-continent")?.toLowerCase() ?? UNKNOWN_VALUE,
+      country: geoData.country,
+      city: geoData.city,
+      continent: geoData.continent,
       device: ua.device?.type?.toLowerCase() ?? "desktop",
       browser: ua.browser?.name?.toLowerCase() ?? "chrome",
       os: ua.os?.name?.toLowerCase() ?? "windows",
