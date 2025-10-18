@@ -2,6 +2,32 @@ import { type NextRequest, userAgent } from "next/server";
 
 const BOT_REGEX =
   /facebookexternalhit|Facebot|Twitterbot|LinkedInBot|Pinterest|vkShare|redditbot|Applebot|WhatsApp|TelegramBot|Discordbot|Slackbot|Viber|Microlink|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot|Sogou|Exabot|Thunderbird|Outlook-iOS|Outlook-Android|Feedly|Feedspot|Feedbin|NewsBlur|ia_archiver|archive\.org_bot|Uptimebot|Monitis|NewRelicPinger|Postman|insomnia|HeadlessChrome|bot|chatgpt|bluesky|bing|duckduckbot|yandex|baidu|teoma|slurp|MetaInspector|iframely|spider|Go-http-client|preview|prerender|msn/i;
+
+/**
+ * Extracts geolocation data from request headers, supporting both Vercel and Cloudflare
+ */
+function getGeoData(req: NextRequest) {
+  const headers = req.headers;
+  
+  // Try Cloudflare headers first (since you're using Cloudflare now)
+  const cfCountry = headers.get("cf-ipcountry");
+  const cfCity = headers.get("cf-ipcity");
+  const cfContinent = headers.get("cf-ipcontinent");
+  const cfRegion = headers.get("cf-region");
+  
+  // Fallback to Vercel headers if Cloudflare headers are not available
+  const vercelCountry = headers.get("x-vercel-ip-country");
+  const vercelCity = headers.get("x-vercel-ip-city");
+  const vercelContinent = headers.get("x-vercel-ip-continent");
+  const vercelRegion = headers.get("x-vercel-ip-country-region");
+  
+  return {
+    country: cfCountry || vercelCountry || undefined,
+    city: cfCity || vercelCity || undefined,
+    continent: cfContinent || vercelContinent || undefined,
+    region: cfRegion || vercelRegion || undefined,
+  };
+}
 /**
  * Checks if the request is coming from a metadata preview bot
  */
@@ -16,14 +42,15 @@ function isMetadataPreviewBot(req: NextRequest): boolean {
 export function extractUserAgentData(req: NextRequest) {
   const isBot = isMetadataPreviewBot(req);
   const ua = userAgent(req);
+  const geoData = getGeoData(req);
 
   return {
     ipAddress:
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "Unknown",
-    country: req.headers.get("x-vercel-ip-country") ?? undefined,
-    city: req.headers.get("x-vercel-ip-city") ?? undefined,
-    region: req.headers.get("x-vercel-ip-country-region") ?? undefined,
-    continent: req.headers.get("x-vercel-ip-continent") ?? undefined,
+    country: geoData.country,
+    city: geoData.city,
+    region: geoData.region,
+    continent: geoData.continent,
     referer: req.headers.get("referer") ?? undefined,
     device: ua.device,
     browser: ua.browser,
