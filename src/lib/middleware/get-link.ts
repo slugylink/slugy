@@ -73,17 +73,22 @@ export async function getLink(
     if (!link) {
       const result = await sql`
         SELECT 
-          id, 
-          url, 
-          "expiresAt", 
-          "expirationUrl", 
-          password, 
-          "workspaceId",
-          domain
-        FROM "links"
-        WHERE slug = ${slug} 
-          AND domain = ${domain || "slugy.co"}
-          AND "isArchived" = false
+          l.id, 
+          l.url, 
+          l."expiresAt", 
+          l."expirationUrl", 
+          l.password, 
+          l."workspaceId",
+          l.domain,
+          cd.domain as custom_domain
+        FROM "links" l
+        LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
+        WHERE l.slug = ${slug} 
+          AND (
+            l.domain = ${domain || "slugy.co"}
+            OR cd.domain = ${domain || "slugy.co"}
+          )
+          AND l."isArchived" = false
         LIMIT 1
       `;
 
@@ -96,7 +101,7 @@ export async function getLink(
           expirationUrl: row.expirationUrl ?? null,
           password: row.password ?? null,
           workspaceId: row.workspaceId,
-          domain: row.domain,
+          domain: row.custom_domain || row.domain,
         };
 
         // Set cache asynchronously (don't block the response)

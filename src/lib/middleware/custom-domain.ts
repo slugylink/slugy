@@ -121,11 +121,12 @@ async function URLRedirectsWithDomain(
       const result = await sql`
         SELECT l.id
         FROM "links" l
+        LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
         WHERE l.slug = ${shortCode}
           AND l."deletedAt" IS NULL
           AND l."isArchived" = false
           AND l."workspaceId" = ${workspaceId}
-          AND l.domain = ${customDomain}
+          AND cd.domain = ${customDomain}
         LIMIT 1
       `;
 
