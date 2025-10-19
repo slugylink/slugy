@@ -92,6 +92,8 @@ export default function CreateWorkspaceDialog() {
         toast.success("Workspace created successfully!");
         reset();
         setOpen(false);
+        // Force a hard refresh to ensure cache is cleared
+        router.refresh();
         router.push(`/${res.slug}`);
       } else {
         const errorMessage = res.error || "Failed to create workspace";

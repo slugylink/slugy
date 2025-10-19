@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { getAuthSession } from "@/lib/auth";
 import { fetchAllWorkspaces, validateworkspaceslug } from "@/server/actions/workspace/workspace";
 
@@ -14,7 +14,7 @@ const getCachedWorkspaces = unstable_cache(
   ["workspaces"],
   {
     revalidate: 300, // 5 minutes
-    tags: ["workspaces"],
+    tags: ["workspaces", "all-workspaces"],
   },
 );
 
@@ -26,7 +26,7 @@ const getCachedWorkspaceValidation = unstable_cache(
   ["workspace-validation"],
   {
     revalidate: 60, // 1 minute
-    tags: ["workspace-validation"],
+    tags: ["workspace-validation", "workspace"],
   },
 );
 
@@ -77,7 +77,24 @@ export async function getLayoutData(workspaceSlug?: string) {
 
 
 // Revalidation utility for workspace changes
-export async function revalidateWorkspaceData() {
-  // This would trigger revalidation of cached data
-  // Implementation depends on your cache invalidation strategy
+export async function revalidateWorkspaceData(userId?: string) {
+  try {
+    // Revalidate Next.js cache tags
+    await Promise.all([
+      revalidateTag("workspaces"),
+      revalidateTag("all-workspaces"),
+      revalidateTag("workspace"),
+      revalidateTag("workspace-validation"),
+    ]);
+    
+    // If userId provided, also invalidate Redis caches
+    if (userId) {
+      const { invalidateWorkspaceCache } = await import("@/lib/cache-utils/workspace-cache");
+      await invalidateWorkspaceCache(userId);
+    }
+    
+    console.log("Workspace data revalidated successfully");
+  } catch (error) {
+    console.error("Failed to revalidate workspace data:", error);
+  }
 }

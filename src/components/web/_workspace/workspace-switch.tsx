@@ -134,6 +134,8 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
       const newPath = pathname.startsWith(workspaceSlugPattern)
         ? pathname.replace(workspaceSlugPattern, `/${workspace.slug}`)
         : `/${workspace.slug}${pathname}`;
+      // Force refresh to ensure cache is cleared
+      router.refresh();
       router.push(newPath);
     },
     [pathname, router, workspaceslug],

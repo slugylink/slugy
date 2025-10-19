@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
+import { revalidateTag } from "next/cache";
 import {
   getDefaultWorkspaceCache,
   setDefaultWorkspaceCache,
@@ -88,6 +89,16 @@ export async function createWorkspace({
       };
     });
 
+    // Invalidate caches immediately for faster response
+    await Promise.all([
+      invalidateWorkspaceCache(userId),
+      revalidateTag("workspace"),
+      revalidateTag("all-workspaces"),
+      revalidateTag("workspaces"),
+      revalidateTag("workspace-validation"),
+    ]);
+
+    // Run background tasks
     waitUntil(
       Promise.all([
         db.member.create({
@@ -114,8 +125,6 @@ export async function createWorkspace({
             },
           });
         })(),
-        // Invalidate workspace caches after creation
-        invalidateWorkspaceCache(userId),
       ]),
     );
 

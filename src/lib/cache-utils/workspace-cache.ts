@@ -153,11 +153,30 @@ export async function invalidateWorkspaceCache(userId: string): Promise<void> {
       redis.del(`workspace:all:${userId}`),
     ]);
     
-    // Note: For validation cache pattern matching, we'd need to use SCAN
-    // This is a simplified approach - in production you might want to use SCAN
+    // Clear all validation cache keys for this user using SCAN
+    await invalidateAllValidationCaches(userId);
+    
     console.log(`Cache invalidated for user: ${userId}`);
   } catch (error) {
     console.error(`Failed to invalidate workspace cache for user ${userId}:`, error);
+  }
+}
+
+// Invalidate all validation caches for a user using pattern matching
+async function invalidateAllValidationCaches(userId: string): Promise<void> {
+  try {
+    const pattern = `workspace:validate:${userId}:*`;
+    
+    // Use keys() to find all matching keys
+    const keys = await redis.keys(pattern);
+    
+    // Delete all found keys
+    if (keys.length > 0) {
+      await redis.del(...keys);
+      console.log(`Cleared ${keys.length} validation cache keys for user ${userId}`);
+    }
+  } catch (error) {
+    console.error(`Failed to clear validation caches for user ${userId}:`, error);
   }
 }
 

@@ -81,6 +81,8 @@ export async function PATCH(
   await Promise.all([
     revalidateTag("workspace"),
     revalidateTag("all-workspaces"),
+    revalidateTag("workspaces"),
+    revalidateTag("workspace-validation"),
     // Invalidate workspace cache for the user
     invalidateWorkspaceCache(session.user.id),
     // Invalidate specific workspace validation cache if slug changed
@@ -151,6 +153,8 @@ export async function DELETE(
     await Promise.all([
       revalidateTag("workspace"),
       revalidateTag("all-workspaces"),
+      revalidateTag("workspaces"),
+      revalidateTag("workspace-validation"),
       revalidateTag("links"),
       // Invalidate workspace cache for the user
       invalidateWorkspaceCache(session.user.id),
