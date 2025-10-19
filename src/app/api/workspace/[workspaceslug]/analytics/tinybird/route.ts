@@ -83,6 +83,7 @@ interface TinybirdResponse {
     clicks: number;
     "meta.slug": string;
     "meta.url": string;
+    "meta.domain": string;
     country: string;
     city: string;
     continent: string;
@@ -101,7 +102,7 @@ interface TinybirdResponse {
 
 // Type for analytics results
 type AnalyticsResult =
-  | { slug: string; url: string; clicks: number }
+  | { slug: string; url: string; domain: string; clicks: number }
   | { city: string; country: string; clicks: number }
   | { country: string; clicks: number }
   | { continent: string; clicks: number }
@@ -188,10 +189,11 @@ function transformTinybirdData(
   const metricConfigs = {
     links: {
       keyFn: (item: TinybirdResponse["data"][0]) =>
-        `${item["meta.slug"]}-${item["meta.url"]}`,
+        `${item["meta.slug"]}-${item["meta.url"]}-${item["meta.domain"]}`,
       createItem: (item: TinybirdResponse["data"][0]) => ({
         slug: item["meta.slug"],
         url: item["meta.url"],
+        domain: item["meta.domain"],
         clicks: item.clicks,
       }),
     },

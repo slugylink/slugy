@@ -7,7 +7,7 @@ export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 export interface AnalyticsData {
   totalClicks: number;
   clicksOverTime: Array<{ time: Date; clicks: number }>;
-  links: Array<{ slug: string; url: string; clicks: number }>;
+  links: Array<{ slug: string; url: string; domain: string; clicks: number }>;
   cities: Array<{ city: string; country: string; clicks: number }>;
   countries: Array<{ country: string; clicks: number }>;
   continents: Array<{ continent: string; clicks: number }>;

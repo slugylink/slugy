@@ -61,14 +61,6 @@ const ReferrerClicks = dynamic(
   },
 );
 
-// function ChartSkeleton() {
-//   return (
-//     <div
-//       className={`${CHART_HEIGHT} bg-muted w-full animate-pulse rounded-lg`}
-//     />
-//   );
-// }
-
 function CardSkeleton() {
   return <div className="bg-muted h-64 w-full animate-pulse rounded-lg" />;
 }
@@ -130,10 +122,11 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const linksFilterOptions = useMemo(
     () =>
-      (links as Array<{ slug: string; url: string; clicks: number }>)?.map(
+      (links as Array<{ slug: string; url: string; domain: string; clicks: number }>)?.map(
         (item) => ({
           slug: item.slug,
           url: item.url,
+          domain: item.domain,
           clicks: item.clicks,
         }),
       ) || [],
@@ -330,23 +323,6 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       </div>
     );
   }
-
-  // if (isLoading && !res) {
-  //   return (
-  //     <div className="space-y-6">
-  //       <div className="flex items-center justify-start">
-  //         <div className="bg-muted h-10 w-48 animate-pulse rounded" />
-  //       </div>
-  //       <ChartSkeleton />
-  //       <div className="grid gap-4 md:grid-cols-2">
-  //         {Array.from({ length: 4 }).map((_, i) => (
-  //           <CardSkeleton key={i} />
-  //         ))}
-  //       </div>
-  //     </div>
-  //   );
-  // }
-
   return (
     <section>
       {/* Header with filter actions */}

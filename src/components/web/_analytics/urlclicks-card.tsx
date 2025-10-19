@@ -12,7 +12,7 @@ interface UrlClicksProps {
   searchParams: Record<string, string>;
   timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   // New props to accept data directly
-  linksData?: Array<{ slug: string; url: string; clicks: number }>;
+  linksData?: Array<{ slug: string; url: string; domain: string; clicks: number }>;
   destinationsData?: Array<{ destination: string; clicks: number }>;
   isLoading?: boolean;
   error?: Error;
@@ -20,7 +20,7 @@ interface UrlClicksProps {
 
 // Union type to handle both data structures
 type UrlClickData =
-  | { slug: string; url: string; clicks: number }
+  | { slug: string; url: string; domain: string; clicks: number }
   | { destination: string; clicks: number };
 
 type TabKey = "slug-links" | "destination-links";
@@ -63,9 +63,14 @@ const tabConfigs: TabConfig[] = [
               imgSize={4}
               url={item.url}
             />
-            <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-              slugy.co/{item.slug}
-            </span>
+            <div className="flex flex-col">
+              <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+                {item.domain}/{item.slug}
+              </span>
+              <span className="text-xs text-muted-foreground line-clamp-1 max-w-[220px]">
+                {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
+              </span>
+            </div>
           </div>
         );
       }
@@ -171,7 +176,7 @@ const UrlClicks = ({
                 dataKey={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
-                  if ("slug" in item) return item.slug;
+                  if ("slug" in item) return `${item.domain}-${item.slug}`;
                   if ("destination" in item) return item.destination;
                   return `${currentTabConfig.dataKey}-${index}`;
                 }}
@@ -193,7 +198,7 @@ const UrlClicks = ({
         dataKey={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
-          if ("slug" in item) return item.slug;
+          if ("slug" in item) return `${item.domain}-${item.slug}`;
           if ("destination" in item) return item.destination;
           return `${currentTabConfig.dataKey}-${index}`;
         }}
