@@ -22,12 +22,11 @@ import {
 
 // Constants for better maintainability
 const DEFAULT_TIME_PERIOD = "24h";
-const CHART_HEIGHT = "h-[300px] sm:h-[420px]";
+// const CHART_HEIGHT = "h-[300px] sm:h-[420px]";
 
 // Dynamic imports with optimized loading
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
   ssr: true,
-  loading: () => <ChartSkeleton />,
 });
 
 const UrlClicks = dynamic(
@@ -62,13 +61,13 @@ const ReferrerClicks = dynamic(
   },
 );
 
-function ChartSkeleton() {
-  return (
-    <div
-      className={`${CHART_HEIGHT} bg-muted w-full animate-pulse rounded-lg`}
-    />
-  );
-}
+// function ChartSkeleton() {
+//   return (
+//     <div
+//       className={`${CHART_HEIGHT} bg-muted w-full animate-pulse rounded-lg`}
+//     />
+//   );
+// }
 
 function CardSkeleton() {
   return <div className="bg-muted h-64 w-full animate-pulse rounded-lg" />;
@@ -79,7 +78,7 @@ interface AnalyticsClientProps {
 }
 
 export const AnalyticsClient = memo(function AnalyticsClient({
-  workspace
+  workspace,
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
 
@@ -154,13 +153,13 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const citiesFilterOptions = useMemo(
     () =>
-      (
-        cities as Array<{ city: string; country: string; clicks: number }>
-      )?.map((item) => ({
-        city: item.city,
-        country: item.country,
-        clicks: item.clicks,
-      })) || [],
+      (cities as Array<{ city: string; country: string; clicks: number }>)?.map(
+        (item) => ({
+          city: item.city,
+          country: item.country,
+          clicks: item.clicks,
+        }),
+      ) || [],
     [cities],
   );
 
@@ -177,12 +176,10 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const browsersFilterOptions = useMemo(
     () =>
-      (browsers as Array<{ browser: string; clicks: number }>)?.map(
-        (item) => ({
-          browser: item.browser,
-          clicks: item.clicks,
-        }),
-      ) || [],
+      (browsers as Array<{ browser: string; clicks: number }>)?.map((item) => ({
+        browser: item.browser,
+        clicks: item.clicks,
+      })) || [],
     [browsers],
   );
 
@@ -334,21 +331,21 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     );
   }
 
-  if (isLoading && !res) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-start">
-          <div className="bg-muted h-10 w-48 animate-pulse rounded" />
-        </div>
-        <ChartSkeleton />
-        <div className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <CardSkeleton key={i} />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  // if (isLoading && !res) {
+  //   return (
+  //     <div className="space-y-6">
+  //       <div className="flex items-center justify-start">
+  //         <div className="bg-muted h-10 w-48 animate-pulse rounded" />
+  //       </div>
+  //       <ChartSkeleton />
+  //       <div className="grid gap-4 md:grid-cols-2">
+  //         {Array.from({ length: 4 }).map((_, i) => (
+  //           <CardSkeleton key={i} />
+  //         ))}
+  //       </div>
+  //     </div>
+  //   );
+  // }
 
   return (
     <section>
