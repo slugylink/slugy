@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   try {
-    const { password } = await request.json();
+    const { password, domain } = await request.json();
     const context = await params;
 
     if (!password) {
@@ -16,10 +16,11 @@ export async function POST(
       );
     }
 
-    // Find the link with the given slug
-    const link = await db.link.findUnique({
+    // Find the link with the given slug and domain
+    const link = await db.link.findFirst({
       where: {
         slug: context.slug,
+        domain: domain || "slugy.co",
         isArchived: false,
       },
       select: {
@@ -28,6 +29,7 @@ export async function POST(
         password: true,
         expiresAt: true,
         expirationUrl: true,
+        domain: true,
       },
     });
 
@@ -64,7 +66,10 @@ export async function POST(
       success: true,
       url: link.url,
     });
-    response.cookies.set(`password_verified_${context.slug}`, "true", {
+    
+    // Create domain-specific cookie name
+    const cookieName = `password_verified_${link.domain}_${context.slug}`;
+    response.cookies.set(cookieName, "true", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",

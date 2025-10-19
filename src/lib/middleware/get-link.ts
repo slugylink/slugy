@@ -45,12 +45,14 @@ type LinkCacheType = {
   expirationUrl: string | null;
   password: string | null;
   workspaceId: string;
+  domain: string;
 } | null;
 
 export async function getLink(
   slug: string,
   cookieHeader?: string | null,
   origin?: string,
+  domain?: string,
 ): Promise<GetLinkResult> {
   // Early validation
   if (!isValidSlug(slug)) {
@@ -76,9 +78,11 @@ export async function getLink(
           "expiresAt", 
           "expirationUrl", 
           password, 
-          "workspaceId"
+          "workspaceId",
+          domain
         FROM "links"
         WHERE slug = ${slug} 
+          AND domain = ${domain || "slugy.co"}
           AND "isArchived" = false
         LIMIT 1
       `;
@@ -92,6 +96,7 @@ export async function getLink(
           expirationUrl: row.expirationUrl ?? null,
           password: row.password ?? null,
           workspaceId: row.workspaceId,
+          domain: row.domain,
         };
 
         // Set cache asynchronously (don't block the response)
@@ -129,7 +134,7 @@ export async function getLink(
     // Password protection with better cookie handling
     if (link.password) {
       const cookies = parseCookies(cookieHeader ?? null);
-      const passwordVerified = cookies[`password_verified_${slug}`];
+      const passwordVerified = cookies[`password_verified_${link.domain}_${slug}`];
 
       if (!passwordVerified) {
         return {

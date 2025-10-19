@@ -270,7 +270,7 @@ async function handleRootDomain(
       if (tempRedirect) return tempRedirect;
     }
 
-    const redirectResponse = await URLRedirects(req, shortCode);
+    const redirectResponse = await URLRedirects(req, shortCode, "slugy.co");
     if (redirectResponse) return redirectResponse;
   }
 

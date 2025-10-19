@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/server/neon";
 
-const getCachedLink = async (slug: string) => {
+const getCachedLink = async (slug: string, domain: string = "slugy.co") => {
   try {
     // Use SQL query instead of Prisma
     const result = await sql`
-      SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
+      SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId", domain
       FROM "links"
-      WHERE slug = ${slug} AND "isArchived" = false
+      WHERE slug = ${slug} AND domain = ${domain} AND "isArchived" = false
       LIMIT 1
     `;
     const link = result[0]
@@ -18,6 +18,7 @@ const getCachedLink = async (slug: string) => {
           expirationUrl: result[0].expirationUrl ?? null,
           password: result[0].password ?? null,
           workspaceId: result[0].workspaceId,
+          domain: result[0].domain,
         }
       : null;
 
@@ -27,9 +28,9 @@ const getCachedLink = async (slug: string) => {
     // Fallback to direct SQL query
     try {
       const result = await sql`
-        SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId"
+        SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId", domain
         FROM "links"
-        WHERE slug = ${slug} AND "isArchived" = false
+        WHERE slug = ${slug} AND domain = ${domain} AND "isArchived" = false
         LIMIT 1
       `;
       return result[0]
@@ -40,6 +41,7 @@ const getCachedLink = async (slug: string) => {
             expirationUrl: result[0].expirationUrl ?? null,
             password: result[0].password ?? null,
             workspaceId: result[0].workspaceId,
+            domain: result[0].domain,
           }
         : null;
     } catch (fallbackError) {
@@ -74,6 +76,7 @@ export async function GET(
 ) {
   try {
     const { slug: shortCode } = await params;
+    const domain = req.nextUrl.searchParams.get("domain") || "slugy.co";
 
     if (!isValidSlug(shortCode)) {
       return NextResponse.json({
@@ -82,7 +85,7 @@ export async function GET(
       });
     }
 
-    const link = await getCachedLink(shortCode);
+    const link = await getCachedLink(shortCode, domain);
 
     if (!link) {
       return NextResponse.json({
@@ -106,7 +109,7 @@ export async function GET(
     if (link.password) {
       const cookieHeader = req.headers.get("cookie");
       const cookies = parseCookies(cookieHeader);
-      const passwordVerified = cookies[`password_verified_${shortCode}`];
+      const passwordVerified = cookies[`password_verified_${link.domain}_${shortCode}`];
 
       if (!passwordVerified) {
         return NextResponse.json({

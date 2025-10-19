@@ -9,6 +9,9 @@ import {
 } from "@/components/ui/sidebar";
 import WorkspaceSwitch from "@/components/web/_workspace/workspace-switch";
 import UsageStats from "./usage-stats";
+import { MessagesSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export interface WorkspaceMinimal {
   id: string;
@@ -40,6 +43,13 @@ export default async function AppSidebar({
         <NavMain workspaces={workspaces} workspaceslug={workspaceslug} />
       </SidebarContent>
       <SidebarFooter>
+        <div>
+          <Link target="_blank" href={"https://github.com/slugylink/slugy/discussions/categories/feedback"}>
+            <Button size={"sm"} variant={"secondary"} className="w-full">
+              <MessagesSquare strokeWidth={1.5} /> Feedback
+            </Button>
+          </Link>
+        </div>
         <UsageStats workspaceslug={workspaceslug} />
         <NavUser />
       </SidebarFooter>

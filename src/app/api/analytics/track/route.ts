@@ -6,6 +6,7 @@ import { z } from "zod";
 const analyticsSchema = z.object({
   linkId: z.string().min(1),
   slug: z.string().min(1),
+  domain: z.string().optional(),
   workspaceId: z.string().min(1),
   analyticsData: z.object({
     ipAddress: z.string().ip().optional(),
@@ -17,7 +18,6 @@ const analyticsSchema = z.object({
     device: z.string().max(50),
     trigger: z.string().max(50),
     referer: z.string().max(200),
-
   }),
 });
 
@@ -40,12 +40,30 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { linkId, slug, workspaceId, analyticsData } = validationResult.data;
+    const { linkId, slug, domain, workspaceId, analyticsData } = validationResult.data;
+
+    // Verify the link exists and belongs to the workspace
+    const link = await db.link.findFirst({
+      where: {
+        id: linkId,
+        workspaceId,
+        slug,
+        domain: domain || "slugy.co",
+      },
+      select: { id: true, workspaceId: true },
+    });
+
+    if (!link) {
+      return NextResponse.json(
+        { error: "Link not found or access denied" },
+        { status: 404 },
+      );
+    }
 
     const usageRecord = await db.usage.findFirst({
       where: { workspaceId },
       select: { id: true },
-      orderBy: { createdAt: "desc" }, 
+      orderBy: { createdAt: "desc" },
     });
 
     if (!usageRecord) {
@@ -60,13 +78,13 @@ export async function POST(req: NextRequest) {
         // Batch operations for better performance
         const [linkUpdate, usageUpdate] = await Promise.allSettled([
           tx.link.update({
-            where: { slug },
+            where: { id: linkId },
             data: {
               clicks: { increment: 1 },
               lastClicked: new Date(),
             },
           }),
-          tx.usage.update({ // possible to use - redis
+          tx.usage.update({
             where: { id: usageRecord.id },
             data: {
               clicksTracked: { increment: 1 },
@@ -79,9 +97,10 @@ export async function POST(req: NextRequest) {
         }
         if (usageUpdate.status === "rejected") {
           throw new Error(`Failed to update usage: ${usageUpdate.reason}`);
-        } // Create analytics record (less critical, can be async)
+        }
 
-        const analyticsRecord = await tx.analytics.create({ // use redis & batch operations
+        // Create analytics record
+        const analyticsRecord = await tx.analytics.create({
           data: {
             linkId,
             clickedAt: new Date(),
@@ -104,10 +123,10 @@ export async function POST(req: NextRequest) {
         };
       },
       {
-        timeout: 5000, // 5 second timeout
-        maxWait: 2000, // Max wait for connection
+        timeout: 5000,
+        maxWait: 2000,
       },
-    ); // Set response caching headers
+    );
 
     const response = NextResponse.json({
       success: true,
@@ -117,7 +136,7 @@ export async function POST(req: NextRequest) {
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error) {
-    console.error("Analytics tracking error:", error); // Structured error logging for monitoring
+    console.error("Analytics tracking error:", error);
 
     const errorDetails = {
       message: error instanceof Error ? error.message : "Unknown error",

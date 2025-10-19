@@ -52,7 +52,7 @@ export async function PATCH(
     const context = await params;
 
     // Validate workspace and link ownership
-    const workspace = await validateworkspaceslug(  
+    const workspace = await validateworkspaceslug(
       session.user.id,
       context.workspaceslug,
     );
@@ -64,31 +64,6 @@ export async function PATCH(
     });
     if (!link) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
-    }
-
-    // If slug is being updated, check for uniqueness
-    if (validatedData.slug && validatedData.slug !== link.slug) {
-      const existingSlug = await db.link.findUnique({
-        where: { slug: validatedData.slug },
-        select: { id: true },
-      });
-      if (existingSlug && existingSlug.id !== link.id) {
-        return NextResponse.json(
-          { message: "Slug already exists" },
-          { status: 400 },
-        );
-      }
-    }
-
-    // Prevent recursive links: do not allow destination URL to be a slugy.co short link
-    if (typeof validatedData.url === 'string') {
-      const ownDomainPattern = /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
-      if (ownDomainPattern.test(validatedData.url)) {
-        return NextResponse.json(
-          { error: "Recursive links are not allowed. You cannot shorten a slugy.co link." },
-          { status: 400 },
-        );
-      }
     }
 
     // If customDomainId is being updated, verify it belongs to the workspace and get the domain name
@@ -108,7 +83,7 @@ export async function PATCH(
         if (!customDomain) {
           return NextResponse.json(
             { error: "Invalid or unverified custom domain" },
-            { status: 400 }
+            { status: 400 },
           );
         }
 
@@ -117,125 +92,186 @@ export async function PATCH(
       // If customDomainId is null, we're removing the custom domain (reverting to default)
     }
 
-    // Use transaction to ensure data consistency
-    await db.$transaction(async (tx) => {
-      // Prepare update data (only provided fields)
-      const updateData: Record<string, unknown> = {};
-      for (const key of Object.keys(validatedData)) {
-        const value = validatedData[key as keyof typeof validatedData];
-        if (typeof value !== "undefined" && key !== "tags") {
-          if (key === "expiresAt" && value && typeof value === "string") {
-            updateData.expiresAt = new Date(value as string);
-          } else if (key !== "tags") {
-            updateData[key] = value;
-          }
-        }
-      }
-      
-      // If customDomainId is being updated, also update the domain field
-      if (validatedData.customDomainId !== undefined) {
-        updateData.domain = customDomainName;
-      }
+    // If slug is being updated, check for uniqueness per domain
+    if (validatedData.slug && validatedData.slug !== link.slug) {
+      // Determine the target domain (current link's domain or new custom domain)
+      const targetDomain = customDomainName || link.domain || "slugy.co";
 
-      // Update the link
-      const link = await tx.link.update({
-        where: { id: context.linkId },
-        data: updateData,
-        select: {
-          id: true,
-          url: true,
-          slug: true,
-          image: true,
-          title: true,
-          description: true,
-          password: true,
-          expiresAt: true,
-          expirationUrl: true,
-          utm_source: true,
-          utm_medium: true,
-          utm_campaign: true,
-          utm_content: true,
-          utm_term: true,
-          createdAt: true,
+      // Check if slug exists on the target domain (excluding current link)
+      const existingSlug = await db.link.findFirst({
+        where: {
+          slug: validatedData.slug,
+          domain: targetDomain,
+          id: { not: link.id }, // Exclude current link from check
         },
+        select: { id: true },
       });
 
-      // Handle tags if provided
-      if (validatedData.tags !== undefined) {
-        // Remove all existing tag relationships
-        await tx.linkTag.deleteMany({
-          where: { linkId: context.linkId },
-        });
+      if (existingSlug) {
+        return NextResponse.json(
+          { message: `Slug already exists for this domain!` },
+          { status: 400 },
+        );
+      }
+    }
 
-        // Add new tag relationships if tags are provided
-        if (validatedData.tags.length > 0) {
-          // Get existing tags for this workspace
-          const existingTags = await tx.tag.findMany({
-            where: {
-              workspaceId: workspace.workspace.id,
-              name: { in: validatedData.tags },
-              deletedAt: null,
-            },
-            select: { id: true, name: true },
-          });
+    // Prevent recursive links: do not allow destination URL to be a slugy.co short link
+    if (typeof validatedData.url === "string") {
+      const ownDomainPattern =
+        /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
+      if (ownDomainPattern.test(validatedData.url)) {
+        return NextResponse.json(
+          {
+            error:
+              "Recursive links are not allowed. You cannot shorten a slugy.co link.",
+          },
+          { status: 400 },
+        );
+      }
+    }
 
-          // Find tags that don't exist yet
-          const existingTagNames = existingTags.map(tag => tag.name);
-          const newTagNames = validatedData.tags.filter(
-            tagName => !existingTagNames.includes(tagName)
-          );
-
-          // Create new tags if needed
-          let allTags = [...existingTags];
-          if (newTagNames.length > 0) {
-            // Check if we can create more tags (limit of 5 per workspace)
-            const currentTagCount = await tx.tag.count({
-              where: {
-                workspaceId: workspace.workspace.id,
-                deletedAt: null,
-              },
-            });
-
-            const canCreateCount = Math.min(
-              newTagNames.length,
-              5 - currentTagCount
-            );
-
-            if (canCreateCount > 0) {
-              const tagsToCreate = newTagNames.slice(0, canCreateCount);
-              
-              const createdTags = await Promise.all(
-                tagsToCreate.map(tagName =>
-                  tx.tag.create({
-                    data: {
-                      name: tagName,
-                      workspaceId: workspace.workspace.id,
-                      color: null, // Default color
-                    },
-                    select: { id: true, name: true },
-                  })
-                )
-              );
-
-              allTags = [...existingTags, ...createdTags];
+    // Use transaction to ensure data consistency
+    try {
+      await db.$transaction(async (tx) => {
+        // Prepare update data (only provided fields)
+        const updateData: Record<string, unknown> = {};
+        for (const key of Object.keys(validatedData)) {
+          const value = validatedData[key as keyof typeof validatedData];
+          if (typeof value !== "undefined" && key !== "tags") {
+            if (key === "expiresAt" && value && typeof value === "string") {
+              updateData.expiresAt = new Date(value as string);
+            } else if (key !== "tags") {
+              updateData[key] = value;
             }
           }
+        }
 
-          // Create link-tag relationships for all tags
-          if (allTags.length > 0) {
-            await tx.linkTag.createMany({
-              data: allTags.map(tag => ({
-                linkId: context.linkId,
-                tagId: tag.id,
-              })),
-              skipDuplicates: true,
+        // If customDomainId is being updated, also update the domain field
+        if (validatedData.customDomainId !== undefined) {
+          updateData.domain = customDomainName || "slugy.co";
+        }
+
+        // Update the link
+        const link = await tx.link.update({
+          where: { id: context.linkId },
+          data: updateData,
+          select: {
+            id: true,
+            url: true,
+            slug: true,
+            image: true,
+            title: true,
+            description: true,
+            password: true,
+            expiresAt: true,
+            expirationUrl: true,
+            utm_source: true,
+            utm_medium: true,
+            utm_campaign: true,
+            utm_content: true,
+            utm_term: true,
+            createdAt: true,
+          },
+        });
+
+        // Handle tags if provided
+        if (validatedData.tags !== undefined) {
+          // Remove all existing tag relationships
+          await tx.linkTag.deleteMany({
+            where: { linkId: context.linkId },
+          });
+
+          // Add new tag relationships if tags are provided
+          if (validatedData.tags.length > 0) {
+            // Get existing tags for this workspace
+            const existingTags = await tx.tag.findMany({
+              where: {
+                workspaceId: workspace.workspace.id,
+                name: { in: validatedData.tags },
+                deletedAt: null,
+              },
+              select: { id: true, name: true },
             });
+
+            // Find tags that don't exist yet
+            const existingTagNames = existingTags.map((tag) => tag.name);
+            const newTagNames = validatedData.tags.filter(
+              (tagName) => !existingTagNames.includes(tagName),
+            );
+
+            // Create new tags if needed
+            let allTags = [...existingTags];
+            if (newTagNames.length > 0) {
+              // Check if we can create more tags (limit of 5 per workspace)
+              const currentTagCount = await tx.tag.count({
+                where: {
+                  workspaceId: workspace.workspace.id,
+                  deletedAt: null,
+                },
+              });
+
+              const canCreateCount = Math.min(
+                newTagNames.length,
+                5 - currentTagCount,
+              );
+
+              if (canCreateCount > 0) {
+                const tagsToCreate = newTagNames.slice(0, canCreateCount);
+
+                const createdTags = await Promise.all(
+                  tagsToCreate.map((tagName) =>
+                    tx.tag.create({
+                      data: {
+                        name: tagName,
+                        workspaceId: workspace.workspace.id,
+                        color: null, // Default color
+                      },
+                      select: { id: true, name: true },
+                    }),
+                  ),
+                );
+
+                allTags = [...existingTags, ...createdTags];
+              }
+            }
+
+            // Create link-tag relationships for all tags
+            if (allTags.length > 0) {
+              await tx.linkTag.createMany({
+                data: allTags.map((tag) => ({
+                  linkId: context.linkId,
+                  tagId: tag.id,
+                })),
+                skipDuplicates: true,
+              });
+            }
           }
         }
-      }
 
-      return link;
-    });
+        return link;
+      });
+    } catch (error: unknown) {
+      // Handle unique constraint violation
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "P2002" &&
+        "meta" in error &&
+        error.meta &&
+        typeof error.meta === "object" &&
+        "target" in error.meta &&
+        Array.isArray(error.meta.target) &&
+        error.meta.target.includes("slug")
+      ) {
+        return NextResponse.json(
+          { message: `Slug already exists for this domain!` },
+          { status: 400 },
+        );
+      }
+      // Re-throw other errors
+      throw error;
+    }
 
     // Fetch the updated link with tags for the response
     const linkWithTags = await db.link.findUnique({
@@ -285,7 +321,7 @@ export async function PATCH(
       url: linkWithTags.url,
       workspaceId: workspace.workspace.id,
       createdAt: linkWithTags.createdAt,
-      tags: linkWithTags.tags.map(t => ({ tagId: t.tag.id })),
+      tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
     };
 
     waitUntil(updateLink(linkData));

@@ -1,6 +1,6 @@
 generator client {
   provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres", "driverAdapters"]
+  previewFeatures = ["driverAdapters", "fullTextSearchPostgres"]
 }
 
 datasource db {
@@ -11,37 +11,36 @@ datasource db {
 model User {
   id              String            @id @default(cuid())
   name            String
-  email           String
+  email           String            @unique
   password        String?
   emailVerified   Boolean
   image           String?
   role            Role              @default(user)
-  customerId      String? //polarCustomerId
+  customerId      String?
   banned          Boolean           @default(false)
   banReason       String?
   banExpires      Int?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  sessions        Session[]
   accounts        Account[]
-  subscription    Subscription?
+  Bio             Bio[]
+  sentInvites     Invitation[]      @relation("SentInvites")
   Link            Link[]
   members         Member[]
-  Bio             Bio[]
   Notification    Notification[]
+  sessions        Session[]
+  subscription    Subscription?
   Usage           Usage[]
-  ownedWorkspaces Workspace[]       @relation("owner")
-  sentInvites     Invitation[]      @relation("SentInvites")
   createdApiKeys  WorkspaceApiKey[] @relation("CreatedApiKeys")
+  ownedWorkspaces Workspace[]       @relation("owner")
 
-  @@unique([email])
   @@map("user")
 }
 
 model Session {
   id                   String   @id @default(cuid())
   expiresAt            DateTime
-  token                String
+  token                String   @unique
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   impersonatedBy       String?
@@ -51,7 +50,6 @@ model Session {
   activeOrganizationId String?
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([token])
   @@map("session")
 }
 
@@ -60,7 +58,6 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -70,6 +67,7 @@ model Account {
   password              String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("account")
 }
@@ -108,8 +106,8 @@ model Plan {
   buttonLabel           String?
   isReady               Boolean               @default(true)
   isRecommended         Boolean               @default(false)
-  subscriptions         Subscription[]
   SubscriptionHistory   SubscriptionHistory[]
+  subscriptions         Subscription[]
 
   @@map("plans")
 }
@@ -118,9 +116,9 @@ model Subscription {
   id                  String                @id @default(cuid())
   planId              String
   priceId             String?               @unique
-  referenceId         String                @unique //userId
-  customerId          String? //polarCustomerId
-  subscriptionId      String? //polarSubscriptionId
+  referenceId         String                @unique
+  customerId          String?
+  subscriptionId      String?
   status              String                @default("active")
   provider            String                @default("polar")
   periodStart         DateTime              @default(now())
@@ -133,9 +131,9 @@ model Subscription {
   updatedAt           DateTime              @updatedAt
   canceledAt          DateTime?
   daysWithService     Int                   @default(1)
-  user                User                  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
-  plan                Plan                  @relation(fields: [planId], references: [id])
   SubscriptionHistory SubscriptionHistory[]
+  plan                Plan                  @relation(fields: [planId], references: [id])
+  user                User                  @relation(fields: [referenceId], references: [id], onDelete: Cascade)
 
   @@index([planId, priceId])
   @@index([customerId])
@@ -161,12 +159,12 @@ model SubscriptionHistory {
 
 model LinkTag {
   id        String   @id @default(cuid())
-  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
   linkId    String
-  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
   tagId     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  link      Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@unique([linkId, tagId])
   @@index([linkId])
@@ -208,17 +206,17 @@ model Workspace {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
-  tags             Tag[]
   customDomains    CustomDomain[]
+  workspaceInvites Invitation[]
   links            Link[]
+  members          Member[]
+  tags             Tag[]
   usages           Usage[]
   apiKeys          WorkspaceApiKey[]
-  workspaceInvites Invitation[]
-  members          Member[]
   creator          User              @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, slug])
-  @@index([userId, isDefault]) // Optimized for getDefaultWorkspace queries
+  @@index([userId, isDefault])
   @@map("workspaces")
 }
 
@@ -249,7 +247,7 @@ model Link {
   id              String           @id @default(cuid())
   userId          String?
   url             String
-  slug            String           @unique
+  slug            String
   image           String?
   title           String?
   description     String?
@@ -258,9 +256,7 @@ model Link {
   lastClicked     DateTime?
   password        String?
   expiresAt       DateTime?
-  expirationUrl   String?
   isArchived      Boolean          @default(false)
-  tags            LinkTag[]
   utm_source      String?
   utm_medium      String?
   utm_campaign    String?
@@ -269,25 +265,27 @@ model Link {
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
   android         String?
-  domain          String?
+  domain          String           @default("slugy.co")
   expiredUrl      String?
   geo             Json?
   ios             String?
   utm_content     String?
   utm_term        String?
   video           String?
+  expirationUrl   String?
+  conversions     Int              @default(0)
+  leads           Int              @default(0)
+  publicStats     Boolean          @default(false)
+  customDomainId  String?
   analytics       Analytics[]
+  tags            LinkTag[]
+  customDomain    CustomDomain?    @relation(fields: [customDomainId], references: [id], onDelete: Cascade)
   creator         User?            @relation(fields: [userId], references: [id])
   workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   qrCode          QrCode?
   SharedAnalytics SharedAnalytics?
-  customDomainId  String?
-  customDomain    CustomDomain? @relation(fields: [customDomainId], references: [id], onDelete: Cascade)
 
-  publicStats Boolean @default(false) // whether to show public stats or not
-  leads       Int     @default(0) // number of leads
-  conversions Int     @default(0) // number of leads that converted to sales
-
+  @@unique([slug, domain])
   @@index([slug])
   @@index([url])
   @@index([userId])
@@ -305,11 +303,10 @@ model Link {
 model Analytics {
   id           String   @id @default(cuid())
   linkId       String
-  clickId      String?
   clickedAt    DateTime @default(now())
   country      String?
   city         String?
-  region       String? // good addition for finer geo
+  region       String?
   continent    String?
   device       String?
   browser      String?
@@ -317,13 +314,14 @@ model Analytics {
   referer      String?
   ipAddress    String?
   userAgent    String?
-  trigger      String?
-  utm_source   String?
-  utm_medium   String?
-  utm_campaign String?
-  utm_term     String?
-  utm_content  String?
   createdAt    DateTime @default(now())
+  clickId      String?
+  trigger      String?
+  utm_campaign String?
+  utm_content  String?
+  utm_medium   String?
+  utm_source   String?
+  utm_term     String?
   link         Link     @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
   @@index([linkId, clickedAt])
@@ -371,8 +369,8 @@ model Organization {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   deletedAt   DateTime?
-  members     Member[]
   invitations Invitation[]
+  members     Member[]
 
   @@index([slug])
   @@map("organizations")
@@ -381,14 +379,14 @@ model Organization {
 model Member {
   id             String        @id @default(cuid())
   workspaceId    String
-  organizationId String?
   userId         String
   role           WorkspaceRole @default(member)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   @@unique([workspaceId, userId])
   @@index([userId])
@@ -398,7 +396,6 @@ model Member {
 model Invitation {
   id             String        @id @default(cuid())
   workspaceId    String
-  organizationId String?
   inviterId      String
   email          String
   role           WorkspaceRole @default(member)
@@ -408,9 +405,10 @@ model Invitation {
   invitedAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
+  organizationId String?
   inviter        User          @relation("SentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
-  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   organization   Organization? @relation(fields: [organizationId], references: [id])
+  workspace      Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, email])
   @@index([token])
@@ -432,39 +430,26 @@ model QrCode {
 }
 
 model CustomDomain {
-  id            String   @id @default(cuid())
-  domain        String   @unique
-  workspaceId   String
-  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  
-  // Domain verification status
-  verified      Boolean  @default(false)
-  verificationToken String?
-  
-  // DNS configuration
-  dnsConfigured Boolean  @default(false)
-  lastChecked   DateTime?
-  
-  // SSL status
-  sslEnabled    Boolean  @default(false)
-  sslIssuer     String?
-  sslExpiresAt  DateTime?
-  
-  // Cloudflare for SaaS integration
-  cloudflareCustomHostnameId String?  // Custom Hostname ID from Cloudflare
-  cloudflareCnameTarget      String?  // CNAME target provided by Cloudflare
-  cloudflareStatus           String?  // Status from Cloudflare (active, pending, etc.)
-  cloudflareSslStatus        String?  // SSL status from Cloudflare
-  
-  // Redirect configuration
-  redirectToWww Boolean  @default(false)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Links using this domain
-  links         Link[]
-  
+  id                         String    @id @default(cuid())
+  workspaceId                String
+  domain                     String    @unique
+  verified                   Boolean   @default(false)
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  dnsConfigured              Boolean   @default(false)
+  lastChecked                DateTime?
+  redirectToWww              Boolean   @default(false)
+  sslEnabled                 Boolean   @default(false)
+  sslExpiresAt               DateTime?
+  sslIssuer                  String?
+  verificationToken          String?
+  cloudflareCnameTarget      String?
+  cloudflareCustomHostnameId String?
+  cloudflareSslStatus        String?
+  cloudflareStatus           String?
+  workspace                  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  links                      Link[]
+
   @@map("custom_domains")
 }
 
@@ -516,9 +501,9 @@ model Bio {
   deletedAt      DateTime?
   theme          String?
   isPublic       Boolean      @default(false)
-  creator        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  socials        BioSocials[]
   links          BioLinks[]
+  socials        BioSocials[]
+  creator        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, username])
   @@map("bios")
@@ -540,21 +525,20 @@ model Notification {
 }
 
 model Usage {
-  id            String    @id @default(cuid())
+  id            String     @id @default(cuid())
   userId        String
-  workspaceId   String? // made required
-  linksCreated  Int       @default(0)
-  clicksTracked Int       @default(0)
-  periodStart   DateTime  @default(now())
-  periodEnd     DateTime  @default(now())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  workspaceId   String?
+  linksCreated  Int        @default(0)
+  clicksTracked Int        @default(0)
+  periodStart   DateTime   @default(now())
+  periodEnd     DateTime   @default(now())
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
   deletedAt     DateTime?
-  addedUsers    Int       @default(1)
-  isArchived    Boolean   @default(false)
-
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  addedUsers    Int        @default(1)
+  isArchived    Boolean    @default(false)
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace     Workspace? @relation(fields: [workspaceId], references: [id])
 
   @@index([userId])
   @@index([workspaceId])
@@ -562,7 +546,6 @@ model Usage {
   @@map("usages")
 }
 
-//  enums:
 enum Role {
   user
   admin

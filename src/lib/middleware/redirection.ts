@@ -184,6 +184,7 @@ async function trackAnalytics(
           body: JSON.stringify({
             linkId,
             slug,
+            domain: domain || "slugy.co",
             workspaceId,
             analyticsData: analytics,
             trigger,
@@ -213,7 +214,7 @@ export async function URLRedirects(
 
     const cookieHeader = req.headers.get("cookie") ?? "";
     const origin = req.nextUrl.origin;
-    const linkData = await getLink(shortCode, cookieHeader, origin);
+    const linkData = await getLink(shortCode, cookieHeader, origin, domain);
 
     if (!linkData.success) {
       console.warn(
