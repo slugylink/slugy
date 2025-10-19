@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import DomainsClient from "@/components/web/_settings/domains-client";
+import DomainsClient from "./page-client";
 
 export default async function DomainsSettings({
   params,
@@ -71,4 +71,3 @@ export default async function DomainsSettings({
     </div>
   );
 }
-

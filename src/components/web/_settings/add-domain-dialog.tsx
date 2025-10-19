@@ -137,8 +137,7 @@ export function AddDomainDialog({
           <DialogHeader>
             <DialogTitle>Add Custom Domain</DialogTitle>
             <DialogDescription>
-              Enter the domain you want to use for your short links. Make sure
-              you have access to configure DNS records for this domain.
+              Enter the domain you want to use for your short links. 
             </DialogDescription>
           </DialogHeader>
 
