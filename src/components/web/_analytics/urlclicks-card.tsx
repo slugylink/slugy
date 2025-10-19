@@ -63,14 +63,9 @@ const tabConfigs: TabConfig[] = [
               imgSize={4}
               url={item.url}
             />
-            <div className="flex flex-col">
-              <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
-                {item.domain}/{item.slug}
-              </span>
-              <span className="text-xs text-muted-foreground line-clamp-1 max-w-[220px]">
-                {item.url.replace(/^https?:\/\//, "").replace(/^www\./, "")}
-              </span>
-            </div>
+            <span className="line-clamp-1 max-w-[220px] cursor-pointer text-ellipsis">
+              {item.domain}/{item.slug}
+            </span>
           </div>
         );
       }
@@ -176,7 +171,7 @@ const UrlClicks = ({
                 dataKey={currentTabConfig.dataKey}
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => {
-                  if ("slug" in item) return `${item.domain}-${item.slug}`;
+                  if ("slug" in item) return item.slug;
                   if ("destination" in item) return item.destination;
                   return `${currentTabConfig.dataKey}-${index}`;
                 }}
@@ -198,7 +193,7 @@ const UrlClicks = ({
         dataKey={currentTabConfig.dataKey}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => {
-          if ("slug" in item) return `${item.domain}-${item.slug}`;
+          if ("slug" in item) return item.slug;
           if ("destination" in item) return item.destination;
           return `${currentTabConfig.dataKey}-${index}`;
         }}
