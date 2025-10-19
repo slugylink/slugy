@@ -29,13 +29,15 @@ const isValidUrl = (urlString: string): boolean => {
   const trimmedUrl = urlString.trim();
   if (!trimmedUrl) return false;
 
-  // Check for basic URL patterns
-  const urlPattern = /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/i;
-
-  // If it matches basic URL pattern, consider it valid
+  // Fast regex check first to avoid expensive URL constructor
+  const urlPattern = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
   if (urlPattern.test(trimmedUrl)) return true;
 
-  // Try URL constructor with protocol
+  // Try with https prefix
+  const withHttps = `https://${trimmedUrl}`;
+  if (urlPattern.test(withHttps)) return true;
+
+  // Only use URL constructor as last resort
   try {
     const urlWithProtocol = trimmedUrl.startsWith('http')
       ? trimmedUrl
@@ -43,26 +45,23 @@ const isValidUrl = (urlString: string): boolean => {
     new URL(urlWithProtocol);
     return true;
   } catch {
-    // Additional fallback checks
-    try {
-      // Handle localhost URLs
-      if (trimmedUrl.includes('localhost') || trimmedUrl.includes('127.0.0.1')) {
-        new URL(`http://${trimmedUrl}`);
-        return true;
-      }
-      // Handle relative URLs (though not ideal for UTM)
-      if (trimmedUrl.startsWith('/')) {
-        return true;
-      }
-    } catch {
-      return false;
-    }
+    return false;
   }
-
-  return false;
 };
 
 const parseUTMParams = (url: string): UTMParams => {
+  // Fast regex check before expensive URL parsing
+  if (!url || !url.includes('?')) {
+    return {
+      source: "",
+      medium: "",
+      campaign: "",
+      term: "",
+      content: "",
+      referral: "",
+    };
+  }
+
   try {
     // Ensure URL has protocol
     const urlWithProtocol = !/^https?:\/\//i.test(url) ? `https://${url}` : url;
@@ -105,8 +104,27 @@ export default function UTMBuilderDialog({
   setParams: React.Dispatch<React.SetStateAction<UTMParams>>;
 }) {
   const generatePreviewURL = () => {
+    if (!baseUrl) return baseUrl;
+    
     try {
-      // Ensure URL has protocol
+      // Fast check for URLs without query params
+      if (!baseUrl.includes('?')) {
+        const urlWithProtocol = !/^https?:\/\//i.test(baseUrl)
+          ? `https://${baseUrl}`
+          : baseUrl;
+        
+        const utmParams = new URLSearchParams();
+        if (params.source) utmParams.append("utm_source", params.source);
+        if (params.medium) utmParams.append("utm_medium", params.medium);
+        if (params.campaign) utmParams.append("utm_campaign", params.campaign);
+        if (params.term) utmParams.append("utm_term", params.term);
+        if (params.content) utmParams.append("utm_content", params.content);
+        if (params.referral) utmParams.append("ref", params.referral);
+
+        return `${urlWithProtocol}${utmParams.toString() ? "?" + utmParams.toString() : ""}`;
+      }
+
+      // For URLs with existing query params, use URL constructor
       const urlWithProtocol = !/^https?:\/\//i.test(baseUrl)
         ? `https://${baseUrl}`
         : baseUrl;

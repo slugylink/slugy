@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
@@ -39,6 +45,7 @@ import {
   Check,
   Plus,
   Pencil,
+  LoaderIcon,
 } from "lucide-react";
 import { BsStars } from "react-icons/bs";
 import LinkQrCode from "./link-qrcode";
@@ -51,7 +58,6 @@ import {
 } from "@/components/ui/popover";
 import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
-import { useRef } from "react";
 
 // Types
 interface LinkFormFieldsProps {
@@ -84,6 +90,8 @@ interface UrlSafetyStatus {
 const AI_SLUG_ENDPOINT = "/api/ai/link-slug";
 const RANDOM_SLUG_DELAY_MS = 300;
 const DEFAULT_DOMAIN = "slugy.co";
+const URL_DEBOUNCE_MS = 500;
+const SAFETY_CHECK_DEBOUNCE_MS = 1000;
 
 // Memoized components
 const SafetyIndicator = React.memo(
@@ -134,7 +142,7 @@ const TagBadge = React.memo(({ tag }: { tag: TagType }) => {
     <Badge
       variant="secondary"
       className={cn(
-        "flex items-center gap-1 rounded-sm px-1 py-[1px] text-sm font-normal",
+        "flex items-center gap-1 rounded-sm px-1 py-[1px] text-xs font-normal",
         colorOption.bgColor,
         colorOption.borderColor,
       )}
@@ -161,6 +169,7 @@ const LinkFormFields = React.memo(
     const [currentCode, setCurrentCode] = useState(code);
     const [isAiLoading, setIsAiLoading] = useState(false);
     const [isRandomLoading, setIsRandomLoading] = useState(false);
+    const [isAddTagLoading, setIsAddTagLoading] = useState(false);
     const [urlSafetyStatus, setUrlSafetyStatus] = useState<UrlSafetyStatus>({
       isChecking: false,
       isValid: null,
@@ -171,6 +180,10 @@ const LinkFormFields = React.memo(
     const [searchValue, setSearchValue] = useState("");
     const [isSlugEditable, setIsSlugEditable] = useState(!isEditMode);
     const slugInputRef = useRef<HTMLInputElement | null>(null);
+
+    // Debounce refs
+    const urlValidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const safetyCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     // Form values
     const domain = watch("domain");
@@ -336,7 +349,40 @@ const LinkFormFields = React.memo(
           onSafetyStatusChange?.(safeStatus);
         }
       },
-      [onSafetyStatusChange],
+      [onSafetyStatusChange, normalizeUrl],
+    );
+
+    // Debounced URL safety check
+    const debouncedCheckUrlSafety = useCallback(
+      (checkUrl: string) => {
+        // Clear existing timeout
+        if (safetyCheckTimeoutRef.current) {
+          clearTimeout(safetyCheckTimeoutRef.current);
+        }
+
+        // Set new timeout
+        safetyCheckTimeoutRef.current = setTimeout(() => {
+          checkUrlSafety(checkUrl);
+        }, SAFETY_CHECK_DEBOUNCE_MS);
+      },
+      [checkUrlSafety],
+    );
+
+    // Debounced URL validation
+    const debouncedValidateUrl = useCallback(
+      (rawUrl: string) => {
+        // Clear existing timeout
+        if (urlValidationTimeoutRef.current) {
+          clearTimeout(urlValidationTimeoutRef.current);
+        }
+
+        // Set new timeout
+        urlValidationTimeoutRef.current = setTimeout(() => {
+          const validation = validateUrlFormat(rawUrl);
+          setUrlValidation(validation);
+        }, URL_DEBOUNCE_MS);
+      },
+      [validateUrlFormat],
     );
 
     const handleAiRandomize = useCallback(
@@ -390,6 +436,7 @@ const LinkFormFields = React.memo(
     const handleAddNewTag = useCallback(async () => {
       if (!workspaceslug || !searchValue.trim()) return;
       try {
+        setIsAddTagLoading(true);
         const response = await axios.post(
           `/api/workspace/${workspaceslug}/tags`,
           { name: searchValue.trim(), color: null },
@@ -402,6 +449,8 @@ const LinkFormFields = React.memo(
         }
       } catch (error) {
         console.error("Error creating tag:", error);
+      } finally {
+        setIsAddTagLoading(false);
       }
     }, [workspaceslug, searchValue, handleSelect]);
 
@@ -445,8 +494,8 @@ const LinkFormFields = React.memo(
         setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
         return;
       }
-      checkUrlSafety(instantUrl);
-    }, [instantUrl, checkUrlSafety]);
+      debouncedCheckUrlSafety(instantUrl);
+    }, [instantUrl, debouncedCheckUrlSafety]);
 
     useEffect(() => {
       if (currentTags.length && tags) {
@@ -466,6 +515,18 @@ const LinkFormFields = React.memo(
       }
     }, [tags, currentTags, selectedTags.length]);
 
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+      return () => {
+        if (urlValidationTimeoutRef.current) {
+          clearTimeout(urlValidationTimeoutRef.current);
+        }
+        if (safetyCheckTimeoutRef.current) {
+          clearTimeout(safetyCheckTimeoutRef.current);
+        }
+      };
+    }, []);
+
     // Type guard
     const isLinkData = useCallback((obj: unknown): obj is LinkData => {
       return !!obj && typeof obj === "object" && "qrCode" in obj;
@@ -479,7 +540,6 @@ const LinkFormFields = React.memo(
       }
       return undefined;
     }, [form.formState.defaultValues]);
-
     return (
       <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
         {/* Left side: Form fields */}
@@ -509,9 +569,7 @@ const LinkFormFields = React.memo(
                     onBlur={handleUrlBlur}
                     onChange={(e) => {
                       field.onChange(e);
-                      // Instant validation as user types
-                      const validation = validateUrlFormat(e.target.value);
-                      setUrlValidation(validation);
+                      debouncedValidateUrl(e.target.value);
                     }}
                   />
                 </FormControl>
@@ -728,13 +786,18 @@ const LinkFormFields = React.memo(
                     ) : (
                       <div className="px-2 py-1.5 text-sm text-gray-500">
                         {canAddNew ? (
-                          <div
+                          <button
                             className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 hover:bg-gray-100"
                             onClick={handleAddNewTag}
+                            disabled={isAddTagLoading}
                           >
-                            <Plus className="h-4 w-4" />
+                            {isAddTagLoading ? (
+                              <LoaderIcon className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
                             Add &quot;{searchValue}&quot;
-                          </div>
+                          </button>
                         ) : (
                           "No tags found."
                         )}

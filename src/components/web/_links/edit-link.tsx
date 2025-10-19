@@ -38,19 +38,25 @@ interface EditLinkFormProps {
   } | null;
 }
 
-type UTMParams = {
+interface UTMParams {
   source: string;
   medium: string;
   campaign: string;
   term: string;
   content: string;
   referral: string;
-};
+}
 
 interface LinkSettings {
   expiresAt: string | null;
   password: string | null;
   expirationUrl: string | null;
+}
+
+interface UrlSafetyStatus {
+  isChecking: boolean;
+  isValid: boolean | null;
+  message: string;
 }
 
 // For SWR mutate typing
@@ -68,6 +74,16 @@ const NANOID_ALPHABET =
 const NANOID_LENGTH = 7;
 const DEFAULT_DOMAIN = "slugy.co";
 const UPDATE_ENDPOINT = "/update";
+
+// Utility functions
+const normalizeExpiresAt = (
+  val: string | Date | null | undefined,
+): string | null => {
+  if (!val) return null;
+  if (val instanceof Date) return val.toISOString();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.toISOString();
+};
 
 const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
   ({ initialData, open, onOpenChange, onClose, date, creator }) => {
@@ -111,11 +127,11 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       [initialData],
     );
 
-    const [urlSafetyStatus, setUrlSafetyStatus] = useState<{
-      isChecking: boolean;
-      isValid: boolean | null;
-      message: string;
-    }>({ isChecking: false, isValid: null, message: "" });
+    const [urlSafetyStatus, setUrlSafetyStatus] = useState<UrlSafetyStatus>({
+      isChecking: false,
+      isValid: null,
+      message: "",
+    });
 
     // Form setup
     const form = useForm<LinkFormValues>({
@@ -188,27 +204,28 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
 
     const [currentUrl, setCurrentUrl] = useState(initialData.url || "");
 
-    // Update currentUrl when form values change
+    // Update currentUrl when form values change with debouncing
     React.useEffect(() => {
+      let timeoutId: NodeJS.Timeout;
+      
       const subscription = form.watch((value) => {
-        setCurrentUrl(value.url || "");
+        // Debounce URL updates to prevent excessive re-renders
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          setCurrentUrl(value.url || "");
+        }, 100);
       });
-      return () => subscription.unsubscribe();
+      
+      return () => {
+        clearTimeout(timeoutId);
+        subscription.unsubscribe();
+      };
     }, [form]);
 
     // Form submission
     const onSubmit = useCallback(
       async (data: LinkFormValues) => {
         try {
-          const normalizeExpiresAt = (
-            val: string | Date | null | undefined,
-          ) => {
-            if (!val) return null;
-            if (val instanceof Date) return val.toISOString();
-            const d = new Date(val);
-            return isNaN(d.getTime()) ? null : d.toISOString();
-          };
-
           const normalizedSettings = {
             ...linkSettings,
             expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
@@ -283,23 +300,11 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       }
 
       if (urlSafetyStatus.isValid === false) {
-        return <>Unsafe URL</>;
+        return <>Unsafe URL <CornerDownLeft size={12} /></>;
       }
 
-      if (!isAnythingDirty) {
-        return (
-          <>
-            Update link <CornerDownLeft size={12} />
-          </>
-        );
-      }
-
-      return (
-        <>
-          Update link <CornerDownLeft size={12} />
-        </>
-      );
-    }, [isSubmitting, urlSafetyStatus.isValid, isAnythingDirty]);
+      return <>Update link <CornerDownLeft size={12} /></>;
+    }, [isSubmitting, urlSafetyStatus.isValid]);
 
     // Memoized creator info
     const creatorInfo = useMemo(() => {
