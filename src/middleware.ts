@@ -245,6 +245,7 @@ async function handleRootDomain(
 ): Promise<NextResponse> {
   const { pathname } = url;
   const shortCode = pathname.slice(1);
+  const hostname = normalizeHostname(req.headers.get("host"));
 
   if (pathname === "/" && token) {
     const appUrl = new URL(req.url);
@@ -270,7 +271,7 @@ async function handleRootDomain(
       if (tempRedirect) return tempRedirect;
     }
 
-    const redirectResponse = await URLRedirects(req, shortCode, "slugy.co");
+    const redirectResponse = await URLRedirects(req, shortCode, hostname);
     if (redirectResponse) return redirectResponse;
   }
 
