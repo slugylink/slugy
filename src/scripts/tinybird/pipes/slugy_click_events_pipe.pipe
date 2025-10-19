@@ -6,6 +6,7 @@ SELECT
         link_id,
         slug,
         url,
+        domain,
         country,
         city,
         continent,

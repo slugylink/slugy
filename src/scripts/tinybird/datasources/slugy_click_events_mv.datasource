@@ -6,6 +6,7 @@ SCHEMA >
     `link_id` String,
     `slug` LowCardinality(String),
     `url` LowCardinality(String),
+    `domain` LowCardinality(String),
     `country` LowCardinality(String),
     `city` String,
     `continent` LowCardinality(String),

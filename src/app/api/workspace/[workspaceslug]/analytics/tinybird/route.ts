@@ -50,6 +50,7 @@ const analyticsPropsSchema = z
     referrer_key: z.string().nullable().optional(),
     device_key: z.string().nullable().optional(),
     destination_key: z.string().nullable().optional(),
+    domain_key: z.string().nullable().optional(),
     metrics: z
       .array(
         z.enum([
@@ -292,6 +293,7 @@ export async function GET(
       referrer_key: search.get("referrer_key"),
       device_key: search.get("device_key"),
       destination_key: search.get("destination_key"),
+      domain_key: search.get("domain_key"),
       metrics: search.get("metrics")
         ? (search.get("metrics")!.split(",") as ClientMetric[])
         : undefined,
@@ -346,6 +348,7 @@ export async function GET(
       os: props.os_key || "",
       referer: props.referrer_key || "",
       device: props.device_key || "",
+      domain: props.domain_key || "", // Use domain_key parameter
     };
 
     // Determine which metrics to fetch
