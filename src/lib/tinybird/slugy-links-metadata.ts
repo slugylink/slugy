@@ -54,7 +54,7 @@ export async function deleteLink(link: LinkData) {
   try {
     const payload = {
       link_id: link.id,
-      domain: link.domain ?? "slugy.in",
+      domain: link.domain ?? "slugy.co",
       slug: link.slug,
       url: link.url,
       tag_ids: link.tags.map((t) => t.tagId),

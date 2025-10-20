@@ -29,6 +29,7 @@ export async function DELETE(
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
       include: {
+        customDomain: true,
         tags: {
           select: {
             tag: {
@@ -57,12 +58,12 @@ export async function DELETE(
     // Mark link as deleted in Tinybird
     const linkData = {
       id: link.id,
-      domain: "slugy.co",
+      domain: link.customDomain?.domain || "slugy.co",
       slug: link.slug,
       url: link.url,
       workspaceId: workspace.workspace.id,
       createdAt: link.createdAt,
-      tags: link.tags.map(t => ({ tagId: t.tag.id })),
+      tags: link.tags.map((t) => ({ tagId: t.tag.id })),
     };
 
     waitUntil(deleteLink(linkData));

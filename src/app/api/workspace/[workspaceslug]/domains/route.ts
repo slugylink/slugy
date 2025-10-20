@@ -8,6 +8,8 @@ import {
   removeDomainFromVercel,
   verifyDomainOnVercel,
 } from "@/lib/domain-utils";
+import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
+import { waitUntil } from "@vercel/functions";
 
 // Helper: Get authenticated session
 async function getSession() {
@@ -193,6 +195,37 @@ export async function DELETE(
     const vercelResult = await removeDomainFromVercel(customDomain.domain);
     if (!vercelResult.success) {
       console.error("Failed to remove domain from Vercel:", vercelResult.error);
+    }
+
+    // Collect affected links BEFORE cascade delete, so we can mark them as deleted in Tinybird
+    const affectedLinks = await db.link.findMany({
+      where: { customDomainId: domainId, workspaceId: workspace.id },
+      include: {
+        customDomain: true,
+        tags: {
+          select: {
+            tag: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (affectedLinks.length > 0) {
+      waitUntil(
+        Promise.allSettled(
+          affectedLinks.map((link) =>
+            deleteLink({
+              id: link.id,
+              domain: link.customDomain?.domain || "slugy.co",
+              slug: link.slug,
+              url: link.url,
+              workspaceId: link.workspaceId,
+              createdAt: link.createdAt,
+              tags: link.tags.map((t) => ({ tagId: t.tag.id })),
+            }),
+          ),
+        ),
+      );
     }
 
     // Delete from database
