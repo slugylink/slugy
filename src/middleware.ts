@@ -286,12 +286,7 @@ async function handleCustomDomain(
   baseUrl: string,
   req: NextRequest,
 ): Promise<NextResponse> {
-  const { pathname, search } = url;
-
-  if (pathname.startsWith("/app")) {
-    const redirectPath = pathname.replace(/^\/app/, "") || "/";
-    return redirectTo(`https://${SUBDOMAINS.app}${redirectPath}${search}`);
-  }
+  const { pathname } = url;
 
   if (pathname === "/") {
     return rewriteTo("/custom-domain", baseUrl);
