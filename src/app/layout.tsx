@@ -1,7 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from "@vercel/analytics/next";
 import { cn } from "@/lib/utils";
 import { Providers } from "./provider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
@@ -58,22 +58,6 @@ export const metadata: Metadata = {
   creator: "Slugy Team",
   publisher: "Slugy",
   category: "Technology",
-
-  // Enhanced robots configuration
-  robots: {
-    index: true,
-    follow: true,
-    nocache: false,
-    googleBot: {
-      index: true,
-      follow: true,
-      noimageindex: false,
-      "max-video-preview": -1,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-
   // Comprehensive icon configuration
   icons: {
     icon: [
@@ -96,9 +80,6 @@ export const metadata: Metadata = {
       { rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#000000" },
     ],
   },
-
-  // Web app manifest
-  manifest: "/site.webmanifest",
 
   // Enhanced Open Graph
   openGraph: {
@@ -148,7 +129,6 @@ export const metadata: Metadata = {
 
   // App-specific metadata
   applicationName: "Slugy",
-  referrer: "origin-when-cross-origin",
 
   // Additional structured data hints
   other: {

@@ -13,7 +13,6 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         disallow: [
           "/api/",
           "/admin/",
-          "/app/",
           "/_next/",
           "/private/",
           "/*.json", // note: this disallows any URL ending with ".json"

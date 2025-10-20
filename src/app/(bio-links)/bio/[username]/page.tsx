@@ -345,8 +345,8 @@ function createNotFoundMetadata(): Metadata {
     title: "Bio Gallery Not Found | Slugy",
     description: "The requested bio gallery could not be found.",
     robots: {
-      index: false,
-      follow: false,
+      index: true,
+      follow: true,
     },
   };
 }

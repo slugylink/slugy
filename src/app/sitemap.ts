@@ -32,6 +32,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.9,
     },
+    {
+      url: `${baseUrl}/blogs`,
+      lastModified: lastWeek,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/expired`,
+      lastModified: currentDate,
+      changeFrequency: "monthly",
+      priority: 0.3,
+    },
   ];
 
   // Combine all sitemaps

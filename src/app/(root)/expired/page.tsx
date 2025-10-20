@@ -1,5 +1,15 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Link Expired | Slugy",
+  description: "This link has expired and is no longer available.",
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
 
 export default function ExpiredPage() {
   return (
