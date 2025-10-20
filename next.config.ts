@@ -11,6 +11,7 @@ const nextConfig: import("next").NextConfig = {
       { hostname: "public.blob.vercel-storage.com" },
       { hostname: "res.cloudinary.com" },
       { hostname: "zplink.s3.ap-south-1.amazonaws.com" },
+      { hostname: "files.slugy.co" },
       { hostname: "opengraph.b-cdn.net" },
       { hostname: "api.producthunt.com" },
       { hostname: "img.shields.io" },

@@ -4,7 +4,10 @@ import { db } from "@/server/db";
 import { s3Service } from "@/lib/s3-service";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
-import { invalidateWorkspaceCache, invalidateWorkspaceBySlug } from "@/lib/cache-utils/workspace-cache";
+import {
+  invalidateWorkspaceCache,
+  invalidateWorkspaceBySlug,
+} from "@/lib/cache-utils/workspace-cache";
 
 export async function PATCH(
   req: Request,
@@ -98,7 +101,7 @@ export async function PATCH(
     }
 
     // Generate the public URL for the logo
-    const logoUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
+    const logoUrl = `https://files.slugy.co/${fileKey}`;
 
     // Update workspace with new logo URL
     const updatedWorkspace = await db.workspace.update({

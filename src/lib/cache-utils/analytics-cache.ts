@@ -61,7 +61,7 @@ export async function cacheAnalyticsEvent(
       }
     }
 
-    console.log(`Cached analytics event: ${eventKey} (score: ${timestamp})`);
+    // console.log(`Cached analytics event: ${eventKey} (score: ${timestamp})`);
   } catch (error) {
     console.error("Failed to cache analytics event:", error);
   }
