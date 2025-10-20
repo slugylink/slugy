@@ -11,6 +11,11 @@ const domainCache = new Map<
 
 const CACHE_TTL = 60000; // 1 minute cache
 
+function sanitizeHostname(hostname: string): string {
+  // Drop port and normalize case for consistent matching
+  return hostname.split(":")[0].toLowerCase();
+}
+
 /**
  * Check if a domain is a verified custom domain
  */
@@ -18,8 +23,15 @@ export async function isCustomDomain(
   hostname: string
 ): Promise<{ isCustom: boolean; workspaceId?: string }> {
   try {
+    const hostNoPort = sanitizeHostname(hostname);
+
+    // Development bypass: treat any hostname as a custom domain locally
+    if (process.env.NODE_ENV !== "production") {
+      return { isCustom: true, workspaceId: "dev-workspace" };
+    }
+
     // Check cache first
-    const cached = domainCache.get(hostname);
+    const cached = domainCache.get(hostNoPort);
     if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
       return {
         isCustom: cached.verified,
@@ -31,7 +43,7 @@ export async function isCustomDomain(
     const result = await sql`
       SELECT "workspaceId"
       FROM "custom_domains"
-      WHERE domain = ${hostname}
+      WHERE domain = ${hostNoPort}
         AND verified = true
         AND "dnsConfigured" = true
       LIMIT 1
@@ -44,7 +56,7 @@ export async function isCustomDomain(
     };
 
     // Update cache
-    domainCache.set(hostname, domainResult);
+    domainCache.set(hostNoPort, domainResult);
 
     return {
       isCustom: domainResult.verified,
@@ -65,6 +77,7 @@ export async function handleCustomDomainRequest(
 ): Promise<NextResponse | null> {
   const { pathname } = req.nextUrl;
   const shortCode = pathname.slice(1);
+  const hostNoPort = sanitizeHostname(hostname);
 
   // Skip root path, assets, and API routes
   if (
@@ -78,7 +91,7 @@ export async function handleCustomDomainRequest(
   }
 
   // Check if it's a verified custom domain
-  const { isCustom, workspaceId } = await isCustomDomain(hostname);
+  const { isCustom, workspaceId } = await isCustomDomain(hostNoPort);
 
   if (!isCustom || !workspaceId) {
     return null;
@@ -95,7 +108,7 @@ export async function handleCustomDomainRequest(
   const customDomainRedirect = await URLRedirectsWithDomain(
     req,
     shortCode,
-    hostname,
+    hostNoPort,
     workspaceId
   );
 
@@ -117,7 +130,11 @@ async function URLRedirectsWithDomain(
 ): Promise<NextResponse | null> {
   try {
     // Check if link exists for this workspace and custom domain
-    if (customDomain && workspaceId) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      customDomain &&
+      workspaceId
+    ) {
       const result = await sql`
         SELECT l.id
         FROM "links" l
@@ -148,7 +165,7 @@ async function URLRedirectsWithDomain(
  */
 export function clearDomainCache(domain?: string) {
   if (domain) {
-    domainCache.delete(domain);
+    domainCache.delete(sanitizeHostname(domain));
   } else {
     domainCache.clear();
   }

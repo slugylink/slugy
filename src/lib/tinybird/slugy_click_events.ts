@@ -35,7 +35,7 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
     workspace_id: event.workspace_id,
     slug: event.slug,
     url: event.url,
-    domain: "slugy.co",
+    domain: event.domain,
     ip: event.ip,
     country: event.country ?? "",
     city: event.city ?? "",

@@ -14,19 +14,19 @@ import { redis } from "@/lib/redis";
  */
 function getGeoData(req: NextRequest) {
   const headers = req.headers;
-  
+
   // Try Cloudflare headers first (since you're using Cloudflare now)
   const cfCountry = headers.get("cf-ipcountry");
   const cfCity = headers.get("cf-ipcity");
   const cfContinent = headers.get("cf-ipcontinent");
   const cfRegion = headers.get("cf-region");
-  
+
   // Fallback to Vercel headers if Cloudflare headers are not available
   const vercelCountry = headers.get("x-vercel-ip-country");
   const vercelCity = headers.get("x-vercel-ip-city");
   const vercelContinent = headers.get("x-vercel-ip-continent");
   const vercelRegion = headers.get("x-vercel-ip-country-region");
-  
+
   return {
     country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
     city: decodeURIComponent(cfCity || vercelCity || UNKNOWN_VALUE),
@@ -76,7 +76,9 @@ async function checkAnalyticsRateLimit(
     });
     const limited = result === null;
     if (limited) {
-      console.log(`[Rate Limit] Skipping analytics for IP ${ipAddress} on slug ${slug}`);
+      console.warn(
+        `[Rate Limit] Analytics rate limited for IP ${ipAddress} and slug ${slug}`,
+      );
     }
     return limited;
   } catch (error) {
@@ -101,7 +103,7 @@ async function trackAnalytics(
     const timestamp = new Date().toISOString();
 
     const geoData = getGeoData(req);
-    
+
     const analytics: AnalyticsData = {
       ipAddress: headers.get("x-forwarded-for") ?? UNKNOWN_VALUE,
       country: geoData.country,
@@ -133,6 +135,7 @@ async function trackAnalytics(
       slug,
       workspaceId,
       url,
+      domain,
       timestamp,
       ipAddress: analytics.ipAddress,
       country: analytics.country,
@@ -236,7 +239,7 @@ export async function URLRedirects(
       // Check rate limiting before tracking analytics
       const xff = req.headers.get("x-forwarded-for") ?? "";
       const xri = req.headers.get("x-real-ip") ?? "";
-      const ipAddress = (xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE);
+      const ipAddress = xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE;
       const isRateLimited = await checkAnalyticsRateLimit(ipAddress, shortCode);
 
       if (!isRateLimited) {
@@ -249,7 +252,9 @@ export async function URLRedirects(
           domain,
         );
       } else {
-        console.log(`[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`);
+        console.warn(
+          `[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`,
+        );
       }
 
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);

@@ -34,8 +34,8 @@ type ClientMetric =
   | "destinations";
 
 // Constants for better maintainability
-const CACHE_DURATION = 60; 
-const STALE_WHILE_REVALIDATE = 60; 
+const CACHE_DURATION = 60;
+const STALE_WHILE_REVALIDATE = 60;
 
 // Validation schema with better error messages
 const analyticsPropsSchema = z
@@ -118,7 +118,10 @@ function aggregateByKey(
   data: TinybirdResponse["data"],
   keyFn: (item: TinybirdResponse["data"][0]) => string | null,
   createItem: (item: TinybirdResponse["data"][0]) => AnalyticsResult,
-  updateItem?: (existing: AnalyticsResult, item: TinybirdResponse["data"][0]) => void,
+  updateItem?: (
+    existing: AnalyticsResult,
+    item: TinybirdResponse["data"][0],
+  ) => void,
 ): AnalyticsResult[] {
   const map = new Map<string, AnalyticsResult>();
 
@@ -169,7 +172,10 @@ function transformTinybirdData(
 
   // Total clicks - simple aggregation
   if (requestedMetrics.includes("totalClicks")) {
-    result.totalClicks = tinybirdData.reduce((sum, item) => sum + item.clicks, 0);
+    result.totalClicks = tinybirdData.reduce(
+      (sum, item) => sum + item.clicks,
+      0,
+    );
   }
 
   // Clicks over time - time-based aggregation
@@ -396,7 +402,6 @@ export async function GET(
     }
 
     const tinybirdResponse: TinybirdResponse = await response.json();
-
     // Transform data to expected format
     const analyticsData = transformTinybirdData(
       tinybirdResponse.data,

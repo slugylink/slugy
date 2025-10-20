@@ -5,6 +5,7 @@ export interface CachedAnalyticsData {
   slug: string;
   workspaceId: string;
   url: string;
+  domain?: string;
   timestamp: string;
   ipAddress: string;
   country: string;
@@ -93,13 +94,13 @@ export async function getCachedAnalyticsEvents(
         if (events[i]) {
           // Handle both string and object data
           let eventData: CachedAnalyticsData;
-          if (typeof events[i] === 'string') {
+          if (typeof events[i] === "string") {
             eventData = JSON.parse(events[i] as string) as CachedAnalyticsData;
-          } else if (typeof events[i] === 'object' && events[i] !== null) {
+          } else if (typeof events[i] === "object" && events[i] !== null) {
             // If it's already an object, use it directly
             eventData = events[i] as CachedAnalyticsData;
           } else {
-            throw new Error('Invalid event data type');
+            throw new Error("Invalid event data type");
           }
           validEvents.push(eventData);
         }
@@ -161,13 +162,13 @@ export async function getCachedAnalyticsEventsByTimeRange(
         if (events[i]) {
           // Handle both string and object data
           let eventData: CachedAnalyticsData;
-          if (typeof events[i] === 'string') {
+          if (typeof events[i] === "string") {
             eventData = JSON.parse(events[i] as string) as CachedAnalyticsData;
-          } else if (typeof events[i] === 'object' && events[i] !== null) {
+          } else if (typeof events[i] === "object" && events[i] !== null) {
             // If it's already an object, use it directly
             eventData = events[i] as CachedAnalyticsData;
           } else {
-            throw new Error('Invalid event data type');
+            throw new Error("Invalid event data type");
           }
           validEvents.push(eventData);
         }

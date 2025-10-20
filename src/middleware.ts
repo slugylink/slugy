@@ -51,7 +51,6 @@ const getClientIP = (req: NextRequest): string => {
   return normalizeIp(ip);
 };
 
-
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
 
@@ -117,7 +116,9 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       pathname === "/manifest.webmanifest" ||
       pathname.startsWith("/images/") ||
       pathname.startsWith("/icons/") ||
-      /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/.test(pathname)
+      /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/.test(
+        pathname,
+      )
     ) {
       return NextResponse.next();
     }
@@ -129,10 +130,11 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       const isFastUser = isFastApiRoute(pathname);
 
       // Only apply rate limiting for known domains, not custom domains
-      const isKnownDomain = hostname === ROOT_DOMAIN || 
-                           hostname === SUBDOMAINS.bio || 
-                           hostname === SUBDOMAINS.app || 
-                           hostname === SUBDOMAINS.admin;
+      const isKnownDomain =
+        hostname === ROOT_DOMAIN ||
+        hostname === SUBDOMAINS.bio ||
+        hostname === SUBDOMAINS.app ||
+        hostname === SUBDOMAINS.admin;
 
       if (process.env.NODE_ENV !== "development" && isKnownDomain) {
         const limitResult = isFastUser
