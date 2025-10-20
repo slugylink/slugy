@@ -833,6 +833,7 @@ const LinkFormFields = React.memo(
           <div className="space-y-2">
             <Label>QR Code</Label>
             <LinkQrCode
+              domain={domain}
               code={currentCode}
               customization={qrCodeCustomization}
             />

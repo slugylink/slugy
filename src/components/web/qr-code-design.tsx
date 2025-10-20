@@ -91,6 +91,7 @@ interface FormState {
 
 interface QRCodeDesignerProps {
   linkId: string;
+  domain: string;
   code: string;
   onOpenChange: (open: boolean) => void;
 }
@@ -195,7 +196,10 @@ ColorButtons.displayName = "ColorButtons";
 // Utility functions for better performance
 const createCanvasFromSVG = (svg: SVGElement, scale: number = 1) => {
   const canvas = document.createElement("canvas");
-  const svgElement = svg as SVGElement & { width: { baseVal: { value: number } }; height: { baseVal: { value: number } } };
+  const svgElement = svg as SVGElement & {
+    width: { baseVal: { value: number } };
+    height: { baseVal: { value: number } };
+  };
   canvas.width = svgElement.width.baseVal.value * scale;
   canvas.height = svgElement.height.baseVal.value * scale;
 
@@ -233,12 +237,13 @@ const blobToImage = (blob: Blob): Promise<HTMLImageElement> => {
 
 export default function QRCodeDesigner({
   linkId,
+  domain,
   code,
   onOpenChange,
 }: QRCodeDesignerProps) {
   // Memoized URL to prevent unnecessary recalculations
-  const url = useMemo(() => `https://slugy.co/${code}`, [code]);
-  
+  const url = useMemo(() => `https://${domain}/${code}`, [code, domain]);
+
   // State management
   const [isSaving, setIsSaving] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
@@ -294,7 +299,10 @@ export default function QRCodeDesigner({
         const svg = containerRef.current.querySelector("svg");
         if (!svg) throw new Error("SVG element not found");
 
-        const { canvas, ctx } = createCanvasFromSVG(svg, QR_CONFIG.CANVAS_SCALE);
+        const { canvas, ctx } = createCanvasFromSVG(
+          svg,
+          QR_CONFIG.CANVAS_SCALE,
+        );
         const svgBlob = await svgToBlob(svg);
         const img = await blobToImage(svgBlob);
 
@@ -326,9 +334,9 @@ export default function QRCodeDesigner({
   // Memoized QR code update function
   const updateQRCode = useCallback(() => {
     if (!containerRef.current) return;
-    
+
     containerRef.current.innerHTML = "";
-    
+
     if (!qrCodeRef.current) {
       qrCodeRef.current = new QRCodeStyling(options);
       qrCodeRef.current.append(containerRef.current);
@@ -340,11 +348,11 @@ export default function QRCodeDesigner({
   // Optimized fetch function with better error handling
   const fetchQrCode = useCallback(async () => {
     if (!linkId) return;
-    
+
     try {
       setIsFetching(true);
       const qrCodeData = await getQrCode(linkId);
-      
+
       if (!qrCodeData) return;
 
       const updatedFormState = {
@@ -381,10 +389,10 @@ export default function QRCodeDesigner({
   const handleFormChange = useCallback(
     (field: keyof FormState, value: string | number) => {
       setFormState((prev) => ({ ...prev, [field]: value }));
-      
+
       setOptions((prev) => {
         const newOptions = { ...prev };
-        
+
         if (field === "size") {
           newOptions.width = Number(value);
           newOptions.height = Number(value);
@@ -395,7 +403,7 @@ export default function QRCodeDesigner({
             ...(field === "dotStyle" && { type: value as DotType }),
           };
         }
-        
+
         return newOptions;
       });
     },
@@ -438,16 +446,16 @@ export default function QRCodeDesigner({
   // Memoized save handler
   const handleSave = useCallback(async () => {
     if (!qrCodeRef.current || !containerRef.current) return;
-    
+
     try {
       setIsSaving(true);
       const svg = containerRef.current.querySelector("svg");
       if (!svg) throw new Error("SVG element not found");
-      
+
       const svgData = new XMLSerializer().serializeToString(svg);
       const blob = new Blob([svgData], { type: "image/svg+xml" });
       const imageUrl = URL.createObjectURL(blob);
-      
+
       const result = await saveQrCode({
         linkId,
         imageUrl,
@@ -458,7 +466,7 @@ export default function QRCodeDesigner({
           logo: formState.logo,
         },
       });
-      
+
       if (result.success) {
         toast.success("QR code saved successfully");
         onOpenChange(false);
@@ -476,48 +484,51 @@ export default function QRCodeDesigner({
   }, [linkId, formState, onOpenChange]);
 
   // Memoized action buttons to prevent unnecessary re-renders
-  const actionButtons = useMemo(() => (
-    <div className="flex gap-2">
-      <Button
-        onClick={() =>
-          downloadHighQualityQR(
-            qrCodeRef.current || undefined,
-            containerRef,
-          )
-        }
-        variant="ghost"
-        size="icon"
-        title="Download High Quality QR Code"
-      >
-        <Download className="h-4 w-4" />
-      </Button>
-      <Button
-        onClick={handleCopyImage}
-        variant="ghost"
-        size="icon"
-        title="Copy QR Code"
-      >
-        <Copy className="h-3 w-3" />
-      </Button>
-    </div>
-  ), [downloadHighQualityQR, handleCopyImage]);
+  const actionButtons = useMemo(
+    () => (
+      <div className="flex gap-2">
+        <Button
+          onClick={() =>
+            downloadHighQualityQR(qrCodeRef.current || undefined, containerRef)
+          }
+          variant="ghost"
+          size="icon"
+          title="Download High Quality QR Code"
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+        <Button
+          onClick={handleCopyImage}
+          variant="ghost"
+          size="icon"
+          title="Copy QR Code"
+        >
+          <Copy className="h-3 w-3" />
+        </Button>
+      </div>
+    ),
+    [downloadHighQualityQR, handleCopyImage],
+  );
 
   // Memoized footer buttons
-  const footerButtons = useMemo(() => (
-    <div className="flex justify-end gap-2 pt-4">
-      <Button
-        variant="outline"
-        onClick={() => onOpenChange(false)}
-        disabled={isSaving}
-      >
-        Cancel
-      </Button>
-      <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
-        {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
-        Save
-      </Button>
-    </div>
-  ), [isSaving, isFormDirty, handleSave, onOpenChange]);
+  const footerButtons = useMemo(
+    () => (
+      <div className="flex justify-end gap-2 pt-4">
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={isSaving}
+        >
+          Cancel
+        </Button>
+        <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
+          {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
+          Save
+        </Button>
+      </div>
+    ),
+    [isSaving, isFormDirty, handleSave, onOpenChange],
+  );
 
   // Effects
   useEffect(() => {

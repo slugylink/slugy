@@ -51,6 +51,7 @@ const DEFAULT_OPTIONS: Options = {
 
 interface LinkQrCodeProps {
   code?: string;
+  domain: string;
   /**
    * Customization can be a JSON string or a partial Options object.
    */
@@ -61,7 +62,11 @@ function isDotType(val: unknown): val is DotType {
   return typeof val === "string" && DOT_TYPES.includes(val as DotType);
 }
 
-const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code, customization }) => {
+const LinkQrCode: React.FC<LinkQrCodeProps> = ({
+  domain,
+  code,
+  customization,
+}) => {
   const mergedOptions = useMemo(() => {
     let custom: Partial<Options> = {};
     if (customization) {
@@ -91,14 +96,14 @@ const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code, customization }) => {
         typeof customObj.size === "number"
           ? customObj.size
           : typeof customObj.width === "number"
-          ? customObj.width
-          : DEFAULT_OPTIONS.width,
+            ? customObj.width
+            : DEFAULT_OPTIONS.width,
       height:
         typeof customObj.size === "number"
           ? customObj.size
           : typeof customObj.height === "number"
-          ? customObj.height
-          : DEFAULT_OPTIONS.height,
+            ? customObj.height
+            : DEFAULT_OPTIONS.height,
       dotsOptions,
       cornersSquareOptions: {
         ...DEFAULT_OPTIONS.cornersSquareOptions,
@@ -120,7 +125,7 @@ const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code, customization }) => {
       {code ? (
         <div>
           <QRCode
-            value={`https://slugy.co/${code}`}
+            value={`https://${domain}/${code}`}
             size={90}
             fgColor={mergedOptions.dotsOptions?.color}
             bgColor={mergedOptions.backgroundOptions?.color}
@@ -128,7 +133,10 @@ const LinkQrCode: React.FC<LinkQrCodeProps> = ({ code, customization }) => {
         </div>
       ) : (
         <div className="flex flex-col items-center gap-2">
-          <QrCodeIcon strokeWidth={1.8} className="text-muted-foreground h-10 w-10" />
+          <QrCodeIcon
+            strokeWidth={1.8}
+            className="text-muted-foreground h-10 w-10"
+          />
           <p className="text-muted-foreground text-center text-sm">
             Enter a short link to generate <br /> a QR code
           </p>

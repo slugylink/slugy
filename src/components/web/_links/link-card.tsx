@@ -19,7 +19,12 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { usePathname, useRouter } from "next/navigation";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  TooltipProvider,
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import QRCodeDesign from "@/components/web/qr-code-design";
 import {
   Dialog,
@@ -339,6 +344,21 @@ export default function LinkCard({
 
         {/* Actions */}
         <div className="flex h-full w-auto items-center justify-end">
+          <div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="mr-3 hidden aspect-square size-[25px] rounded-full border bg-zinc-100/50 p-0 md:flex"
+                  onClick={actionHandlers.qrCode}
+                >
+                  <QrCode className="max-h-[13px] max-w-[13px] text-black dark:text-white" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>QR Code</TooltipContent>
+            </Tooltip>
+          </div>
           <AnalyticsBadge
             clicks={link.clicks}
             isPublic={isPublic}
@@ -409,6 +429,7 @@ export default function LinkCard({
             </DialogHeader>
             <QRCodeDesign
               linkId={link.id}
+              domain={link.domain || "slugy.co"}
               code={link.slug}
               onOpenChange={(open) => toggleDialog("qrCode", open)}
             />
