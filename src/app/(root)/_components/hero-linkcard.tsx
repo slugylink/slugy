@@ -121,7 +121,7 @@ const AnalyticsBadge = memo(
                 <span className="hidden sm:inline">clicks</span>
               </div>
               {timeLeft && (
-                <div className="flex items-center justify-center px-0.5 border-t">
+                <div className="flex items-center justify-center border-t px-0.5">
                   <Timer className="size-3 text-orange-500" strokeWidth={1.5} />
                   <span className="text-[10px] text-orange-500">
                     {timeLeft}
@@ -224,7 +224,7 @@ export default function LinkCard({ link }: LinkCardProps) {
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "bg-background flex w-full flex-row items-center space-x-3 rounded-xl border p-4 py-3 hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] transition-all cursor-pointer",
+          "bg-background flex w-full cursor-pointer flex-row items-center space-x-3 rounded-xl border p-4 py-3 transition-all hover:shadow-[0_0_16px_rgba(0,0,0,0.08)]",
         )}
       >
         <div className="rounded-full">
@@ -261,6 +261,7 @@ export default function LinkCard({ link }: LinkCardProps) {
               <DialogTitle>QR Code Design</DialogTitle>
             </DialogHeader>
             <QRCodeDesign
+              domain="slugy.co"
               linkId={link.short}
               code={link.short.split("/").pop() ?? ""}
               onOpenChange={(open) => updateDialog("qrCode", open)}
