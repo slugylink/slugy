@@ -90,7 +90,7 @@ export default function DomainsClient({
                 <Plus />
                 Add Domain
               </Button>
-              {isOwnerOrAdmin && maxDomains > 0 && (
+              {/* {isOwnerOrAdmin && maxDomains > 0 && (
                 <Button
                   onClick={() => setIsAddDialogOpen(true)}
                   disabled={!canAddDomain}
@@ -98,7 +98,7 @@ export default function DomainsClient({
                   <Plus />
                   Add Domain
                 </Button>
-              )}
+              )} */}
             </div>
           </div>
         </div>
@@ -106,18 +106,7 @@ export default function DomainsClient({
           {maxDomains === 0 && domains.length === 0 ? (
             <EmptyState />
           ) : domains.length === 0 ? (
-            <div className="bg-muted/50 rounded-lg border border-dashed p-8 text-center">
-              <p className="text-muted-foreground mb-4 text-sm">
-                No custom domains added yet. Add your first domain to get
-                started.
-              </p>
-              {isOwnerOrAdmin && (
-                <Button size="sm" onClick={() => setIsAddDialogOpen(true)}>
-                  <Plus />
-                  Add Domain
-                </Button>
-              )}
-            </div>
+            <EmptyState />
           ) : (
             <div className="space-y-3">
               {maxDomains > 0 && (
