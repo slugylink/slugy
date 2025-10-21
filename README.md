@@ -49,7 +49,12 @@ Easily shorten URLs, generate QR codes, track performance, and share everything 
 
 ## 💖 Sponsor
 
-[![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)
+[![GitHub Sponsor](https://img.shields.io/github/sponsors/slugylink?label=Sponsor&logo=GitHub&color=ff69b4)](https://github.com/sponsors/slugylink)  
+
+Supported by:  
+<a href="https://neon.tech" target="_blank">
+  <img src="https://i.postimg.cc/9z3nb7Q8/neon-logo.webp" alt="Neon Logo" width="120" />
+</a>
 
 ---
 
