@@ -59,11 +59,11 @@ export default function Sponsors() {
                 ease: "easeOut",
                 delay: 0.3 + index * 0.1,
               }}
-              className="w-full max-w-sm rounded-2xl border bg-zinc-50 p-1"
+              className="w-full max-w-sm rounded-2xl border bg-zinc-100/80 p-1"
             >
               <Card className="h-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                 <CardHeader className="">
-                  <div className="relative mx-auto aspect-video w-[70%]">
+                  <div className="relative mx-auto aspect-video w-[50%]">
                     <Image
                       src={sponsor.icon}
                       alt={sponsor.name}
@@ -73,13 +73,13 @@ export default function Sponsors() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <CardDescription className="mb-4 text-base text-gray-600 dark:text-gray-300">
+                  <CardDescription className="mb-4 text-base text-gray-600 dark:text-gray-300 text-center">
                     {sponsor.description}
                   </CardDescription>
-                  <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <div className="border-t border-gray-200 pt-4 dark:border-gray-700 mx-auto text-center">
                     <Button
                       variant="ghost"
-                      className="h-auto p-0 font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                      className="h-auto p-0 hover:bg-transparent font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white w-full"
                       asChild
                     >
                       <a
