@@ -15,7 +15,7 @@ const sponsors = [
   {
     name: "Neon",
     icon: "/icons/neon-logo.webp",
-    description: "Modern serverless database",
+    description: "Modern serverless database platform",
     link: "https://neon.tech",
     linkText: "Learn more about Neon",
   },
