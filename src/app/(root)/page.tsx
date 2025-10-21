@@ -19,7 +19,7 @@ const LoadingSpinner = memo(() => (
 LoadingSpinner.displayName = "LoadingSpinner";
 
 const LoadingSection = memo(function LoadingSection({
-  height = "h-[200px]"
+  height = "h-[200px]",
 }: {
   height?: string;
 }) {
@@ -37,24 +37,24 @@ const HeroSkeleton = memo(function HeroSkeleton() {
     <section className="mx-auto max-w-6xl px-4">
       {/* Announcement Banner Skeleton */}
       <div className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12">
-        <div className="h-8 w-48 animate-pulse rounded-full bg-muted/50" />
+        <div className="bg-muted/50 h-8 w-48 animate-pulse rounded-full" />
       </div>
 
       {/* Heading Skeleton */}
       <div className="space-y-2 text-center">
-        <div className="h-12 w-64 animate-pulse rounded bg-muted/50 mx-auto sm:h-16 sm:w-80 md:h-20 md:w-96" />
-        <div className="h-12 w-56 animate-pulse rounded bg-muted/50 mx-auto sm:h-16 sm:w-72 md:h-20 md:w-80" />
+        <div className="bg-muted/50 mx-auto h-12 w-64 animate-pulse rounded sm:h-16 sm:w-80 md:h-20 md:w-96" />
+        <div className="bg-muted/50 mx-auto h-12 w-56 animate-pulse rounded sm:h-16 sm:w-72 md:h-20 md:w-80" />
       </div>
 
       {/* Subheading Skeleton */}
       <div className="mx-auto mt-6 max-w-2xl">
-        <div className="h-4 w-full animate-pulse rounded bg-muted/50 sm:h-5" />
-        <div className="mt-2 h-4 w-3/4 animate-pulse rounded bg-muted/50 mx-auto sm:h-5" />
+        <div className="bg-muted/50 h-4 w-full animate-pulse rounded sm:h-5" />
+        <div className="bg-muted/50 mx-auto mt-2 h-4 w-3/4 animate-pulse rounded sm:h-5" />
       </div>
 
       {/* Form Skeleton */}
       <div className="mt-8 flex justify-center">
-        <div className="h-32 w-full max-w-md animate-pulse rounded-lg bg-muted/50" />
+        <div className="bg-muted/50 h-32 w-full max-w-md animate-pulse rounded-lg" />
       </div>
     </section>
   );
@@ -81,10 +81,13 @@ const Hero = dynamic(() => import("./_components/hero"), {
   ssr: true,
 });
 
-const PricingSection = dynamic(() => import("@/components/web/_pricing/pricing-section"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.pricing} />,
-  ssr: true,
-});
+const PricingSection = dynamic(
+  () => import("@/components/web/_pricing/pricing-section"),
+  {
+    loading: () => <LoadingSection height={LOADING_HEIGHT.pricing} />,
+    ssr: true,
+  },
+);
 
 export default function Home() {
   return (

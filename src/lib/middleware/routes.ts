@@ -18,6 +18,7 @@ export const PUBLIC_ROUTES = new Set([
   "/about",
   "/contact",
   "/blog",
+  "/sponsors",
 ]);
 
 export const PUBLIC_PREFIXES = [

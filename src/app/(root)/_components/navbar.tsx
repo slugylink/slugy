@@ -33,7 +33,7 @@ import { ListItem } from "./list-item";
 import { Button } from "@/components/ui/button";
 import { Session } from "@/lib/auth";
 
-const VISIBLE_PATHS = ["/", "/tools/metadatas", "/pricing"];
+const VISIBLE_PATHS = ["/", "/tools/metadatas", "/pricing" , "/sponsors"];
 
 interface NavbarProps {
   session: Session | null;

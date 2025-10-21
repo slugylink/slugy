@@ -69,6 +69,7 @@ const Footer: React.FC = () => {
     {
       title: "Resources",
       links: [
+        { href: "/sponsors", label: "Sponsors" },
         { href: "/resources/blog", label: "Blog" },
         { href: "/resources/help", label: "Help" },
       ],
@@ -87,7 +88,7 @@ const Footer: React.FC = () => {
 
   const pathname = usePathname();
 
-  if (!["/", "/tools/metadatas", "/pricing"].includes(pathname)) {
+  if (!["/", "/tools/metadatas", "/pricing", '/sponsors'].includes(pathname)) {
     return null;
   }
 
