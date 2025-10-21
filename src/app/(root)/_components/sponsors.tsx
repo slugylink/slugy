@@ -44,7 +44,7 @@ export default function Sponsors() {
 
         {/* Sponsors Section */}
         <motion.div
-          className="mb-16 flex items-center justify-center"
+          className=" flex items-center justify-center"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
@@ -61,9 +61,7 @@ export default function Sponsors() {
               }}
               className="w-full max-w-sm rounded-2xl border bg-zinc-100/80 p-1"
             >
-              <Card className="h-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-                <CardHeader className="">
-                  <div className="relative mx-auto aspect-video w-[50%]">
+                <div className="relative mx-auto aspect-video w-[50%]">
                     <Image
                       src={sponsor.icon}
                       alt={sponsor.name}
@@ -71,7 +69,8 @@ export default function Sponsors() {
                       className="h-12 w-12 object-contain"
                     />
                   </div>
-                </CardHeader>
+              <Card className="h-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+               
                 <CardContent className="pt-0">
                   <CardDescription className="mb-4 text-base text-gray-600 dark:text-gray-300 text-center">
                     {sponsor.description}

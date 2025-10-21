@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import Sponsors from "./_components/sponsors";
 
 // Constants moved outside component for better performance
 const LOADING_HEIGHT = {
@@ -109,6 +110,10 @@ export default function Home() {
 
       <section id="stats" className="scroll-mt-20">
         <Stats />
+      </section>
+
+      <section id="stats" className="scroll-mt-20">
+        <Sponsors />
       </section>
 
       <section id="open-source" className="scroll-mt-20">
