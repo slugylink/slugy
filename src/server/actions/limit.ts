@@ -275,7 +275,7 @@ export async function checkBioGalleryLinkLimit(userId: string, bioId: string) {
       canCreate,
       message: canCreate
         ? "Can create link in bio gallery"
-        : `Link limit reached for this bio gallery. Upgrade to Pro for more links.`,
+        : `Link limit reached for bio gallery. Upgrade to Pro for more links.`,
       currentCount: currentLinkCount,
       maxLimit: maxLinks,
       planType: subscription.plan.planType,
@@ -287,6 +287,34 @@ export async function checkBioGalleryLinkLimit(userId: string, bioId: string) {
       message: "Error checking bio gallery link limits",
       currentCount: 0,
       maxLimit: 0,
+    };
+  }
+}
+
+export async function checkDomainLimit(workspaceId: string, maxDomains: number) {
+  try {
+    // Count current custom domains for this workspace
+    const currentDomainCount = await db.customDomain.count({
+      where: { workspaceId },
+    });
+
+    const canAdd = currentDomainCount < maxDomains;
+
+    return {
+      canAdd,
+      error: canAdd
+        ? undefined
+        : `Custom domain limit reached. Upgrade to Pro for more domains.`,
+      currentCount: currentDomainCount,
+      maxLimit: maxDomains,
+    };
+  } catch (error) {
+    console.error("Error checking domain limit:", error);
+    return {
+      canAdd: false,
+      error: "Error checking domain limits",
+      currentCount: 0,
+      maxLimit: maxDomains,
     };
   }
 }

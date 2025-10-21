@@ -10,6 +10,7 @@ import {
 } from "@/lib/domain-utils";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
+import { checkDomainLimit } from "@/server/actions/limit";
 
 // Helper: Get authenticated session
 async function getSession() {
@@ -112,6 +113,20 @@ export async function POST(
 
     // Verify workspace access (admin only)
     const workspace = await getWorkspace(workspaceslug, session.user.id, true);
+
+     // You can uncomment and implement this based on your subscription plans
+    const subscription = await db.subscription.findUnique({
+      where: { referenceId: session.user.id },
+      include: { plan: true },
+    });
+    const maxDomains = subscription?.plan?.maxCustomDomains ?? 0;
+    const limitCheck = await checkDomainLimit(workspace.id, maxDomains);
+    if (!limitCheck.canAdd) {
+      return NextResponse.json(
+        { error: limitCheck.error || "Domain limit reached" },
+        { status: 403 }
+      );
+    }
 
     // Check if domain is already in use
     const inUse = await isDomainInUse(domain);

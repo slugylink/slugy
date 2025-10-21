@@ -115,8 +115,41 @@ export function AddDomainDialog({
       setDomain("");
     } catch (error: unknown) {
       console.error("Error adding domain:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to add domain";
+      
+      let errorMessage = "Failed to add domain";
+      
+      if (axios.isAxiosError(error)) {
+        // Handle axios errors with proper status code messages
+        if (error.response?.data?.error) {
+          errorMessage = error.response.data.error;
+        } else {
+          switch (error.response?.status) {
+            case 400:
+              errorMessage = "Invalid domain format. Please check your input.";
+              break;
+            case 401:
+              errorMessage = "Please log in to add domains.";
+              break;
+            case 403:
+              errorMessage = "You don't have permission to add domains to this workspace.";
+              break;
+            case 404:
+              errorMessage = "Workspace not found.";
+              break;
+            case 409:
+              errorMessage = "This domain is already in use.";
+              break;
+            case 500:
+              errorMessage = "Server error. Please try again later.";
+              break;
+            default:
+              errorMessage = error.message || "Failed to add domain";
+          }
+        }
+      } else if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast.error(errorMessage);
     } finally {
       setIsLoading(false);
