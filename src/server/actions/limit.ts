@@ -291,7 +291,10 @@ export async function checkBioGalleryLinkLimit(userId: string, bioId: string) {
   }
 }
 
-export async function checkDomainLimit(workspaceId: string, maxDomains: number) {
+export async function checkDomainLimit(
+  workspaceId: string,
+  maxDomains: number,
+) {
   try {
     // Count current custom domains for this workspace
     const currentDomainCount = await db.customDomain.count({

@@ -97,15 +97,12 @@ export function DomainCard({
 
       if (response.data.verified && response.data.configured) {
         toast.success("Domain verified and configured successfully");
-      } else if (response.data.verified) {
-        toast.warning("Domain verified but DNS configuration pending. Please check DNS records.");
+      } else if (response.data.verified && !response.data.configured) {
+        toast.warning("Domain verified but DNS not configured. Please check DNS records.");
+      } else if (!response.data.verified && response.data.configured) {
+        toast.warning("DNS configured but domain verification pending.");
       } else {
-        toast.warning("Domain verification pending. Please check DNS records.");
-      }
-      
-      // Show DNS configuration error if available
-      if (response.data.dnsConfigError) {
-        toast.error(`DNS Configuration Error: ${response.data.dnsConfigError}`);
+        toast.warning("Domain verification and DNS configuration pending.");
       }
 
       onUpdated(response.data.domain);
@@ -129,11 +126,18 @@ export function DomainCard({
           Active
         </Badge>
       );
-    } else if (domain.verified) {
+    } else if (domain.verified && !domain.dnsConfigured) {
       return (
-        <Badge variant="secondary" className="rounded-sm">
+        <Badge variant="secondary" className="rounded-sm bg-yellow-100/70 text-yellow-600">
           <AlertCircle className="mr-1 size-3" />
           DNS Pending
+        </Badge>
+      );
+    } else if (!domain.verified && domain.dnsConfigured) {
+      return (
+        <Badge variant="secondary" className="rounded-sm bg-blue-100/70 text-blue-600">
+          <AlertCircle className="mr-1 size-3" />
+          Verify Pending
         </Badge>
       );
     } else {
@@ -165,7 +169,11 @@ export function DomainCard({
               <p className="text-muted-foreground mt-1 text-xs">
                 {domain.verified && domain.dnsConfigured
                   ? "Ready to use"
-                  : "Configure DNS records"}
+                  : domain.verified && !domain.dnsConfigured
+                  ? "Configure DNS records"
+                  : !domain.verified && domain.dnsConfigured
+                  ? "Verify domain"
+                  : "Configure DNS and verify domain"}
               </p>
             </div>
           </div>

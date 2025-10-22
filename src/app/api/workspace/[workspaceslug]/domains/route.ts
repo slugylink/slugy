@@ -306,11 +306,13 @@ export async function PATCH(
         customDomain.domain,
       );
 
+      // Check actual DNS configuration
+      const dnsCheckResult = await checkDnsConfiguration(
+        customDomain.domain,
+      );
+
       const isVerified = vercelVerifyResult.verified;
-      
-      // Check DNS configuration separately from domain verification
-      const dnsConfigResult = await checkDnsConfiguration(customDomain.domain);
-      const isDnsConfigured = dnsConfigResult.success && dnsConfigResult.configured;
+      const isDnsConfigured = dnsCheckResult.configured;
 
       // Update domain in database
       const updatedDomain = await db.customDomain.update({
@@ -318,7 +320,7 @@ export async function PATCH(
         data: {
           verified: isVerified,
           dnsConfigured: isDnsConfigured,
-          sslEnabled: isVerified,
+          sslEnabled: isVerified && isDnsConfigured,
           lastChecked: new Date(),
         },
       });
@@ -328,9 +330,11 @@ export async function PATCH(
         verified: isVerified,
         configured: isDnsConfigured,
         vercelVerified: vercelVerifyResult.verified,
-        dnsConfigError: !dnsConfigResult.success ? dnsConfigResult.error : undefined,
+        dnsConfigured: isDnsConfigured,
         error: !vercelVerifyResult.success
           ? vercelVerifyResult.error
+          : !dnsCheckResult.success
+          ? dnsCheckResult.error
           : undefined,
       });
     }
