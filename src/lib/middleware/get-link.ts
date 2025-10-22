@@ -67,7 +67,7 @@ export async function getLink(
 
   try {
     // Cache read with error handling
-    link = await getLinkCache(slug).catch(() => null);
+    link = await getLinkCache(slug, domain || "slugy.co").catch(() => null);
 
     // Cache miss: fetch from SQL and set cache
     if (!link) {
@@ -105,7 +105,7 @@ export async function getLink(
         };
 
         // Set cache asynchronously (don't block the response)
-        setLinkCache(slug, link).catch(console.error);
+        setLinkCache(slug, link, domain || "slugy.co").catch(console.error);
       }
     }
 

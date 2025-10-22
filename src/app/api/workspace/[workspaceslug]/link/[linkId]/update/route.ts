@@ -311,7 +311,7 @@ export async function PATCH(
     if (!linkWithTags) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
-    await invalidateLinkCache(linkWithTags.slug!);
+    await invalidateLinkCache(linkWithTags.slug!, linkWithTags.domain || "slugy.co");
 
     // Update link metadata in Tinybird
     const linkData = {

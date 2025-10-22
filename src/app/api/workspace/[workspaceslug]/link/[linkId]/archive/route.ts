@@ -32,6 +32,9 @@ export async function PATCH(
 
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
+      include: {
+        customDomain: true,
+      },
     });
     if (!link) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
@@ -46,7 +49,8 @@ export async function PATCH(
     });
 
     // Invalidate cache for the archived/unarchived link
-    await invalidateLinkCache(link.slug);
+    const linkDomain = link.customDomain?.domain || "slugy.co";
+    await invalidateLinkCache(link.slug, linkDomain);
 
     return NextResponse.json({ message: isArchived ? "Link archived" : "Link unarchived" }, { status: 200 });
   } catch (error) {

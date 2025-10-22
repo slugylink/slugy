@@ -11,8 +11,8 @@ type LinkCacheType = {
 } | null;
 
 // Invalidate link cache
-export async function invalidateLinkCache(slug: string): Promise<void> {
-  const cacheKey = `link:${slug}`;
+export async function invalidateLinkCache(slug: string, domain: string = "slugy.co"): Promise<void> {
+  const cacheKey = `link:${domain}:${slug}`;
   try {
     await redis.del(cacheKey);
     // console.log(`Cache invalidated for key ⚡: ${cacheKey}`);
@@ -22,8 +22,8 @@ export async function invalidateLinkCache(slug: string): Promise<void> {
 }
 
 // Invalidate multiple link caches
-export async function invalidateLinkCacheBatch(slugs: string[]): Promise<void> {
-  await Promise.all(slugs.map((slug) => invalidateLinkCache(slug)));
+export async function invalidateLinkCacheBatch(slugs: string[], domain: string = "slugy.co"): Promise<void> {
+  await Promise.all(slugs.map((slug) => invalidateLinkCache(slug, domain)));
 }
 
 function isLinkCacheType(obj: unknown): obj is LinkCacheType {
@@ -41,8 +41,8 @@ function isLinkCacheType(obj: unknown): obj is LinkCacheType {
 }
 
 // Get link cache
-export async function getLinkCache(slug: string): Promise<LinkCacheType> {
-  const cacheKey = `link:${slug}`;
+export async function getLinkCache(slug: string, domain: string = "slugy.co"): Promise<LinkCacheType> {
+  const cacheKey = `link:${domain}:${slug}`;
   try {
     const cached = await redis.get(cacheKey);
     const parsed = cached
@@ -59,8 +59,9 @@ export async function getLinkCache(slug: string): Promise<LinkCacheType> {
 export async function setLinkCache(
   slug: string,
   data: LinkCacheType,
+  domain: string = "slugy.co",
 ): Promise<void> {
-  const cacheKey = `link:${slug}`;
+  const cacheKey = `link:${domain}:${slug}`;
   try {
     await redis.set(cacheKey, JSON.stringify(data), {
       ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,

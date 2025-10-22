@@ -45,15 +45,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
 
-    // Store the slug before deletion for cache invalidation
+    // Store the slug and domain before deletion for cache invalidation
     const linkSlug = link.slug;
+    const linkDomain = link.customDomain?.domain || "slugy.co";
 
     await db.link.delete({
       where: { id: context.linkId },
     });
 
     // Invalidate cache for the deleted link
-    await invalidateLinkCache(linkSlug);
+    await invalidateLinkCache(linkSlug, linkDomain);
 
     // Mark link as deleted in Tinybird
     const linkData = {

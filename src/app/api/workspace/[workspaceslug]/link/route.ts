@@ -338,7 +338,7 @@ export async function POST(
     if (!linkWithTags) {
       return NextResponse.json({ message: "Link not found" }, { status: 404 });
     }
-    await invalidateLinkCache(linkWithTags?.slug);
+    await invalidateLinkCache(linkWithTags?.slug, customDomainName || "slugy.co");
 
     // Send link metadata to Tinybird
     const linkMetadata = {
