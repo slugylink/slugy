@@ -195,6 +195,68 @@ export function validateDomain(domain: string): {
 }
 
 /**
+ * Check if domain DNS is properly configured
+ * This function performs additional checks beyond Vercel verification
+ */
+export async function checkDnsConfiguration(domain: string): Promise<{
+  success: boolean;
+  configured: boolean;
+  error?: string;
+}> {
+  try {
+    // Use DNS-over-HTTPS so this works in both Edge and Node runtimes
+    const isSubdomain = domain.split(".").length > 2;
+
+    async function queryDns(name: string, type: "A" | "CNAME") {
+      const res = await fetch(
+        `https://dns.google/resolve?name=${encodeURIComponent(name)}&type=${type}`
+      );
+      if (!res.ok) return null;
+      return (await res.json()) as {
+        Status: number;
+        Answer?: Array<{ data: string; name: string; type: number }>;
+      } | null;
+    }
+
+    if (isSubdomain) {
+      const resp = await queryDns(domain, "CNAME");
+      const answers = resp?.Answer ?? [];
+      const normalized = answers
+        .map((a) => a.data.toLowerCase().replace(/\.$/, ""));
+      const isVercelCname = normalized.some(
+        (c) => c === "cname.vercel-dns.com" || c.endsWith(".vercel-dns.com")
+      );
+      return {
+        success: true,
+        configured: isVercelCname,
+        error: isVercelCname
+          ? undefined
+          : "CNAME must point to cname.vercel-dns.com",
+      };
+    }
+
+    // Apex domain should A to Vercel anycast IP
+    const resp = await queryDns(domain, "A");
+    const answers = resp?.Answer ?? [];
+    const ips = answers.map((a) => a.data);
+    const vercelAnycast = "76.76.21.21";
+    const pointsToVercel = ips.includes(vercelAnycast);
+    return {
+      success: true,
+      configured: pointsToVercel,
+      error: pointsToVercel ? undefined : `A record must point to ${vercelAnycast}`,
+    };
+  } catch (error) {
+    console.error("Error checking DNS configuration:", error);
+    return {
+      success: false,
+      configured: false,
+      error: error instanceof Error ? error.message : "Failed to check DNS configuration"
+    };
+  }
+}
+
+/**
  * Check if domain is already in use
  */
 export async function isDomainInUse(domain: string): Promise<boolean> {

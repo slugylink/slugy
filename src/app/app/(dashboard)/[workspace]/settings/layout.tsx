@@ -1,5 +1,5 @@
 import React from "react";
-import HelpTooltip from "@/components/web/_settings/help";
+// import HelpTooltip from "@/components/web/_settings/help";
 
 export default async function SettingsLayout({
   children,
@@ -9,7 +9,7 @@ export default async function SettingsLayout({
   return (
     <div>
       {children}
-      <HelpTooltip />
+      {/* <HelpTooltip /> */}
     </div>
   );
 }

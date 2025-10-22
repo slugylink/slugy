@@ -98,9 +98,14 @@ export function DomainCard({
       if (response.data.verified && response.data.configured) {
         toast.success("Domain verified and configured successfully");
       } else if (response.data.verified) {
-        toast.success("Domain verified successfully");
+        toast.warning("Domain verified but DNS configuration pending. Please check DNS records.");
       } else {
         toast.warning("Domain verification pending. Please check DNS records.");
+      }
+      
+      // Show DNS configuration error if available
+      if (response.data.dnsConfigError) {
+        toast.error(`DNS Configuration Error: ${response.data.dnsConfigError}`);
       }
 
       onUpdated(response.data.domain);

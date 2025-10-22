@@ -7,6 +7,7 @@ import {
   addDomainToVercel,
   removeDomainFromVercel,
   verifyDomainOnVercel,
+  checkDnsConfiguration,
 } from "@/lib/domain-utils";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
@@ -306,13 +307,17 @@ export async function PATCH(
       );
 
       const isVerified = vercelVerifyResult.verified;
+      
+      // Check DNS configuration separately from domain verification
+      const dnsConfigResult = await checkDnsConfiguration(customDomain.domain);
+      const isDnsConfigured = dnsConfigResult.success && dnsConfigResult.configured;
 
       // Update domain in database
       const updatedDomain = await db.customDomain.update({
         where: { id: domainId },
         data: {
           verified: isVerified,
-          dnsConfigured: isVerified,
+          dnsConfigured: isDnsConfigured,
           sslEnabled: isVerified,
           lastChecked: new Date(),
         },
@@ -321,9 +326,9 @@ export async function PATCH(
       return NextResponse.json({
         domain: updatedDomain,
         verified: isVerified,
-        configured: isVerified,
+        configured: isDnsConfigured,
         vercelVerified: vercelVerifyResult.verified,
-        // cloudflareVerified,
+        dnsConfigError: !dnsConfigResult.success ? dnsConfigResult.error : undefined,
         error: !vercelVerifyResult.success
           ? vercelVerifyResult.error
           : undefined,
