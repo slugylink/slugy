@@ -31,7 +31,7 @@ interface TabConfig {
   linkLabel: string; // used for TableHeader
   dataKey: string;
   progressColor: string;
-  renderName: (item: UrlClickData) => React.ReactElement;
+  renderName: (item: UrlClickData) => JSX.Element;
 }
 
 // ----------------------- TableHeader -----------------------

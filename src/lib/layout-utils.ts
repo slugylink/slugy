@@ -81,10 +81,10 @@ export async function revalidateWorkspaceData(userId?: string) {
   try {
     // Revalidate Next.js cache tags
     await Promise.all([
-      revalidateTag("workspaces", 'max'),
-      revalidateTag("all-workspaces", 'max'),
-      revalidateTag("workspace", 'max'),
-      revalidateTag("workspace-validation", 'max'),
+      revalidateTag("workspaces"),
+      revalidateTag("all-workspaces"),
+      revalidateTag("workspace"),
+      revalidateTag("workspace-validation"),
     ]);
     
     // If userId provided, also invalidate Redis caches

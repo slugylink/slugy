@@ -39,7 +39,7 @@ interface TabConfig {
   renderName: (
     item: GeoData,
     getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"],
-  ) => React.ReactElement;
+  ) => JSX.Element;
 }
 
 // ------------------------------

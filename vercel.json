@@ -1,8 +1,12 @@
 {
-    "git": {
-      "deploymentEnabled": {
-        "main": true
-      }
+  "version": 2,
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "git": {
+    "deploymentEnabled": {
+      "main": true
     }
   }
+}
   

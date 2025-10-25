@@ -33,9 +33,9 @@ export async function DELETE(
 
     // Invalidate all related caches
     await Promise.all([
-      revalidateTag("workspace", 'max'),
-      revalidateTag("all-workspaces", 'max'),
-      revalidateTag("dbuser", 'max'),
+      revalidateTag("workspace"),
+      revalidateTag("all-workspaces"),
+      revalidateTag("dbuser"),
       // Invalidate workspace cache for the deleted user
       invalidateWorkspaceCache(context.accountId),
       // Invalidate bio cache for the deleted user
@@ -129,8 +129,8 @@ export async function PATCH(
 
     // Invalidate related caches
     await Promise.all([
-      revalidateTag("workspace", 'max'),
-      revalidateTag("all-workspaces", 'max'),
+      revalidateTag("workspace"),
+      revalidateTag("all-workspaces"),
       // Invalidate workspace cache when default workspace changes
       invalidateWorkspaceCache(context.accountId),
     ]);
