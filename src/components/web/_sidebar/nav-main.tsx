@@ -8,6 +8,8 @@ import {
   Settings,
   SquareTerminal,
   type LucideIcon,
+  Globe,
+  Folder,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -73,13 +75,13 @@ const SIDEBAR_DATA = {
     { title: "Links", url: "/", icon: LinkIcon },
     { title: "Analytics", url: "/analytics", icon: BarChart2 },
     { title: "Bio Links", url: "/bio-links", icon: Smartphone },
+    { title: "Domains", url: "/settings/domains", icon: Globe },
     {
       title: "Settings",
       icon: Settings,
       items: [
         { title: "General", url: "/settings" },
-        { title: "Domains", url: "/settings/domains" },
-        { title: "Library", url: "/settings/library/tags" },
+        { title: "Library", url: "/settings/library/tags", icon: Folder },
         { title: "Team", url: "/settings/team" },
       ],
     },
@@ -217,9 +219,7 @@ const NavItemComponent = memo<{
         )}
 
         {item.items && (
-          <CollapsibleContent
-            className="overflow-hidden duration-200 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1"
-          >
+          <CollapsibleContent className="data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 overflow-hidden duration-200 ease-out">
             <SidebarMenuSub className="mt-1">
               {renderSubItems(item.items)}
             </SidebarMenuSub>

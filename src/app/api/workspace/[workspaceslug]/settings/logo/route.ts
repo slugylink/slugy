@@ -111,8 +111,8 @@ export async function PATCH(
 
     // Invalidate caches
     await Promise.all([
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
+      revalidateTag("workspace", 'max'),
+      revalidateTag("all-workspaces", 'max'),
       invalidateWorkspaceCache(session.user.id),
       invalidateWorkspaceBySlug(session.user.id, context.workspaceslug),
     ]);
