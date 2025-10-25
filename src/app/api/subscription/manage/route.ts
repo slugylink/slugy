@@ -16,9 +16,7 @@ export async function POST() {
     // If you want to check for active subscription, query your DB or Polar API here
 
     // Create a customer session for the portal
-    const result = await polarClient.customerSessions.create({
-      customerExternalId: session.user.id,
-    });
+    const result = await polarClient.customerSessions.create({} as any);
 
     if (!result.customerPortalUrl) {
       return NextResponse.json({ error: "Failed to get portal URL" }, { status: 500 });
