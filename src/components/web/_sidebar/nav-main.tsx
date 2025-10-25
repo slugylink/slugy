@@ -2,12 +2,10 @@
 
 import {
   ChevronRight,
-  LinkIcon,
   BarChart2,
-  Smartphone,
-  Settings,
   SquareTerminal,
   type LucideIcon,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -26,8 +24,11 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback, useEffect, useRef } from "react";
+import { memo, useMemo, useCallback } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
+import { LinkIcon } from "@/utils/icons/link";
+import { PhoneIcon } from "@/utils/icons/phone";
+import { SettingsIcon } from "@/utils/icons/settings";
 
 // --------------------------
 // Types
@@ -72,13 +73,13 @@ const SIDEBAR_DATA = {
   navMain: [
     { title: "Links", url: "/", icon: LinkIcon },
     { title: "Analytics", url: "/analytics", icon: BarChart2 },
-    { title: "Bio Links", url: "/bio-links", icon: Smartphone },
+    { title: "Bio Links", url: "/bio-links", icon: PhoneIcon },
+    { title: "Domains", url: "/settings/domains", icon: Globe },
     {
       title: "Settings",
-      icon: Settings,
+      icon: SettingsIcon,
       items: [
         { title: "General", url: "/settings" },
-        { title: "Domains", url: "/settings/domains" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
       ],
@@ -94,16 +95,6 @@ const NAV_ACCESS_CONTROL = {
   },
 } as const;
 
-// Core pages to prefetch
-const CORE_PAGES = ["/", "/analytics", "/bio-links"] as const;
-
-// Prefetch configuration
-const PREFETCH_CONFIG = {
-  corePages: CORE_PAGES,
-  delay: 100, // ms delay before prefetching
-  maxConcurrent: 3, // max concurrent prefetch requests
-} as const;
-
 // --------------------------
 // Helpers
 // --------------------------
@@ -114,38 +105,15 @@ const hasAccess = (
 
 const buildUrl = (baseUrl: string, path: string): string => {
   if (!path) return "";
-  if (/^https?:\/\//.test(path)) return path;
+  if (path.startsWith("http")) return path;
   return baseUrl && !path.startsWith(baseUrl)
     ? `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`
     : path;
 };
 
-const getLastSegment = (url: string): string =>
-  url.split("/").filter(Boolean).at(-1) ?? "";
-
-// Prefetch utility with better error handling
-const prefetchPage = (url: string): Promise<void> => {
-  return new Promise((resolve) => {
-    // Check if already prefetched
-    if (document.querySelector(`link[rel="prefetch"][href="${url}"]`)) {
-      resolve();
-      return;
-    }
-
-    try {
-      const link = document.createElement("link");
-      link.rel = "prefetch";
-      link.href = url;
-
-      link.onload = () => resolve();
-      link.onerror = () => resolve(); // Don't fail on error
-
-      document.head.appendChild(link);
-    } catch (error) {
-      console.warn(`Failed to prefetch ${url}:`, error);
-      resolve(); // Don't fail on error
-    }
-  });
+const getLastSegment = (url: string): string => {
+  const segments = url.split("/").filter(Boolean);
+  return segments[segments.length - 1] || "";
 };
 
 // --------------------------
@@ -157,33 +125,20 @@ const NavItemComponent = memo<{
   renderSubItems: (items: NavSubItem[]) => React.ReactNode;
   onNavItemClick?: () => void;
 }>(({ item, isActive, renderSubItems, onNavItemClick }) => {
-  // Memoize the chevron icon to prevent unnecessary re-renders
-  const chevronIcon = useMemo(
-    () => (
-      <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
-    ),
-    [],
+  const chevronIcon = (
+    <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
   );
 
-  // Memoize the item icon to prevent unnecessary re-renders
-  const itemIcon = useMemo(
-    () => item.icon && <item.icon className="size-4" strokeWidth={2} />,
-    [item.icon],
+  const itemIcon = item.icon && (
+    <item.icon className="size-4" strokeWidth={2} />
   );
 
-  const baseButtonClasses = useMemo(
-    () =>
-      cn(
-        "group-hover/menu-item cursor-pointer transition-colors duration-200",
-        isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
-      ),
-    [isActive],
+  const baseButtonClasses = cn(
+    "group-hover/menu-item cursor-pointer transition-colors duration-200",
+    isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
   );
 
-  const titleClasses = useMemo(
-    () => cn("font-normal", isActive && "font-medium"),
-    [isActive],
-  );
+  const titleClasses = cn("font-normal", isActive && "font-medium");
 
   return (
     <Collapsible
@@ -217,9 +172,7 @@ const NavItemComponent = memo<{
         )}
 
         {item.items && (
-          <CollapsibleContent
-            className="overflow-hidden duration-200 ease-out data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1"
-          >
+          <CollapsibleContent className="data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 overflow-hidden duration-200 ease-out">
             <SidebarMenuSub className="mt-1">
               {renderSubItems(item.items)}
             </SidebarMenuSub>
@@ -239,20 +192,12 @@ const SubItemComponent = memo<{
   isActive: boolean;
   onClick?: () => void;
 }>(({ subItem, isActive, onClick }) => {
-  const buttonClasses = useMemo(
-    () =>
-      cn(
-        "group-hover/menu-item transition-colors duration-200",
-        isActive &&
-          "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-      ),
-    [isActive],
+  const buttonClasses = cn(
+    "group-hover/menu-item transition-colors duration-200",
+    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
   );
 
-  const titleClasses = useMemo(
-    () => cn("font-normal", isActive && "font-medium"),
-    [isActive],
-  );
+  const titleClasses = cn("font-normal", isActive && "font-medium");
 
   return (
     <SidebarMenuSubItem key={subItem.title}>
@@ -274,7 +219,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
   workspaces,
 }) {
   const pathname = usePathname();
-  const prefetchRef = useRef<Set<string>>(new Set());
   const { isMobile, setOpenMobile } = useSidebar();
 
   // Workspace & role with better memoization
@@ -319,7 +263,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     return {
       isItemActive: (item: NavItem): boolean => {
         if (item.title === "Bio Links") {
-          // Bio-links is active when pathname includes /bio-links, regardless of workspace
           return pathname.includes("/bio-links");
         }
         if (item.url && getLastSegment(item.url) === lastSegment) return true;
@@ -353,76 +296,6 @@ export const NavMain = memo<NavMainProps>(function NavMain({
       )),
     [activeStateChecker, handleNavItemClick],
   );
-
-  useEffect(() => {
-    const prefetchCorePages = async () => {
-      try {
-        await new Promise((resolve) =>
-          setTimeout(resolve, PREFETCH_CONFIG.delay),
-        );
-
-        for (const page of PREFETCH_CONFIG.corePages) {
-          // Bio-links should always be prefetched at root level
-          const fullUrl =
-            page === "/bio-links" ? page : baseUrl ? `${baseUrl}${page}` : page;
-
-          if (!prefetchRef.current.has(fullUrl)) {
-            prefetchRef.current.add(fullUrl);
-            await prefetchPage(fullUrl);
-          }
-        }
-      } catch (error) {
-        console.warn("Failed to prefetch core pages:", error);
-      }
-    };
-
-    prefetchCorePages();
-  }, [baseUrl]);
-
-  // Prefetch other nav items with better performance
-  useEffect(() => {
-    const prefetchNavItems = async () => {
-      try {
-        // Prefetch with delay and concurrency control
-        await new Promise((resolve) =>
-          setTimeout(resolve, PREFETCH_CONFIG.delay * 2),
-        );
-
-        const urlsToPrefetch = processedNavItems
-          .filter(
-            ({ url, title }) =>
-              url &&
-              title !== "Settings" &&
-              !/^https?:\/\//.test(url) &&
-              !PREFETCH_CONFIG.corePages.some((page) => url.endsWith(page)) &&
-              !prefetchRef.current.has(url),
-          )
-          .map((item) => item.url!)
-          .slice(0, PREFETCH_CONFIG.maxConcurrent);
-
-        // Prefetch in parallel with concurrency limit
-        const prefetchPromises = urlsToPrefetch.map(async (url) => {
-          if (!prefetchRef.current.has(url)) {
-            prefetchRef.current.add(url);
-            await prefetchPage(url);
-          }
-        });
-
-        await Promise.allSettled(prefetchPromises);
-      } catch (error) {
-        console.warn("Failed to prefetch nav items:", error);
-      }
-    };
-
-    prefetchNavItems();
-  }, [processedNavItems]);
-
-  // Cleanup prefetch tracking on unmount
-  useEffect(() => {
-    return () => {
-      prefetchRef.current.clear();
-    };
-  }, []);
 
   return (
     <SidebarGroup className="px-2">
