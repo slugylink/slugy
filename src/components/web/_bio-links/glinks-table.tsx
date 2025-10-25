@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React from "react";
 import GalleryLinkPreview from "./glink-preview";
 import Actions from "./glink-actions";
 import DraggableLinks from "./draggable-links";
@@ -56,82 +56,51 @@ const GalleryLinkTable = ({
   isLoading = false,
   mutate,
 }: GalleryLinkTableProps) => {
-  // Memoized filtered data for better performance
-  const { publicLinks, publicSocials } = useMemo(() => {
+  const { publicLinks, publicSocials } = (() => {
     if (!gallery) return { publicLinks: [], publicSocials: [] };
 
     const publicLinks = gallery.links.filter((link) => link.isPublic);
     const publicSocials = gallery.socials?.filter((s) => s.isPublic) ?? [];
 
     return { publicLinks, publicSocials };
-  }, [gallery?.links, gallery?.socials]);
+  })();
 
-  // Memoized preview container classes
-  const previewContainerClasses = useMemo(
-    () => cn(PREVIEW_CONTAINER_CLASSES),
-    [],
+  const previewContainerClasses = cn(PREVIEW_CONTAINER_CLASSES);
+
+  const previewContentClasses = cn(
+    isLoading ? "animate-pulse backdrop-blur-sm" : PREVIEW_CONTENT_CLASSES,
   );
 
-  // Memoized preview content classes
-  const previewContentClasses = useMemo(
-    () =>
-      cn(
-        isLoading ? "animate-pulse backdrop-blur-sm" : PREVIEW_CONTENT_CLASSES,
-      ),
-    [isLoading],
+  const actionsComponent = <Actions gallery={gallery!} username={username} mutate={mutate} />;
+
+  const draggableLinksComponent = (
+    <DraggableLinks
+      links={gallery?.links ?? []}
+      username={username}
+      mutate={mutate}
+    />
   );
 
-  // Memoized actions component to prevent unnecessary re-renders
-  const actionsComponent = useMemo(
-    () => <Actions gallery={gallery!} username={username} mutate={mutate} />,
-    [gallery, username, mutate],
-  );
-
-  // Memoized draggable links component
-  const draggableLinksComponent = useMemo(
-    () => (
-      <DraggableLinks
-        links={gallery?.links ?? []}
-        username={username}
-        mutate={mutate}
-      />
-    ),
-    [gallery?.links, username, mutate],
-  );
-
-  // Memoized preview component
-  const previewComponent = useMemo(
-    () => (
-      <GalleryLinkPreview
-        username={username}
-        links={publicLinks}
-        socials={publicSocials}
-        name={gallery?.name}
-        bio={gallery?.bio}
-        logo={gallery?.logo}
-        initialTheme={gallery?.theme ?? "default"}
-        mutate={mutate}
-        onThemeChange={(newTheme) => {
-          mutate((currentData) => {
-            if (!currentData) return currentData;
-            return {
-              ...currentData,
-              theme: newTheme,
-            };
-          }, false);
-        }}
-      />
-    ),
-    [
-      username,
-      publicLinks,
-      publicSocials,
-      gallery?.name,
-      gallery?.bio,
-      gallery?.logo,
-      gallery?.theme,
-      mutate,
-    ],
+  const previewComponent = (
+    <GalleryLinkPreview
+      username={username}
+      links={publicLinks}
+      socials={publicSocials}
+      name={gallery?.name}
+      bio={gallery?.bio}
+      logo={gallery?.logo}
+      initialTheme={gallery?.theme ?? "default"}
+      mutate={mutate}
+      onThemeChange={(newTheme) => {
+        mutate((currentData) => {
+          if (!currentData) return currentData;
+          return {
+            ...currentData,
+            theme: newTheme,
+          };
+        }, false);
+      }}
+    />
   );
 
   // Early return if no gallery data
@@ -153,4 +122,4 @@ const GalleryLinkTable = ({
   );
 };
 
-export default React.memo(GalleryLinkTable);
+export default GalleryLinkTable;

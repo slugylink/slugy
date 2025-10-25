@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback } from "react";
+import React from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -86,22 +86,17 @@ export default function GalleryClient({ username }: GalleryClientProps) {
     mutate,
   } = useSWR<Gallery, ApiError>(`/api/bio-gallery/${username}`, fetcher);
 
-  // Memoized loading state
-  const loadingState = useMemo(
-    () => (
-      <div
-        className={`flex ${LOADING_HEIGHT} w-full items-center justify-center`}
-      >
-        <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-      </div>
-    ),
-    [],
+  const loadingState = (
+    <div
+      className={`flex ${LOADING_HEIGHT} w-full items-center justify-center`}
+    >
+      <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+    </div>
   );
 
-  // Memoized redirect handler
-  const handleRedirect = useCallback(() => {
+  const handleRedirect = () => {
     router.push("/bio-links");
-  }, [router]);
+  };
 
   // Handle redirects with useEffect hooks at the top level
   React.useEffect(() => {

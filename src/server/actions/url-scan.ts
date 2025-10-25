@@ -49,9 +49,7 @@ const SAFE_BROWSING_API_BASE = "https://safebrowsing.googleapis.com/v4/threatMat
 const CLIENT_VERSION = "1.0";
 const CACHE_REVALIDATE_SECONDS = 3600; // 1 hour - much longer cache for speed
 const CACHE_TAG = "scan-url-safety";
-const BATCH_SIZE = 50; // Process more URLs at once for speed
 const REQUEST_TIMEOUT_MS = 5000; // 5 second timeout for faster failure
-const RATE_LIMIT_DELAY_MS = 50; // Reduced delay between batches
 
 // Threat types for comprehensive scanning
 const THREAT_TYPES = [
@@ -312,97 +310,4 @@ export async function validateUrlSafety(url: string): Promise<ValidationResult> 
 export async function isUrlScanningAvailable(): Promise<boolean> {
   return !!(process.env.GOOGLE_SAFE_BROWSING_API_KEY && 
            process.env.GOOGLE_SAFE_BROWSING_CLIENT_ID);
-}
-
-// Ultra-fast batch URL validation for multiple URLs
-export async function validateMultipleUrls(urls: string[]): Promise<Map<string, ValidationResult>> {
-  const results = new Map<string, ValidationResult>();
-  
-  if (!urls.length) return results;
-  
-  // Process URLs in larger batches for speed
-  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
-    const batch = urls.slice(i, i + BATCH_SIZE);
-    
-    // Process batch in parallel for maximum speed
-    const batchPromises = batch.map(async (url) => {
-      try {
-        const result = await validateUrlSafety(url);
-        return { url, result };
-      } catch (error) {
-        console.error("Failed to validate URL in batch:", url, error);
-        // Return safe by default for speed
-        return { url, result: { isValid: true } as ValidationResult };
-      }
-    });
-    
-    const batchResults = await Promise.allSettled(batchPromises);
-    
-    batchResults.forEach((promiseResult, index) => {
-      if (promiseResult.status === "fulfilled") {
-        const { url, result } = promiseResult.value;
-        results.set(url, result);
-      } else {
-        const failedUrl = batch[index];
-        console.error("Failed to validate URL in batch:", failedUrl, promiseResult.reason);
-        // Set safe by default for speed
-        results.set(failedUrl, { isValid: true });
-      }
-    });
-    
-    // Minimal delay between batches for speed
-    if (i + BATCH_SIZE < urls.length) {
-      await new Promise(resolve => setTimeout(resolve, RATE_LIMIT_DELAY_MS));
-    }
-  }
-  
-  return results;
-}
-
-// New: Ultra-fast single URL validation with minimal overhead
-export async function validateUrlSafetyFast(url: string): Promise<boolean> {
-  if (!url) return false;
-  
-  try {
-    // Skip normalization for speed if URL looks valid
-    if (!url.includes("://") && !url.includes(".")) {
-      return false; // Invalid URL format
-    }
-    
-    // Use cached result if available
-    const result = await scanUrlSafety(url);
-    return result.isSafe;
-    
-  } catch (error) {
-    console.error("Fast URL validation failed:", error);
-    return true; // Assume safe for speed
-  }
-}
-
-// New: Bulk fast validation for maximum speed
-export async function validateMultipleUrlsFast(urls: string[]): Promise<Map<string, boolean>> {
-  const results = new Map<string, boolean>();
-  
-  if (!urls.length) return results;
-  
-  // Process all URLs in parallel for maximum speed
-  const promises = urls.map(async (url) => {
-    try {
-      const isValid = await validateUrlSafetyFast(url);
-      return { url, isValid };
-    } catch (error) {
-      console.error("Fast URL validation failed:", url, error);
-      return { url, isValid: true }; // Assume safe for speed
-    }
-  });
-  
-  const results_array = await Promise.allSettled(promises);
-  
-  results_array.forEach((result) => {
-    if (result.status === "fulfilled") {
-      results.set(result.value.url, result.value.isValid);
-    }
-  });
-  
-  return results;
 }

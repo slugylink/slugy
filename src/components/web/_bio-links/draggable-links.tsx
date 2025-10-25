@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import GalleryLinkCard from "./glink-card";
 import {
   DragDropContext,
@@ -51,7 +51,7 @@ interface DraggableLinksProps {
   mutate: KeyedMutator<Gallery>;
 }
 
-const EmptyState = React.memo(() => (
+const EmptyState = () => (
   <div className={EMPTY_STATE_CLASSES} aria-label="No links found">
     <Smartphone className="animate-fade-in" size={50} strokeWidth={1.1} />
     <h2 className="mt-2 text-lg font-medium">No bio links found</h2>
@@ -59,8 +59,7 @@ const EmptyState = React.memo(() => (
       Add a link to get started.
     </p>
   </div>
-));
-EmptyState.displayName = "EmptyState";
+);
 
 const DraggableLinks = ({
   links: initialLinks,
@@ -83,64 +82,52 @@ const DraggableLinks = ({
   // Debounce the pending reorder to batch multiple rapid reorder operations
   const debouncedPendingReorder = useDebounce(pendingReorder, DEBOUNCE_DELAY);
 
-  const isEmpty = useMemo(() => links.length === 0, [links.length]);
+  const isEmpty = links.length === 0;
 
-  // Memoized reorder function for better performance
-  const reorderLinks = useCallback(
-    (sourceIndex: number, destinationIndex: number) => {
-      const items = Array.from(links);
-      const [reorderedItem] = items.splice(sourceIndex, 1);
+  const reorderLinks = (sourceIndex: number, destinationIndex: number) => {
+    const items = Array.from(links);
+    const [reorderedItem] = items.splice(sourceIndex, 1);
 
-      if (reorderedItem) {
-        items.splice(destinationIndex, 0, reorderedItem);
+    if (reorderedItem) {
+      items.splice(destinationIndex, 0, reorderedItem);
 
-        return items.map((item, index) => ({
-          ...item,
-          position: index,
-        }));
-      }
+      return items.map((item, index) => ({
+        ...item,
+        position: index,
+      }));
+    }
 
-      return items;
-    },
-    [links],
-  );
+    return items;
+  };
 
-  // Memoized API update function
-  const updatePositionsInBackend = useCallback(
-    async (updatedItems: Link[]) => {
-      try {
-        await axios.put(`/api/bio-gallery/${username}/link/reorder`, {
-          links: updatedItems.map((link) => ({
-            id: link.id,
-            position: link.position,
-          })),
-        });
+  const updatePositionsInBackend = async (updatedItems: Link[]) => {
+    try {
+      await axios.put(`/api/bio-gallery/${username}/link/reorder`, {
+        links: updatedItems.map((link) => ({
+          id: link.id,
+          position: link.position,
+        })),
+      });
 
-        return true;
-      } catch (error) {
-        console.error("Error updating link positions:", error);
-        return false;
-      }
-    },
-    [username],
-  );
+      return true;
+    } catch (error) {
+      console.error("Error updating link positions:", error);
+      return false;
+    }
+  };
 
-  // Memoized SWR cache update function
-  const updateSWRCache = useCallback(
-    (updatedItems: Link[]) => {
-      return mutate(
-        (currentData: Gallery | undefined) => {
-          if (!currentData) return currentData;
-          return {
-            ...currentData,
-            links: updatedItems,
-          };
-        },
-        { revalidate: false },
-      );
-    },
-    [mutate],
-  );
+  const updateSWRCache = (updatedItems: Link[]) => {
+    return mutate(
+      (currentData: Gallery | undefined) => {
+        if (!currentData) return currentData;
+        return {
+          ...currentData,
+          links: updatedItems,
+        };
+      },
+      { revalidate: false },
+    );
+  };
 
   // Handle the actual backend update when debounced reorder is ready
   useEffect(() => {
@@ -185,67 +172,51 @@ const DraggableLinks = ({
     }
   }, [debouncedPendingReorder, isReordering, updatePositionsInBackend, updateSWRCache, initialLinks, mutate]);
 
-  // Optimized drag end handler with debouncing
-  const handleDragEnd = useCallback(
-    (result: DropResult) => {
-      if (!result.destination || !result.source) return;
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination || !result.source) return;
 
-      const sourceIndex = result.source.index;
-      const destinationIndex = result.destination.index;
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
 
-      // No change in position
-      if (sourceIndex === destinationIndex) return;
+    if (sourceIndex === destinationIndex) return;
 
-      // Optimistically update UI immediately for better UX
-      const updatedItems = reorderLinks(sourceIndex, destinationIndex);
-      setLinks(updatedItems);
+    const updatedItems = reorderLinks(sourceIndex, destinationIndex);
+    setLinks(updatedItems);
 
-      // Set pending reorder for debounced backend update
-      setPendingReorder(updatedItems);
-    },
-    [reorderLinks],
-  );
+    setPendingReorder(updatedItems);
+  };
 
-  // Memoized links mapping for better performance
-  const renderedLinks = useMemo(
-    () =>
-      links.map((link, index) => (
-        <Draggable key={link.id} draggableId={link.id} index={index}>
-          {(provided: DraggableProvided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.draggableProps}
-              {...provided.dragHandleProps}
-            >
-              <GalleryLinkCard
-                link={link}
-                username={username}
-                mutate={mutate}
-              />
-            </div>
-          )}
-        </Draggable>
-      )),
-    [links, username, mutate],
-  );
+  const renderedLinks = links.map((link, index) => (
+    <Draggable key={link.id} draggableId={link.id} index={index}>
+      {(provided: DraggableProvided) => (
+        <div
+          ref={provided.innerRef}
+          {...provided.draggableProps}
+          {...provided.dragHandleProps}
+        >
+          <GalleryLinkCard
+            link={link}
+            username={username}
+            mutate={mutate}
+          />
+        </div>
+      )}
+    </Draggable>
+  ));
 
-  // Memoized droppable content
-  const droppableContent = useMemo(
-    () => (
-      <Droppable droppableId="links">
-        {(provided: DroppableProvided) => (
-          <div
-            {...provided.droppableProps}
-            ref={provided.innerRef}
-            className={LINKS_CONTAINER_CLASSES}
-          >
-            {isEmpty ? <EmptyState /> : renderedLinks}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    ),
-    [isEmpty, renderedLinks],
+  const droppableContent = (
+    <Droppable droppableId="links">
+      {(provided: DroppableProvided) => (
+        <div
+          {...provided.droppableProps}
+          ref={provided.innerRef}
+          className={LINKS_CONTAINER_CLASSES}
+        >
+          {isEmpty ? <EmptyState /> : renderedLinks}
+          {provided.placeholder}
+        </div>
+      )}
+    </Droppable>
   );
 
   return (
@@ -255,4 +226,4 @@ const DraggableLinks = ({
   );
 };
 
-export default React.memo(DraggableLinks);
+export default DraggableLinks;

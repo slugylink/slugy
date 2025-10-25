@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React from "react";
 import QRCode from "react-qr-code";
 import { QrCode as QrCodeIcon } from "lucide-react";
 import type { Options } from "qr-code-styling";
@@ -67,7 +67,7 @@ const LinkQrCode: React.FC<LinkQrCodeProps> = ({
   code,
   customization,
 }) => {
-  const mergedOptions = useMemo(() => {
+  const mergedOptions = (() => {
     let custom: Partial<Options> = {};
     if (customization) {
       if (typeof customization === "string") {
@@ -118,7 +118,7 @@ const LinkQrCode: React.FC<LinkQrCodeProps> = ({
         ...(custom.backgroundOptions || {}),
       },
     };
-  }, [customization]);
+  })();
 
   return (
     <div className="flex aspect-[16/7] items-center justify-center rounded-lg border">

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useMemo } from "react";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -108,7 +108,7 @@ const COPY_TIMEOUT = 2000;
 // Dialog state hook (only opens/close specific dialogs)
 const useDialogState = () => {
   const [openDialogs, setOpenDialogs] = useState<Set<DialogType>>(new Set());
-  const toggleDialog = useCallback((dialog: DialogType, isOpen?: boolean) => {
+  const toggleDialog = (dialog: DialogType, isOpen?: boolean) => {
     setOpenDialogs((prev) => {
       const newSet = new Set(prev);
       if (isOpen === false || (isOpen === undefined && newSet.has(dialog))) {
@@ -118,49 +118,43 @@ const useDialogState = () => {
       }
       return newSet;
     });
-  }, []);
-  const isDialogOpen = useCallback(
-    (dialog: DialogType) => openDialogs.has(dialog),
-    [openDialogs],
-  );
+  };
+  const isDialogOpen = (dialog: DialogType) => openDialogs.has(dialog);
   return { toggleDialog, isDialogOpen };
 };
 
 const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
-  const mutateLinks = useCallback(() => {
+  const mutateLinks = () => {
     return mutate(
       (key) => typeof key === "string" && key.includes("/link/get"),
       undefined,
       { revalidate: true },
     );
-  }, []);
-  const handleArchive = useCallback(
-    async (isArchived: boolean) => {
-      if (!workspaceslug || !linkId) return;
-      try {
-        const response = await axios.patch(
-          `/api/workspace/${workspaceslug}/link/${linkId}/archive`,
-          { isArchived: !isArchived },
+  };
+  const handleArchive = async (isArchived: boolean) => {
+    if (!workspaceslug || !linkId) return;
+    try {
+      const response = await axios.patch(
+        `/api/workspace/${workspaceslug}/link/${linkId}/archive`,
+        { isArchived: !isArchived },
+      );
+      if (response.status === 200) {
+        toast.success(
+          isArchived
+            ? "Link unarchived successfully!"
+            : "Link archived successfully!",
         );
-        if (response.status === 200) {
-          toast.success(
-            isArchived
-              ? "Link unarchived successfully!"
-              : "Link archived successfully!",
-          );
-          void mutateLinks();
-        }
-      } catch (error) {
-        console.error("Archive error:", error);
-        toast.error("Error updating link archive status. Please try again.");
+        void mutateLinks();
       }
-    },
-    [workspaceslug, linkId, mutateLinks],
-  );
+    } catch (error) {
+      console.error("Archive error:", error);
+      toast.error("Error updating link archive status. Please try again.");
+    }
+  };
 
-  const handleDelete = useCallback(async () => {
+  const handleDelete = async () => {
     if (!workspaceslug || !linkId) return;
     try {
       setIsDeleting(true);
@@ -178,7 +172,7 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
     } finally {
       setIsDeleting(false);
     }
-  }, [workspaceslug, linkId, mutateLinks]);
+  };
   return { handleArchive, handleDelete, isDeleting };
 };
 
@@ -222,12 +216,11 @@ export default function LinkCard({
     link.id,
   );
   const [isCopied, setIsCopied] = useState(false);
-  const shortUrl = useMemo(() => {
-    const domain = link.domain || "slugy.co";
-    return `https://${domain}/${link.slug}`;
-  }, [link.domain, link.slug]);
-  const editFormData = useMemo(() => createEditFormData(link), [link]);
-  const handleCopy = useCallback(async () => {
+  
+  const shortUrl = `https://${link.domain || "slugy.co"}/${link.slug}`;
+  const editFormData = createEditFormData(link);
+  
+  const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(shortUrl);
       setIsCopied(true);
@@ -237,65 +230,59 @@ export default function LinkCard({
       console.error("Copy error:", error);
       toast.error("Failed to copy to clipboard");
     }
-  }, [shortUrl]);
+  };
 
   // Action handlers mapping
-  const actionHandlers = useMemo(
-    () => ({
-      edit: () => {
-        toggleDialog("edit", true);
-        toggleDialog("dropdown", false);
-      },
-      qrCode: () => {
-        toggleDialog("qrCode", true);
-        toggleDialog("dropdown", false);
-      },
-      copy: async () => {
-        await handleCopy();
-        toggleDialog("dropdown", false);
-      },
-      archive: async () => {
-        await handleArchive(link.isArchived ?? false);
-        toggleDialog("dropdown", false);
-      },
-      delete: () => {
-        toggleDialog("delete", true);
-        toggleDialog("dropdown", false);
-      },
-    }),
-    [toggleDialog, handleCopy, handleArchive, link.isArchived],
-  );
+  const actionHandlers = {
+    edit: () => {
+      toggleDialog("edit", true);
+      toggleDialog("dropdown", false);
+    },
+    qrCode: () => {
+      toggleDialog("qrCode", true);
+      toggleDialog("dropdown", false);
+    },
+    copy: async () => {
+      await handleCopy();
+      toggleDialog("dropdown", false);
+    },
+    archive: async () => {
+      await handleArchive(link.isArchived ?? false);
+      toggleDialog("dropdown", false);
+    },
+    delete: () => {
+      toggleDialog("delete", true);
+      toggleDialog("dropdown", false);
+    },
+  };
 
   // Dropdown menu items
-  const dropdownItems = useMemo(
-    () => [
-      { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
-      { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
-      { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
-      { type: "separator" as const },
-      {
-        icon: Archive,
-        label: link.isArchived ? "Unarchive" : "Archive",
-        onClick: actionHandlers.archive,
-      },
-      {
-        icon: Trash,
-        label: "Delete",
-        color: "text-destructive hover:text-destructive",
-        onClick: actionHandlers.delete,
-      },
-    ],
-    [link.isArchived, actionHandlers],
-  );
+  const dropdownItems = [
+    { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
+    { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
+    { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
+    { type: "separator" as const },
+    {
+      icon: Archive,
+      label: link.isArchived ? "Unarchive" : "Archive",
+      onClick: actionHandlers.archive,
+    },
+    {
+      icon: Trash,
+      label: "Delete",
+      color: "text-destructive hover:text-destructive",
+      onClick: actionHandlers.delete,
+    },
+  ];
 
-  const handleCardClick = useCallback(() => {
+  const handleCardClick = () => {
     if (isSelectModeOn && onSelect) onSelect();
-  }, [isSelectModeOn, onSelect]);
+  };
 
-  const handleDeleteConfirm = useCallback(async () => {
+  const handleDeleteConfirm = async () => {
     await handleDelete();
     toggleDialog("delete", false);
-  }, [handleDelete, toggleDialog]);
+  };
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -353,7 +340,7 @@ export default function LinkCard({
                   className="mr-3 hidden aspect-square size-[25px] rounded-full border bg-zinc-100/50 p-0 md:flex"
                   onClick={actionHandlers.qrCode}
                 >
-                  <QrCode className="max-h-[13px] max-w-[13px] text-black dark:text-white" />
+                  <QrCode className="max-h-[12.5px] max-w-[13px] text-black dark:text-white" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>QR Code</TooltipContent>
@@ -431,7 +418,7 @@ export default function LinkCard({
               linkId={link.id}
               domain={link.domain || "slugy.co"}
               code={link.slug}
-              onOpenChange={(open) => toggleDialog("qrCode", open)}
+              onOpenChange={(open: boolean) => toggleDialog("qrCode", open)}
             />
           </DialogContent>
         </Dialog>

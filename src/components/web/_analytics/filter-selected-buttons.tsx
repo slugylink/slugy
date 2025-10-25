@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback, memo } from "react";
+import React from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
@@ -58,12 +58,12 @@ interface FilterButtonProps {
   onRemoveFilter: (categoryId: CategoryId, value: string) => void;
 }
 
-const FilterButton = memo<FilterButtonProps>(({
+const FilterButton = ({
   category,
   value,
   getOptionLabel,
   onRemoveFilter
-}) => {
+}: FilterButtonProps) => {
   const optionLabel = getOptionLabel(category, value);
 
   return (
@@ -91,30 +91,24 @@ const FilterButton = memo<FilterButtonProps>(({
       />
     </Button>
   );
-});
-
-FilterButton.displayName = "FilterButton";
+};
 
 const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
   filterCategories,
   selectedFilters,
   onRemoveFilter,
 }) => {
-  const selectedFilterCount = useMemo(
-    () => Object.values(selectedFilters).flat().length,
-    [selectedFilters],
-  );
+  const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
-  const displayNames = useMemo(() => {
+  const displayNames = (() => {
     try {
       return new Intl.DisplayNames(["en"], { type: "region" });
     } catch {
       return null;
     }
-  }, []);
+  })();
 
-  // Create lookup maps for faster option retrieval
-  const optionLookupMaps = useMemo(() => {
+  const optionLookupMaps = (() => {
     const maps = new Map<CategoryId, Map<string, FilterOption>>();
 
     filterCategories.forEach((category) => {
@@ -158,65 +152,56 @@ const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
     });
 
     return maps;
-  }, [filterCategories]);
+  })();
 
-  const getOptionByValue = useCallback(
-    (category: FilterCategory, value: string): FilterOption | undefined => {
-      return optionLookupMaps.get(category.id)?.get(value);
-    },
-    [optionLookupMaps],
-  );
+  const getOptionByValue = (category: FilterCategory, value: string): FilterOption | undefined => {
+    return optionLookupMaps.get(category.id)?.get(value);
+  };
 
-  const getOptionLabel = useCallback(
-    (category: FilterCategory, value: string) => {
-      const option = getOptionByValue(category, value);
-      if (!option) return value;
-      switch (category.id) {
-        case "slug_key":
-          return (option as LinkAnalytics).slug || value;
-        case "continent_key": {
-          const code = (
-            (option as ContinentAnalytics).continent || value
-          ).toLowerCase();
-          return CONTINENT_NAMES[code as keyof typeof CONTINENT_NAMES] || code;
-        }
-        case "country_key": {
-          const code = (option as CountryAnalytics).country || value;
-          try {
-            return displayNames?.of(code.toUpperCase()) || code;
-          } catch {
-            return code;
-          }
-        }
-        case "city_key":
-          return (option as CityAnalytics).city || value;
-        case "browser_key":
-          return (option as BrowserAnalytics).browser || value;
-        case "os_key":
-          return (option as OsAnalytics).os || value;
-        case "device_key":
-          return (option as DeviceAnalytics).device || value;
-        case "referrer_key":
-          return (option as ReferrerAnalytics).referrer || value;
-        case "destination_key":
-          return (option as DestinationAnalytics).destination || value;
-        default:
-          return value;
+  const getOptionLabel = (category: FilterCategory, value: string) => {
+    const option = getOptionByValue(category, value);
+    if (!option) return value;
+    switch (category.id) {
+      case "slug_key":
+        return (option as LinkAnalytics).slug || value;
+      case "continent_key": {
+        const code = (
+          (option as ContinentAnalytics).continent || value
+        ).toLowerCase();
+        return CONTINENT_NAMES[code as keyof typeof CONTINENT_NAMES] || code;
       }
-    },
-    [displayNames, getOptionByValue],
-  );
+      case "country_key": {
+        const code = (option as CountryAnalytics).country || value;
+        try {
+          return displayNames?.of(code.toUpperCase()) || code;
+        } catch {
+          return code;
+        }
+      }
+      case "city_key":
+        return (option as CityAnalytics).city || value;
+      case "browser_key":
+        return (option as BrowserAnalytics).browser || value;
+      case "os_key":
+        return (option as OsAnalytics).os || value;
+      case "device_key":
+        return (option as DeviceAnalytics).device || value;
+      case "referrer_key":
+        return (option as ReferrerAnalytics).referrer || value;
+      case "destination_key":
+        return (option as DestinationAnalytics).destination || value;
+      default:
+        return value;
+    }
+  };
 
-  // Group filters by category for rendering
-  const filtersByCategory = useMemo(() => {
-    return filterCategories.reduce<
-      Array<{ category: FilterCategory; values: string[] }>
-    >((acc, category) => {
-      const values = selectedFilters[category.id] || [];
-      if (values.length > 0) acc.push({ category, values });
-      return acc;
-    }, []);
-  }, [filterCategories, selectedFilters]);
+  const filtersByCategory = filterCategories.reduce<
+    Array<{ category: FilterCategory; values: string[] }>
+  >((acc, category) => {
+    const values = selectedFilters[category.id] || [];
+    if (values.length > 0) acc.push({ category, values });
+    return acc;
+  }, []);
 
   if (selectedFilterCount === 0) return null;
 

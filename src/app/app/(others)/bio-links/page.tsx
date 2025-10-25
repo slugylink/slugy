@@ -20,21 +20,16 @@ interface CacheResult {
   userId: string;
 }
 
-// Helper function to detect static generation context
 async function isStaticGeneration(): Promise<boolean> {
   try {
     const headersList = await headers();
-    // During static generation, some headers may not be available
     return !headersList.has('host');
   } catch {
-    // If headers() fails, we're likely in static generation
     return true;
   }
 }
 
-// Helper function to get user session with better error handling
 async function getUserSession() {
-  // Skip authentication during static generation
   if (await isStaticGeneration()) {
     throw new Error("Authentication skipped during static generation");
   }
@@ -54,7 +49,6 @@ async function getUserSession() {
   }
 }
 
-// Helper function to fetch bio data with better error handling
 async function fetchBioData(userId: string): Promise<BioData | null> {
   try {
     const bio = await db.bio.findFirst({
@@ -80,12 +74,10 @@ async function fetchBioData(userId: string): Promise<BioData | null> {
   }
 }
 
-// Helper function to handle redirects with better performance
 async function handleRedirect(
   username: string,
   delay: number = REDIRECT_DELAY,
 ) {
-  // Small delay to allow for better UX and prevent flash
   if (delay > 0) {
     await new Promise((resolve) => setTimeout(resolve, delay));
   }
@@ -93,14 +85,11 @@ async function handleRedirect(
   return redirect(`/bio-links/${username}`);
 }
 
-// Helper function to handle cache operations with better error handling
 async function handleCacheOperations(userId: string, bioData: BioData | null) {
   try {
     if (bioData) {
-      // Cache successful result
       await setDefaultBioCache(userId, bioData);
     } else {
-      // Cache null result to avoid repeated DB queries
       await setDefaultBioCache(userId, null);
     }
   } catch {
@@ -109,9 +98,7 @@ async function handleCacheOperations(userId: string, bioData: BioData | null) {
 }
 
 export default async function BioLinks() {
-  // Handle static generation case
   if (await isStaticGeneration()) {
-    // During static generation, return a loading state or basic component
     return (
       <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
         <div className="text-center">
@@ -153,7 +140,6 @@ export default async function BioLinks() {
 
     return handleRedirect(bioData.username);
   } catch (error) {
-
     if (error instanceof Error) {
       if (error.message.includes("Authentication failed") || error.message.includes("Authentication skipped")) {
         return redirect("/login");

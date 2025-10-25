@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useCallback, useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -108,8 +108,7 @@ interface FilterActionsProps {
   filterCategories: FilterCategory[];
 }
 
-// OptimizedImage component with loading and error handling
-const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
+const OptimizedImage = ({ src, alt }: { src: string; alt: string }) => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(false);
 
@@ -129,98 +128,93 @@ const OptimizedImage = memo(({ src, alt }: { src: string; alt: string }) => {
       onError={() => setError(true)}
     />
   );
-});
-OptimizedImage.displayName = "OptimizedImage";
+};
 
-// FilterOptionItem component showing checkbox and icon/label
-const FilterOptionItem = memo(
-  ({
-    category,
-    option,
-    isSelected,
-    onSelect,
-    getOptionLabel,
-    getOptionIcon,
-  }: {
-    category: FilterCategory;
-    option: FilterOption;
-    isSelected: boolean;
-    onSelect: (event: Event) => void;
-    getOptionValue: (category: FilterCategory, option: FilterOption) => string;
-    getOptionLabel: (category: FilterCategory, option: FilterOption) => string;
-    getOptionIcon: (
-      category: FilterCategory,
-      option: FilterOption,
-    ) => string | undefined;
-  }) => {
-    const label = getOptionLabel(category, option);
-    const icon = getOptionIcon(category, option);
+const FilterOptionItem = ({
+  category,
+  option,
+  isSelected,
+  onSelect,
+  getOptionLabel,
+  getOptionIcon,
+}: {
+  category: FilterCategory;
+  option: FilterOption;
+  isSelected: boolean;
+  onSelect: (event: Event) => void;
+  getOptionValue: (category: FilterCategory, option: FilterOption) => string;
+  getOptionLabel: (category: FilterCategory, option: FilterOption) => string;
+  getOptionIcon: (
+    category: FilterCategory,
+    option: FilterOption,
+  ) => string | undefined;
+}) => {
+  const label = getOptionLabel(category, option);
+  const icon = getOptionIcon(category, option);
 
-    return (
-      <DropdownMenuCheckboxItem
-        checked={isSelected}
-        onSelect={onSelect}
-        className="px-3 py-1.5 pl-8 transition-all duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-      >
-        <div className="flex cursor-pointer items-center gap-2">
-          {category.id === "slug_key" && (
-            <span className="line-clamp-1 flex items-center gap-x-2">
-              <UrlAvatar size={5} url={(option as LinkAnalytics).url} />
-              {label}
+  return (
+    <DropdownMenuCheckboxItem
+      checked={isSelected}
+      onSelect={onSelect}
+      className="px-3 py-1.5 pl-8 transition-all duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+    >
+      <div className="flex cursor-pointer items-center gap-2">
+        {category.id === "slug_key" && (
+          <span className="line-clamp-1 flex items-center gap-x-2">
+            <UrlAvatar size={5} url={(option as LinkAnalytics).url} />
+            {label}
+          </span>
+        )}
+        {category.id === "country_key" && (
+          <CountryFlag code={(option as CountryAnalytics).country} />
+        )}
+        {category.id === "city_key" && (
+          <>
+            <CountryFlag
+              allowCountry={false}
+              code={(option as CityAnalytics).country}
+            />
+            <span className="line-clamp-1 capitalize">
+              {(option as CityAnalytics).city}
             </span>
-          )}
-          {category.id === "country_key" && (
-            <CountryFlag code={(option as CountryAnalytics).country} />
-          )}
-          {category.id === "city_key" && (
-            <>
-              <CountryFlag
-                allowCountry={false}
-                code={(option as CityAnalytics).country}
-              />
-              <span className="line-clamp-1 capitalize">
-                {(option as CityAnalytics).city}
-              </span>
-            </>
-          )}
-          {category.id === "continent_key" && (
-            <>
-              <NotoGlobeShowingAmericas />
-              <ContinentFlag code={(option as ContinentAnalytics).continent} />
-            </>
-          )}
-          {(category.id === "browser_key" ||
-            category.id === "os_key" ||
-            category.id === "device_key") && (
-            <>
-              <OptimizedImage src={icon ?? ""} alt={label} />
-              <span className="line-clamp-1 capitalize">{label}</span>
-            </>
-          )}
-          {category.id === "referrer_key" && (
-            <>
-              <UrlAvatar
-                size={5}
-                url={(option as ReferrerAnalytics).referrer}
-              />
-              <span className="line-clamp-1">{label}</span>
-            </>
-          )}
-          {category.id === "destination_key" && (
-            <>
-              <UrlAvatar
-                size={5}
-                url={(option as DestinationAnalytics).destination}
-              />
-              <span className="line-clamp-1">{label}</span>
-            </>
-          )}
-        </div>
-      </DropdownMenuCheckboxItem>
-    );
-  },
-);
-FilterOptionItem.displayName = "FilterOptionItem";
+          </>
+        )}
+        {category.id === "continent_key" && (
+          <>
+            <NotoGlobeShowingAmericas />
+            <ContinentFlag code={(option as ContinentAnalytics).continent} />
+          </>
+        )}
+        {(category.id === "browser_key" ||
+          category.id === "os_key" ||
+          category.id === "device_key") && (
+          <>
+            <OptimizedImage src={icon ?? ""} alt={label} />
+            <span className="line-clamp-1 capitalize">{label}</span>
+          </>
+        )}
+        {category.id === "referrer_key" && (
+          <>
+            <UrlAvatar
+              size={5}
+              url={(option as ReferrerAnalytics).referrer}
+            />
+            <span className="line-clamp-1">{label}</span>
+          </>
+        )}
+        {category.id === "destination_key" && (
+          <>
+            <UrlAvatar
+              size={5}
+              url={(option as DestinationAnalytics).destination}
+            />
+            <span className="line-clamp-1">{label}</span>
+          </>
+        )}
+      </div>
+    </DropdownMenuCheckboxItem>
+  );
+};
 
 // Time period selector component
 interface TimePeriodSelectorProps {
@@ -228,10 +222,10 @@ interface TimePeriodSelectorProps {
   onTimePeriodChange: (value: string) => void;
 }
 
-const TimePeriodSelector = memo<TimePeriodSelectorProps>(({
+const TimePeriodSelector = ({
   timePeriod,
   onTimePeriodChange
-}) => (
+}: TimePeriodSelectorProps) => (
   <Select value={timePeriod} onValueChange={onTimePeriodChange}>
     <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300">
       <Calendar /> <SelectValue placeholder="Select time range" />
@@ -281,9 +275,7 @@ const TimePeriodSelector = memo<TimePeriodSelectorProps>(({
       </div>
     </SelectContent>
   </Select>
-));
-
-TimePeriodSelector.displayName = "TimePeriodSelector";
+);
 
 // Filter groups component for better organization
 interface FilterGroupsProps {
@@ -291,7 +283,7 @@ interface FilterGroupsProps {
   onCategoryClick: (categoryId: CategoryId) => void;
 }
 
-const FilterGroups = memo<FilterGroupsProps>(({ filteredCategories, onCategoryClick }) => {
+const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps) => {
   const hasGroup1 = filteredCategories.some(cat => cat.id === "slug_key" || cat.id === "destination_key");
   const hasGroup2 = filteredCategories.some(cat =>
     cat.id === "country_key" || cat.id === "city_key" || cat.id === "continent_key"
@@ -460,9 +452,7 @@ const FilterGroups = memo<FilterGroupsProps>(({ filteredCategories, onCategoryCl
       )}
     </div>
   );
-});
-
-FilterGroups.displayName = "FilterGroups";
+};
 
 const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   // nuqs query states for all category filters & time period
@@ -510,193 +500,147 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   const [activeCategory, setActiveCategory] = useState<CategoryId | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Compose selected filters into an object
-  const selectedFilters = useMemo(
-    () => ({
-      slug_key: slugFilter,
-      continent_key: continentFilter,
-      country_key: countryFilter,
-      city_key: cityFilter,
-      browser_key: browserFilter,
-      os_key: osFilter,
-      device_key: deviceFilter,
-      referrer_key: referrerFilter,
-      destination_key: destinationFilter,
-    }),
-    [
-      slugFilter,
-      continentFilter,
-      countryFilter,
-      cityFilter,
-      browserFilter,
-      osFilter,
-      deviceFilter,
-      referrerFilter,
-      destinationFilter,
-    ],
-  );
+  const selectedFilters = {
+    slug_key: slugFilter,
+    continent_key: continentFilter,
+    country_key: countryFilter,
+    city_key: cityFilter,
+    browser_key: browserFilter,
+    os_key: osFilter,
+    device_key: deviceFilter,
+    referrer_key: referrerFilter,
+    destination_key: destinationFilter,
+  };
 
-  const handleTimePeriodChange = useCallback(
-    (newTimePeriod: string) => {
-      void setTimePeriod(newTimePeriod);
-    },
-    [setTimePeriod],
-  );
+  const handleTimePeriodChange = (newTimePeriod: string) => {
+    void setTimePeriod(newTimePeriod);
+  };
 
-  const handleFilterChange = useCallback(
-    (categoryId: CategoryId, value: string) => {
-      const current: string[] = selectedFilters[categoryId] ?? [];
-      const updated = current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value];
+  const handleFilterChange = (categoryId: CategoryId, value: string) => {
+    const current: string[] = selectedFilters[categoryId] ?? [];
+    const updated = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
 
-      // Update or clear filters
-      switch (categoryId) {
-        case "slug_key":
-          void setSlugFilter(updated.length ? updated : null);
-          break;
-        case "continent_key":
-          void setContinentFilter(updated.length ? updated : null);
-          break;
-        case "country_key":
-          void setCountryFilter(updated.length ? updated : null);
-          break;
-        case "city_key":
-          void setCityFilter(updated.length ? updated : null);
-          break;
-        case "browser_key":
-          void setBrowserFilter(updated.length ? updated : null);
-          break;
-        case "os_key":
-          void setOsFilter(updated.length ? updated : null);
-          break;
-        case "device_key":
-          void setDeviceFilter(updated.length ? updated : null);
-          break;
-        case "referrer_key":
-          void setReferrerFilter(updated.length ? updated : null);
-          break;
-        case "destination_key":
-          void setDestinationFilter(updated.length ? updated : null);
-          break;
-      }
-    },
-    [
-      selectedFilters,
-      setSlugFilter,
-      setContinentFilter,
-      setCountryFilter,
-      setCityFilter,
-      setBrowserFilter,
-      setOsFilter,
-      setDeviceFilter,
-      setReferrerFilter,
-      setDestinationFilter,
-    ],
-  );
+    // Update or clear filters
+    switch (categoryId) {
+      case "slug_key":
+        void setSlugFilter(updated.length ? updated : null);
+        break;
+      case "continent_key":
+        void setContinentFilter(updated.length ? updated : null);
+        break;
+      case "country_key":
+        void setCountryFilter(updated.length ? updated : null);
+        break;
+      case "city_key":
+        void setCityFilter(updated.length ? updated : null);
+        break;
+      case "browser_key":
+        void setBrowserFilter(updated.length ? updated : null);
+        break;
+      case "os_key":
+        void setOsFilter(updated.length ? updated : null);
+        break;
+      case "device_key":
+        void setDeviceFilter(updated.length ? updated : null);
+        break;
+      case "referrer_key":
+        void setReferrerFilter(updated.length ? updated : null);
+        break;
+      case "destination_key":
+        void setDestinationFilter(updated.length ? updated : null);
+        break;
+    }
+  };
 
-  const removeFilter = useCallback(
-    (categoryId: CategoryId, value: string) => {
-      handleFilterChange(categoryId, value);
-    },
-    [handleFilterChange],
-  );
+  const removeFilter = (categoryId: CategoryId, value: string) => {
+    handleFilterChange(categoryId, value);
+  };
 
-  const getOptionValue = useCallback(
-    (category: FilterCategory, option: FilterOption): string => {
-      switch (category.id) {
-        case "slug_key":
-          return (option as LinkAnalytics).slug;
-        case "continent_key":
-          return (option as ContinentAnalytics).continent;
-        case "country_key":
-          return (option as CountryAnalytics).country;
-        case "city_key":
-          return (option as CityAnalytics).city;
-        case "browser_key":
-          return (option as BrowserAnalytics).browser;
-        case "os_key":
-          return (option as OsAnalytics).os;
-        case "device_key":
-          return (option as DeviceAnalytics).device;
-        case "referrer_key":
-          return (option as ReferrerAnalytics).referrer;
-        case "destination_key":
-          return (option as DestinationAnalytics).destination;
-        default:
-          return "";
-      }
-    },
-    [],
-  );
+  const getOptionValue = (category: FilterCategory, option: FilterOption): string => {
+    switch (category.id) {
+      case "slug_key":
+        return (option as LinkAnalytics).slug;
+      case "continent_key":
+        return (option as ContinentAnalytics).continent;
+      case "country_key":
+        return (option as CountryAnalytics).country;
+      case "city_key":
+        return (option as CityAnalytics).city;
+      case "browser_key":
+        return (option as BrowserAnalytics).browser;
+      case "os_key":
+        return (option as OsAnalytics).os;
+      case "device_key":
+        return (option as DeviceAnalytics).device;
+      case "referrer_key":
+        return (option as ReferrerAnalytics).referrer;
+      case "destination_key":
+        return (option as DestinationAnalytics).destination;
+      default:
+        return "";
+    }
+  };
 
-  const getOptionLabel = useCallback(
-    (category: FilterCategory, option: FilterOption): string => {
-      switch (category.id) {
-        case "slug_key":
-          return `slugy.co/${(option as LinkAnalytics).slug}`;
-        case "continent_key":
-          return (option as ContinentAnalytics).continent;
-        case "country_key":
-          return (option as CountryAnalytics).country;
-        case "city_key":
-          return (option as CityAnalytics).city;
-        case "browser_key":
-          return (option as BrowserAnalytics).browser;
-        case "os_key":
-          return (option as OsAnalytics).os;
-        case "device_key":
-          return (option as DeviceAnalytics).device;
-        case "referrer_key":
-          return (option as ReferrerAnalytics).referrer;
-        case "destination_key":
-          return (option as DestinationAnalytics).destination;
-        default:
-          return "";
-      }
-    },
-    [],
-  );
+  const getOptionLabel = (category: FilterCategory, option: FilterOption): string => {
+    switch (category.id) {
+      case "slug_key":
+        return `slugy.co/${(option as LinkAnalytics).slug}`;
+      case "continent_key":
+        return (option as ContinentAnalytics).continent;
+      case "country_key":
+        return (option as CountryAnalytics).country;
+      case "city_key":
+        return (option as CityAnalytics).city;
+      case "browser_key":
+        return (option as BrowserAnalytics).browser;
+      case "os_key":
+        return (option as OsAnalytics).os;
+      case "device_key":
+        return (option as DeviceAnalytics).device;
+      case "referrer_key":
+        return (option as ReferrerAnalytics).referrer;
+      case "destination_key":
+        return (option as DestinationAnalytics).destination;
+      default:
+        return "";
+    }
+  };
 
-  // Memoize format function to prevent recreation
-  const formatNameForUrl = useMemo(() => (name: string): string => {
+  const formatNameForUrl = (name: string): string => {
     return name.toLowerCase().replace(/\s+/g, "-");
-  }, []);
+  };
 
-  // Memoize icon URLs to prevent recalculation
-  const getOptionIcon = useCallback(
-    (category: FilterCategory, option: FilterOption): string | undefined => {
-      switch (category.id) {
-        case "slug_key":
-          return (option as LinkAnalytics).url;
-        case "country_key":
-        case "city_key":
-          return `https://flagcdn.com/w20/${(option as CountryAnalytics).country.toLowerCase()}.png`;
-        case "continent_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/continent/${formatNameForUrl(
-            (option as ContinentAnalytics).continent,
-          )}.svg`;
-        case "browser_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/browser/${formatNameForUrl(
-            (option as BrowserAnalytics).browser,
-          )}.svg`;
-        case "os_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl(
-            (option as OsAnalytics).os,
-          )}.svg`;
-        case "device_key":
-          return `https://slugylink.github.io/slugy-assets/dist/colorful/device/${formatNameForUrl(
-            (option as DeviceAnalytics).device,
-          )}.svg`;
-        default:
-          return undefined;
-      }
-    },
-    [formatNameForUrl],
-  );
+  const getOptionIcon = (category: FilterCategory, option: FilterOption): string | undefined => {
+    switch (category.id) {
+      case "slug_key":
+        return (option as LinkAnalytics).url;
+      case "country_key":
+      case "city_key":
+        return `https://flagcdn.com/w20/${(option as CountryAnalytics).country.toLowerCase()}.png`;
+      case "continent_key":
+        return `https://slugylink.github.io/slugy-assets/dist/colorful/continent/${formatNameForUrl(
+          (option as ContinentAnalytics).continent,
+        )}.svg`;
+      case "browser_key":
+        return `https://slugylink.github.io/slugy-assets/dist/colorful/browser/${formatNameForUrl(
+          (option as BrowserAnalytics).browser,
+        )}.svg`;
+      case "os_key":
+        return `https://slugylink.github.io/slugy-assets/dist/colorful/os/${formatNameForUrl(
+          (option as OsAnalytics).os,
+        )}.svg`;
+      case "device_key":
+        return `https://slugylink.github.io/slugy-assets/dist/colorful/device/${formatNameForUrl(
+          (option as DeviceAnalytics).device,
+        )}.svg`;
+      default:
+        return undefined;
+    }
+  };
 
-  // Optimize filtered categories with separate memo for search results
-  const searchFilteredOptions = useMemo(() => {
+  const searchFilteredOptions = (() => {
     if (!searchQuery) return new Map();
 
     const q = searchQuery.toLowerCase();
@@ -727,19 +671,17 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
     });
 
     return results;
-  }, [filterCategories, searchQuery, getOptionValue, getOptionLabel]);
+  })();
 
-  const filteredCategories = useMemo(() => {
-    return filterCategories.filter((category) => {
-      if (activeCategory && category.id !== activeCategory) return false;
+  const filteredCategories = filterCategories.filter((category) => {
+    if (activeCategory && category.id !== activeCategory) return false;
 
-      if (searchQuery) {
-        return searchFilteredOptions.has(category.id);
-      }
+    if (searchQuery) {
+      return searchFilteredOptions.has(category.id);
+    }
 
-      return true;
-    });
-  }, [filterCategories, activeCategory, searchQuery, searchFilteredOptions]);
+    return true;
+  });
 
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
@@ -904,4 +846,4 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
   );
 };
 
-export default memo(FilterActions);
+export default FilterActions;

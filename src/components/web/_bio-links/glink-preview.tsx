@@ -104,7 +104,6 @@ const GalleryLinkPreview = ({
     handleThemeClick,
   } = useThemeUpdate(username, initialTheme, onThemeChange, mutate);
   const setTheme = useThemeStore((state) => state.setTheme);
-  // Sync Zustand store with initialTheme from props
   React.useEffect(() => {
     setTheme(initialTheme);
   }, [initialTheme, setTheme]);

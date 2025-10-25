@@ -17,27 +17,27 @@ export function GlobeIcon(props: SVGProps<SVGSVGElement>) {
         cy="12"
         r="10"
         stroke="currentColor"
-        stroke-width="2"
+        strokeWidth="2"
       ></circle>
       <path
         d="M8 12C8 18 12 22 12 22C12 22 16 18 16 12C16 6 12 2 12 2C12 2 8 6 8 12Z"
         stroke="currentColor"
-        stroke-width="2"
-        stroke-linejoin="round"
+        strokeWidth="2"
+        strokeLinejoin="round"
       ></path>
       <path
         d="M21 15H3"
         stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       ></path>
       <path
         d="M21 9H3"
         stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       ></path>
     </svg>
   );
