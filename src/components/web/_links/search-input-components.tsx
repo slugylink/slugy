@@ -1,4 +1,4 @@
-import React, { memo } from "react";
+import React from "react";
 import { Search, Check, ArrowUpDown, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,10 @@ import { cn } from "@/lib/utils";
 import { LAYOUT_OPTIONS, SORT_OPTIONS, LayoutOption, SortOptionKey } from "@/constants/links";
 import { FilterBar } from "@/utils/icons/filter-bar";
 
-// Optimized view mode selector
 export const ViewModeSelector: React.FC<{
   currentLayout: LayoutOption;
   onLayoutChange: (layout: LayoutOption) => void;
-}> = memo(({ currentLayout, onLayoutChange }) => (
+}> = ({ currentLayout, onLayoutChange }) => (
   <div className="grid grid-cols-2 gap-1">
     {LAYOUT_OPTIONS.map(({ value, icon: Icon, label }) => (
       <button
@@ -39,15 +38,12 @@ export const ViewModeSelector: React.FC<{
       </button>
     ))}
   </div>
-));
+);
 
-ViewModeSelector.displayName = "ViewModeSelector";
-
-// Optimized sort selector
 export const SortSelector: React.FC<{
   sortBy: SortOptionKey;
   onSortChange: (value: SortOptionKey) => void;
-}> = memo(({ sortBy, onSortChange }) => {
+}> = ({ sortBy, onSortChange }) => {
   const currentSortOption = SORT_OPTIONS.find((opt) => opt.value === sortBy);
 
   return (
@@ -75,15 +71,12 @@ export const SortSelector: React.FC<{
       </DropdownMenuSub>
     </div>
   );
-});
+};
 
-SortSelector.displayName = "SortSelector";
-
-// Optimized archive toggle
 export const ArchiveToggle: React.FC<{
   checked: boolean;
   onToggle: (checked: boolean) => void;
-}> = memo(({ checked, onToggle }) => (
+}> = ({ checked, onToggle }) => (
   <div className="flex items-center justify-between px-2 py-2">
     <div className="flex items-center gap-2">
       <Archive size={15} aria-hidden="true" />
@@ -97,15 +90,12 @@ export const ArchiveToggle: React.FC<{
       aria-label={checked ? "Hide archived links" : "Show archived links"}
     />
   </div>
-));
+);
 
-ArchiveToggle.displayName = "ArchiveToggle";
-
-// Optimized search input field
 export const SearchInputField: React.FC<{
   value: string;
   onChange: (value: string) => void;
-}> = memo(({ value, onChange }) => (
+}> = ({ value, onChange }) => (
   <div className="relative">
     <Search
       className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -120,11 +110,8 @@ export const SearchInputField: React.FC<{
       type="search"
     />
   </div>
-));
+);
 
-SearchInputField.displayName = "SearchInputField";
-
-// Optimized display options dropdown
 export const DisplayOptionsDropdown: React.FC<{
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -134,7 +121,7 @@ export const DisplayOptionsDropdown: React.FC<{
   onSortChange: (value: SortOptionKey) => void;
   showArchived: boolean;
   onToggleArchived: (checked: boolean) => void;
-}> = memo(({
+}> = ({
   open,
   onOpenChange,
   currentLayout,
@@ -173,6 +160,4 @@ export const DisplayOptionsDropdown: React.FC<{
       />
     </DropdownMenuContent>
   </DropdownMenu>
-));
-
-DisplayOptionsDropdown.displayName = "DisplayOptionsDropdown";
+);

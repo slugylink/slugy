@@ -24,7 +24,6 @@ const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
 
-// Input validation with better error handling
 const validateInput = (params: {
   search?: string | null;
   showArchived?: string | null;
@@ -34,18 +33,15 @@ const validateInput = (params: {
 }) => {
   const errors: string[] = [];
 
-  // Validate sortBy
   if (params.sortBy && !VALID_SORT_OPTIONS.includes(params.sortBy as typeof VALID_SORT_OPTIONS[number])) {
     errors.push(`Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`);
   }
 
-  // Validate offset
   const offset = parseInt(params.offset ?? String(DEFAULT_OFFSET), 10);
   if (isNaN(offset) || offset < 0) {
     errors.push("Offset must be a non-negative integer");
   }
 
-  // Validate limit
   const limit = parseInt(params.limit ?? String(DEFAULT_LIMIT), 10);
   if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
     errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
@@ -54,14 +50,10 @@ const validateInput = (params: {
   return { errors, offset, limit };
 };
 
-// Generate search conditions optimized for different search term lengths
-const getSearchConditions = (
-  search: string,
-): NonNullable<LinkWhereInput["OR"]> => {
+const getSearchConditions = (search: string): NonNullable<LinkWhereInput["OR"]> => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return [];
 
-  // For very short queries, use exact matching where possible
   if (trimmedSearch.length <= 2) {
     return [
       { description: { contains: trimmedSearch, mode: "insensitive" } },
@@ -69,14 +61,12 @@ const getSearchConditions = (
     ];
   }
 
-  // For longer queries, use standard contains search
   return [
     { description: { contains: trimmedSearch, mode: "insensitive" } },
     { url: { contains: trimmedSearch, mode: "insensitive" } },
   ];
 };
 
-// Determine 'orderBy' condition based on sortBy param
 const getOrderConditions = (sortBy: string): LinkOrderByInput => {
   switch (sortBy) {
     case "total-clicks":
@@ -89,7 +79,6 @@ const getOrderConditions = (sortBy: string): LinkOrderByInput => {
   }
 };
 
-// Optimized database query with better error handling
 const getLinksWithCount = async (
   workspaceId: string,
   conditions: LinkWhereInput,
@@ -148,7 +137,6 @@ const getLinksWithCount = async (
   }
 };
 
-// Helper function to calculate pagination info
 const calculatePaginationInfo = (
   totalLinks: number,
   limit: number,
@@ -172,7 +160,6 @@ export async function GET(
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
-    // Get session with better error handling
     const authResult = await getAuthSession();
     if (!authResult.success) {
       return NextResponse.json(
@@ -182,7 +169,6 @@ export async function GET(
     }
     const session = authResult.session;
 
-    // Parse and validate params
     const context = await params;
     const { workspaceslug } = context;
 
@@ -193,7 +179,6 @@ export async function GET(
       );
     }
 
-    // Parse search parameters
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") ?? "";
     const showArchived = searchParams.get("showArchived") === "true";
@@ -201,7 +186,6 @@ export async function GET(
     const offsetParam = searchParams.get("offset") ?? String(DEFAULT_OFFSET);
     const limitParam = searchParams.get("limit") ?? String(DEFAULT_LIMIT);
 
-    // Validate input parameters
     const { errors, offset, limit } = validateInput({
       search,
       showArchived: searchParams.get("showArchived"),
@@ -221,7 +205,6 @@ export async function GET(
       );
     }
 
-    // Verify workspace access
     const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
@@ -243,7 +226,6 @@ export async function GET(
       );
     }
 
-    // Build query conditions
     const searchConditions = getSearchConditions(search);
     const conditions: LinkWhereInput = {
       workspaceId: workspace.id,
@@ -253,7 +235,6 @@ export async function GET(
 
     const orderBy = getOrderConditions(sortBy);
 
-    // Fetch data
     const { totalLinks, links } = await getLinksWithCount(
       workspace.id,
       conditions,
@@ -262,7 +243,6 @@ export async function GET(
       limit,
     );
 
-    // Handle edge case: offset past total results
     if (offset >= totalLinks && totalLinks > 0) {
       const { links: firstPageLinks } = await getLinksWithCount(
         workspace.id,
@@ -285,7 +265,6 @@ export async function GET(
       );
     }
 
-    // Calculate pagination info
     const paginationInfo = calculatePaginationInfo(totalLinks, limit, offset);
 
     return NextResponse.json(
@@ -301,7 +280,6 @@ export async function GET(
   } catch (error) {
     console.error("Error fetching links:", error);
 
-    // Handle specific error types
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(

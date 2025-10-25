@@ -1,10 +1,6 @@
 "use client";
 
-import React, {
-  useState,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
@@ -56,6 +52,7 @@ import {
 } from "@/components/ui/popover";
 import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
+import { EditIcon } from "@/utils/icons/edit";
 
 // Types
 interface LinkFormFieldsProps {
@@ -125,7 +122,9 @@ const SafetyIndicator = ({ status }: { status: UrlSafetyStatus }) => {
 };
 
 const TagBadge = ({ tag }: { tag: TagType }) => {
-  const colorOption = COLOR_OPTIONS.find((color) => color.value === tag.color) || COLOR_OPTIONS[0]!;
+  const colorOption =
+    COLOR_OPTIONS.find((color) => color.value === tag.color) ||
+    COLOR_OPTIONS[0]!;
 
   return (
     <Badge
@@ -206,7 +205,8 @@ const LinkFormFields = ({
 
   // Computed values
   const currentTags = getValues("tags") || [];
-  const selectedTagObjects = tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
+  const selectedTagObjects =
+    tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
 
   // Filter only verified and configured custom domains
   const availableDomains = (() => {
@@ -226,15 +226,15 @@ const LinkFormFields = ({
     return domains;
   })();
 
-  const filteredTags = tags?.filter((tag) =>
-    tag.name.toLowerCase().includes(searchValue.toLowerCase()),
-  ) || [];
+  const filteredTags =
+    tags?.filter((tag) =>
+      tag.name.toLowerCase().includes(searchValue.toLowerCase()),
+    ) || [];
 
-  const canAddNew = searchValue &&
+  const canAddNew =
+    searchValue &&
     tags &&
-    !tags.some(
-      (tag) => tag.name.toLowerCase() === searchValue.toLowerCase(),
-    );
+    !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
 
   // Handlers
   const validateUrlFormat = (rawUrl: string) => {
@@ -422,9 +422,7 @@ const LinkFormFields = ({
     setValue("domain", selectedDomain, { shouldDirty: true });
 
     // Find the domain object and set customDomainId
-    const domainObj = availableDomains.find(
-      (d) => d.value === selectedDomain,
-    );
+    const domainObj = availableDomains.find((d) => d.value === selectedDomain);
     setValue("customDomainId", domainObj?.id || null, {
       shouldDirty: true,
     });
@@ -493,311 +491,315 @@ const LinkFormFields = ({
     }
     return undefined;
   })();
-    return (
-      <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
-        {/* Left side: Form fields */}
-        <div className="space-y-4 sm:space-y-6">
-          {/* URL field with safety indicator */}
-          <FormField
-            control={control}
-            name="url"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <FormLabel>Destination URL</FormLabel>
-                  <SafetyIndicator status={urlSafetyStatus} />
-                </div>
-                <FormControl>
-                  <Input
-                    {...field}
-                    placeholder="https://slugy.co/blogs/project-x"
-                    autoComplete="off"
-                    className={
-                      !urlValidation.isValid
-                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                        : urlSafetyStatus.isValid === false
-                          ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                          : ""
-                    }
-                    onBlur={handleUrlBlur}
-                    onChange={(e) => {
-                      field.onChange(e);
-                      debouncedValidateUrl(e.target.value);
-                    }}
-                  />
-                </FormControl>
-                <FormMessage />
-                {!urlValidation.isValid && urlValidation.message && (
-                  <div className="flex items-center gap-1 text-sm text-red-600">
-                    <span>{urlValidation.message}</span>
-                  </div>
-                )}
-              </FormItem>
-            )}
-          />
-
-          {/* Short link domain and slug inputs with buttons */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex w-full items-center justify-between gap-2 space-y-1">
-                <Label>Short Link</Label>
-                {isSlugEditable && (
-                  <div className="flex gap-x-3">
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            onClick={() => handleAiRandomize(getValues("url"))}
-                            variant="ghost"
-                            size="icon"
-                            className="size-4 p-0"
-                            disabled={isAiLoading}
-                          >
-                            {isAiLoading ? (
-                              <Loader2 className="text-muted-foreground size-4 animate-spin" />
-                            ) : (
-                              <BsStars className="text-muted-foreground size-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Generate AI slug</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider delayDuration={200}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            type="button"
-                            onClick={handleRandomize}
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground size-4 p-0"
-                            disabled={isRandomLoading}
-                          >
-                            {isRandomLoading ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Shuffle className="size-4" />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Suffle slug</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
+  return (
+    <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
+      {/* Left side: Form fields */}
+      <div className="space-y-4 sm:space-y-6">
+        {/* URL field with safety indicator */}
+        <FormField
+          control={control}
+          name="url"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <div className="flex items-center justify-between">
+                <FormLabel>Destination URL</FormLabel>
+                <SafetyIndicator status={urlSafetyStatus} />
               </div>
-              {isEditMode && !isSlugEditable && (
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="hover:bg-muted ml-3 size-4 p-0"
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          enableSlugEditing();
-                        }}
-                      >
-                        <Lock className="text-muted-foreground size-3.5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent sideOffset={5}>
-                      Editing an existing short link could potentially break
-                      existing links
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+              <FormControl>
+                <Input
+                  {...field}
+                  placeholder="https://slugy.co/blogs/project-x"
+                  autoComplete="off"
+                  className={
+                    !urlValidation.isValid
+                      ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                      : urlSafetyStatus.isValid === false
+                        ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                        : ""
+                  }
+                  onBlur={handleUrlBlur}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    debouncedValidateUrl(e.target.value);
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+              {!urlValidation.isValid && urlValidation.message && (
+                <div className="flex items-center gap-1 text-sm text-red-600">
+                  <span>{urlValidation.message}</span>
+                </div>
+              )}
+            </FormItem>
+          )}
+        />
+
+        {/* Short link domain and slug inputs with buttons */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex w-full items-center justify-between gap-2 space-y-1">
+              <Label>Short Link</Label>
+              {isSlugEditable && (
+                <div className="flex gap-x-3">
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          onClick={() => handleAiRandomize(getValues("url"))}
+                          variant="ghost"
+                          size="icon"
+                          className="size-4 p-0"
+                          disabled={isAiLoading}
+                        >
+                          {isAiLoading ? (
+                            <Loader2 className="text-muted-foreground size-4 animate-spin" />
+                          ) : (
+                            <BsStars className="text-muted-foreground size-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Generate AI slug</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          onClick={handleRandomize}
+                          variant="ghost"
+                          size="icon"
+                          className="text-muted-foreground size-4 p-0"
+                          disabled={isRandomLoading}
+                        >
+                          {isRandomLoading ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Shuffle className="size-4" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Suffle slug</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
               )}
             </div>
-            <div className="flex flex-row">
-              <FormField
-                control={control}
-                name="domain"
-                render={({ field }) => (
-                  <FormItem>
-                    <Select
-                      onValueChange={handleDomainChange}
-                      defaultValue={field.value}
-                      disabled={domainsLoading}
+            {isEditMode && !isSlugEditable && (
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:bg-muted ml-3 size-4 p-0"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        enableSlugEditing();
+                      }}
                     >
-                      <SelectTrigger className="w-full rounded-r-none border-r-0 shadow-none sm:w-[180px]">
-                        <SelectValue placeholder="Domain" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDomains.map((domain) => (
-                          <SelectItem key={domain.value} value={domain.value}>
-                            {domain.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={control}
-                name="slug"
-                render={({ field }) => (
-                  <FormItem className="relative flex-1">
-                    <FormControl>
-                      <Input
-                        {...field}
-                        ref={slugInputRef}
-                        autoComplete="off"
-                        placeholder="(optional)"
-                        disabled={!isSlugEditable}
-                        className={cn(
-                          "rounded-l-none shadow-none",
-                          !isSlugEditable && "cursor-not-allowed bg-zinc-100",
-                        )}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          {/* Tag selection */}
-          <div className="space-y-3">
-            <Label>Tags</Label>
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  role="combobox"
-                  aria-expanded={popoverOpen}
-                  className="h-auto min-h-[40px] w-full justify-between bg-transparent px-3 hover:bg-transparent"
-                  disabled={tagsLoading}
-                >
-                  <div className="flex flex-wrap gap-1.5">
-                    {tagsLoading ? (
-                      <span className="text-gray-500">Loading tags...</span>
-                    ) : selectedTagObjects.length > 0 ? (
-                      selectedTagObjects.map((tag) => (
-                        <TagBadge key={tag.id} tag={tag} />
-                      ))
-                    ) : (
-                      <span className="text-gray-500">Select tags...</span>
-                    )}
-                  </div>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0" align="start">
-                <div className="p-2">
-                  <Input
-                    placeholder="Search or add tags..."
-                    value={searchValue}
-                    onChange={(e) => setSearchValue(e.target.value)}
-                    className="mb-2"
-                  />
-                  <div className="max-h-60 overflow-y-auto">
-                    {tagsError ? (
-                      <div className="px-2 py-1.5 text-sm text-red-500">
-                        Error loading tags. Please try again.
-                      </div>
-                    ) : tagsLoading ? (
-                      <div className="px-2 py-1.5 text-sm text-gray-500">
-                        Loading tags...
-                      </div>
-                    ) : filteredTags.length > 0 ? (
-                      <div className="space-y-1">
-                        {filteredTags.map((tag) => (
-                          <div
-                            key={tag.id}
-                            onClick={() => handleSelect(tag.id)}
-                            className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100"
-                          >
-                            <div className="flex flex-1 items-center gap-2">
-                              <Tag
-                                className={cn(
-                                  "h-4 w-4",
-                                  COLOR_OPTIONS.find(
-                                    (color) => color.value === tag.color,
-                                  )?.textColor || COLOR_OPTIONS[0]!.textColor,
-                                )}
-                              />
-                              <span>{tag.name}</span>
-                            </div>
-                            <Check
-                              className={cn(
-                                "h-4 w-4",
-                                selectedTags.includes(tag.id)
-                                  ? "opacity-100"
-                                  : "opacity-0",
-                              )}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="px-2 py-1.5 text-sm text-gray-500">
-                        {canAddNew ? (
-                          <button
-                            className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 hover:bg-gray-100"
-                            onClick={handleAddNewTag}
-                            disabled={isAddTagLoading}
-                          >
-                            {isAddTagLoading ? (
-                              <LoaderIcon className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Plus className="h-4 w-4" />
-                            )}
-                            Add &quot;{searchValue}&quot;
-                          </button>
-                        ) : (
-                          "No tags found."
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          {/* Comments textarea */}
-          <FormField
-            control={control}
-            name="description"
-            render={({ field }) => (
-              <FormItem className="space-y-2">
-                <FormLabel>Comments</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    placeholder="Add comment"
-                    className="min-h-24"
-                  />
-                </FormControl>
-              </FormItem>
+                      <Lock className="text-muted-foreground size-3.5" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent sideOffset={5}>
+                    Editing an existing short link could potentially break
+                    existing links
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
-          />
-        </div>
-
-        {/* Right side: QR code and link preview */}
-        <div className="space-y-4 sm:space-y-6">
-          <div className="space-y-3">
-            <Label>QR Code</Label>
-            <LinkQrCode
-              domain={domain}
-              code={currentCode}
-              customization={qrCodeCustomization}
+          </div>
+          <div className="flex flex-row">
+            <FormField
+              control={control}
+              name="domain"
+              render={({ field }) => (
+                <FormItem>
+                  <Select
+                    onValueChange={handleDomainChange}
+                    defaultValue={field.value}
+                    disabled={domainsLoading}
+                  >
+                    <SelectTrigger className="w-full rounded-r-none border-r-0 shadow-none sm:w-[180px]">
+                      <SelectValue placeholder="Domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableDomains.map((domain) => (
+                        <SelectItem key={domain.value} value={domain.value}>
+                          {domain.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="slug"
+              render={({ field }) => (
+                <FormItem className="relative flex-1">
+                  <FormControl>
+                    <Input
+                      {...field}
+                      ref={slugInputRef}
+                      autoComplete="off"
+                      placeholder="(optional)"
+                      disabled={!isSlugEditable}
+                      className={cn(
+                        "rounded-l-none shadow-none",
+                        !isSlugEditable && "cursor-not-allowed bg-zinc-100",
+                      )}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
           </div>
-          <div className="space-y-3">
-            <Label>Link Preview</Label>
-            <LinkPreview url={normalizedUrl} key={normalizedUrl} />
+        </div>
+
+        {/* Tag selection */}
+        <div className="space-y-3">
+          <Label>Tags</Label>
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={popoverOpen}
+                className="h-auto min-h-[40px] w-full justify-between bg-transparent px-3 hover:bg-transparent"
+                disabled={tagsLoading}
+              >
+                <div className="flex flex-wrap gap-1.5">
+                  {tagsLoading ? (
+                    <span className="text-gray-500">Loading tags...</span>
+                  ) : selectedTagObjects.length > 0 ? (
+                    selectedTagObjects.map((tag) => (
+                      <TagBadge key={tag.id} tag={tag} />
+                    ))
+                  ) : (
+                    <span className="text-gray-500">Select tags...</span>
+                  )}
+                </div>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <div className="p-2">
+                <Input
+                  placeholder="Search or add tags..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  className="mb-2"
+                />
+                <div className="max-h-60 overflow-y-auto">
+                  {tagsError ? (
+                    <div className="px-2 py-1.5 text-sm text-red-500">
+                      Error loading tags. Please try again.
+                    </div>
+                  ) : tagsLoading ? (
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
+                      Loading tags...
+                    </div>
+                  ) : filteredTags.length > 0 ? (
+                    <div className="space-y-1">
+                      {filteredTags.map((tag) => (
+                        <div
+                          key={tag.id}
+                          onClick={() => handleSelect(tag.id)}
+                          className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-gray-100"
+                        >
+                          <div className="flex flex-1 items-center gap-2">
+                            <Tag
+                              className={cn(
+                                "h-4 w-4",
+                                COLOR_OPTIONS.find(
+                                  (color) => color.value === tag.color,
+                                )?.textColor || COLOR_OPTIONS[0]!.textColor,
+                              )}
+                            />
+                            <span>{tag.name}</span>
+                          </div>
+                          <Check
+                            className={cn(
+                              "h-4 w-4",
+                              selectedTags.includes(tag.id)
+                                ? "opacity-100"
+                                : "opacity-0",
+                            )}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
+                      {canAddNew ? (
+                        <button
+                          className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1 hover:bg-gray-100"
+                          onClick={handleAddNewTag}
+                          disabled={isAddTagLoading}
+                        >
+                          {isAddTagLoading ? (
+                            <LoaderIcon className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4" />
+                          )}
+                          Add &quot;{searchValue}&quot;
+                        </button>
+                      ) : (
+                        "No tags found."
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Comments textarea */}
+        <FormField
+          control={control}
+          name="description"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <FormLabel>Comments</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  placeholder="Add comment"
+                  className="min-h-24"
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+      </div>
+
+      {/* Right side: QR code and link preview */}
+      <div className="space-y-4 sm:space-y-6">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label>QR Code</Label>
+            {/* <EditIcon
+              className="h-4 w-4 cursor-pointer"/> */}
           </div>
+          <LinkQrCode
+            domain={domain}
+            code={currentCode}
+            customization={qrCodeCustomization}
+          />
+        </div>
+        <div className="space-y-3">
+          <Label>Link Preview</Label>
+          <LinkPreview url={normalizedUrl} key={normalizedUrl} />
         </div>
       </div>
-    );
+    </div>
+  );
 };
 
 export default LinkFormFields;

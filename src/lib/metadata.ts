@@ -23,7 +23,7 @@ interface MetadataResult {
 }
 
 const CACHE_MAX_SIZE = 1_000;
-const CACHE_EVICT_PCT = 0.2; // Evict 20% when over limit
+const CACHE_EVICT_PCT = 0.2;
 
 const headNodesCache = new Map<string, HeadNodes>();
 const metadataCache = new Map<string, MetadataResult>();
@@ -73,7 +73,6 @@ export const getHtml = async (url: string): Promise<string | null> => {
       throw new Error("Not an HTML document");
     return await response.text();
   } catch (error) {
-    // Graceful logging based on error type
     if (error instanceof Error) {
       if (error.name === 'AbortError') {
         console.warn(`Request timeout for ${url}`);
@@ -161,12 +160,10 @@ export const isValidUrl = (str: string): boolean => {
   }
 };
 
-// Safe hostname extraction with fallback
 const getSafeHostname = (url: string): string => {
   try {
     return new URL(url).hostname;
   } catch {
-    // Extract hostname manually if URL parsing fails
     const match = url.match(/^https?:\/\/([^\/]+)/);
     return match ? match[1] : url.replace(/^https?:\/\//, '').split('/')[0] || 'unknown-host';
   }
@@ -260,7 +257,6 @@ export const getMetaTags = async (url: string): Promise<MetadataResult> => {
           return rootMeta;
         }
       } catch (urlError) {
-        // If URL parsing fails for root domain, just use the original metadata
         console.warn(`Failed to parse root domain for ${normalizedUrl}:`, urlError);
       }
     }
