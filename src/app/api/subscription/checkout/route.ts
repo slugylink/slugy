@@ -49,11 +49,10 @@ export async function GET(req: Request) {
     // Create checkout session with Polar
     const checkoutSession = await polarClient.checkouts.create({
       products: [productId],
-      customerExternalId: session.user.id,
       customerEmail: session.user.email,
       customerName: session.user.name,
       successUrl,
-    });
+    } as any);
 
     // Redirect user to the Polar checkout page
     return NextResponse.redirect(checkoutSession.url);
