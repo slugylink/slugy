@@ -26,7 +26,7 @@ interface TabConfig {
   key: "referrers";
   label: string;
   singular: string;
-  renderName: (item: ReferrerData) => JSX.Element;
+  renderName: (item: ReferrerData) => React.ReactElement;
 }
 
 function TableHeader({ label }: { label: string }) {

@@ -101,7 +101,7 @@ const rateLimitExceededResponse = (result: RateLimitResult) =>
 
 //─────────── Main Middleware ───────────
 
-export async function middleware(req: NextRequest): Promise<NextResponse> {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   try {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();

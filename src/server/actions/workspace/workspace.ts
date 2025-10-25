@@ -92,10 +92,10 @@ export async function createWorkspace({
     // Invalidate caches immediately for faster response
     await Promise.all([
       invalidateWorkspaceCache(userId),
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
-      revalidateTag("workspaces"),
-      revalidateTag("workspace-validation"),
+      revalidateTag("workspace", "max"),
+      revalidateTag("all-workspaces", "max"),
+      revalidateTag("workspaces", "max"),
+      revalidateTag("workspace-validation", "max"),
     ]);
 
     // Run background tasks
@@ -153,22 +153,22 @@ export async function getDefaultWorkspace(userId: string) {
 
     // Cache miss: fetch from database with optimized query
     const workspace = await db.workspace.findFirst({
-      where: { 
-        userId, 
-        isDefault: true 
+      where: {
+        userId,
+        isDefault: true,
       },
-      select: { 
-        id: true, 
-        name: true, 
-        slug: true, 
-        logo: true 
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logo: true,
       },
       // Remove orderBy for speed - just get the first default workspace
     });
 
     // Cache the result immediately (including null results)
     const cachePromise = setDefaultWorkspaceCache(userId, workspace);
-    
+
     // Return response immediately, don't wait for cache to be set
     const result = {
       success: !!workspace,
