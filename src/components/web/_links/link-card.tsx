@@ -21,9 +21,9 @@ import axios from "axios";
 import { usePathname, useRouter } from "next/navigation";
 import {
   TooltipProvider,
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
+  // Tooltip,
+  // TooltipContent,
+  // TooltipTrigger,
 } from "@/components/ui/tooltip";
 import QRCodeDesign from "@/components/web/qr-code-design";
 import {
@@ -333,7 +333,7 @@ export default function LinkCard({
 
         {/* Actions */}
         <div className="flex h-full w-auto items-center justify-end">
-          <div>
+          {/* <div>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -347,7 +347,7 @@ export default function LinkCard({
               </TooltipTrigger>
               <TooltipContent>QR Code</TooltipContent>
             </Tooltip>
-          </div>
+          </div> */}
           <AnalyticsBadge
             clicks={link.clicks}
             isPublic={isPublic}
