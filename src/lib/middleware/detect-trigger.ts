@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { METADATA_BOT_PATTERNS } from "./bot-patterns";
 
 /**
  * Returns the trigger type for a short‐link click event.
@@ -20,9 +21,16 @@ export function detectTrigger(req: NextRequest): string {
     refererHost = "";
   }
 
+  // Enhanced bot detection using bot-patterns
+  const isBot = METADATA_BOT_PATTERNS.some((pattern) =>
+    ua.includes(pattern.toLowerCase()),
+  );
+
+  // Additional common bot patterns
   const botRegex =
-    /(bot|crawler|spider|crawling|preview|facebookexternalhit|slurp|bingpreview|pingdom|gtmetrix|headless|cf-)|\bprerender\b/i;
-  if (botRegex.test(ua)) {
+    /(bot|crawler|spider|crawling|preview|facebookexternalhit|slurp|bingpreview|pingdom|gtmetrix|headless|cf-|headlesschrome|phantomjs)|\bprerender\b/i;
+
+  if (isBot || botRegex.test(ua)) {
     return "bot";
   }
 

@@ -367,8 +367,9 @@ export async function URLRedirects(
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      // Detect trigger to check if this is a bot request
+      // Detect trigger and check if this is a bot request
       const trigger = detectTrigger(req);
+      const userAgent = req.headers.get("user-agent") || "";
       const isBot = trigger === "bot";
 
       // Only track analytics for non-bot users
@@ -397,7 +398,9 @@ export async function URLRedirects(
           );
         }
       } else {
-        console.warn(`[Analytics Skipped] Bot detected on slug ${shortCode}`);
+        console.warn(
+          `[Analytics Skipped] Bot detected (${trigger}) on slug ${shortCode} - UA: ${userAgent.substring(0, 100)}`,
+        );
       }
 
       // If custom metadata exists, serve preview page with OG tags
