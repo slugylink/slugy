@@ -10,6 +10,7 @@ type LinkCacheType = {
   domain: string;
   title: string | null;
   image: string | null;
+  metadesc?: string | null;
   description: string | null;
 } | null;
 
@@ -30,19 +31,21 @@ export async function invalidateLinkCacheBatch(slugs: string[], domain: string =
 }
 
 function isLinkCacheType(obj: unknown): obj is LinkCacheType {
+  if (!obj || typeof obj !== "object") return false;
+  
+  const o = obj as Record<string, unknown>;
+  
   return (
-    !!obj &&
-    typeof obj === "object" &&
-    typeof (obj as { id?: unknown }).id === "string" &&
-    typeof (obj as { url?: unknown }).url === "string" &&
-    "expiresAt" in obj &&
-    "expirationUrl" in obj &&
-    "password" in obj &&
-    typeof (obj as { workspaceId?: unknown }).workspaceId === "string" &&
-    typeof (obj as { domain?: unknown }).domain === "string" &&
-    "title" in obj &&
-    "image" in obj &&
-    "description" in obj
+    typeof o.id === "string" &&
+    typeof o.url === "string" &&
+    "expiresAt" in o &&
+    "expirationUrl" in o &&
+    "password" in o &&
+    typeof o.workspaceId === "string" &&
+    typeof o.domain === "string" &&
+    "title" in o &&
+    "image" in o &&
+    "description" in o
   );
 }
 

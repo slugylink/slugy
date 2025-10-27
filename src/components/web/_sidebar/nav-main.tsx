@@ -149,7 +149,11 @@ const NavItemComponent = memo<{
     >
       <SidebarMenuItem>
         {item.url ? (
-          <Link href={item.url} prefetch onClick={onNavItemClick}>
+          <Link 
+            href={item.url} 
+            prefetch={item.url === "/" || item.url.includes("/analytics")}
+            onClick={onNavItemClick}
+          >
             <SidebarMenuButton
               tooltip={item.title}
               className={baseButtonClasses}
@@ -202,7 +206,7 @@ const SubItemComponent = memo<{
   return (
     <SidebarMenuSubItem key={subItem.title}>
       <SidebarMenuSubButton asChild className={buttonClasses}>
-        <Link href={subItem.url} prefetch onClick={onClick}>
+        <Link href={subItem.url} prefetch={false} onClick={onClick}>
           <span className={titleClasses}>{subItem.title}</span>
         </Link>
       </SidebarMenuSubButton>

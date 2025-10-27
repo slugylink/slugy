@@ -13,7 +13,7 @@ const updateLinkSchema = z.object({
   slug: z.string().max(50).optional(),
   image: z.string().url().optional().nullable(),
   title: z.string().max(100).optional().nullable(),
-  description: z.string().max(500).optional().nullable(),
+  metadesc: z.string().max(500).optional().nullable(),
   password: z.string().min(3).max(50).optional().nullable(),
   expiresAt: z.string().datetime().optional().nullable(),
   expirationUrl: z.string().url().optional().nullable(),
@@ -42,7 +42,7 @@ export async function PATCH(
       ...body,
       image: body.image === "" ? null : body.image,
       title: body.title === "" ? null : body.title,
-      description: body.description === "" ? null : body.description,
+      metadesc: body.metadesc === "" ? null : body.metadesc,
       password: body.password === "" ? null : body.password,
       expiresAt: body.expiresAt === "" ? null : body.expiresAt,
       expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
@@ -130,6 +130,39 @@ export async function PATCH(
       }
     }
 
+    // Check if image is being updated and delete old R2 image if exists
+    // Only delete if the new image is different and it's a URL (not an uploaded file)
+    // Note: If uploading via /upload-image endpoint, deletion happens there
+    if (
+      validatedData.image !== undefined &&
+      validatedData.image !== null &&
+      validatedData.image !== "" &&
+      !validatedData.image.includes("files.slugy.co")
+    ) {
+      const currentLink = await db.link.findUnique({
+        where: { id: context.linkId },
+        select: { image: true },
+      });
+
+      // Only delete old R2 image if it's being replaced with a different URL
+      if (
+        currentLink?.image &&
+        currentLink.image !== validatedData.image &&
+        currentLink.image.includes("files.slugy.co")
+      ) {
+        try {
+          const { s3Service } = await import("@/lib/s3-service");
+          const url = new URL(currentLink.image);
+          const oldImageKey = url.pathname.substring(1);
+          if (oldImageKey) {
+            await s3Service.deleteFile(oldImageKey);
+          }
+        } catch (error) {
+          console.error("Error deleting old image from R2:", error);
+        }
+      }
+    }
+
     // Use transaction to ensure data consistency
     try {
       await db.$transaction(async (tx) => {
@@ -161,6 +194,7 @@ export async function PATCH(
             slug: true,
             image: true,
             title: true,
+            metadesc: true,
             description: true,
             password: true,
             expiresAt: true,
@@ -283,6 +317,7 @@ export async function PATCH(
         domain: true,
         image: true,
         title: true,
+        metadesc: true,
         description: true,
         password: true,
         expiresAt: true,
@@ -311,7 +346,10 @@ export async function PATCH(
     if (!linkWithTags) {
       return NextResponse.json({ error: "Link not found" }, { status: 404 });
     }
-    await invalidateLinkCache(linkWithTags.slug!, linkWithTags.domain || "slugy.co");
+    await invalidateLinkCache(
+      linkWithTags.slug!,
+      linkWithTags.domain || "slugy.co",
+    );
 
     // Update link metadata in Tinybird
     const linkData = {

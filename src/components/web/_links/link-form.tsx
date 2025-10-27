@@ -511,10 +511,10 @@ const LinkFormFields = ({
       return {
         image: form.formState.defaultValues.image || null,
         title: form.formState.defaultValues.title || null,
-        description: form.formState.defaultValues.description || null,
+        metadesc: form.formState.defaultValues.metadesc || null,
       };
     }
-    return { image: null, title: null, description: null };
+    return { image: null, title: null, metadesc: null };
   })();
 
   return (
@@ -837,7 +837,7 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Link Preview</Label>
-            {/* {linkId && isEditMode && (
+            {linkId && isEditMode && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -852,46 +852,43 @@ const LinkFormFields = ({
                   <TooltipContent>Edit Link Preview</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )} */}
+            )}
           </div>
           <LinkPreview
             url={normalizedUrl}
             key={normalizedUrl}
             customImage={customMetadata.image}
             customTitle={customMetadata.title}
-            customDescription={customMetadata.description}
+            customDescription={customMetadata.metadesc}
           />
         </div>
       </div>
 
       {/* Link Metadata Dialog */}
-      {linkId && isEditMode && (() => {
-        const linkData = form.formState.defaultValues as LinkData | undefined;
-        return (
-          <LinkCustomMetadata
-            linkId={linkId}
-            linkUrl={normalizedUrl}
-            currentImage={linkData?.image || null}
-            currentTitle={linkData?.title || null}
-            currentDescription={linkData?.description || null}
-            workspaceslug={workspaceslug!}
-            open={metadataDialogOpen}
-            onOpenChange={setMetadataDialogOpen}
-            onSave={() => {
-              // Force re-render by incrementing key
-              setQrCodeKey((prev) => prev + 1);
-              // Invalidate cache to refetch latest data
-              void mutate(
-                (key) =>
-                  typeof key === "string" &&
-                  key.includes(`/workspace/${workspaceslug}/link/`),
-                undefined,
-                { revalidate: true },
-              );
-            }}
-          />
-        );
-      })()}
+      {linkId && isEditMode && (
+        <LinkCustomMetadata
+          linkId={linkId}
+          linkUrl={normalizedUrl}
+          currentImage={(form.formState.defaultValues as LinkData | undefined)?.image || null}
+          currentTitle={(form.formState.defaultValues as LinkData | undefined)?.title || null}
+          currentDescription={(form.formState.defaultValues as LinkData | undefined)?.description || null}
+          workspaceslug={workspaceslug!}
+          open={metadataDialogOpen}
+          onOpenChange={setMetadataDialogOpen}
+          onSave={() => {
+            // Force re-render by incrementing key
+            setQrCodeKey((prev) => prev + 1);
+            // Invalidate cache to refetch latest data
+            void mutate(
+              (key) =>
+                typeof key === "string" &&
+                key.includes(`/workspace/${workspaceslug}/link/`),
+              undefined,
+              { revalidate: true },
+            );
+          }}
+        />
+      )}
 
       {/* QR Code Design Dialog */}
       {linkId && isEditMode && (

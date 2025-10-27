@@ -64,7 +64,7 @@ function serveLinkPreview(
   const baseUrl = req.nextUrl.origin;
   const title = linkData.title || "Redirecting...";
   const image = linkData.image || `${baseUrl}/logo.svg`;
-  const description = linkData.description || "Click to continue";
+  const metadesc = linkData.metadesc || "Click to continue";
   const destination = linkData.url || "";
 
   const html = `<!DOCTYPE html>
@@ -73,19 +73,19 @@ function serveLinkPreview(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)}</title>
-  <meta name="description" content="${escapeHtml(description)}">
+  <meta name="description" content="${escapeHtml(metadesc)}">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="${escapeHtml(title)}">
-  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:description" content="${escapeHtml(metadesc)}">
   <meta property="og:image" content="${escapeHtml(image)}">
   <meta property="og:url" content="${escapeHtml(req.url)}">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(title)}">
-  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:description" content="${escapeHtml(metadesc)}">
   <meta name="twitter:image" content="${escapeHtml(image)}">
   
   <style>
@@ -155,7 +155,7 @@ function serveLinkPreview(
     </div>
     <div class="content">
       <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(description)}</p>
+      <p>${escapeHtml(metadesc)}</p>
       <div class="redirect-info">
         Redirecting you to the destination...
       </div>
@@ -389,7 +389,7 @@ export async function URLRedirects(
       }
 
       // If custom metadata exists, serve preview page with OG tags
-      if (linkData.title || linkData.image || linkData.description) {
+      if (linkData.title || linkData.image || linkData.metadesc) {
         return serveLinkPreview(req, shortCode, linkData);
       }
 

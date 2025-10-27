@@ -250,6 +250,7 @@ model Link {
   slug            String
   image           String?
   title           String?
+  metadesc        String?
   description     String?
   workspaceId     String
   clicks          Int              @default(0)

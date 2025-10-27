@@ -38,6 +38,7 @@ export interface GetLinkResult {
   error?: string;
   title?: string | null;
   image?: string | null;
+  metadesc?: string | null;
   description?: string | null;
 }
 
@@ -51,6 +52,7 @@ type LinkCacheType = {
   domain: string;
   title: string | null;
   image: string | null;
+  metadesc?: string | null;
   description: string | null;
 } | null;
 
@@ -88,6 +90,7 @@ export async function getLink(
           l.domain,
           l.title,
           l.image,
+          l.metadesc,
           l.description,
           cd.domain as custom_domain
         FROM "links" l
@@ -113,6 +116,7 @@ export async function getLink(
           domain: row.custom_domain || row.domain,
           title: row.title ?? null,
           image: row.image ?? null,
+          metadesc: row.metadesc ?? null,
           description: row.description ?? null,
         };
 
@@ -171,6 +175,7 @@ export async function getLink(
       workspaceId: link.workspaceId,
       title: link.title,
       image: link.image,
+      metadesc: link.metadesc ?? null,
       description: link.description,
     };
   } catch (error) {
