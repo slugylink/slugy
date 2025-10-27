@@ -8,6 +8,9 @@ type LinkCacheType = {
   password: string | null;
   workspaceId: string;
   domain: string;
+  title: string | null;
+  image: string | null;
+  description: string | null;
 } | null;
 
 // Invalidate link cache
@@ -36,7 +39,10 @@ function isLinkCacheType(obj: unknown): obj is LinkCacheType {
     "expirationUrl" in obj &&
     "password" in obj &&
     typeof (obj as { workspaceId?: unknown }).workspaceId === "string" &&
-    typeof (obj as { domain?: unknown }).domain === "string"
+    typeof (obj as { domain?: unknown }).domain === "string" &&
+    "title" in obj &&
+    "image" in obj &&
+    "description" in obj
   );
 }
 

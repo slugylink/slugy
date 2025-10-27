@@ -16,9 +16,18 @@ interface Metadata {
 interface LinkPreviewProps {
   url: string;
   className?: string;
+  customImage?: string | null;
+  customTitle?: string | null;
+  customDescription?: string | null;
 }
 
-export default function LinkPreview({ url, className }: LinkPreviewProps) {
+export default function LinkPreview({ 
+  url, 
+  className,
+  customImage,
+  customTitle,
+  customDescription,
+}: LinkPreviewProps) {
   const shouldFetch = url && url.trim() !== "";
 
   const {
@@ -32,6 +41,13 @@ export default function LinkPreview({ url, className }: LinkPreviewProps) {
       dedupingInterval: 60000, // Cache for 1 minute
     },
   );
+
+  // Use custom metadata if available, otherwise use fetched metadata
+  const displayMetadata = {
+    title: customTitle || metadata?.title || "",
+    description: customDescription || metadata?.description || "",
+    image: customImage || metadata?.image || null,
+  };
 
   const renderContent = () => {
     // Loading state
@@ -97,11 +113,11 @@ export default function LinkPreview({ url, className }: LinkPreviewProps) {
     return (
       <>
         <div className="flex aspect-video items-center justify-center overflow-hidden rounded-t-lg">
-          {metadata?.image ? (
+          {displayMetadata.image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={metadata.image}
-              alt={metadata.title || "Link preview image"}
+              src={displayMetadata.image}
+              alt={displayMetadata.title || "Link preview image"}
               className="aspect-video h-full w-full object-cover"
               loading="lazy"
               decoding="async"
@@ -114,10 +130,10 @@ export default function LinkPreview({ url, className }: LinkPreviewProps) {
         </div>
         <div className="space-y-1 bg-zinc-50 p-2 dark:bg-zinc-900">
           <h2 className="line-clamp-1 text-xs font-semibold">
-            {metadata?.title || "No title available"}
+            {displayMetadata.title || "No title available"}
           </h2>
           <p className="text-muted-foreground line-clamp-1 text-xs">
-            {metadata?.description || "No description available"}
+            {displayMetadata.description || "No description available"}
           </p>
         </div>
       </>

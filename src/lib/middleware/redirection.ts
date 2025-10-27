@@ -54,6 +54,137 @@ const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 
 /**
+ * Serve a link preview page with OG tags and auto-redirect
+ */
+function serveLinkPreview(
+  req: NextRequest,
+  slug: string,
+  linkData: import("./get-link").GetLinkResult,
+): NextResponse {
+  const baseUrl = req.nextUrl.origin;
+  const title = linkData.title || "Redirecting...";
+  const image = linkData.image || `${baseUrl}/logo.svg`;
+  const description = linkData.description || "Click to continue";
+  const destination = linkData.url || "";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title)}</title>
+  <meta name="description" content="${escapeHtml(description)}">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(description)}">
+  <meta property="og:image" content="${escapeHtml(image)}">
+  <meta property="og:url" content="${escapeHtml(req.url)}">
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(description)}">
+  <meta name="twitter:image" content="${escapeHtml(image)}">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      max-width: 600px;
+      background: white;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .image-container {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #f0f0f0;
+      position: relative;
+      overflow: hidden;
+    }
+    .image-container img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .content {
+      padding: 32px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+    }
+    p {
+      color: #666;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .redirect-info {
+      background: #f5f5f5;
+      padding: 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #555;
+      text-align: center;
+    }
+  </style>
+  <script>
+    // Auto-redirect after 2 seconds
+    setTimeout(function() {
+      window.location.href = "${escapeHtml(destination)}";
+    }, 2000);
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div class="image-container">
+      <img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />
+    </div>
+    <div class="content">
+      <h1>${escapeHtml(title)}</h1>
+      <p>${escapeHtml(description)}</p>
+      <div class="redirect-info">
+        Redirecting you to the destination...
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
+}
+
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+/**
  * Checks if the IP address has made a recent analytics request for a given slug within the rate limit window
  * @param ipAddress - The IP address to check
  * @param slug - The slug to scope the rate limiting to
@@ -255,6 +386,11 @@ export async function URLRedirects(
         console.warn(
           `[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`,
         );
+      }
+
+      // If custom metadata exists, serve preview page with OG tags
+      if (linkData.title || linkData.image || linkData.description) {
+        return serveLinkPreview(req, shortCode, linkData);
       }
 
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);

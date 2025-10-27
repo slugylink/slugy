@@ -50,9 +50,17 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { LinkFormValues, LinkData } from "@/types/link-form";
 import { COLOR_OPTIONS } from "@/constants/tag-colors";
 import { EditIcon } from "@/utils/icons/edit";
+import QRCodeDesign from "@/components/web/qr-code-design";
+import LinkCustomMetadata from "./link-custome-metadata";
 
 // Types
 interface LinkFormFieldsProps {
@@ -61,6 +69,7 @@ interface LinkFormFieldsProps {
   onGenerateRandomSlug: () => void;
   isEditMode?: boolean;
   workspaceslug?: string;
+  linkId?: string;
   onSafetyStatusChange?: (status: {
     isChecking: boolean;
     isValid: boolean | null;
@@ -146,6 +155,7 @@ const LinkFormFields = ({
   onGenerateRandomSlug,
   isEditMode = false,
   workspaceslug,
+  linkId,
   onSafetyStatusChange,
 }: LinkFormFieldsProps) => {
   const { control, getValues, watch, setValue } = form;
@@ -164,6 +174,9 @@ const LinkFormFields = ({
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [searchValue, setSearchValue] = useState("");
   const [isSlugEditable, setIsSlugEditable] = useState(!isEditMode);
+  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
+  const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
+  const [qrCodeKey, setQrCodeKey] = useState(0); // Force re-render after save
   const slugInputRef = useRef<HTMLInputElement | null>(null);
 
   // Debounce refs
@@ -491,6 +504,19 @@ const LinkFormFields = ({
     }
     return undefined;
   })();
+
+  // Extract custom metadata
+  const customMetadata = (() => {
+    if (isLinkData(form.formState.defaultValues)) {
+      return {
+        image: form.formState.defaultValues.image || null,
+        title: form.formState.defaultValues.title || null,
+        description: form.formState.defaultValues.description || null,
+      };
+    }
+    return { image: null, title: null, description: null };
+  })();
+
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
       {/* Left side: Form fields */}
@@ -784,20 +810,120 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>QR Code</Label>
-            {/* <EditIcon
-              className="h-4 w-4 cursor-pointer"/> */}
+            {/* {linkId && isEditMode && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setQrCodeDialogOpen(true)}
+                      className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    >
+                      <EditIcon className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Customize QR Code</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )} */}
           </div>
           <LinkQrCode
+            key={qrCodeKey}
             domain={domain}
             code={currentCode}
             customization={qrCodeCustomization}
           />
         </div>
         <div className="space-y-3">
-          <Label>Link Preview</Label>
-          <LinkPreview url={normalizedUrl} key={normalizedUrl} />
+          <div className="flex items-center justify-between">
+            <Label>Link Preview</Label>
+            {linkId && isEditMode && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setMetadataDialogOpen(true)}
+                      className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                    >
+                      <EditIcon className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit Link Preview</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+          <LinkPreview
+            url={normalizedUrl}
+            key={normalizedUrl}
+            customImage={customMetadata.image}
+            customTitle={customMetadata.title}
+            customDescription={customMetadata.description}
+          />
         </div>
       </div>
+
+      {/* Link Metadata Dialog */}
+      {linkId && isEditMode && (() => {
+        const linkData = form.formState.defaultValues as LinkData | undefined;
+        return (
+          <LinkCustomMetadata
+            linkId={linkId}
+            linkUrl={normalizedUrl}
+            currentImage={linkData?.image || null}
+            currentTitle={linkData?.title || null}
+            currentDescription={linkData?.description || null}
+            workspaceslug={workspaceslug!}
+            open={metadataDialogOpen}
+            onOpenChange={setMetadataDialogOpen}
+            onSave={() => {
+              // Force re-render by incrementing key
+              setQrCodeKey((prev) => prev + 1);
+              // Invalidate cache to refetch latest data
+              void mutate(
+                (key) =>
+                  typeof key === "string" &&
+                  key.includes(`/workspace/${workspaceslug}/link/`),
+                undefined,
+                { revalidate: true },
+              );
+            }}
+          />
+        );
+      })()}
+
+      {/* QR Code Design Dialog */}
+      {linkId && isEditMode && (
+        <Dialog open={qrCodeDialogOpen} onOpenChange={setQrCodeDialogOpen}>
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-medium">
+                QR Code Design
+              </DialogTitle>
+            </DialogHeader>
+            <QRCodeDesign
+              linkId={linkId}
+              domain={domain}
+              code={slug || currentCode}
+              onOpenChange={(open: boolean) => {
+                setQrCodeDialogOpen(open);
+                if (!open) {
+                  // Refresh QR code after closing
+                  setQrCodeKey((prev) => prev + 1);
+                  void mutate(
+                    (key) =>
+                      typeof key === "string" &&
+                      key.includes(`/workspace/${workspaceslug}/link/`),
+                    undefined,
+                    { revalidate: true },
+                  );
+                }
+              }}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

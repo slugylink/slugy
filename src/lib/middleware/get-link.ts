@@ -36,6 +36,9 @@ export interface GetLinkResult {
   requiresPassword?: boolean;
   expired?: boolean;
   error?: string;
+  title?: string | null;
+  image?: string | null;
+  description?: string | null;
 }
 
 type LinkCacheType = {
@@ -46,6 +49,9 @@ type LinkCacheType = {
   password: string | null;
   workspaceId: string;
   domain: string;
+  title: string | null;
+  image: string | null;
+  description: string | null;
 } | null;
 
 export async function getLink(
@@ -80,6 +86,9 @@ export async function getLink(
           l.password, 
           l."workspaceId",
           l.domain,
+          l.title,
+          l.image,
+          l.description,
           cd.domain as custom_domain
         FROM "links" l
         LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
@@ -102,6 +111,9 @@ export async function getLink(
           password: row.password ?? null,
           workspaceId: row.workspaceId,
           domain: row.custom_domain || row.domain,
+          title: row.title ?? null,
+          image: row.image ?? null,
+          description: row.description ?? null,
         };
 
         // Set cache asynchronously (don't block the response)
@@ -157,6 +169,9 @@ export async function getLink(
       url: link.url,
       linkId: link.id,
       workspaceId: link.workspaceId,
+      title: link.title,
+      image: link.image,
+      description: link.description,
     };
   } catch (error) {
     console.error(`Error fetching link for slug "${slug}":`, error);

@@ -358,6 +358,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
                   onGenerateRandomSlug={handleGenerateRandomSlug}
                   isEditMode={true}
                   workspaceslug={workspaceslug!}
+                  linkId={initialData.id}
                   onSafetyStatusChange={setUrlSafetyStatus}
                 />
               </div>

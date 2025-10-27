@@ -88,6 +88,7 @@ interface LinkData {
   utm_content?: string | null;
   utm_term?: string | null;
   image?: string | null;
+  title?: string | null;
   qrCode: {
     id: string;
     customization?: string;
@@ -198,6 +199,7 @@ const createEditFormData = (link: LinkData) => ({
   utm_term: link.utm_term ?? "",
   creatorId: typeof link.creatorId === "string" ? link.creatorId : undefined,
   image: link.image ?? "",
+  title: link.title ?? "",
   qrCode: link.qrCode,
 });
 
