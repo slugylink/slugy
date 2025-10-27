@@ -367,25 +367,37 @@ export async function URLRedirects(
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      // Check rate limiting before tracking analytics
-      const xff = req.headers.get("x-forwarded-for") ?? "";
-      const xri = req.headers.get("x-real-ip") ?? "";
-      const ipAddress = xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE;
-      const isRateLimited = await checkAnalyticsRateLimit(ipAddress, shortCode);
+      // Detect trigger to check if this is a bot request
+      const trigger = detectTrigger(req);
+      const isBot = trigger === "bot";
 
-      if (!isRateLimited) {
-        void trackAnalytics(
-          req,
-          linkData.linkId,
+      // Only track analytics for non-bot users
+      if (!isBot) {
+        // Check rate limiting before tracking analytics
+        const xff = req.headers.get("x-forwarded-for") ?? "";
+        const xri = req.headers.get("x-real-ip") ?? "";
+        const ipAddress = xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE;
+        const isRateLimited = await checkAnalyticsRateLimit(
+          ipAddress,
           shortCode,
-          linkData.url,
-          linkData.workspaceId,
-          domain,
         );
+
+        if (!isRateLimited) {
+          void trackAnalytics(
+            req,
+            linkData.linkId,
+            shortCode,
+            linkData.url,
+            linkData.workspaceId,
+            domain,
+          );
+        } else {
+          console.warn(
+            `[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`,
+          );
+        }
       } else {
-        console.warn(
-          `[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`,
-        );
+        console.warn(`[Analytics Skipped] Bot detected on slug ${shortCode}`);
       }
 
       // If custom metadata exists, serve preview page with OG tags
