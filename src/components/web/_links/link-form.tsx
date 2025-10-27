@@ -837,7 +837,7 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Link Preview</Label>
-            {linkId && isEditMode && (
+            {/* {linkId && isEditMode && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -852,7 +852,7 @@ const LinkFormFields = ({
                   <TooltipContent>Edit Link Preview</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-            )}
+            )} */}
           </div>
           <LinkPreview
             url={normalizedUrl}
