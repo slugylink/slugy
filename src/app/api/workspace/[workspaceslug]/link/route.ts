@@ -25,7 +25,9 @@ const createLinkSchema = z.object({
     }),
   image: z.string().url().optional().nullable(),
   title: z.string().max(100).optional().nullable(),
+  // Keep description (comments) and support metadesc for preview
   description: z.string().max(500).optional().nullable(),
+  metadesc: z.string().max(500).optional().nullable(),
   password: z.string().min(3).max(50).optional().nullable(),
   expiresAt: z.string().datetime().optional().nullable(),
   expirationUrl: z.string().url().optional().nullable(),
@@ -71,6 +73,7 @@ export async function POST(
       image: body.image === "" ? null : body.image,
       title: body.title === "" ? null : body.title,
       description: body.description === "" ? null : body.description,
+      metadesc: body.metadesc === "" ? null : body.metadesc,
       password: body.password === "" ? null : body.password,
       expiresAt: body.expiresAt === "" ? null : body.expiresAt,
       expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
@@ -163,6 +166,7 @@ export async function POST(
             image: validatedData.image,
             title: validatedData.title,
             description: validatedData.description,
+            metadesc: validatedData.metadesc ?? null,
             password: validatedData.password,
             ...(validatedData.expiresAt
               ? { expiresAt: new Date(validatedData.expiresAt) }
@@ -183,6 +187,7 @@ export async function POST(
             image: true,
             title: true,
             description: true,
+            metadesc: true,
             password: true,
             expiresAt: true,
             expirationUrl: true,
@@ -311,6 +316,7 @@ export async function POST(
         image: true,
         title: true,
         description: true,
+          metadesc: true,
         password: true,
         expiresAt: true,
         expirationUrl: true,

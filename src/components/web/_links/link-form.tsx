@@ -75,6 +75,21 @@ interface LinkFormFieldsProps {
     isValid: boolean | null;
     message: string;
   }) => void;
+  // For create flow: allow in-memory preview edits
+  draftMetadata?: {
+    image: string | null;
+    title: string | null;
+    metadesc: string | null;
+    imagePreview?: string | null;
+    selectedFile?: File | null;
+  };
+  onDraftMetadataSave?: (draft: {
+    image: string | null;
+    title: string | null;
+    metadesc: string | null;
+    imagePreview?: string | null;
+    selectedFile?: File | null;
+  }) => void;
 }
 
 interface TagType {
@@ -157,6 +172,8 @@ const LinkFormFields = ({
   workspaceslug,
   linkId,
   onSafetyStatusChange,
+  draftMetadata,
+  onDraftMetadataSave,
 }: LinkFormFieldsProps) => {
   const { control, getValues, watch, setValue } = form;
 
@@ -517,6 +534,20 @@ const LinkFormFields = ({
     return { image: null, title: null, metadesc: null };
   })();
 
+  // Choose which metadata to show in preview: draft first (create), otherwise server/defaults
+  const previewImage = draftMetadata?.imagePreview
+    ? draftMetadata.imagePreview || undefined
+    : undefined;
+  const effectiveImage = (draftMetadata?.image ?? null) !== null
+    ? (draftMetadata?.image || undefined)
+    : (customMetadata.image || undefined);
+  const effectiveTitle = (draftMetadata?.title ?? null) !== null
+    ? (draftMetadata?.title || undefined)
+    : (customMetadata.title || undefined);
+  const effectiveMetadesc = (draftMetadata?.metadesc ?? null) !== null
+    ? (draftMetadata?.metadesc || undefined)
+    : (customMetadata.metadesc || undefined);
+
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
       {/* Left side: Form fields */}
@@ -837,7 +868,7 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Link Preview</Label>
-            {linkId && isEditMode && (
+            {(isEditMode ? (linkId && isEditMode) : true) && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -849,7 +880,7 @@ const LinkFormFields = ({
                       <EditIcon className="h-4 w-4" />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Edit Link Preview</TooltipContent>
+                  <TooltipContent>Edit Preview</TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
@@ -857,28 +888,54 @@ const LinkFormFields = ({
           <LinkPreview
             url={normalizedUrl}
             key={normalizedUrl}
-            customImage={customMetadata.image}
-            customTitle={customMetadata.title}
-            customDescription={customMetadata.metadesc}
+            customImage={previewImage || effectiveImage}
+            customTitle={effectiveTitle}
+            customDescription={effectiveMetadesc}
           />
         </div>
       </div>
 
       {/* Link Metadata Dialog */}
-      {linkId && isEditMode && (
+      {(
+        (isEditMode && linkId) || !isEditMode
+      ) && (
         <LinkCustomMetadata
-          linkId={linkId}
+          linkId={isEditMode ? linkId : undefined}
           linkUrl={normalizedUrl}
-          currentImage={(form.formState.defaultValues as LinkData | undefined)?.image || null}
-          currentTitle={(form.formState.defaultValues as LinkData | undefined)?.title || null}
-          currentDescription={(form.formState.defaultValues as LinkData | undefined)?.description || null}
-          workspaceslug={workspaceslug!}
+          currentImage={
+            isEditMode
+              ? (draftMetadata?.image ?? (form.formState.defaultValues as LinkData | undefined)?.image ?? null)
+              : (draftMetadata?.image || null)
+          }
+          currentTitle={
+            isEditMode
+              ? (draftMetadata?.title ?? (form.formState.defaultValues as LinkData | undefined)?.title ?? null)
+              : (draftMetadata?.title || null)
+          }
+          currentDescription={
+            isEditMode
+              ? (draftMetadata?.metadesc ?? (form.formState.defaultValues as LinkData | undefined)?.metadesc ?? null)
+              : (draftMetadata?.metadesc || null)
+          }
+          workspaceslug={isEditMode ? workspaceslug! : undefined}
           open={metadataDialogOpen}
           onOpenChange={setMetadataDialogOpen}
-          onSave={() => {
-            // Force re-render by incrementing key
+          persistMode={(!isEditMode || onDraftMetadataSave) ? "local" : "server"}
+          onSave={(payload) => {
+            if (!isEditMode || onDraftMetadataSave) {
+              if (onDraftMetadataSave && payload) {
+                onDraftMetadataSave({
+                  image: payload.image || null,
+                  title: payload.title || null,
+                  metadesc: payload.metadesc || null,
+                  imagePreview: payload.imagePreview || null,
+                  selectedFile: payload.selectedFile || null,
+                });
+              }
+              return;
+            }
+            // Edit flow: Force re-render and refetch
             setQrCodeKey((prev) => prev + 1);
-            // Invalidate cache to refetch latest data
             void mutate(
               (key) =>
                 typeof key === "string" &&

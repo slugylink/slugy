@@ -20,15 +20,30 @@ import { Upload, Link2 } from "lucide-react";
 import { Loader2 } from "@/utils/icons/loader2";
 
 interface LinkCustomMetadataProps {
-  linkId: string;
+  // Server mode props
+  linkId?: string;
+  workspaceslug?: string;
+
+  // Common props
   linkUrl: string;
   currentImage: string | null;
   currentTitle: string | null;
   currentDescription: string | null;
-  workspaceslug: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: () => void;
+  // onSave semantics:
+  // - server mode: called after successful server save, no args
+  // - local mode: called with draft payload to be stored in parent state
+  onSave: (payload?: {
+    image: string;
+    title: string;
+    metadesc: string;
+    // Optional when image is chosen as a file during create flow
+    selectedFile?: File | null;
+    imagePreview?: string;
+  }) => void;
+  // Controls whether Save persists to server or just returns values to parent
+  persistMode?: "server" | "local";
 }
 
 const TITLE_MAX = 120;
@@ -44,6 +59,7 @@ export default function LinkCustomMetadata({
   open,
   onOpenChange,
   onSave,
+  persistMode = "server",
 }: LinkCustomMetadataProps) {
   // Fetch default metadata immediately (uses SWR cache if available)
   const { data: defaultMetadata } = useSWR(
@@ -142,6 +158,20 @@ export default function LinkCustomMetadata({
   const handleSave = useCallback(async () => {
     setIsSaving(true);
     try {
+      // Local mode: return values to parent without network calls
+      if (persistMode === "local") {
+        onSave({
+          image: image,
+          title,
+          metadesc,
+          selectedFile,
+          imagePreview,
+        });
+        setIsSaving(false);
+        onOpenChange(false);
+        return;
+      }
+
       let imageUrl = image;
 
       // If there's a selected file, upload it to R2 first
@@ -220,6 +250,8 @@ export default function LinkCustomMetadata({
     linkId,
     onSave,
     onOpenChange,
+    persistMode,
+    imagePreview,
   ]);
 
   const handleCancel = useCallback(() => {

@@ -103,6 +103,18 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       password: initialData.password || null,
       expirationUrl: initialData.expirationUrl || null,
     });
+    // Draft (local-only) link preview metadata while editing
+    const [draftMetadata, setDraftMetadata] = useState<{
+      image: string | null;
+      title: string | null;
+      metadesc: string | null;
+      imagePreview?: string | null;
+      selectedFile?: File | null;
+    }>({
+      image: initialData.image ?? null,
+      title: initialData.title ?? null,
+      metadesc: initialData.metadesc ?? null,
+    });
 
     const initialParams: UTMParams = useMemo(
       () => ({
@@ -183,9 +195,19 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       [linkSettings, initialLinkSettings],
     );
 
+    const isDraftMetadataDirty = useMemo(() => {
+      return (
+        draftMetadata.selectedFile != null ||
+        (draftMetadata.imagePreview ?? "") !== "" ||
+        (draftMetadata.image ?? null) !== (initialData.image ?? null) ||
+        (draftMetadata.title ?? null) !== (initialData.title ?? null) ||
+        (draftMetadata.metadesc ?? null) !== (initialData.metadesc ?? null)
+      );
+    }, [draftMetadata, initialData.image, initialData.title, initialData.metadesc]);
+
     const isAnythingDirty = useMemo(
-      () => isDirty || isParamsDirty || isLinkSettingsDirty,
-      [isDirty, isParamsDirty, isLinkSettingsDirty],
+      () => isDirty || isParamsDirty || isLinkSettingsDirty || isDraftMetadataDirty,
+      [isDirty, isParamsDirty, isLinkSettingsDirty, isDraftMetadataDirty],
     );
 
     const isSafeToSubmit = useMemo(
@@ -226,6 +248,25 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
     const onSubmit = useCallback(
       async (data: LinkFormValues) => {
         try {
+          // If a file is selected as preview image, upload first to get URL
+          let finalImage: string | null | undefined = draftMetadata.image ?? initialData.image ?? null;
+          if (draftMetadata.selectedFile) {
+            const formData = new FormData();
+            formData.append("file", draftMetadata.selectedFile);
+            try {
+              const uploadRes = await axios.post(
+                `/api/workspace/${workspaceslug}/link/${initialData.id}/upload-image`,
+                formData,
+                { headers: { "Content-Type": "multipart/form-data" } },
+              );
+              finalImage = uploadRes.data.url as string;
+            } catch (e) {
+              console.error("Preview image upload failed:", e);
+              toast.error("Preview image upload failed. Try again.");
+              // Continue without changing image
+            }
+          }
+
           const normalizedSettings = {
             ...linkSettings,
             expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
@@ -245,6 +286,10 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
             `/api/workspace/${workspaceslug}/link/${initialData.id}${UPDATE_ENDPOINT}`,
             {
               ...data,
+              // Persist draft preview
+              title: draftMetadata.title ?? initialData.title ?? null,
+              metadesc: draftMetadata.metadesc ?? initialData.metadesc ?? null,
+              image: finalImage ?? null,
               ...normalizedSettings,
               ...utmPayload,
             },
@@ -285,7 +330,17 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
           }
         }
       },
-      [workspaceslug, initialData.id, linkSettings, utmParams, onClose],
+      [
+        workspaceslug,
+        initialData.id,
+        linkSettings,
+        utmParams,
+        onClose,
+        draftMetadata,
+        initialData.image,
+        initialData.title,
+        initialData.metadesc,
+      ],
     );
 
     // Memoized button content
@@ -360,6 +415,8 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
                   workspaceslug={workspaceslug!}
                   linkId={initialData.id}
                   onSafetyStatusChange={setUrlSafetyStatus}
+                  draftMetadata={draftMetadata}
+                  onDraftMetadataSave={(draft) => setDraftMetadata(draft)}
                 />
               </div>
 

@@ -93,6 +93,14 @@ const CreateLinkForm = React.memo(
       content: "",
       referral: "",
     });
+    // Draft (local-only) link preview metadata while creating
+    const [draftMetadata, setDraftMetadata] = useState<{
+      image: string | null;
+      title: string | null;
+      metadesc: string | null;
+      imagePreview?: string | null;
+      selectedFile?: File | null;
+    }>({ image: null, title: null, metadesc: null });
     const [urlSafetyStatus, setUrlSafetyStatus] = useState<UrlSafetyStatus>({
       isChecking: false,
       isValid: null,
@@ -171,6 +179,7 @@ const CreateLinkForm = React.memo(
         referral: "",
       });
       setCode("");
+      setDraftMetadata({ image: null, title: null, metadesc: null });
     }, [reset]);
 
     const handleClose = useCallback(() => {
@@ -201,12 +210,39 @@ const CreateLinkForm = React.memo(
             `/api/workspace/${workspaceslug}/link`,
             {
               ...data,
+              // Persist draft preview (server expects metadesc in create route after we update it)
+              title: draftMetadata.title || null,
+              metadesc: draftMetadata.metadesc || null,
+              image: draftMetadata.image || null,
               ...normalizedSettings,
               ...utmPayload,
             },
           );
 
           if (response.status === 201) {
+            const created = response.data as { id: string };
+            // If user picked a file for preview image, upload now and patch link
+            if (draftMetadata.selectedFile) {
+              try {
+                const formData = new FormData();
+                formData.append("file", draftMetadata.selectedFile);
+                const uploadRes = await axios.post(
+                  `/api/workspace/${workspaceslug}/link/${created.id}/upload-image`,
+                  formData,
+                  { headers: { "Content-Type": "multipart/form-data" } },
+                );
+                const imageUrl = uploadRes.data.url as string;
+                await axios.patch(
+                  `/api/workspace/${workspaceslug}/link/${created.id}/update`,
+                  { image: imageUrl },
+                );
+              } catch (e) {
+                // Non-blocking: creation succeeded; notify upload failure only
+                console.error("Preview image upload failed:", e);
+                toast.error("Preview image upload failed. You can try editing later.");
+              }
+            }
+
             toast.success("Link created successfully!");
 
             // Optimistically update cache
@@ -272,6 +308,7 @@ const CreateLinkForm = React.memo(
         resetForm,
         handleClose,
         router,
+        draftMetadata,
       ],
     );
 
@@ -323,6 +360,8 @@ const CreateLinkForm = React.memo(
                   onGenerateRandomSlug={handleGenerateRandomSlug}
                   workspaceslug={workspaceslug}
                   onSafetyStatusChange={setUrlSafetyStatus}
+                  draftMetadata={draftMetadata}
+                  onDraftMetadataSave={(draft) => setDraftMetadata(draft)}
                 />
               </div>
 
