@@ -218,10 +218,10 @@ export default function LinkCard({
     link.id,
   );
   const [isCopied, setIsCopied] = useState(false);
-  
+
   const shortUrl = `https://${link.domain || "slugy.co"}/${link.slug}`;
   const editFormData = createEditFormData(link);
-  
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(shortUrl);
@@ -296,6 +296,11 @@ export default function LinkCard({
           isSelected && "bg-zinc-50 dark:bg-zinc-900",
         )}
         onClick={handleCardClick}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleDialog("dropdown", true);
+        }}
       >
         {/* Avatar/Checkbox */}
         {isSelectModeOn ? (
