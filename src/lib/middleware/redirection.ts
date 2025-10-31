@@ -56,7 +56,55 @@ const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 /**
  * Serve a link preview page with OG tags and auto-redirect
  */
-// Preview page disabled; direct redirects will be used instead
+function escapeHtml(text: string): string {
+  const map: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  };
+  return text.replace(/[&<>"']/g, (m) => map[m]);
+}
+
+function serveLinkPreview(
+  req: NextRequest,
+  slug: string,
+  linkData: import("./get-link").GetLinkResult,
+): NextResponse {
+  const baseUrl = req.nextUrl.origin;
+  const title = linkData.title || "";
+  const image = linkData.image || `${baseUrl}/logo.svg`;
+  const metadesc = linkData.metadesc || "";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(title || "Slugy Link")}</title>
+  <meta name="description" content="${escapeHtml(metadesc)}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeHtml(title)}">
+  <meta property="og:description" content="${escapeHtml(metadesc)}">
+  <meta property="og:image" content="${escapeHtml(image)}">
+  <meta property="og:url" content="${escapeHtml(req.url)}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(title)}">
+  <meta name="twitter:description" content="${escapeHtml(metadesc)}">
+  <meta name="twitter:image" content="${escapeHtml(image)}">
+</head>
+<body></body>
+</html>`;
+
+  return new NextResponse(html, {
+    status: 200,
+    headers: {
+      "Content-Type": "text/html",
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
+}
 
 // escapeHtml no longer used (preview page disabled)
 
@@ -279,7 +327,10 @@ export async function URLRedirects(
         );
       }
 
-      // Skip the preview page; redirect immediately to destination
+      // Show metadata preview only for bots (social share crawlers); redirect users
+      if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
+        return serveLinkPreview(req, shortCode, linkData);
+      }
 
       return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
