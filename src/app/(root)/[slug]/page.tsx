@@ -101,7 +101,7 @@ const SlugPassword = () => {
           </CardTitle>
           {!isSuccess && (
             <p className="text-muted-foreground text-center text-sm">
-              {"This link is password protected"}
+              This link is password protected
             </p>
           )}
         </CardHeader>
