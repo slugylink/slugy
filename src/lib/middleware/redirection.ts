@@ -27,9 +27,20 @@ function getGeoData(req: NextRequest) {
   const vercelContinent = headers.get("x-vercel-ip-continent");
   const vercelRegion = headers.get("x-vercel-ip-country-region");
 
+  // Safe decodeURIComponent with error handling
+  const getCity = (): string => {
+    const city = cfCity || vercelCity;
+    if (!city) return UNKNOWN_VALUE;
+    try {
+      return decodeURIComponent(city);
+    } catch {
+      return city;
+    }
+  };
+
   return {
     country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: decodeURIComponent(cfCity || vercelCity || UNKNOWN_VALUE),
+    city: getCity(),
     continent: (cfContinent || vercelContinent)?.toLowerCase() ?? UNKNOWN_VALUE,
     region: cfRegion || vercelRegion || UNKNOWN_VALUE,
   };
@@ -54,9 +65,10 @@ const RATE_LIMIT_WINDOW_SECONDS = 10;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 
 /**
- * Serve a link preview page with OG tags and auto-redirect
+ * Escapes HTML special characters to prevent XSS
  */
-function escapeHtml(text: string): string {
+function escapeHtml(text: string | null | undefined): string {
+  if (!text) return "";
   const map: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
@@ -64,9 +76,13 @@ function escapeHtml(text: string): string {
     '"': "&quot;",
     "'": "&#039;",
   };
-  return text.replace(/[&<>"']/g, (m) => map[m]);
+  return String(text).replace(/[&<>"']/g, (m) => map[m] ?? m);
 }
 
+/**
+ * Serves link preview page with OG tags for social media crawlers
+ * Optimized cache headers for social crawlers while preventing browser caching
+ */
 function serveLinkPreview(
   req: NextRequest,
   slug: string,
@@ -100,13 +116,13 @@ function serveLinkPreview(
   return new NextResponse(html, {
     status: 200,
     headers: {
-      "Content-Type": "text/html",
-      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Content-Type": "text/html; charset=utf-8",
+      // Allow social crawlers to cache, but prevent browser caching
+      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }
-
-// escapeHtml no longer used (preview page disabled)
 
 /**
  * Checks if the IP address has made a recent analytics request for a given slug within the rate limit window
@@ -171,15 +187,27 @@ async function trackAnalytics(
       trigger,
     };
 
-    function extractUTMParams(url: string) {
-      const params = new URL(url).searchParams;
-      return {
-        utm_source: params.get("utm_source") || null,
-        utm_medium: params.get("utm_medium") || null,
-        utm_campaign: params.get("utm_campaign") || null,
-        utm_term: params.get("utm_term") || null,
-        utm_content: params.get("utm_content") || null,
-      };
+    function extractUTMParams(urlString: string) {
+      try {
+        const urlObj = new URL(urlString);
+        const params = urlObj.searchParams;
+        return {
+          utm_source: params.get("utm_source") || null,
+          utm_medium: params.get("utm_medium") || null,
+          utm_campaign: params.get("utm_campaign") || null,
+          utm_term: params.get("utm_term") || null,
+          utm_content: params.get("utm_content") || null,
+        };
+      } catch {
+        // Invalid URL, return null values
+        return {
+          utm_source: null,
+          utm_medium: null,
+          utm_campaign: null,
+          utm_term: null,
+          utm_content: null,
+        };
+      }
     }
 
     const utmParams = extractUTMParams(url);
@@ -287,14 +315,24 @@ export async function URLRedirects(
     }
 
     if (linkData.expired && linkData.url) {
-      return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
+      try {
+        return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
+      } catch {
+        // Invalid expiration URL, redirect to origin
+        return NextResponse.redirect(new URL(`${origin}/?status=expired`), REDIRECT_STATUS);
+      }
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
       // Detect trigger and check if this is a bot request
       const trigger = detectTrigger(req);
-      const userAgent = req.headers.get("user-agent") || "";
       const isBot = trigger === "bot";
+
+      // If this is a bot (e.g., social crawler) and we have metadata, serve preview immediately
+      // This happens BEFORE analytics to ensure bots don't trigger tracking
+      if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
+        return serveLinkPreview(req, shortCode, linkData);
+      }
 
       // Only track analytics for non-bot users
       if (!isBot) {
@@ -308,6 +346,7 @@ export async function URLRedirects(
         );
 
         if (!isRateLimited) {
+          // Fire and forget analytics - don't await
           void trackAnalytics(
             req,
             linkData.linkId,
@@ -316,27 +355,26 @@ export async function URLRedirects(
             linkData.workspaceId,
             domain,
           );
-        } else {
-          console.warn(
-            `[Analytics Skipped] Rate limited for IP ${ipAddress} on slug ${shortCode}`,
-          );
         }
-      } else {
-        console.warn(
-          `[Analytics Skipped] Bot detected (${trigger}) on slug ${shortCode} - UA: ${userAgent.substring(0, 100)}`,
-        );
       }
 
-      // Show metadata preview only for bots (social share crawlers); redirect users
-      if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
-        return serveLinkPreview(req, shortCode, linkData);
+      // Redirect to destination URL with validation
+      try {
+        const redirectUrl = new URL(linkData.url);
+        return NextResponse.redirect(redirectUrl, REDIRECT_STATUS);
+      } catch (urlError) {
+        // Invalid URL, redirect to error page
+        console.error(`Invalid redirect URL for slug "${shortCode}":`, urlError);
+        return NextResponse.redirect(new URL(`${origin}/?status=error`), REDIRECT_STATUS);
       }
-
-      return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
     }
 
     if (linkData.url?.includes("status=not-found")) {
-      return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
+      try {
+        return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
+      } catch {
+        return NextResponse.redirect(new URL(`${origin}/?status=not-found`), REDIRECT_STATUS);
+      }
     }
 
     return null;
