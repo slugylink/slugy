@@ -1,5 +1,6 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 
 // Validate Polar webhook secret
 const validateWebhookSecret = (secret: string | undefined) => {
@@ -20,8 +21,9 @@ export const POST = secretValidation.valid
       console.log("Polar webhook payload:", payload);
     },
   })
-  : async () => {
-    return NextResponse.json(
+  : async (req: Request) => {
+    return jsonWithETag(
+      req,
       { error: "Webhook service is not configured properly" },
       { status: 503 }
     );

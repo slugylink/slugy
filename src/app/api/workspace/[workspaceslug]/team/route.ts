@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
@@ -12,7 +13,7 @@ export async function GET(
       headers: await headers(),
     });
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -25,10 +26,7 @@ export async function GET(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
     // Get workspace members (excluding the owner to avoid duplicates)
@@ -78,12 +76,9 @@ export async function GET(
       ...members,
     ];
 
-    return NextResponse.json(team, { status: 200 });
+    return jsonWithETag(req, team, { status: 200 });
   } catch (error) {
     console.error(error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
   }
 }

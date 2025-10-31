@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { jsonWithETag } from "@/lib/http";
 
 export async function POST(
   request: NextRequest,
@@ -10,7 +11,8 @@ export async function POST(
     const context = await params;
 
     if (!password) {
-      return NextResponse.json(
+      return jsonWithETag(
+        request,
         { error: "Password is required" },
         { status: 400 },
       );
@@ -34,12 +36,13 @@ export async function POST(
     });
 
     if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return jsonWithETag(request, { error: "Link not found" }, { status: 404 });
     }
 
     // Check if link has expired
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return NextResponse.json(
+      return jsonWithETag(
+        request,
         {
           error: "Link has expired",
           redirectUrl: link.expirationUrl || null,
@@ -50,7 +53,8 @@ export async function POST(
 
     // Check if link is password protected
     if (!link.password) {
-      return NextResponse.json(
+      return jsonWithETag(
+        request,
         { error: "Link is not password protected" },
         { status: 400 },
       );
@@ -58,11 +62,11 @@ export async function POST(
 
     // Verify password
     if (link.password !== password) {
-      return NextResponse.json({ error: "Invalid password" }, { status: 401 });
+      return jsonWithETag(request, { error: "Invalid password" }, { status: 401 });
     }
 
     // Set a cookie to remember password verification and return the response
-    const response = NextResponse.json({
+    const response = jsonWithETag(request, {
       success: true,
       url: link.url,
     });
@@ -79,9 +83,6 @@ export async function POST(
     return response;
   } catch (error) {
     console.error("Password verification error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
+    return jsonWithETag(request, { error: "Internal server error" }, { status: 500 });
   }
 }

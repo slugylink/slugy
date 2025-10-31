@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/server/neon";
+import { jsonWithETag } from "@/lib/http";
 
 const getCachedLink = async (slug: string, domain: string = "slugy.co") => {
   try {
@@ -79,7 +80,7 @@ export async function GET(
     const domain = req.nextUrl.searchParams.get("domain") || "slugy.co";
 
     if (!isValidSlug(shortCode)) {
-      return NextResponse.json({
+      return jsonWithETag(req, {
         success: false,
         url: `${req.nextUrl.origin}/?status=invalid`,
       });
@@ -88,7 +89,7 @@ export async function GET(
     const link = await getCachedLink(shortCode, domain);
 
     if (!link) {
-      return NextResponse.json({
+      return jsonWithETag(req, {
         success: true,
         url: `${req.nextUrl.origin}/?status=not-found`,
       });
@@ -98,7 +99,7 @@ export async function GET(
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
       const expirationUrl =
         link.expirationUrl || `${req.nextUrl.origin}/?status=expired`;
-      return NextResponse.json({
+      return jsonWithETag(req, {
         success: true,
         url: expirationUrl,
         expired: true,
@@ -112,7 +113,7 @@ export async function GET(
       const passwordVerified = cookies[`password_verified_${link.domain}_${shortCode}`];
 
       if (!passwordVerified) {
-        return NextResponse.json({
+        return jsonWithETag(req, {
           success: true,
           url: null,
           requiresPassword: true,
@@ -120,7 +121,7 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
+    return jsonWithETag(req, {
       success: true,
       url: link.url,
       linkId: link.id,
@@ -128,7 +129,7 @@ export async function GET(
     });
   } catch (error) {
     console.error("Error getting link:", error);
-    return NextResponse.json({
+    return jsonWithETag(req, {
       success: false,
       url: `${req.nextUrl.origin}/?status=error`,
     });

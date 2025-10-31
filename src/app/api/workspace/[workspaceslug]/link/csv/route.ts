@@ -10,6 +10,7 @@ import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
+import { jsonWithETag } from "@/lib/http";
 
 export async function GET(
   req: Request,
@@ -19,7 +20,7 @@ export async function GET(
     const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     // Parse query params for date range
@@ -100,10 +101,7 @@ export async function GET(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { message: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { message: "Workspace not found" }, { status: 404 });
     }
 
     // Build where clause for date filtering
@@ -184,7 +182,7 @@ export async function POST(
     const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -200,7 +198,8 @@ export async function POST(
     }
 
     if (!workspaceCheck.canCreateLinks) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           error: "Link limit reached. Upgrade to Pro.",
           limitInfo: {
@@ -218,18 +217,12 @@ export async function POST(
     const file = formData.get("file") as File;
 
     if (!file) {
-      return NextResponse.json(
-        { message: "No file provided" },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { message: "No file provided" }, { status: 400 });
     }
 
     // Validate file type
     if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-      return NextResponse.json(
-        { message: "Invalid file type. Please upload a CSV file." },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { message: "Invalid file type. Please upload a CSV file." }, { status: 400 });
     }
 
     // Read and parse CSV
@@ -241,10 +234,7 @@ export async function POST(
     });
 
     if (records.length === 0) {
-      return NextResponse.json(
-        { message: "CSV file is empty or has no valid data" },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { message: "CSV file is empty or has no valid data" }, { status: 400 });
     }
 
     // Add warning for very large files
@@ -388,7 +378,8 @@ export async function POST(
 
     // If there are validation errors, return them
     if (errors.length > 0) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           message: "Validation errors found in CSV",
           errors,
@@ -426,7 +417,8 @@ export async function POST(
           })
           .filter(Boolean) as Array<{ row: number; errors: Array<{ message: string; path: string[] }> }>;
         if (conflictErrors.length > 0) {
-          return NextResponse.json(
+          return jsonWithETag(
+            req,
             {
               message: "Validation errors found in CSV",
               errors: conflictErrors,
@@ -481,7 +473,8 @@ export async function POST(
         }],
       }));
 
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           message: "Unsafe URLs detected in CSV import",
           errors: safetyErrors,
@@ -670,7 +663,8 @@ export async function POST(
     tagNameToId.clear();
     createdSlugs.length = 0;
 
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       {
         message: `Successfully imported ${totalCreatedCount} links`,
       },
@@ -679,9 +673,10 @@ export async function POST(
   } catch (error) {
     console.error("Error importing CSV:", error);
     if (error instanceof Error) {
-      return NextResponse.json({ message: error.message }, { status: 400 });
+      return jsonWithETag(req, { message: error.message }, { status: 400 });
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while importing CSV." },
       { status: 500 },
     );

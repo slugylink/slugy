@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
@@ -14,7 +15,7 @@ export async function DELETE(
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -24,7 +25,7 @@ export async function DELETE(
       context.workspaceslug,
     );
     if (!workspace.success || !workspace.workspace)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
@@ -42,7 +43,7 @@ export async function DELETE(
       },
     });
     if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
     }
 
     // Store the slug and domain before deletion for cache invalidation
@@ -69,19 +70,18 @@ export async function DELETE(
 
     waitUntil(deleteLink(linkData));
 
-    return NextResponse.json(
-      { message: "Link deleted successfully" },
-      { status: 200 },
-    );
+    return jsonWithETag(req, { message: "Link deleted successfully" }, { status: 200 });
   } catch (error) {
     console.error("Error deleting link:", error);
     if (error instanceof Error) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: error.message },
         { status: error.message.includes("not found") ? 404 : 400 },
       );
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while deleting the link." },
       { status: 500 },
     );

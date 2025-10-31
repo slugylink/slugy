@@ -12,6 +12,7 @@ import {
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
 import { checkDomainLimit } from "@/server/actions/limit";
+import { jsonWithETag } from "@/lib/http";
 
 // Helper: Get authenticated session
 async function getSession() {
@@ -80,19 +81,16 @@ export async function GET(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ domains: workspace.customDomains });
+    return jsonWithETag(req, { domains: workspace.customDomains });
   } catch (error) {
     console.error("Error fetching domains:", error);
     const message =
       error instanceof Error ? error.message : "Failed to fetch domains";
     const status = message === "Unauthorized" ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return jsonWithETag(req, { error: message }, { status });
   }
 }
 
@@ -109,7 +107,7 @@ export async function POST(
     const domain = body.domain?.toLowerCase().trim();
     const validation = validateDomain(domain);
     if (!validation.valid) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
+      return jsonWithETag(req, { error: validation.error }, { status: 400 });
     }
 
     // Verify workspace access (admin only)
@@ -123,28 +121,19 @@ export async function POST(
     const maxDomains = subscription?.plan?.maxCustomDomains ?? 0;
     const limitCheck = await checkDomainLimit(workspace.id, maxDomains);
     if (!limitCheck.canAdd) {
-      return NextResponse.json(
-        { error: limitCheck.error || "Domain limit reached" },
-        { status: 403 }
-      );
+      return jsonWithETag(req, { error: limitCheck.error || "Domain limit reached" }, { status: 403 });
     }
 
     // Check if domain is already in use
     const inUse = await isDomainInUse(domain);
     if (inUse) {
-      return NextResponse.json(
-        { error: "Domain is already in use" },
-        { status: 409 },
-      );
+      return jsonWithETag(req, { error: "Domain is already in use" }, { status: 409 });
     }
 
     // Add domain to Vercel (for SSL handling)
     const vercelResult = await addDomainToVercel(domain);
     if (!vercelResult.success) {
-      return NextResponse.json(
-        { error: vercelResult.error || "Failed to add domain to Vercel" },
-        { status: 500 },
-      );
+      return jsonWithETag(req, { error: vercelResult.error || "Failed to add domain to Vercel" }, { status: 500 });
     }
 
     // Create domain in database
@@ -158,7 +147,8 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       {
         domain: customDomain,
         verificationRecord: vercelResult.verificationRecord,
@@ -174,7 +164,7 @@ export async function POST(
       message.includes("Unauthorized") || message.includes("permissions")
         ? 403
         : 500;
-    return NextResponse.json({ error: message }, { status });
+    return jsonWithETag(req, { error: message }, { status });
   }
 }
 
@@ -189,10 +179,7 @@ export async function DELETE(
     const domainId = searchParams.get("domainId");
 
     if (!domainId) {
-      return NextResponse.json(
-        { error: "Domain ID is required" },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { error: "Domain ID is required" }, { status: 400 });
     }
 
     // Verify workspace access (admin only)
@@ -204,7 +191,7 @@ export async function DELETE(
     });
 
     if (!customDomain || customDomain.workspaceId !== workspace.id) {
-      return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Domain not found" }, { status: 404 });
     }
 
     // Remove from Vercel (continue on failure)
@@ -247,7 +234,7 @@ export async function DELETE(
     // Delete from database
     await db.customDomain.delete({ where: { id: domainId } });
 
-    return NextResponse.json({ success: true });
+    return jsonWithETag(req, { success: true });
   } catch (error) {
     console.error("Error deleting domain:", error);
     const message =
@@ -256,7 +243,7 @@ export async function DELETE(
       message.includes("Unauthorized") || message.includes("permissions")
         ? 403
         : 500;
-    return NextResponse.json({ error: message }, { status });
+    return jsonWithETag(req, { error: message }, { status });
   }
 }
 
@@ -273,10 +260,7 @@ export async function PATCH(
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON in request body" },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { error: "Invalid JSON in request body" }, { status: 400 });
     }
 
     const { domainId, action } = body;
@@ -296,7 +280,7 @@ export async function PATCH(
     });
 
     if (!customDomain || customDomain.workspaceId !== workspace.id) {
-      return NextResponse.json({ error: "Domain not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Domain not found" }, { status: 404 });
     }
 
     // Handle verify action
@@ -325,7 +309,7 @@ export async function PATCH(
         },
       });
 
-      return NextResponse.json({
+      return jsonWithETag(req, {
         domain: updatedDomain,
         verified: isVerified,
         configured: isDnsConfigured,
@@ -346,15 +330,15 @@ export async function PATCH(
         data: { redirectToWww: !customDomain.redirectToWww },
       });
 
-      return NextResponse.json({ domain: updatedDomain });
+      return jsonWithETag(req, { domain: updatedDomain });
     }
 
-    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+    return jsonWithETag(req, { error: "Invalid action" }, { status: 400 });
   } catch (error) {
     console.error("Error updating domain:", error);
     const message =
       error instanceof Error ? error.message : "Failed to update domain";
     const status = message === "Unauthorized" ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return jsonWithETag(req, { error: message }, { status });
   }
 }

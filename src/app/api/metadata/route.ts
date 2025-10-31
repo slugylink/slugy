@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getMetaTags, isValidUrl } from "@/lib/metadata";
+import { jsonWithETag } from "@/lib/http";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -52,7 +53,8 @@ export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
 
   if (isRateLimited(ip)) {
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { error: "Rate limit exceeded", retryAfter: RATE_WINDOW / 1000 },
       {
         status: 429,
@@ -68,7 +70,8 @@ export async function GET(req: NextRequest) {
     const url = req.nextUrl.searchParams.get("url");
 
     if (!url || !isValidUrl(url)) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { error: "Valid URL parameter is required" },
         { status: 400, headers: CORS_HEADERS },
       );
@@ -76,7 +79,8 @@ export async function GET(req: NextRequest) {
 
     const metadata = await getMetaTags(url);
 
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       {
         success: true,
         url,
@@ -91,7 +95,8 @@ export async function GET(req: NextRequest) {
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error";
 
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       {
         success: false,
         error: "Failed to fetch metadata",

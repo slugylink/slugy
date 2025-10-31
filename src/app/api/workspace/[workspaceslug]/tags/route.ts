@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { z } from "zod";
@@ -20,7 +21,7 @@ export async function POST(
       headers: await headers(),
     });
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const body = (await req.json()) as CreateTagSchema;
@@ -36,10 +37,7 @@ export async function POST(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
     // Check the number of existing tags
@@ -50,10 +48,7 @@ export async function POST(
     });
 
     if (tagCount >= 5) {
-      return NextResponse.json(
-        { error: "Maximum number of tags (5) reached for this workspace" },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { error: "Maximum number of tags (5) reached for this workspace" }, { status: 400 });
     }
 
     const tag = await db.tag.create({
@@ -82,15 +77,10 @@ export async function POST(
       linkCount: tag._count.links,
     };
 
-    return NextResponse.json(tagWithLinkCount, {
-      status: 201,
-    });
+    return jsonWithETag(req, tagWithLinkCount, { status: 201 });
   } catch (error) {
     console.error("[TAGS_POST]", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -104,7 +94,7 @@ export async function GET(
     });
 
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -116,10 +106,7 @@ export async function GET(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
     const tags = await db.tag.findMany({
       where: {
@@ -149,12 +136,9 @@ export async function GET(
       linkCount: tag._count.links,
     }));
 
-    return NextResponse.json(tagsWithLinkCount);
+    return jsonWithETag(req, tagsWithLinkCount);
   } catch (error) {
     console.error("[TAGS_GET]", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
   }
 }

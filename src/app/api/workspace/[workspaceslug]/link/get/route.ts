@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
+import { jsonWithETag } from "@/lib/http";
 
 // Types for database queries
 type LinkWhereInput = {
@@ -256,7 +257,8 @@ export async function GET(
 
       const paginationInfo = calculatePaginationInfo(totalLinks, limit, 0);
 
-      return NextResponse.json(
+      return jsonWithETag(
+        request,
         {
           links: firstPageLinks,
           totalLinks,
@@ -269,7 +271,8 @@ export async function GET(
 
     const paginationInfo = calculatePaginationInfo(totalLinks, limit, offset);
 
-    return NextResponse.json(
+    return jsonWithETag(
+      request,
       {
         links,
         totalLinks,

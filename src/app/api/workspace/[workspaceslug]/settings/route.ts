@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { invalidateWorkspaceCache, invalidateWorkspaceBySlug } from "@/lib/cache-utils/workspace-cache";
@@ -19,16 +20,13 @@ export async function PATCH(
     headers: await headers(),
   });
   if (!session) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    return jsonWithETag(request, { message: "Unauthorized" }, { status: 401 });
   }
 
   const context = await params;
 
   if (!context.workspaceslug) {
-    return NextResponse.json(
-      { message: "Workspace slug is required" },
-      { status: 400 },
-    );
+    return jsonWithETag(request, { message: "Workspace slug is required" }, { status: 400 });
   }
 
   // Find the workspace based on the user ID and slug
@@ -40,10 +38,7 @@ export async function PATCH(
   });
 
   if (!workspace) {
-    return NextResponse.json(
-      { message: "Workspace not found" },
-      { status: 404 },
-    );
+    return jsonWithETag(request, { message: "Workspace not found" }, { status: 404 });
   }
 
   // Parse the request body
@@ -59,10 +54,7 @@ export async function PATCH(
     });
 
     if (existingSlug) {
-      return NextResponse.json(
-        { message: "Workspace slug already exists" },
-        { status: 400 },
-      );
+      return jsonWithETag(request, { message: "Workspace slug already exists" }, { status: 400 });
     }
   }
 
@@ -91,7 +83,7 @@ export async function PATCH(
       : Promise.resolve(),
   ]);
 
-  return NextResponse.json(updatedWorkspace);
+  return jsonWithETag(request, updatedWorkspace);
 }
 
 // * Delete a workspace
@@ -104,7 +96,7 @@ export async function DELETE(
       headers: await headers(),
     });
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -117,10 +109,7 @@ export async function DELETE(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { message: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { message: "Workspace not found" }, { status: 404 });
     }
 
     // Check if the workspace is the default workspace
@@ -162,12 +151,9 @@ export async function DELETE(
       invalidateWorkspaceBySlug(session.user.id, context.workspaceslug),
     ]);
 
-    return NextResponse.json({ message: "Workspace deleted successfully" });
+    return jsonWithETag(req, { message: "Workspace deleted successfully" });
   } catch (error) {
     console.error("[WORKSPACE_DELETE]", error);
-    return NextResponse.json(
-      { message: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { message: "Internal Server Error" }, { status: 500 });
   }
 }

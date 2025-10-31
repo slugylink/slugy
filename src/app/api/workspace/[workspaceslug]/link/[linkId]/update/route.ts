@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
@@ -33,7 +34,7 @@ export async function PATCH(
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -57,13 +58,13 @@ export async function PATCH(
       context.workspaceslug,
     );
     if (!workspace.success || !workspace.workspace)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
     });
     if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
     }
 
     // If customDomainId is being updated, verify it belongs to the workspace and get the domain name
@@ -81,10 +82,7 @@ export async function PATCH(
         });
 
         if (!customDomain) {
-          return NextResponse.json(
-            { error: "Invalid or unverified custom domain" },
-            { status: 400 },
-          );
+        return jsonWithETag(req, { error: "Invalid or unverified custom domain" }, { status: 400 });
         }
 
         customDomainName = customDomain.domain;
@@ -108,10 +106,7 @@ export async function PATCH(
       });
 
       if (existingSlug) {
-        return NextResponse.json(
-          { message: `Slug already exists for this domain!` },
-          { status: 400 },
-        );
+        return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
       }
     }
 
@@ -120,7 +115,8 @@ export async function PATCH(
       const ownDomainPattern =
         /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
       if (ownDomainPattern.test(validatedData.url)) {
-        return NextResponse.json(
+        return jsonWithETag(
+          req,
           {
             error:
               "Recursive links are not allowed. You cannot shorten a slugy.co link.",
@@ -344,7 +340,7 @@ export async function PATCH(
 
     // Invalidate cache for the updated link
     if (!linkWithTags) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
     }
     await invalidateLinkCache(
       linkWithTags.slug!,
@@ -364,22 +360,25 @@ export async function PATCH(
 
     waitUntil(updateLink(linkData));
 
-    return NextResponse.json(linkWithTags, { status: 200 });
+    return jsonWithETag(req, linkWithTags, { status: 200 });
   } catch (error) {
     console.error("Error updating link:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: "Invalid input data", errors: error.errors },
         { status: 400 },
       );
     }
     if (error instanceof Error) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: error.message },
         { status: error.message.includes("not found") ? 404 : 400 },
       );
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while updating the link." },
       { status: 500 },
     );

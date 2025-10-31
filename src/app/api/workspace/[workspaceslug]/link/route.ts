@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { customAlphabet } from "nanoid";
 import { z } from "zod"; // Import zod for input validation
 import { headers } from "next/headers";
@@ -63,7 +64,7 @@ export async function POST(
     const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const body = (await req.json()) as CreateLinkRequest;
@@ -88,10 +89,11 @@ export async function POST(
     );
 
     if (!workspaceCheck.success || !workspaceCheck.workspace)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     if (!workspaceCheck.canCreateLinks) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           error: "Link limit reached. Upgrade to Pro.",
           limitInfo: {
@@ -108,7 +110,8 @@ export async function POST(
     const ownDomainPattern =
       /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
     if (ownDomainPattern.test(validatedData.url)) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           error:
             "Recursive links are not allowed. You cannot shorten a slugy.co link.",
@@ -131,10 +134,7 @@ export async function POST(
       });
 
       if (!customDomain) {
-        return NextResponse.json(
-          { error: "Invalid or unverified custom domain" },
-          { status: 400 },
-        );
+        return jsonWithETag(req, { error: "Invalid or unverified custom domain" }, { status: 400 });
       }
 
       customDomainName = customDomain.domain;
@@ -146,10 +146,7 @@ export async function POST(
         : nanoid();
 
     if (!(await isSlugAvailable(shortUrlCode, customDomainName))) {
-      return NextResponse.json(
-        { message: `Slug already exists for this domain!` },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
     }
 
     // Use transaction to ensure data consistency
@@ -297,10 +294,7 @@ export async function POST(
         Array.isArray(error.meta.target) &&
         error.meta.target.includes("slug")
       ) {
-        return NextResponse.json(
-          { message: `Slug already exists for this domain!` },
-          { status: 400 },
-        );
+        return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
       }
       // Re-throw other errors
       throw error;
@@ -342,7 +336,7 @@ export async function POST(
 
     // Invalidate cache for the new link
     if (!linkWithTags) {
-      return NextResponse.json({ message: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, { message: "Link not found" }, { status: 404 });
     }
     await invalidateLinkCache(linkWithTags?.slug, customDomainName || "slugy.co");
 
@@ -359,7 +353,7 @@ export async function POST(
 
     waitUntil(sendLinkMetadata(linkMetadata));
 
-    return NextResponse.json(linkWithTags, {
+    return jsonWithETag(req, linkWithTags, {
       status: 201,
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -370,18 +364,21 @@ export async function POST(
   } catch (error) {
     console.error("Error creating link:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: "Invalid input data", errors: error.errors },
         { status: 400 },
       );
     }
     if (error instanceof Error) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: error.message },
         { status: error.message.includes("not found") ? 404 : 400 },
       );
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while creating the link." },
       { status: 500 },
     );

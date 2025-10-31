@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
+import { jsonWithETag } from "@/lib/http";
 
 // Input validation schema
 const analyticsSchema = z.object({
@@ -31,7 +32,8 @@ export async function POST(req: NextRequest) {
         "Analytics validation failed:",
         validationResult.error.flatten(),
       );
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           error: "Invalid input data",
           details: validationResult.error.flatten(),
@@ -128,12 +130,14 @@ export async function POST(req: NextRequest) {
       },
     );
 
-    const response = NextResponse.json({
-      success: true,
-      message: "Analytics tracked successfully",
-    });
-
-    response.headers.set("Cache-Control", "no-store");
+    const response = jsonWithETag(
+      req,
+      {
+        success: true,
+        message: "Analytics tracked successfully",
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    );
     return response;
   } catch (error) {
     console.error("Analytics tracking error:", error);
@@ -147,9 +151,6 @@ export async function POST(req: NextRequest) {
 
     console.error("Analytics error details:", errorDetails);
 
-    return NextResponse.json(
-      { error: "Failed to track analytics" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Failed to track analytics" }, { status: 500 });
   }
 }

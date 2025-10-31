@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { z } from "zod";
@@ -21,7 +22,7 @@ export async function PATCH(
     });
 
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -33,10 +34,7 @@ export async function PATCH(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
     // Check if tag exists and belongs to the workspace
@@ -48,7 +46,7 @@ export async function PATCH(
     });
 
     if (!existingTag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Tag not found" }, { status: 404 });
     }
 
     // Validate request body
@@ -65,10 +63,7 @@ export async function PATCH(
       });
 
       if (existingTagWithName) {
-        return NextResponse.json(
-          { error: "Tag name already exists" },
-          { status: 400 },
-        );
+        return jsonWithETag(req, { error: "Tag name already exists" }, { status: 400 });
       }
     }
 
@@ -101,20 +96,14 @@ export async function PATCH(
       linkCount: updatedTag._count.links,
     };
 
-    return NextResponse.json(tagWithLinkCount, { status: 200 });
+    return jsonWithETag(req, tagWithLinkCount, { status: 200 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: "Invalid request data", details: error.errors },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { error: "Invalid request data", details: error.errors }, { status: 400 });
     }
 
     console.error("[TAG_UPDATE]", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
   }
 }
 
@@ -128,7 +117,7 @@ export async function DELETE(
     });
 
     if (!session) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { message: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -141,10 +130,7 @@ export async function DELETE(
     });
 
     if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
     // Check if tag exists and belongs to the workspace
@@ -156,7 +142,7 @@ export async function DELETE(
     });
 
     if (!tag) {
-      return NextResponse.json({ error: "Tag not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Tag not found" }, { status: 404 });
     }
 
     // Delete the tag
@@ -166,15 +152,9 @@ export async function DELETE(
       },
     });
 
-    return NextResponse.json(
-      { message: "Tag deleted successfully" },
-      { status: 200 },
-    );
+    return jsonWithETag(req, { message: "Tag deleted successfully" }, { status: 200 });
   } catch (error) {
     console.error("[TAG_DELETE]", error);
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
   }
 }

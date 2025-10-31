@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
+import { } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
@@ -17,7 +18,7 @@ export async function PATCH(
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -28,7 +29,7 @@ export async function PATCH(
       context.workspaceslug,
     );
     if (!workspace.success || !workspace.workspace)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const link = await db.link.findUnique({
       where: { id: context.linkId, workspaceId: workspace.workspace.id },
@@ -37,7 +38,7 @@ export async function PATCH(
       },
     });
     if (!link) {
-      return NextResponse.json({ error: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
     }
 
     const body = await req.json();
@@ -52,22 +53,25 @@ export async function PATCH(
     const linkDomain = link.customDomain?.domain || "slugy.co";
     await invalidateLinkCache(link.slug, linkDomain);
 
-    return NextResponse.json({ message: isArchived ? "Link archived" : "Link unarchived" }, { status: 200 });
+    return jsonWithETag(req, { message: isArchived ? "Link archived" : "Link unarchived" }, { status: 200 });
   } catch (error) {
     console.error("Error archiving link:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: "Invalid input data", errors: error.errors },
         { status: 400 },
       );
     }
     if (error instanceof Error) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: error.message },
         { status: error.message.includes("not found") ? 404 : 400 },
       );
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while archiving the link." },
       { status: 500 },
     );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { polarClient } from "@/lib/polar"; // Import your existing `polarApi` instance
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { jsonWithETag } from "@/lib/http";
 
 export async function GET(req: Request) {
   try {
@@ -20,7 +21,8 @@ export async function GET(req: Request) {
     });
 
     if (!session) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         {
           error: "Unauthorized - No session",
           debug: {
@@ -34,14 +36,11 @@ export async function GET(req: Request) {
     }
 
     if (!session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized - No user" },
-        { status: 401 },
-      );
+      return jsonWithETag(req, { error: "Unauthorized - No user" }, { status: 401 });
     }
 
     if (!productId) {
-      return NextResponse.json({ error: "Missing productId" }, { status: 400 });
+      return jsonWithETag(req, { error: "Missing productId" }, { status: 400 });
     }
 
     const successUrl = `http://app.localhost:3000/confirmation?checkoutId={CHECKOUT_ID}`;
@@ -59,9 +58,6 @@ export async function GET(req: Request) {
     return NextResponse.redirect(checkoutSession.url);
   } catch (error) {
     console.error("Checkout error:", error);
-    return NextResponse.json(
-      { error: "Failed to create checkout session" },
-      { status: 500 },
-    );
+    return jsonWithETag(req, { error: "Failed to create checkout session" }, { status: 500 });
   }
 }

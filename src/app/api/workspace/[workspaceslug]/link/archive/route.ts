@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
@@ -17,7 +18,7 @@ export async function POST(
   try {
     const session = await auth.api.getSession({ headers: await headers() });
     if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
     }
 
     const context = await params;
@@ -28,7 +29,7 @@ export async function POST(
       context.workspaceslug,
     );
     if (!workspace.success || !workspace.workspace)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
     const { linkIds } = bulkArchiveSchema.parse(body);
@@ -43,10 +44,7 @@ export async function POST(
     });
 
     if (links.length !== linkIds.length) {
-      return NextResponse.json(
-        { error: "Some links not found or access denied" },
-        { status: 404 },
-      );
+      return jsonWithETag(req, { error: "Some links not found or access denied" }, { status: 404 });
     }
 
     // Archive all links
@@ -62,25 +60,25 @@ export async function POST(
     const slugs = links.map(link => link.slug);
     await invalidateLinkCacheBatch(slugs);
 
-    return NextResponse.json(
-      { message: `Successfully archived ${linkIds.length} links` },
-      { status: 200 },
-    );
+    return jsonWithETag(req, { message: `Successfully archived ${linkIds.length} links` }, { status: 200 });
   } catch (error) {
     console.error("Error bulk archiving links:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: "Invalid input data", errors: error.errors },
         { status: 400 },
       );
     }
     if (error instanceof Error) {
-      return NextResponse.json(
+      return jsonWithETag(
+        req,
         { message: error.message },
         { status: 400 },
       );
     }
-    return NextResponse.json(
+    return jsonWithETag(
+      req,
       { message: "An error occurred while archiving the links." },
       { status: 500 },
     );
