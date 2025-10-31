@@ -99,11 +99,11 @@ const SlugPassword = () => {
           <CardTitle className="text-center text-xl font-medium">
             {isSuccess ? "Password Verified!" : "Enter Password"}
           </CardTitle>
-          <p className="text-muted-foreground text-center text-sm">
-            {isSuccess
-              ? "Redirecting you to the link..."
-              : "This link is password protected"}
-          </p>
+          {!isSuccess && (
+            <p className="text-muted-foreground text-center text-sm">
+              {"This link is password protected"}
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

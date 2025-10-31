@@ -153,13 +153,10 @@ function serveLinkPreview(
     <div class="image-container">
       <img src="${escapeHtml(image)}" alt="${escapeHtml(title)}" />
     </div>
-    <div class="content">
-      <h1>${escapeHtml(title)}</h1>
-      <p>${escapeHtml(metadesc)}</p>
-      <div class="redirect-info">
-        Redirecting you to the destination...
-      </div>
-    </div>
+  <div class="content">
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(metadesc)}</p>
+  </div>
   </div>
 </body>
 </html>`;
