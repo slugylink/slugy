@@ -116,7 +116,7 @@ model Subscription {
   id                  String                @id @default(cuid())
   planId              String
   priceId             String?               @unique
-  referenceId         String                @unique
+  referenceId         String                @unique // userId
   customerId          String?
   subscriptionId      String?
   status              String                @default("active")
