@@ -13,6 +13,7 @@ interface UsageDetails {
   clicksTracked: number;
   linksCreated: number;
   addedUsers: number;
+  periodStart: Date;
   periodEnd: Date;
 }
 
@@ -84,6 +85,7 @@ export async function getUsages({
           clicksTracked: true,
           linksCreated: true,
           addedUsers: true,
+          periodStart: true,
           periodEnd: true,
         },
       }),

@@ -10,7 +10,7 @@ const PAGE_TITLES: Record<string, string> = {
   "bio-links": "Bio Links",
   settings: "Settings",
   team: "Team",
-  billing: "Plan and Usage",
+  billing: "Billing",
   account: "Account",
   library: "Library",
   domains: "Domains",
@@ -27,7 +27,7 @@ function getPageTitle(pathname: string): string {
   if (secondLastPart === "library") return "Library";
   if (secondLastPart === "bio-links") return "Bio Links";
 
-  return "Links"; // Default fallback
+  return ""; // Default fallback
 }
 
 export default function SidebarHeader() {

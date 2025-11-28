@@ -84,30 +84,33 @@ model Verification {
 }
 
 model Plan {
-  id                    String                @id @default(cuid())
+  id                    String   @id @default(cuid())
   name                  String?
   description           String?
-  monthlyPrice          Float                 @default(0)
+  monthlyPrice          Float    @default(0)
   monthlyPriceId        String?
-  yearlyPrice           Float                 @default(0)
+  yearlyPrice           Float    @default(0)
   yearlyPriceId         String?
-  yearlyDiscount        Float                 @default(0)
-  planType              PlanType              @default(free)
-  currency              String                @default("USD")
-  interval              Interval              @default(month)
-  maxWorkspaces         Int                   @default(2)
-  maxLinksPerWorkspace  Int                   @default(30)
-  maxClicksPerWorkspace Int                   @default(1000)
-  maxGalleries          Int                   @default(1)
-  maxLinksPerBio        Int                   @default(5)
-  maxUsers              Int                   @default(1)
-  maxCustomDomains      Int                   @default(0)
-  features              Json?
-  buttonLabel           String?
-  isReady               Boolean               @default(true)
-  isRecommended         Boolean               @default(false)
-  SubscriptionHistory   SubscriptionHistory[]
-  subscriptions         Subscription[]
+  yearlyDiscount        Float    @default(0)
+  planType              PlanType @default(free)
+  currency              String   @default("USD")
+  interval              Interval @default(month)
+  // limits
+  maxWorkspaces         Int      @default(2)
+  maxLinksPerWorkspace  Int      @default(25)
+  maxClicksPerWorkspace Int      @default(1000)
+  maxGalleries          Int      @default(1)
+  maxLinksPerBio        Int      @default(5)
+  maxUsers              Int      @default(1)
+  maxCustomDomains      Int      @default(2)
+  maxTagsPerWorkspace   Int      @default(5)
+
+  features            Json?
+  buttonLabel         String?
+  isReady             Boolean               @default(true)
+  isRecommended       Boolean               @default(false)
+  SubscriptionHistory SubscriptionHistory[]
+  subscriptions       Subscription[]
 
   @@map("plans")
 }
@@ -198,11 +201,12 @@ model Workspace {
   logo             String?
   isDefault        Boolean           @default(true)
   linksUsage       Int               @default(0)
-  maxLinksLimit    Int               @default(30)
   clicksUsage      Int               @default(0)
+  maxLinksLimit    Int               @default(25)
   maxClicksLimit   Int               @default(1000)
-  addedUsers       Int               @default(1)
   maxUsers         Int               @default(1)
+  maxLinkTags      Int               @default(5)
+  addedUsers       Int               @default(1)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   deletedAt        DateTime?
