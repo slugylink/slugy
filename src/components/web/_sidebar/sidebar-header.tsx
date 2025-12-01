@@ -27,7 +27,7 @@ function getPageTitle(pathname: string): string {
   if (secondLastPart === "library") return "Library";
   if (secondLastPart === "bio-links") return "Bio Links";
 
-  return ""; // Default fallback
+  return "Links"; // Default fallback
 }
 
 export default function SidebarHeader() {

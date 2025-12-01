@@ -28,7 +28,8 @@
     "@neondatabase/serverless": "^1.0.1",
     "@number-flow/react": "^0.5.10",
     "@polar-sh/better-auth": "^1.0.1",
-    "@polar-sh/nextjs": "^0.4.0",
+    "@polar-sh/checkout": "^0.1.14",
+    "@polar-sh/nextjs": "^0.4.11",
     "@polar-sh/sdk": "^0.32.16",
     "@prisma/adapter-neon": "^6.9.0",
     "@prisma/client": "^6.9.0",
@@ -105,7 +106,7 @@
     "tailwind-merge": "^3.3.1",
     "utf-8-validate": "^6.0.5",
     "ws": "^8.18.2",
-    "zod": "^3.25.67",
+    "zod": "^3.25.76",
     "zustand": "^5.0.6"
   },
   "devDependencies": {

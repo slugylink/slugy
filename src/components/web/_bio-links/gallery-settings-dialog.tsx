@@ -230,7 +230,7 @@ const GallerySettingsDialog = ({
                     <div className="flex items-center justify-between text-xs">
                       <FormMessage />
                       <span className="text-muted-foreground">
-                        {field.value.length}/25
+                        {field.value?.length}/25
                       </span>
                     </div>
                   </FormItem>
@@ -254,7 +254,7 @@ const GallerySettingsDialog = ({
                     <div className="flex items-center justify-between text-xs">
                       <FormMessage />
                       <span className="text-muted-foreground flex items-center justify-end">
-                        {field.value.length}/50
+                        {field.value?.length}/50
                       </span>
                     </div>
                   </FormItem>

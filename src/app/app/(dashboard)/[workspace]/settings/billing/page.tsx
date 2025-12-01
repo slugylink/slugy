@@ -100,7 +100,7 @@ export default async function Billing({
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button asChild size="lg">
-              <Link href="upgrade">
+              <Link href="billing/upgrade">
                 Upgrade <ArrowUpRight className="ml-2 size-4" />
               </Link>
             </Button>
