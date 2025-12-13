@@ -92,10 +92,10 @@ export async function createWorkspace({
     // Invalidate caches immediately for faster response
     await Promise.all([
       invalidateWorkspaceCache(userId),
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
-      revalidateTag("workspaces"),
-      revalidateTag("workspace-validation"),
+      revalidateTag("workspace", "/"),
+      revalidateTag("all-workspaces", "/"),
+      revalidateTag("workspaces", "/"),
+      revalidateTag("workspace-validation", "/"),
     ]);
 
     // Run background tasks

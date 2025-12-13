@@ -207,3 +207,145 @@ export async function getBillingData(workspaceSlug: string) {
     };
   }
 }
+
+// Get checkout URL for subscription
+export async function getCheckoutUrl(productId?: string, priceId?: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        message: "Unauthorized",
+        url: null,
+      };
+    }
+
+    // Build checkout URL with optional product/price parameters
+    const baseUrl = process.env.NODE_ENV === "production"
+      ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
+      : "http://app.localhost:3000";
+    
+    const checkoutUrl = new URL(`${baseUrl}/api/subscription/checkout`);
+    
+    if (productId) {
+      checkoutUrl.searchParams.set("product_id", productId);
+    }
+    if (priceId) {
+      checkoutUrl.searchParams.set("price_id", priceId);
+    }
+
+    return {
+      success: true,
+      message: "Checkout URL generated",
+      url: checkoutUrl.toString(),
+    };
+  } catch (error) {
+    console.error("Error getting checkout URL:", error);
+    return {
+      success: false,
+      message: "Failed to get checkout URL",
+      url: null,
+    };
+  }
+}
+
+// Get customer portal URL for subscription management
+export async function getCustomerPortalUrl() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        message: "Unauthorized",
+        url: null,
+      };
+    }
+
+    const baseUrl = process.env.NODE_ENV === "production"
+      ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
+      : "http://app.localhost:3000";
+    
+    const portalUrl = `${baseUrl}/api/subscription/manage`;
+
+    return {
+      success: true,
+      message: "Customer portal URL generated",
+      url: portalUrl,
+    };
+  } catch (error) {
+    console.error("Error getting customer portal URL:", error);
+    return {
+      success: false,
+      message: "Failed to get customer portal URL",
+      url: null,
+    };
+  }
+}
+
+// Sync subscription from Polar
+export async function syncSubscriptionFromPolar() {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user?.id) {
+      return {
+        success: false,
+        message: "Unauthorized",
+      };
+    }
+
+    const userId = session.user.id;
+
+    // Get user with customer ID
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { customerId: true },
+    });
+
+    if (!user?.customerId) {
+      return {
+        success: false,
+        message: "No customer ID found. Please complete checkout first.",
+      };
+    }
+
+    // Check if subscription already exists in database
+    const existingSubscription = await db.subscription.findUnique({
+      where: { referenceId: userId },
+      include: { plan: true },
+    });
+
+    if (existingSubscription) {
+      return {
+        success: true,
+        message: "Subscription already exists in database. Webhooks will keep it in sync.",
+      };
+    }
+
+    // If no subscription exists, return a message suggesting to complete checkout
+    // The webhook will create the subscription after checkout
+    return {
+      success: false,
+      message: "No subscription found. Please complete checkout first. Subscriptions are automatically synced via webhooks.",
+    };
+
+    return {
+      success: true,
+      message: "Subscription synced successfully",
+    };
+  } catch (error) {
+    console.error("Error syncing subscription from Polar:", error);
+    return {
+      success: false,
+      message: "Failed to sync subscription",
+    };
+  }
+}

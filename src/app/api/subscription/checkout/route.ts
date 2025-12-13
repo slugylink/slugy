@@ -1,63 +1,73 @@
-import { NextResponse } from "next/server";
-import { polarClient } from "@/lib/polar"; // Import your existing `polarApi` instance
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { jsonWithETag } from "@/lib/http";
+import { auth } from '@/lib/auth';
+import { Checkout } from '@polar-sh/nextjs'
+import { headers } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/server/db'
 
-export async function GET(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const productId = searchParams.get("productId");
-
-    // Debug: Log all headers to see what's being sent
-    const headersList = await headers();
-    const cookie = headersList.get("cookie");
-    const authorization = headersList.get("authorization");
-
-    // Get session using the original approach
-    const session = await auth.api.getSession({
-      headers: await headers(),
-      //
-    });
-
-    if (!session) {
-      return jsonWithETag(
-        req,
-        {
-          error: "Unauthorized - No session",
-          debug: {
-            cookies: cookie,
-            hasAuth: !!authorization,
-            url: req.url,
-          },
-        },
-        { status: 401 },
-      );
-    }
-
-    if (!session.user) {
-      return jsonWithETag(req, { error: "Unauthorized - No user" }, { status: 401 });
-    }
-
-    if (!productId) {
-      return jsonWithETag(req, { error: "Missing productId" }, { status: 400 });
-    }
-
-    const successUrl = `http://app.localhost:3000/confirmation?checkoutId={CHECKOUT_ID}`;
-
-    // Create checkout session with Polar
-    const checkoutSession = await polarClient.checkouts.create({
-      products: [productId],
-      customerExternalId: session.user.id,
-      customerEmail: session.user.email,
-      customerName: session.user.name,
-      successUrl,
-    });
-
-    // Redirect user to the Polar checkout page
-    return NextResponse.redirect(checkoutSession.url);
-  } catch (error) {
-    console.error("Checkout error:", error);
-    return jsonWithETag(req, { error: "Failed to create checkout session" }, { status: 500 });
+export async function GET(req: NextRequest) {
+  // Authenticate user
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Get user info from database
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { 
+      customerId: true,
+      email: true,
+      name: true,
+      id: true,
+    },
+  });
+
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  // Build URL with customer info query params
+  // Polar Checkout handler automatically reads query params from the request URL:
+  // - products (required): ?products=123 or ?products=123,456
+  // - customerId (optional): ?customerId=xxx
+  // - customerExternalId (optional): ?customerExternalId=xxx
+  // - customerEmail (optional): ?customerEmail=user@example.com
+  // - customerName (optional): ?customerName=Jane
+  // - metadata (optional): URL-Encoded JSON string
+  
+  const url = new URL(req.url);
+  
+  // Set customer info if not already provided in query params
+  if (user.customerId && !url.searchParams.has('customerId')) {
+    url.searchParams.set('customerId', user.customerId);
+  }
+  if (!url.searchParams.has('customerExternalId')) {
+    url.searchParams.set('customerExternalId', user.id);
+  }
+  if (user.email && !url.searchParams.has('customerEmail')) {
+    url.searchParams.set('customerEmail', user.email);
+  }
+  if (user.name && !url.searchParams.has('customerName')) {
+    url.searchParams.set('customerName', user.name);
+  }
+
+  // Create new request with updated URL
+  const updatedReq = new NextRequest(url, {
+    method: req.method,
+    headers: req.headers,
+    body: req.body,
+  });
+
+  return await Checkout({
+    accessToken: process.env.POLAR_ACCESS_TOKEN!,
+    server: (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox",
+    successUrl: process.env.POLAR_SUCCESS_URL || (process.env.NODE_ENV === "production" 
+      ? "https://app.slugy.co/" 
+      : "http://app.localhost:3000/"),
+    returnUrl: process.env.NODE_ENV === "production" 
+      ? "https://app.slugy.co" 
+      : "http://app.localhost:3000",
+  })(updatedReq)
 }

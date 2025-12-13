@@ -77,14 +77,14 @@ export async function getLayoutData(workspaceSlug?: string) {
 
 
 // Revalidation utility for workspace changes
-export async function revalidateWorkspaceData(userId?: string) {
+export async function revalidateWorkspaceData(userId?: string, path: string = "/") {
   try {
     // Revalidate Next.js cache tags
     await Promise.all([
-      revalidateTag("workspaces"),
-      revalidateTag("all-workspaces"),
-      revalidateTag("workspace"),
-      revalidateTag("workspace-validation"),
+      revalidateTag("workspaces", path),
+      revalidateTag("all-workspaces", path),
+      revalidateTag("workspace", path),
+      revalidateTag("workspace-validation", path),
     ]);
     
     // If userId provided, also invalidate Redis caches

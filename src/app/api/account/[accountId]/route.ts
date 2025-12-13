@@ -31,11 +31,14 @@ export async function DELETE(
     // Delete the account
     await db.user.delete({ where: { id: context.accountId } });
 
+    // Get the route path from the request
+    const path = new URL(req.url).pathname;
+
     // Invalidate all related caches
     await Promise.all([
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
-      revalidateTag("dbuser"),
+      revalidateTag("workspace", path),
+      revalidateTag("all-workspaces", path),
+      revalidateTag("dbuser", path),
       // Invalidate workspace cache for the deleted user
       invalidateWorkspaceCache(context.accountId),
       // Invalidate bio cache for the deleted user
@@ -127,10 +130,13 @@ export async function PATCH(
       return userUpdate;
     });
 
+    // Get the route path from the request
+    const path = new URL(req.url).pathname;
+
     // Invalidate related caches
     await Promise.all([
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
+      revalidateTag("workspace", path),
+      revalidateTag("all-workspaces", path),
       // Invalidate workspace cache when default workspace changes
       invalidateWorkspaceCache(context.accountId),
     ]);

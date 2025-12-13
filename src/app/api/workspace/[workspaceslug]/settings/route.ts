@@ -1,6 +1,5 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
@@ -69,12 +68,15 @@ export async function PATCH(
     },
   });
 
+  // Get the route path from the request
+  const path = new URL(request.url).pathname;
+
   // Invalidate caches
   await Promise.all([
-    revalidateTag("workspace"),
-    revalidateTag("all-workspaces"),
-    revalidateTag("workspaces"),
-    revalidateTag("workspace-validation"),
+    revalidateTag("workspace", path),
+    revalidateTag("all-workspaces", path),
+    revalidateTag("workspaces", path),
+    revalidateTag("workspace-validation", path),
     // Invalidate workspace cache for the user
     invalidateWorkspaceCache(session.user.id),
     // Invalidate specific workspace validation cache if slug changed
@@ -138,13 +140,16 @@ export async function DELETE(
       },
     });
 
+    // Get the route path from the request
+    const path = new URL(req.url).pathname;
+
     // Invalidate caches
     await Promise.all([
-      revalidateTag("workspace"),
-      revalidateTag("all-workspaces"),
-      revalidateTag("workspaces"),
-      revalidateTag("workspace-validation"),
-      revalidateTag("links"),
+      revalidateTag("workspace", path),
+      revalidateTag("all-workspaces", path),
+      revalidateTag("workspaces", path),
+      revalidateTag("workspace-validation", path),
+      revalidateTag("links", path),
       // Invalidate workspace cache for the user
       invalidateWorkspaceCache(session.user.id),
       // Invalidate specific workspace validation cache

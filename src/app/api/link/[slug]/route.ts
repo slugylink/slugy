@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { sql } from "@/server/neon";
 import { jsonWithETag } from "@/lib/http";
 

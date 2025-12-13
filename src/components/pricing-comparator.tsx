@@ -7,6 +7,28 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import NumberFlow from "@number-flow/react";
 
+// Get checkout URL with price ID based on billing period
+const getCheckoutUrl = (billingPeriod: "monthly" | "yearly") => {
+  const baseUrl = "/api/subscription/checkout";
+  
+  // Use environment variables if available (they should be NEXT_PUBLIC_ for client access)
+  const monthlyProductId = process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID;
+  const yearlyProductId = process.env.NEXT_PUBLIC_PRO_YEARLY_PRODUCT_ID;
+  
+  // Polar expects "products" parameter (plural), but we'll support both
+  // The route will transform product_id to products
+  if (billingPeriod === "monthly" && monthlyProductId) {
+    return `${baseUrl}?products=${monthlyProductId}`;
+  }
+  
+  if (billingPeriod === "yearly" && yearlyProductId) {
+    return `${baseUrl}?products=${yearlyProductId}`;
+  }
+  
+  // Fallback: return base URL (will show error but user can add params manually)
+  return baseUrl;
+};
+
 type FeatureValue = string | boolean;
 
 interface Feature {
@@ -103,7 +125,7 @@ export default function PricingComparator() {
                     {pricingPlans.free.subtitle}
                   </span>
                   <Button asChild variant={pricingPlans.free.variant} size="sm">
-                    <Link href="#">Get Started</Link>
+                    <Link href="/dashboard">Get Started</Link>
                   </Button>
                 </th>
                 <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
@@ -127,7 +149,9 @@ export default function PricingComparator() {
                     </span>
                   )} */}
                   <Button asChild variant={pricingPlans.pro.variant} size="sm">
-                    <Link href="#">Get Started</Link>
+                    <Link href={getCheckoutUrl(billingPeriod)}>
+                      Upgrade to Pro
+                    </Link>
                   </Button>
                 </th>
               </tr>

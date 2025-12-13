@@ -30,7 +30,7 @@ export async function saveQrCode({
     });
 
     // Invalidate the cache for this specific QR code
-    revalidateTag(`qr-code-${linkId}`);
+    revalidateTag(`qr-code-${linkId}`, "/");
 
     return { success: true, qrCode };
   } catch (error) {
