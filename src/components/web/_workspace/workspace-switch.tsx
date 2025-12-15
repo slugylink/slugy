@@ -76,38 +76,34 @@ const WorkspaceMenuItem = React.memo<{
   isActive: boolean;
   index: number;
   onSelect: (workspace: WorkspaceArr) => void;
-}>(({ workspace, isActive, index, onSelect }) => (
-  <DropdownMenuItem
-    key={workspace.id}
-    onClick={() => onSelect(workspace)}
-    className={React.useMemo(
-      () =>
-        `cursor-pointer gap-2 p-2 ${
-          isActive ? "bg-accent text-accent-foreground" : ""
-        }`,
-      [isActive],
-    )}
-    aria-current={isActive ? "page" : undefined}
-  >
-    <div
-      className={React.useMemo(
-        () =>
-          `flex size-6 items-center justify-center overflow-hidden rounded-full border ${
-            isActive ? "border-accent-foreground/20" : ""
-          }`,
-        [isActive],
-      )}
+}>(({ workspace, isActive, index, onSelect }) => {
+  const itemClasses = `cursor-pointer gap-2 p-2 ${
+    isActive ? "bg-accent text-accent-foreground" : ""
+  }`;
+
+  const avatarWrapperClasses = `flex size-6 items-center justify-center overflow-hidden rounded-full border ${
+    isActive ? "border-accent-foreground/20" : ""
+  }`;
+
+  return (
+    <DropdownMenuItem
+      key={workspace.id}
+      onClick={() => onSelect(workspace)}
+      className={itemClasses}
+      aria-current={isActive ? "page" : undefined}
     >
-      <WorkspaceAvatar
-        workspace={workspace}
-        size={24}
-        className="size-full h-full w-full object-cover"
-      />
-    </div>
-    {workspace.name}
-    <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
-  </DropdownMenuItem>
-));
+      <div className={avatarWrapperClasses}>
+        <WorkspaceAvatar
+          workspace={workspace}
+          size={24}
+          className="size-full h-full w-full object-cover"
+        />
+      </div>
+      {workspace.name}
+      <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
+    </DropdownMenuItem>
+  );
+});
 WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
 
 // --------------------------
@@ -123,7 +119,11 @@ const WorkspaceSwitch: React.FC<WorkspaceSwitcherProps> = ({
 
   // Memoize active workspace
   const activeWorkspace = React.useMemo(
-    () => workspaces.find((ws) => ws.slug === workspaceslug),
+    () => {
+      const found = workspaces.find((ws) => ws.slug === workspaceslug);
+      // Fallback to first workspace to avoid undefined and keep UI usable
+      return found ?? workspaces[0];
+    },
     [workspaces, workspaceslug],
   );
 

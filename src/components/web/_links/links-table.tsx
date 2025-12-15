@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 // Components
@@ -14,6 +14,7 @@ import {
   LinkCardSkeleton,
   LinkList,
 } from "./table-links-components";
+import { ErrorState } from "./table-links-components";
 
 // Hooks
 import { useBulkOperation, useLayoutPreference } from "./table-links-hooks";
@@ -42,7 +43,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     }
   }, [workspaceslug, setworkspaceslug]);
 
-  const searchConfig: SearchConfig = (() => {
+  const searchConfig: SearchConfig = useMemo(() => {
     const page = Number(searchParams?.get("page_no") ?? "1");
     return {
       search: searchParams?.get("search") ?? "",
@@ -50,9 +51,9 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       sortBy: searchParams?.get("sortBy") ?? "date-created",
       offset: Math.max(0, (page - 1) * DEFAULT_LIMIT),
     };
-  })();
+  }, [searchParams]);
 
-  const apiUrl = (() => {
+  const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
       search: searchConfig.search,
       showArchived: searchConfig.showArchived,
@@ -61,26 +62,26 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       limit: DEFAULT_LIMIT.toString(),
     });
     return `/api/workspace/${workspaceslug}/link/get?${params.toString()}`;
-  })();
+  }, [searchConfig, workspaceslug]);
 
-  const { data, error, isLoading } = useSWR<ApiResponse>(
-    apiUrl,
-    fetcher,
-    {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
-      dedupingInterval: 3000,
-    }
-  );
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse>(apiUrl, fetcher, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    dedupingInterval: 3000,
+  });
 
   const { links = [], totalLinks = 0, totalPages = 0 } = data ?? {};
 
-  const linksWithQrCode: Link[] = links.map((link) => ({
-    ...link,
-    qrCode: link.qrCode ?? { id: "", customization: "" },
-  }));
+  const linksWithQrCode: Link[] = useMemo(
+    () =>
+      links.map((link) => ({
+        ...link,
+        qrCode: link.qrCode ?? { id: "", customization: "" },
+      })),
+    [links],
+  );
 
-  const handleSelectLink = (linkId: string) => {
+  const handleSelectLink = useCallback((linkId: string) => {
     setSelectedLinks((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(linkId)) {
@@ -93,25 +94,28 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     setSelectedLinks((prev) => {
       const allSelected = prev.size === links.length && links.length > 0;
       return allSelected ? new Set() : new Set(links.map((l) => l.id));
     });
-  };
+  }, [links]);
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setSelectedLinks(new Set());
     setIsSelectModeOn(false);
-  };
+  }, []);
 
-  const pagination: PaginationData = {
-    total_pages: totalPages,
-    limit: DEFAULT_LIMIT,
-    total_links: totalLinks,
-  };
+  const pagination: PaginationData = useMemo(
+    () => ({
+      total_pages: totalPages,
+      limit: DEFAULT_LIMIT,
+      total_links: totalLinks,
+    }),
+    [totalLinks, totalPages],
+  );
 
   const { layout, setLayout, isTransitioning } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
@@ -132,8 +136,14 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     return () => window.removeEventListener("layoutChange", handleLayoutChange);
   }, [layout, setLayout]);
 
-  const handleArchive = (linkIds: string[]) => executeOperation("archive", linkIds);
-  const handleDelete = (linkIds: string[]) => executeOperation("delete", linkIds);
+  const handleArchive = useCallback(
+    (linkIds: string[]) => executeOperation("archive", linkIds),
+    [executeOperation],
+  );
+  const handleDelete = useCallback(
+    (linkIds: string[]) => executeOperation("delete", linkIds),
+    [executeOperation],
+  );
 
   const isGridLayout = layout === "grid-cols-2";
 
@@ -149,10 +159,10 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       {isLoading && links.length === 0 ? (
         <LinkCardSkeleton />
       ) : error ? (
-        <div className="p-4 text-red-500">Error loading links.</div>
+        <ErrorState error={error as Error} onRetry={() => mutate()} />
       ) : links.length > 0 ? (
         <LinkList
-          key={`layout-${isGridLayout ? 'grid' : 'list'}`}
+          key={`layout-${isGridLayout ? "grid" : "list"}`}
           links={linksWithQrCode}
           isGridLayout={isGridLayout}
           isLoading={isLoading}

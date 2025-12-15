@@ -26,7 +26,7 @@ interface AppSidebarProps
   workspaceslug: string;
 }
 
-export default async function AppSidebar({
+export default function AppSidebar({
   workspaceslug,
   workspaces,
   ...props

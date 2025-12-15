@@ -162,20 +162,16 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         return rewriteTo(`${bioPath}${url.search}`, req.url);
       }
 
-      case SUBDOMAINS.app: {
-        const { token } = await getCachedSession(req);
-        return handleAppSubdomain(url, token, req.url);
-      }
+      case SUBDOMAINS.app:
+        return handleAppSubdomain(url, req, req.url);
 
       case SUBDOMAINS.admin: {
         const adminPath = pathname === "/" ? "/admin" : `/admin${pathname}`;
         return rewriteTo(`${adminPath}${url.search}`, req.url);
       }
 
-      case ROOT_DOMAIN: {
-        const { token } = await getCachedSession(req);
-        return handleRootDomain(url, token, req);
-      }
+      case ROOT_DOMAIN:
+        return handleRootDomain(url, req);
 
       default:
         return handleCustomDomain(url, hostname, req.url, req);
@@ -190,20 +186,29 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
 //─────────── Subdomain Handlers ───────────
 
-function handleAppSubdomain(
+async function handleAppSubdomain(
   url: URL,
-  token: unknown,
+  req: NextRequest,
   baseUrl: string,
-): NextResponse {
+): Promise<NextResponse> {
   const { pathname, search } = url;
 
-  const isAuthenticated = Boolean(token);
   const prefixedPath = `/app${pathname}${search}`;
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
 
-  // Handle root path
+  // Lazily resolve session only when required
+  let sessionToken: unknown | null = null;
+  const ensureSession = async () => {
+    if (sessionToken !== null) return sessionToken;
+    const { token } = await getCachedSession(req);
+    sessionToken = token;
+    return sessionToken;
+  };
+
+  // Handle root path - only fetch session when needed
   if (pathname === "/") {
+    const isAuthenticated = Boolean(await ensureSession());
     const redirectPath = isAuthenticated ? "/app" : "/login";
     return addSecurityHeaders(
       NextResponse.redirect(new URL(redirectPath, baseUrl)),
@@ -212,6 +217,8 @@ function handleAppSubdomain(
 
   // Auth-related paths
   if (isAuthPage) {
+    const isAuthenticated = Boolean(await ensureSession());
+
     if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
       return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
     }
@@ -225,10 +232,15 @@ function handleAppSubdomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  if (!isPublicPath(pathname) && !isAuthenticated) {
-    return addSecurityHeaders(
-      NextResponse.redirect(new URL("/app/login", baseUrl)),
-    );
+  // Non-public paths require auth; lazily check session
+  if (!isPublicPath(pathname)) {
+    const isAuthenticated = Boolean(await ensureSession());
+
+    if (!isAuthenticated) {
+      return addSecurityHeaders(
+        NextResponse.redirect(new URL("/app/login", baseUrl)),
+      );
+      }
   }
 
   if (!isAlreadyInApp) {
@@ -242,17 +254,19 @@ function handleAppSubdomain(
 
 async function handleRootDomain(
   url: URL,
-  token: unknown,
   req: NextRequest,
 ): Promise<NextResponse> {
   const { pathname } = url;
   const shortCode = pathname.slice(1);
   const hostname = normalizeHostname(req.headers.get("host"));
 
-  if (pathname === "/" && token) {
-    const appUrl = new URL(req.url);
-    appUrl.hostname = SUBDOMAINS.app;
-    return redirectTo(appUrl.toString());
+  if (pathname === "/") {
+    const { token } = await getCachedSession(req);
+    if (token) {
+      const appUrl = new URL(req.url);
+      appUrl.hostname = SUBDOMAINS.app;
+      return redirectTo(appUrl.toString());
+    }
   }
 
   // Skip assets/static - FIXED: Better asset detection
