@@ -165,12 +165,12 @@ async function trackAnalytics(
   slug: string,
   url: string,
   workspaceId: string,
-  domain?: string,
+  domain: string | undefined,
+  trigger: string,
 ): Promise<void> {
   try {
     const ua = userAgent(req);
     const headers = req.headers;
-    const trigger = detectTrigger(req);
     const timestamp = new Date().toISOString();
 
     const geoData = getGeoData(req);
@@ -354,6 +354,7 @@ export async function URLRedirects(
             linkData.url,
             linkData.workspaceId,
             domain,
+            trigger,
           );
         }
       }

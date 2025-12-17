@@ -8,7 +8,7 @@ import { jsonWithETag } from "@/lib/http";
 type LinkWhereInput = {
   workspaceId: string;
   OR?: Array<{
-    description?: { contains: string; mode: "insensitive" };
+    slug?: { contains: string; mode: "insensitive" };
     url?: { contains: string; mode: "insensitive" };
   }>;
   isArchived?: boolean;
@@ -20,10 +20,51 @@ type LinkOrderByInput =
   | { createdAt: "desc" };
 
 // Constants for better maintainability
-const VALID_SORT_OPTIONS = ["date-created", "total-clicks", "last-clicked"] as const;
+const VALID_SORT_OPTIONS = [
+  "date-created",
+  "total-clicks",
+  "last-clicked",
+] as const;
 const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
+
+// Link select fields for database queries
+const LINK_SELECT_FIELDS = {
+  id: true,
+  slug: true,
+  url: true,
+  clicks: true,
+  description: true,
+  password: true,
+  expiresAt: true,
+  isArchived: true,
+  domain: true,
+  image: true,
+  title: true,
+  qrCode: {
+    select: {
+      id: true,
+      customization: true,
+    },
+  },
+  lastClicked: true,
+  createdAt: true,
+  expirationUrl: true,
+  tags: {
+    select: {
+      tag: {
+        select: { id: true, name: true, color: true },
+      },
+    },
+  },
+  creator: {
+    select: {
+      name: true,
+      image: true,
+    },
+  },
+} as const;
 
 const validateInput = (params: {
   search?: string | null;
@@ -34,8 +75,15 @@ const validateInput = (params: {
 }) => {
   const errors: string[] = [];
 
-  if (params.sortBy && !VALID_SORT_OPTIONS.includes(params.sortBy as typeof VALID_SORT_OPTIONS[number])) {
-    errors.push(`Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`);
+  if (
+    params.sortBy &&
+    !VALID_SORT_OPTIONS.includes(
+      params.sortBy as (typeof VALID_SORT_OPTIONS)[number],
+    )
+  ) {
+    errors.push(
+      `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
+    );
   }
 
   const offset = parseInt(params.offset ?? String(DEFAULT_OFFSET), 10);
@@ -51,19 +99,14 @@ const validateInput = (params: {
   return { errors, offset, limit };
 };
 
-const getSearchConditions = (search: string): NonNullable<LinkWhereInput["OR"]> => {
+const getSearchConditions = (
+  search: string,
+): NonNullable<LinkWhereInput["OR"]> => {
   const trimmedSearch = search.trim();
   if (!trimmedSearch) return [];
 
-  if (trimmedSearch.length <= 2) {
-    return [
-      { description: { contains: trimmedSearch, mode: "insensitive" } },
-      { url: { contains: trimmedSearch, mode: "insensitive" } },
-    ];
-  }
-
   return [
-    { description: { contains: trimmedSearch, mode: "insensitive" } },
+    { slug: { contains: trimmedSearch, mode: "insensitive" } },
     { url: { contains: trimmedSearch, mode: "insensitive" } },
   ];
 };
@@ -92,41 +135,7 @@ const getLinksWithCount = async (
       db.link.count({ where: conditions }),
       db.link.findMany({
         where: conditions,
-        select: {
-          id: true,
-          slug: true,
-          url: true,
-          clicks: true,
-          description: true,
-          password: true,
-          expiresAt: true,
-          isArchived: true,
-          domain: true,
-          image: true,
-          title: true,
-          qrCode: {
-            select: {
-              id: true,
-              customization: true,
-            },
-          },
-          lastClicked: true,
-          createdAt: true,
-          expirationUrl: true,
-          tags: {
-            select: {
-              tag: {
-                select: { id: true, name: true, color: true },
-              },
-            },
-          },
-          creator: {
-            select: {
-              name: true,
-              image: true,
-            },
-          },
-        },
+        select: LINK_SELECT_FIELDS,
         orderBy,
         skip: offset,
         take: limit,
@@ -167,7 +176,7 @@ export async function GET(
     if (!authResult.success) {
       return NextResponse.json(
         { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 }
+        { status: 401 },
       );
     }
     const session = authResult.session;
@@ -178,7 +187,7 @@ export async function GET(
     if (!workspaceslug?.trim()) {
       return NextResponse.json(
         { error: "Invalid workspace slug", code: "INVALID_WORKSPACE" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -199,12 +208,12 @@ export async function GET(
 
     if (errors.length > 0) {
       return NextResponse.json(
-        { 
-          error: "Invalid parameters", 
+        {
+          error: "Invalid parameters",
           details: errors,
-          code: "VALIDATION_ERROR"
+          code: "VALIDATION_ERROR",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -221,23 +230,25 @@ export async function GET(
 
     if (!workspace) {
       return NextResponse.json(
-        { 
+        {
           error: "Workspace not found or access denied",
-          code: "WORKSPACE_NOT_FOUND"
+          code: "WORKSPACE_NOT_FOUND",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const searchConditions = getSearchConditions(search);
     const conditions: LinkWhereInput = {
       workspaceId: workspace.id,
-      ...(searchConditions.length > 0 ? { OR: searchConditions } : {}),
-      ...(showArchived === false ? { isArchived: false } : {}),
+      ...(searchConditions.length > 0 && { OR: searchConditions }),
+      ...(!showArchived && { isArchived: false }),
     };
 
     const orderBy = getOrderConditions(sortBy);
 
+    // Adjust offset if it exceeds total links
+    let adjustedOffset = offset;
     const { totalLinks, links } = await getLinksWithCount(
       workspace.id,
       conditions,
@@ -246,16 +257,22 @@ export async function GET(
       limit,
     );
 
+    // If offset is out of bounds and there are links, reset to first page
     if (offset >= totalLinks && totalLinks > 0) {
+      adjustedOffset = 0;
       const { links: firstPageLinks } = await getLinksWithCount(
         workspace.id,
         conditions,
         orderBy,
-        0,
+        adjustedOffset,
         limit,
       );
 
-      const paginationInfo = calculatePaginationInfo(totalLinks, limit, 0);
+      const paginationInfo = calculatePaginationInfo(
+        totalLinks,
+        limit,
+        adjustedOffset,
+      );
 
       return jsonWithETag(
         request,
@@ -263,13 +280,16 @@ export async function GET(
           links: firstPageLinks,
           totalLinks,
           ...paginationInfo,
-          overallCount: totalLinks,
         },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
-    const paginationInfo = calculatePaginationInfo(totalLinks, limit, offset);
+    const paginationInfo = calculatePaginationInfo(
+      totalLinks,
+      limit,
+      adjustedOffset,
+    );
 
     return jsonWithETag(
       request,
@@ -277,32 +297,30 @@ export async function GET(
         links,
         totalLinks,
         ...paginationInfo,
-        overallCount: totalLinks,
       },
-      { status: 200 }
+      { status: 200 },
     );
-
   } catch (error) {
     console.error("Error fetching links:", error);
 
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(
-          { 
+          {
             error: "Database connection error",
-            code: "DATABASE_ERROR"
+            code: "DATABASE_ERROR",
           },
-          { status: 503 }
+          { status: 503 },
         );
       }
     }
 
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch links",
-        code: "INTERNAL_ERROR"
+        code: "INTERNAL_ERROR",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
