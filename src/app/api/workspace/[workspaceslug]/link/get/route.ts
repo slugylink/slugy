@@ -123,32 +123,6 @@ const getOrderConditions = (sortBy: string): LinkOrderByInput => {
   }
 };
 
-const getLinksWithCount = async (
-  workspaceId: string,
-  conditions: LinkWhereInput,
-  orderBy: LinkOrderByInput,
-  offset: number,
-  limit: number,
-) => {
-  try {
-    const [totalLinks, links] = await db.$transaction([
-      db.link.count({ where: conditions }),
-      db.link.findMany({
-        where: conditions,
-        select: LINK_SELECT_FIELDS,
-        orderBy,
-        skip: offset,
-        take: limit,
-      }),
-    ]);
-
-    return { totalLinks, links };
-  } catch (error) {
-    console.error("Database transaction failed:", error);
-    throw new Error("Failed to fetch links from database");
-  }
-};
-
 const calculatePaginationInfo = (
   totalLinks: number,
   limit: number,
@@ -247,43 +221,20 @@ export async function GET(
 
     const orderBy = getOrderConditions(sortBy);
 
+    // First, get the total count to check if offset needs adjustment
+    const totalLinks = await db.link.count({ where: conditions });
+    
     // Adjust offset if it exceeds total links
-    let adjustedOffset = offset;
-    const { totalLinks, links } = await getLinksWithCount(
-      workspace.id,
-      conditions,
+    const adjustedOffset = offset >= totalLinks && totalLinks > 0 ? 0 : offset;
+
+    // Fetch links with the correct offset
+    const links = await db.link.findMany({
+      where: conditions,
+      select: LINK_SELECT_FIELDS,
       orderBy,
-      offset,
-      limit,
-    );
-
-    // If offset is out of bounds and there are links, reset to first page
-    if (offset >= totalLinks && totalLinks > 0) {
-      adjustedOffset = 0;
-      const { links: firstPageLinks } = await getLinksWithCount(
-        workspace.id,
-        conditions,
-        orderBy,
-        adjustedOffset,
-        limit,
-      );
-
-      const paginationInfo = calculatePaginationInfo(
-        totalLinks,
-        limit,
-        adjustedOffset,
-      );
-
-      return jsonWithETag(
-        request,
-        {
-          links: firstPageLinks,
-          totalLinks,
-          ...paginationInfo,
-        },
-        { status: 200 },
-      );
-    }
+      skip: adjustedOffset,
+      take: limit,
+    });
 
     const paginationInfo = calculatePaginationInfo(
       totalLinks,
