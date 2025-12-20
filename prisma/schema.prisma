@@ -16,7 +16,7 @@ model User {
   emailVerified   Boolean
   image           String?
   role            Role              @default(user)
-  customerId      String?
+  customerId      String?           // Polar customer ID
   banned          Boolean           @default(false)
   banReason       String?
   banExpires      Int?
@@ -121,7 +121,7 @@ model Subscription {
   priceId             String?               @unique
   referenceId         String                @unique // userId
   customerId          String?
-  subscriptionId      String?
+  subscriptionId      String?               @unique
   status              String                @default("active")
   provider            String                @default("polar")
   periodStart         DateTime              @default(now())
@@ -140,7 +140,6 @@ model Subscription {
 
   @@index([planId, priceId])
   @@index([customerId])
-  @@index([subscriptionId])
   @@map("subscriptions")
 }
 

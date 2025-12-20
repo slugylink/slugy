@@ -31,39 +31,39 @@ const DEFAULT_OFFSET = 0;
 
 // Link select fields for database queries
 const LINK_SELECT_FIELDS = {
-  id: true,
-  slug: true,
-  url: true,
-  clicks: true,
-  description: true,
-  password: true,
-  expiresAt: true,
-  isArchived: true,
-  domain: true,
-  image: true,
-  title: true,
-  qrCode: {
-    select: {
-      id: true,
-      customization: true,
-    },
-  },
-  lastClicked: true,
-  createdAt: true,
-  expirationUrl: true,
-  tags: {
-    select: {
-      tag: {
-        select: { id: true, name: true, color: true },
-      },
-    },
-  },
-  creator: {
-    select: {
-      name: true,
-      image: true,
-    },
-  },
+          id: true,
+          slug: true,
+          url: true,
+          clicks: true,
+          description: true,
+          password: true,
+          expiresAt: true,
+          isArchived: true,
+          domain: true,
+          image: true,
+          title: true,
+          qrCode: {
+            select: {
+              id: true,
+              customization: true,
+            },
+          },
+          lastClicked: true,
+          createdAt: true,
+          expirationUrl: true,
+          tags: {
+            select: {
+              tag: {
+                select: { id: true, name: true, color: true },
+              },
+            },
+          },
+          creator: {
+            select: {
+              name: true,
+              image: true,
+            },
+          },
 } as const;
 
 const validateInput = (params: {
@@ -182,8 +182,8 @@ export async function GET(
 
     if (errors.length > 0) {
       return NextResponse.json(
-        {
-          error: "Invalid parameters",
+        { 
+          error: "Invalid parameters", 
           details: errors,
           code: "VALIDATION_ERROR",
         },
@@ -204,7 +204,7 @@ export async function GET(
 
     if (!workspace) {
       return NextResponse.json(
-        {
+        { 
           error: "Workspace not found or access denied",
           code: "WORKSPACE_NOT_FOUND",
         },
@@ -257,7 +257,7 @@ export async function GET(
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(
-          {
+          { 
             error: "Database connection error",
             code: "DATABASE_ERROR",
           },
@@ -267,7 +267,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      {
+      { 
         error: "Failed to fetch links",
         code: "INTERNAL_ERROR",
       },

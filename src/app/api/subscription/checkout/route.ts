@@ -53,6 +53,12 @@ export async function GET(req: NextRequest) {
     url.searchParams.set('customerName', user.name);
   }
 
+  // Add metadata with userId for webhook processing
+  if (!url.searchParams.has('metadata')) {
+    const metadata = { userId: user.id };
+    url.searchParams.set('metadata', JSON.stringify(metadata));
+  }
+
   // Create new request with updated URL
   const updatedReq = new NextRequest(url, {
     method: req.method,
