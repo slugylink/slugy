@@ -3,33 +3,34 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
-// Components
 import SearchInput from "./search-input";
 import LinkActions from "./link-actions";
 import LinkPagination from "./link-pagination";
-
-// UI Components
 import {
   EmptyState,
   LinkCardSkeleton,
   LinkList,
 } from "./table-links-components";
 import { ErrorState } from "./table-links-components";
-
-// Hooks
 import { useBulkOperation, useLayoutPreference } from "./table-links-hooks";
-
-// Stores
 import { useWorkspaceStore } from "@/store/workspace";
-
-// Utils
 import { fetcher } from "@/lib/fetcher";
-
-// Constants
 import { DEFAULT_LIMIT, LAYOUT_OPTIONS, LayoutOption } from "@/constants/links";
+import {
+  Link,
+  ApiResponse,
+  SearchConfig,
+  PaginationData,
+} from "@/types/link-types";
 
-// Types
-import { Link, ApiResponse, SearchConfig, PaginationData } from "@/types/link-types";
+// import { Button } from "@/components/ui/button"
+// import { Input } from "@/components/ui/input"
+// import { Label } from "@/components/ui/label"
+// import {
+//   Popover,
+//   PopoverContent,
+//   PopoverTrigger,
+// } from "@/components/ui/popover"
 
 const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   const searchParams = useSearchParams();
@@ -64,11 +65,15 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     return `/api/workspace/${workspaceslug}/link/get?${params.toString()}`;
   }, [searchConfig, workspaceslug]);
 
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse>(apiUrl, fetcher, {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    dedupingInterval: 3000,
-  });
+  const { data, error, isLoading, mutate } = useSWR<ApiResponse>(
+    apiUrl,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 3000,
+    },
+  );
 
   const { links = [], totalLinks = 0, totalPages = 0 } = data ?? {};
 
@@ -124,10 +129,14 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     const handleLayoutChange = () => {
       if (typeof window === "undefined") return;
 
-      const currentLayout = window.localStorage.getItem("layout") as LayoutOption | null;
-      if (currentLayout &&
-          LAYOUT_OPTIONS.some((o) => o.value === currentLayout) &&
-          currentLayout !== layout) {
+      const currentLayout = window.localStorage.getItem(
+        "layout",
+      ) as LayoutOption | null;
+      if (
+        currentLayout &&
+        LAYOUT_OPTIONS.some((o) => o.value === currentLayout) &&
+        currentLayout !== layout
+      ) {
         setLayout(currentLayout);
       }
     };
@@ -153,6 +162,56 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
       <div className="flex w-full items-center justify-between gap-4 pb-8">
         <SearchInput workspaceslug={workspaceslug} />
         <LinkActions totalLinks={totalLinks} workspaceslug={workspaceslug} />
+
+        {/* <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="outline">Open popover</Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80">
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <h4 className="leading-none font-medium">Dimensions</h4>
+            <p className="text-muted-foreground text-sm">
+              Set the dimensions for the layer.
+            </p>
+          </div>
+          <div className="grid gap-2">
+            <div className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor="width">Width</Label>
+              <Input
+                id="width"
+                defaultValue="100%"
+                className="col-span-2 h-8"
+              />
+            </div>
+            <div className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor="maxWidth">Max. width</Label>
+              <Input
+                id="maxWidth"
+                defaultValue="300px"
+                className="col-span-2 h-8"
+              />
+            </div>
+            <div className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor="height">Height</Label>
+              <Input
+                id="height"
+                defaultValue="25px"
+                className="col-span-2 h-8"
+              />
+            </div>
+            <div className="grid grid-cols-3 items-center gap-4">
+              <Label htmlFor="maxHeight">Max. height</Label>
+              <Input
+                id="maxHeight"
+                defaultValue="none"
+                className="col-span-2 h-8"
+              />
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover> */}
       </div>
 
       {/* Loading / Error / Data */}
