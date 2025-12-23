@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -23,12 +23,16 @@ interface UseAnalyticsParams {
   timePeriod: TimePeriod;
   searchParams?: Record<string, string>;
   enabled?: boolean;
-  metrics?: Array<keyof AnalyticsData>; // Allow selective metric fetching
-  useTinybird?: boolean; // New option to use Tinybird endpoint
+  metrics?: Array<keyof AnalyticsData>;
+  useTinybird?: boolean;
 }
 
-// Constants for better maintainability
+// Constants
 const DEBOUNCE_DELAY = 500;
+const SWR_DEDUPING_INTERVAL = 8000;
+const SWR_ERROR_RETRY_COUNT = 2;
+const SWR_ERROR_RETRY_INTERVAL = 3000;
+
 const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
   "totalClicks",
   "clicksOverTime",
@@ -43,28 +47,33 @@ const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
   "destinations",
 ];
 
-// Type for metric mapping
-type MetricMapping = {
-  [K in keyof AnalyticsData]: {
-    key: K;
-    fallback: AnalyticsData[K];
-  };
+// Metric fallback values
+const METRIC_FALLBACKS: Record<keyof AnalyticsData, AnalyticsData[keyof AnalyticsData]> = {
+  totalClicks: 0,
+  clicksOverTime: [],
+  links: [],
+  cities: [],
+  countries: [],
+  continents: [],
+  devices: [],
+  browsers: [],
+  oses: [],
+  referrers: [],
+  destinations: [],
 };
 
-// Metric mapping configuration
-const METRIC_MAPPING: MetricMapping = {
-  totalClicks: { key: "totalClicks", fallback: 0 },
-  clicksOverTime: { key: "clicksOverTime", fallback: [] },
-  links: { key: "links", fallback: [] },
-  cities: { key: "cities", fallback: [] },
-  countries: { key: "countries", fallback: [] },
-  continents: { key: "continents", fallback: [] },
-  devices: { key: "devices", fallback: [] },
-  browsers: { key: "browsers", fallback: [] },
-  oses: { key: "oses", fallback: [] },
-  referrers: { key: "referrers", fallback: [] },
-  destinations: { key: "destinations", fallback: [] },
-};
+// Metrics that can be sorted by clicks
+const SORTABLE_METRICS: Array<keyof AnalyticsData> = [
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+];
 
 const fetchAnalyticsData = async (
   workspaceslug: string,
@@ -72,64 +81,51 @@ const fetchAnalyticsData = async (
   metrics?: Array<keyof AnalyticsData>,
   useTinybird: boolean = true,
 ): Promise<Partial<AnalyticsData>> => {
-  try {
-    const searchParams = new URLSearchParams(params);
+  const searchParams = new URLSearchParams(params);
 
-    // Add metrics parameter if specified
-    if (metrics && metrics.length > 0) {
-      searchParams.set("metrics", metrics.join(","));
-    }
-    const endpoint = useTinybird
-      ? `/api/workspace/${workspaceslug}/analytics/tinybird`
-      : `/api/workspace/${workspaceslug}/analytics`;
-
-    // const endpoint = `/api/workspace/${workspaceslug}/analytics/tinybird`;
-
-    const response = await fetch(`${endpoint}?${searchParams}`);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(
-        `Failed to fetch analytics data: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
-      );
-    }
-
-    const data = await response.json();
-
-    if (metrics && metrics.length > 0) {
-      const result: Partial<AnalyticsData> = {};
-
-      metrics.forEach((metric) => {
-        const mapping = METRIC_MAPPING[metric];
-        if (mapping) {
-          result[metric] = data[mapping.key] ?? mapping.fallback;
-        }
-      });
-
-      return result;
-    }
-
-    // Return all metrics if none specified (backward compatibility)
-    return {
-      totalClicks: data.totalClicks ?? 0,
-      clicksOverTime: data.clicksOverTime ?? [],
-      links: data.links ?? [],
-      cities: data.cities ?? [],
-      countries: data.countries ?? [],
-      continents: data.continents ?? [],
-      devices: data.devices ?? [],
-      browsers: data.browsers ?? [],
-      oses: data.oses ?? [],
-      referrers: data.referrers ?? [],
-      destinations: data.destinations ?? [],
-    };
-  } catch (error) {
-    console.error("Error fetching analytics data:", error);
-    throw error;
+  if (metrics?.length) {
+    searchParams.set("metrics", metrics.join(","));
   }
+
+  const endpoint = useTinybird
+    ? `/api/workspace/${workspaceslug}/analytics/tinybird`
+    : `/api/workspace/${workspaceslug}/analytics`;
+
+  const response = await fetch(`${endpoint}?${searchParams}`);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(
+      `Failed to fetch analytics data: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
+    );
+  }
+
+  const data = await response.json();
+
+  if (metrics?.length) {
+    const result: Partial<AnalyticsData> = {};
+    for (const metric of metrics) {
+      result[metric] = data[metric] ?? METRIC_FALLBACKS[metric];
+    }
+    return result;
+  }
+
+  // Return all metrics with fallbacks
+  return {
+    totalClicks: data.totalClicks ?? METRIC_FALLBACKS.totalClicks,
+    clicksOverTime: data.clicksOverTime ?? METRIC_FALLBACKS.clicksOverTime,
+    links: data.links ?? METRIC_FALLBACKS.links,
+    cities: data.cities ?? METRIC_FALLBACKS.cities,
+    countries: data.countries ?? METRIC_FALLBACKS.countries,
+    continents: data.continents ?? METRIC_FALLBACKS.continents,
+    devices: data.devices ?? METRIC_FALLBACKS.devices,
+    browsers: data.browsers ?? METRIC_FALLBACKS.browsers,
+    oses: data.oses ?? METRIC_FALLBACKS.oses,
+    referrers: data.referrers ?? METRIC_FALLBACKS.referrers,
+    destinations: data.destinations ?? METRIC_FALLBACKS.destinations,
+  };
 };
 
-// Helper function to sort data by clicks
 const sortByClicks = <T extends { clicks: number }>(data: T[]): T[] => {
   return [...data].sort((a, b) => b.clicks - a.clicks);
 };
@@ -144,7 +140,6 @@ export function useAnalytics({
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
-
     return Object.fromEntries(
       Object.entries(params).filter(
         ([, value]) => value != null && String(value).length > 0,
@@ -152,25 +147,19 @@ export function useAnalytics({
     );
   }, [timePeriod, searchParams]);
 
-  // Debounce the search params to prevent excessive API calls while filtering
   const debouncedSearchParams = useDebounce(stableSearchParams, DEBOUNCE_DELAY);
-
-  // Only fetch when enabled and we have a workspace slug
   const shouldFetch = enabled && Boolean(workspaceslug?.trim());
 
-  // Create stable SWR key
   const swrKey = useMemo(() => {
     if (!shouldFetch) return null;
-
     return [
       useTinybird ? "analytics-tinybird" : "analytics",
-      metrics?.join(",") || "all",
+      metrics.join(","),
       workspaceslug,
       debouncedSearchParams,
     ];
   }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams, useTinybird]);
 
-  // Fetch data with better error handling
   const { data, error, isLoading, mutate, isValidating } = useSWR<
     Partial<AnalyticsData>,
     Error
@@ -184,76 +173,54 @@ export function useAnalytics({
         useTinybird,
       ),
     {
-      dedupingInterval: 8000, // 8 seconds
-      errorRetryCount: 2,
-      errorRetryInterval: 3000, // 3 seconds
+      dedupingInterval: SWR_DEDUPING_INTERVAL,
+      errorRetryCount: SWR_ERROR_RETRY_COUNT,
+      errorRetryInterval: SWR_ERROR_RETRY_INTERVAL,
     },
   );
 
-  // Memoized sorted data for each metric type with better performance
   const sortedData = useMemo(() => {
-    if (!data) return {};
+    if (!data) return {} as Partial<Pick<AnalyticsData, typeof SORTABLE_METRICS[number]>>;
 
-    const result: Record<
-      string,
-      Array<{ clicks: number; [key: string]: unknown }>
-    > = {};
+    const result: Partial<Pick<AnalyticsData, typeof SORTABLE_METRICS[number]>> = {};
 
-    // Use the helper function for consistent sorting
-    if (data.links) result.links = sortByClicks(data.links);
-    if (data.cities) result.cities = sortByClicks(data.cities);
-    if (data.countries) result.countries = sortByClicks(data.countries);
-    if (data.continents) result.continents = sortByClicks(data.continents);
-    if (data.devices) result.devices = sortByClicks(data.devices);
-    if (data.browsers) result.browsers = sortByClicks(data.browsers);
-    if (data.oses) result.oses = sortByClicks(data.oses);
-    if (data.referrers) result.referrers = sortByClicks(data.referrers);
-    if (data.destinations)
-      result.destinations = sortByClicks(data.destinations);
+    for (const metric of SORTABLE_METRICS) {
+      const value = data[metric];
+      if (Array.isArray(value) && value.length > 0) {
+        (result as Record<string, unknown>)[metric] = sortByClicks(
+          value as Array<{ clicks: number }>,
+        );
+      }
+    }
 
     return result;
   }, [data]);
 
-  // Memoized convenience getters for better performance
   const convenienceGetters = useMemo(
     () => ({
       totalClicks: data?.totalClicks ?? 0,
       clicksOverTime: data?.clicksOverTime ?? [],
-      links: sortedData.links ?? [],
-      cities: sortedData.cities ?? [],
-      countries: sortedData.countries ?? [],
-      continents: sortedData.continents ?? [],
-      devices: sortedData.devices ?? [],
-      browsers: sortedData.browsers ?? [],
-      oses: sortedData.oses ?? [],
-      referrers: sortedData.referrers ?? [],
-      destinations: sortedData.destinations ?? [],
+      links: sortedData.links ?? data?.links ?? [],
+      cities: sortedData.cities ?? data?.cities ?? [],
+      countries: sortedData.countries ?? data?.countries ?? [],
+      continents: sortedData.continents ?? data?.continents ?? [],
+      devices: sortedData.devices ?? data?.devices ?? [],
+      browsers: sortedData.browsers ?? data?.browsers ?? [],
+      oses: sortedData.oses ?? data?.oses ?? [],
+      referrers: sortedData.referrers ?? data?.referrers ?? [],
+      destinations: sortedData.destinations ?? data?.destinations ?? [],
     }),
     [data, sortedData],
   );
 
-  // Memoized refresh function
-  const refresh = useCallback(() => {
-    return mutate();
-  }, [mutate]);
-
   return {
-    // Raw data
     data,
     sortedData,
-
-    // Loading states
     isLoading,
     isValidating,
-
-    // Error handling
     error,
-
-    // Actions
     mutate,
-    refresh,
-
-    // Convenience getters (with fallbacks)
+    refresh: mutate,
     ...convenienceGetters,
   };
 }
