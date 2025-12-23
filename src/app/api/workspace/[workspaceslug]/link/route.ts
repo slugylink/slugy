@@ -9,6 +9,7 @@ import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { waitUntil } from "@vercel/functions";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
+import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,
@@ -64,7 +65,7 @@ export async function POST(
     const session = await auth.api.getSession({ headers: await headers() });
 
     if (!session) {
-      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, apiErrorPayload("Unauthorized", "UNAUTHORIZED"), { status: 401 });
     }
 
     const body = (await req.json()) as CreateLinkRequest;
@@ -89,19 +90,20 @@ export async function POST(
     );
 
     if (!workspaceCheck.success || !workspaceCheck.workspace)
-      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
+      return jsonWithETag(req, apiErrorPayload("Unauthorized", "UNAUTHORIZED"), { status: 401 });
 
     if (!workspaceCheck.canCreateLinks) {
       return jsonWithETag(
         req,
-        {
-          error: "Link limit reached. Upgrade to Pro.",
-          limitInfo: {
+        apiErrorPayload(
+          "Link limit reached. Upgrade to Pro.",
+          "FORBIDDEN",
+          {
             currentLinks: workspaceCheck.currentLinks,
             maxLinks: workspaceCheck.maxLinks,
             planType: workspaceCheck.planType,
           },
-        },
+        ),
         { status: 403 },
       );
     }
@@ -112,10 +114,10 @@ export async function POST(
     if (ownDomainPattern.test(validatedData.url)) {
       return jsonWithETag(
         req,
-        {
-          error:
-            "Recursive links are not allowed. You cannot shorten a slugy.co link.",
-        },
+        apiErrorPayload(
+          "Recursive links are not allowed. You cannot shorten a slugy.co link.",
+          "BAD_REQUEST",
+        ),
         { status: 400 },
       );
     }
@@ -134,7 +136,7 @@ export async function POST(
       });
 
       if (!customDomain) {
-        return jsonWithETag(req, { error: "Invalid or unverified custom domain" }, { status: 400 });
+        return jsonWithETag(req, apiErrorPayload("Invalid or unverified custom domain", "BAD_REQUEST"), { status: 400 });
       }
 
       customDomainName = customDomain.domain;
@@ -146,7 +148,7 @@ export async function POST(
         : nanoid();
 
     if (!(await isSlugAvailable(shortUrlCode, customDomainName))) {
-      return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
+      return jsonWithETag(req, apiErrorPayload(`Slug already exists for this domain!`, "CONFLICT"), { status: 400 });
     }
 
     // Use transaction to ensure data consistency
@@ -294,7 +296,7 @@ export async function POST(
         Array.isArray(error.meta.target) &&
         error.meta.target.includes("slug")
       ) {
-        return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
+        return jsonWithETag(req, apiErrorPayload(`Slug already exists for this domain!`, "CONFLICT"), { status: 400 });
       }
       // Re-throw other errors
       throw error;
@@ -336,7 +338,7 @@ export async function POST(
 
     // Invalidate cache for the new link
     if (!linkWithTags) {
-      return jsonWithETag(req, { message: "Link not found" }, { status: 404 });
+      return jsonWithETag(req, apiErrorPayload("Link not found", "NOT_FOUND"), { status: 404 });
     }
     await invalidateLinkCache(linkWithTags?.slug, customDomainName || "slugy.co");
 
@@ -353,7 +355,7 @@ export async function POST(
 
     waitUntil(sendLinkMetadata(linkMetadata));
 
-    return jsonWithETag(req, linkWithTags, {
+    return jsonWithETag(req, apiSuccessPayload(linkWithTags), {
       status: 201,
       headers: {
         "Access-Control-Allow-Origin": "*",
@@ -366,20 +368,21 @@ export async function POST(
     if (error instanceof z.ZodError) {
       return jsonWithETag(
         req,
-        { message: "Invalid input data", errors: error.errors },
+        apiErrorPayload("Invalid input data", "VALIDATION_ERROR", error.errors),
         { status: 400 },
       );
     }
     if (error instanceof Error) {
+      const code = error.message.includes("not found") ? "NOT_FOUND" : "BAD_REQUEST";
       return jsonWithETag(
         req,
-        { message: error.message },
+        apiErrorPayload(error.message, code),
         { status: error.message.includes("not found") ? 404 : 400 },
       );
     }
     return jsonWithETag(
       req,
-      { message: "An error occurred while creating the link." },
+      apiErrorPayload("An error occurred while creating the link.", "INTERNAL_ERROR"),
       { status: 500 },
     );
   }

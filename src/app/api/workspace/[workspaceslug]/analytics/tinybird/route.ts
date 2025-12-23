@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
+import { apiSuccess, apiErrors } from "@/lib/api-response";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -310,10 +311,7 @@ export async function GET(
     // Authenticate user
     const authResult = await getAuthSession();
     if (!authResult.success) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
+      return apiErrors.unauthorized();
     }
     const session = authResult.session;
 
@@ -333,10 +331,7 @@ export async function GET(
     `;
 
     if (workspaceResult.length === 0) {
-      return NextResponse.json(
-        { error: "Workspace not found", code: "WORKSPACE_NOT_FOUND" },
-        { status: 404 },
-      );
+      return apiErrors.notFound("Workspace not found");
     }
 
     const workspaceId = workspaceResult[0].id;
@@ -392,13 +387,7 @@ export async function GET(
       console.error(
         `Tinybird API error: ${response.status} ${response.statusText}`,
       );
-      return NextResponse.json(
-        {
-          error: "Analytics service temporarily unavailable",
-          code: "SERVICE_UNAVAILABLE",
-        },
-        { status: 503 },
-      );
+      return apiErrors.serviceUnavailable("Analytics service temporarily unavailable");
     }
 
     const tinybirdResponse: TinybirdResponse = await response.json();
@@ -409,49 +398,24 @@ export async function GET(
       props.timePeriod,
     );
 
-    // Set response headers for better performance
-    const responseObj = NextResponse.json(analyticsData);
-
     // Cache headers for better performance
-    responseObj.headers.set(
-      "Cache-Control",
-      `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-    );
+    const cacheHeaders = {
+      "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+      "X-Analytics-Metrics": normalizedMetrics.join(","),
+      "X-Analytics-Period": props.timePeriod,
+      "X-Analytics-Cache": `${CACHE_DURATION}s`,
+      "X-Tinybird-Rows": tinybirdResponse.rows.toString(),
+      "X-Tinybird-Elapsed": tinybirdResponse.statistics.elapsed.toString(),
+    };
 
-    // Performance and debugging headers
-    responseObj.headers.set("X-Analytics-Metrics", normalizedMetrics.join(","));
-    responseObj.headers.set("X-Analytics-Period", props.timePeriod);
-    responseObj.headers.set("X-Analytics-Cache", `${CACHE_DURATION}s`);
-    responseObj.headers.set(
-      "X-Tinybird-Rows",
-      tinybirdResponse.rows.toString(),
-    );
-    responseObj.headers.set(
-      "X-Tinybird-Elapsed",
-      tinybirdResponse.statistics.elapsed.toString(),
-    );
-
-    return responseObj;
+    return apiSuccess(analyticsData, undefined, 200, cacheHeaders);
   } catch (err) {
     console.error("Tinybird Analytics API error:", err);
 
     if (err instanceof z.ZodError) {
-      return NextResponse.json(
-        {
-          error: "Invalid parameters",
-          details: err.errors,
-          code: "VALIDATION_ERROR",
-        },
-        { status: 400 },
-      );
+      return apiErrors.validationError(err.errors, "Invalid parameters");
     }
 
-    return NextResponse.json(
-      {
-        error: "Server error",
-        code: "INTERNAL_ERROR",
-      },
-      { status: 500 },
-    );
+    return apiErrors.internalError("Server error");
   }
 }

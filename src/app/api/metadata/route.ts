@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getMetaTags, isValidUrl } from "@/lib/metadata";
 import { jsonWithETag } from "@/lib/http";
+import { apiSuccessPayload, apiErrorPayload, apiErrors } from "@/lib/api-response";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +56,7 @@ export async function GET(req: NextRequest) {
   if (isRateLimited(ip)) {
     return jsonWithETag(
       req,
-      { error: "Rate limit exceeded", retryAfter: RATE_WINDOW / 1000 },
+      apiErrorPayload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED", { retryAfter: RATE_WINDOW / 1000 }),
       {
         status: 429,
         headers: {
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
     if (!url || !isValidUrl(url)) {
       return jsonWithETag(
         req,
-        { error: "Valid URL parameter is required" },
+        apiErrorPayload("Valid URL parameter is required", "BAD_REQUEST"),
         { status: 400, headers: CORS_HEADERS },
       );
     }
@@ -81,12 +82,11 @@ export async function GET(req: NextRequest) {
 
     return jsonWithETag(
       req,
-      {
-        success: true,
+      apiSuccessPayload({
         url,
         ...metadata,
         poweredBy: "https://slugy.co",
-      },
+      }),
       { headers: CORS_HEADERS },
     );
   } catch (error) {
@@ -97,11 +97,7 @@ export async function GET(req: NextRequest) {
 
     return jsonWithETag(
       req,
-      {
-        success: false,
-        error: "Failed to fetch metadata",
-        details: errorMessage,
-      },
+      apiErrorPayload("Failed to fetch metadata", "INTERNAL_ERROR", errorMessage),
       { status: 500, headers: CORS_HEADERS },
     );
   }

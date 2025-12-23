@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
+import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 
 export async function POST(
   request: NextRequest,
@@ -13,7 +14,7 @@ export async function POST(
     if (!password) {
       return jsonWithETag(
         request,
-        { error: "Password is required" },
+        apiErrorPayload("Password is required", "BAD_REQUEST"),
         { status: 400 },
       );
     }
@@ -36,17 +37,18 @@ export async function POST(
     });
 
     if (!link) {
-      return jsonWithETag(request, { error: "Link not found" }, { status: 404 });
+      return jsonWithETag(request, apiErrorPayload("Link not found", "NOT_FOUND"), { status: 404 });
     }
 
     // Check if link has expired
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
       return jsonWithETag(
         request,
-        {
-          error: "Link has expired",
-          redirectUrl: link.expirationUrl || null,
-        },
+        apiErrorPayload(
+          "Link has expired",
+          "BAD_REQUEST",
+          { redirectUrl: link.expirationUrl || null },
+        ),
         { status: 410 },
       );
     }
@@ -55,21 +57,18 @@ export async function POST(
     if (!link.password) {
       return jsonWithETag(
         request,
-        { error: "Link is not password protected" },
+        apiErrorPayload("Link is not password protected", "BAD_REQUEST"),
         { status: 400 },
       );
     }
 
     // Verify password
     if (link.password !== password) {
-      return jsonWithETag(request, { error: "Invalid password" }, { status: 401 });
+      return jsonWithETag(request, apiErrorPayload("Invalid password", "UNAUTHORIZED"), { status: 401 });
     }
 
     // Set a cookie to remember password verification and return the response
-    const response = jsonWithETag(request, {
-      success: true,
-      url: link.url,
-    });
+    const response = jsonWithETag(request, apiSuccessPayload({ url: link.url }));
     
     // Create domain-specific cookie name
     const cookieName = `password_verified_${link.domain}_${context.slug}`;
@@ -83,6 +82,6 @@ export async function POST(
     return response;
   } catch (error) {
     console.error("Password verification error:", error);
-    return jsonWithETag(request, { error: "Internal server error" }, { status: 500 });
+    return jsonWithETag(request, apiErrorPayload("Internal server error", "INTERNAL_ERROR"), { status: 500 });
   }
 }

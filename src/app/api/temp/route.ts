@@ -2,6 +2,7 @@ import { customAlphabet } from "nanoid";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
+import { apiSuccess, apiErrors } from "@/lib/api-response";
 
 // Schema validation
 const createLinkSchema = z.object({
@@ -58,7 +59,7 @@ export async function GET() {
     const linkCodes = await redis.smembers(ipKey);
 
     if (!linkCodes.length) {
-      return Response.json({ links: [] });
+      return Response.json(apiSuccess({ links: [] }));
     }
 
     // Fetch all link data in parallel
@@ -93,13 +94,10 @@ export async function GET() {
       (link): link is LinkResponse => link !== null,
     );
 
-    return Response.json({ links: validLinks });
+    return Response.json(apiSuccess({ links: validLinks }));
   } catch (error) {
     console.error("GET /api/temp error:", error);
-    return Response.json(
-      { error: "Failed to fetch temporary links" },
-      { status: 500 },
-    );
+    return Response.json(apiErrors.internalError("Failed to fetch temporary links"));
   }
 }
 
@@ -117,8 +115,7 @@ export async function POST(req: Request) {
     const existingLinks = await redis.smembers(ipKey);
     if (existingLinks.length >= MAX_LINKS_PER_IP) {
       return Response.json(
-        { error: "You can only create 1 temporary link at a time" },
-        { status: 429 },
+        apiErrors.rateLimitExceeded(),
       );
     }
 
@@ -152,20 +149,18 @@ export async function POST(req: Request) {
     await pipeline.exec();
 
     const response = createLinkResponse(linkData);
-    return Response.json(response);
+    return Response.json(apiSuccess(response));
   } catch (error) {
     console.error("POST /api/temp error:", error);
 
     if (error instanceof z.ZodError) {
       return Response.json(
-        { error: error.errors[0]?.message || "Invalid request data" },
-        { status: 400 },
+        apiErrors.validationError(error.errors, error.errors[0]?.message || "Invalid request data"),
       );
     }
 
     return Response.json(
-      { error: "Failed to create temporary link" },
-      { status: 500 },
+      apiErrors.internalError("Failed to create temporary link"),
     );
   }
 }

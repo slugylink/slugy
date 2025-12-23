@@ -168,11 +168,47 @@ export const POST = Webhooks({
       const periodStart = subscription.currentPeriodStart || subscription.current_period_start;
       const periodEnd = subscription.currentPeriodEnd || subscription.current_period_end;
       const cancelAtPeriodEnd = subscription.cancelAtPeriodEnd || subscription.cancel_at_period_end || false;
+      const status = subscription.status;
+
+      // If subscription is canceled or revoked, set user back to free tier
+      if (status === "canceled" || status === "revoked") {
+        const freePlan = await db.plan.findFirst({
+          where: { planType: "free" },
+        });
+
+        if (freePlan) {
+          // Calculate free subscription period (20 years from now)
+          const currentPeriodStart = new Date();
+          const currentPeriodEnd = new Date(currentPeriodStart);
+          currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
+          const daysWithService = Math.ceil(
+            (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+
+          await db.subscription.update({
+            where: { id: existingSubscription.id },
+            data: {
+              status: "active",
+              planId: freePlan.id,
+              canceledAt: status === "canceled" || status === "revoked" ? new Date() : existingSubscription.canceledAt,
+              cancelAtPeriodEnd: false,
+              periodStart: currentPeriodStart,
+              periodEnd: currentPeriodEnd,
+              daysWithService,
+              priceId: null, // Clear priceId since free plan doesn't have one
+            },
+          });
+
+          console.log("[Polar] Subscription updated to canceled/revoked and user set to free tier");
+          return;
+        }
+      }
 
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
-          status: subscription.status,
+          status,
           periodStart: new Date(periodStart),
           periodEnd: new Date(periodEnd),
           cancelAtPeriodEnd,
@@ -315,16 +351,49 @@ export const POST = Webhooks({
 
       const canceledAt = subscription.canceledAt || subscription.canceled_at;
 
+      // Find free plan to set user back to free tier
+      const freePlan = await db.plan.findFirst({
+        where: { planType: "free" },
+      });
+
+      if (!freePlan) {
+        console.error("[Polar] Free plan not found");
+        // Still update subscription status even if free plan not found
+        await db.subscription.update({
+          where: { id: existingSubscription.id },
+          data: {
+            status: "canceled",
+            canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
+            cancelAtPeriodEnd: true,
+          },
+        });
+        return;
+      }
+
+      // Calculate free subscription period (20 years from now)
+      const currentPeriodStart = new Date();
+      const currentPeriodEnd = new Date(currentPeriodStart);
+      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
+      const daysWithService = Math.ceil(
+        (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
-          status: "canceled",
+          status: "active",
+          planId: freePlan.id,
           canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
-          cancelAtPeriodEnd: true,
+          cancelAtPeriodEnd: false,
+          periodStart: currentPeriodStart,
+          periodEnd: currentPeriodEnd,
+          daysWithService,
+          priceId: null, // Clear priceId since free plan doesn't have one
         },
       });
 
-      console.log("[Polar] Subscription canceled successfully");
+      console.log("[Polar] Subscription canceled and user set to free tier");
     } catch (error) {
       console.error("[Polar] Subscription cancellation failed:", error);
       throw error;
@@ -346,15 +415,48 @@ export const POST = Webhooks({
         return;
       }
 
+      // Find free plan to set user back to free tier
+      const freePlan = await db.plan.findFirst({
+        where: { planType: "free" },
+      });
+
+      if (!freePlan) {
+        console.error("[Polar] Free plan not found");
+        // Still update subscription status even if free plan not found
+        await db.subscription.update({
+          where: { id: existingSubscription.id },
+          data: {
+            status: "revoked",
+            canceledAt: new Date(),
+          },
+        });
+        return;
+      }
+
+      // Calculate free subscription period (20 years from now)
+      const currentPeriodStart = new Date();
+      const currentPeriodEnd = new Date(currentPeriodStart);
+      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
+      const daysWithService = Math.ceil(
+        (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
+          (1000 * 60 * 60 * 24),
+      );
+
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
-          status: "revoked",
+          status: "active",
+          planId: freePlan.id,
           canceledAt: new Date(),
+          cancelAtPeriodEnd: false,
+          periodStart: currentPeriodStart,
+          periodEnd: currentPeriodEnd,
+          daysWithService,
+          priceId: null, // Clear priceId since free plan doesn't have one
         },
       });
 
-      console.log("[Polar] Subscription revoked successfully");
+      console.log("[Polar] Subscription revoked and user set to free tier");
     } catch (error) {
       console.error("[Polar] Subscription revocation failed:", error);
       throw error;

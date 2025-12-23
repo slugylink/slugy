@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
+import { apiSuccess, apiErrors } from "@/lib/api-response";
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -66,23 +67,20 @@ export async function POST(req: NextRequest) {
     const { type, ip } = await req.json();
     
     if (!ip) {
-      return NextResponse.json({ error: "IP address required" }, { status: 400 });
+      return apiErrors.badRequest("IP address required");
     }
 
     const normalizedIp = normalizeIp(ip);
     
     if (type === "temp-link") {
       const result = await checkTempLinkRateLimit(normalizedIp);
-      return NextResponse.json(result);
+      return apiSuccess(result);
     } else {
       const result = await checkRateLimit(normalizedIp);
-      return NextResponse.json(result);
+      return apiSuccess(result);
     }
   } catch (error) {
     console.error("Rate limiting error:", error);
-    return NextResponse.json(
-      { error: "Rate limiting service unavailable" },
-      { status: 500 }
-    );
+    return apiErrors.serviceUnavailable("Rate limiting service unavailable");
   }
 } 

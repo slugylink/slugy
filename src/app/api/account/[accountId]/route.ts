@@ -6,6 +6,7 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
+import { apiSuccess, apiErrors } from "@/lib/api-response";
 
 // * Delete an account
 export async function DELETE(
@@ -17,14 +18,14 @@ export async function DELETE(
     headers: await headers(),
   });
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiErrors.unauthorized();
   }
 
   const context = await params;
 
   // Ensure the user is deleting their own account
   if (session.user.id !== context.accountId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiErrors.forbidden();
   }
 
   try {
@@ -45,19 +46,10 @@ export async function DELETE(
       invalidateBioCache(context.accountId),
     ]);
 
-    // Create a response
-    const response = NextResponse.json(
-      { message: "Account deleted successfully" },
-      { status: 200 },
-    );
-
-    return response;
+    return apiSuccess(null, "Account deleted successfully");
   } catch (error) {
     console.error("Account deletion error:", error);
-    return NextResponse.json(
-      { error: "Failed to delete account" },
-      { status: 500 },
-    );
+    return apiErrors.internalError("Failed to delete account");
   }
 }
 
@@ -78,14 +70,14 @@ export async function PATCH(
   // Authenticate user
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return apiErrors.unauthorized();
   }
 
   const context = await params;
 
   // Ensure the user is updating their own account
   if (session.user.id !== context.accountId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return apiErrors.forbidden();
   }
 
   try {
@@ -141,12 +133,12 @@ export async function PATCH(
       invalidateWorkspaceCache(context.accountId),
     ]);
 
-    return NextResponse.json(updatedAccount);
+    return apiSuccess(updatedAccount);
   } catch (error) {
     console.error("[ACCOUNT_UPDATE]", error);
-    return NextResponse.json(
-      { error: "Failed to update account" },
-      { status: 500 },
-    );
+    if (error instanceof z.ZodError) {
+      return apiErrors.validationError(error.errors, "Invalid input data");
+    }
+    return apiErrors.internalError("Failed to update account");
   }
 }

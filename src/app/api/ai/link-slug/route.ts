@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiSuccess, apiErrors } from "@/lib/api-response";
 import {
   GoogleGenerativeAI,
   type GenerationConfig,
@@ -273,7 +274,7 @@ export async function POST(req: Request) {
     const { url } = (await req.json()) as RequestBody;
 
     if (!url) {
-      return NextResponse.json({ error: "URL is required" }, { status: 400 });
+      return apiErrors.badRequest("URL is required");
     }
 
     // Normalize URL
@@ -283,10 +284,7 @@ export async function POST(req: Request) {
     try {
       new URL(normalizedUrl);
     } catch {
-      return NextResponse.json(
-        { error: "Invalid URL format. Please provide a valid URL." },
-        { status: 400 },
-      );
+      return apiErrors.badRequest("Invalid URL format. Please provide a valid URL.");
     }
 
     const usingGemini = Boolean(process.env.GEMINI_API_KEY);
@@ -299,27 +297,24 @@ export async function POST(req: Request) {
         : generateSeoSlugFallback(normalizedUrl),
     ]);
 
-    return NextResponse.json(
+    return apiSuccess(
       {
         slug,
         urlExists,
         seoOptimized: usingGemini,
         usingGemini,
       },
+      undefined,
+      200,
       {
-        headers: {
-          "Cache-Control": "max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
-        },
+        "Cache-Control": "max-age=3600, s-maxage=3600, stale-while-revalidate=86400",
       },
     );
   } catch (error) {
     console.error("Error processing request:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to analyze URL",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
+    return apiErrors.internalError(
+      "Failed to analyze URL",
+      error instanceof Error ? error.message : String(error),
     );
   }
 }
