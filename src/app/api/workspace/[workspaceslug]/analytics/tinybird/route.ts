@@ -377,20 +377,20 @@ export async function GET(
     const tinybirdEndpoint = `https://api.us-east.aws.tinybird.co/v0/pipes/analytics_pipe.json?${queryString}`;
 
     // Call Tinybird API
-    const response = await fetch(tinybirdEndpoint, {
+    const tinybirdFetchResponse = await fetch(tinybirdEndpoint, {
       headers: {
         Authorization: `Bearer ${process.env.TINYBIRD_API_KEY}`,
       },
     });
 
-    if (!response.ok) {
+    if (!tinybirdFetchResponse.ok) {
       console.error(
-        `Tinybird API error: ${response.status} ${response.statusText}`,
+        `Tinybird API error: ${tinybirdFetchResponse.status} ${tinybirdFetchResponse.statusText}`,
       );
       return apiErrors.serviceUnavailable("Analytics service temporarily unavailable");
     }
 
-    const tinybirdResponse: TinybirdResponse = await response.json();
+    const tinybirdResponse: TinybirdResponse = await tinybirdFetchResponse.json();
     // Transform data to expected format
     const analyticsData = transformTinybirdData(
       tinybirdResponse.data,
@@ -408,7 +408,9 @@ export async function GET(
       "X-Tinybird-Elapsed": tinybirdResponse.statistics.elapsed.toString(),
     };
 
-    return apiSuccess(analyticsData, undefined, 200, cacheHeaders);
+    // Return analytics data directly (not wrapped) for frontend compatibility
+    const response = NextResponse.json(analyticsData, { status: 200, headers: cacheHeaders });
+    return response;
   } catch (err) {
     console.error("Tinybird Analytics API error:", err);
 
