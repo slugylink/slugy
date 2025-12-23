@@ -152,11 +152,25 @@ export function useAnalytics({
 
   const swrKey = useMemo(() => {
     if (!shouldFetch) return null;
+    // Serialize search params to ensure stable key
+    const serializedParams = JSON.stringify(
+      Object.keys(debouncedSearchParams)
+        .sort()
+        .reduce(
+          (acc, key) => {
+            acc[key] = debouncedSearchParams[key];
+            return acc;
+          },
+          {} as Record<string, string>,
+        ),
+    );
+    // Sort metrics for consistent key generation
+    const sortedMetrics = [...metrics].sort().join(",");
     return [
       useTinybird ? "analytics-tinybird" : "analytics",
-      metrics.join(","),
+      sortedMetrics,
       workspaceslug,
-      debouncedSearchParams,
+      serializedParams,
     ];
   }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams, useTinybird]);
 

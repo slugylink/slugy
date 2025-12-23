@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAnalytics } from "@/hooks/use-analytics";
 import FilterActions, {
@@ -22,7 +22,31 @@ import {
 
 // Constants for better maintainability
 const DEFAULT_TIME_PERIOD = "24h";
-// const CHART_HEIGHT = "h-[300px] sm:h-[420px]";
+const ANALYTICS_METRICS: Array<
+  | "totalClicks"
+  | "clicksOverTime"
+  | "links"
+  | "cities"
+  | "countries"
+  | "continents"
+  | "devices"
+  | "browsers"
+  | "oses"
+  | "referrers"
+  | "destinations"
+> = [
+  "totalClicks",
+  "clicksOverTime",
+  "links",
+  "cities",
+  "countries",
+  "continents",
+  "devices",
+  "browsers",
+  "oses",
+  "referrers",
+  "destinations",
+];
 
 // Dynamic imports with optimized loading
 const Chart = dynamic(() => import("@/components/web/_analytics/chart"), {
@@ -74,15 +98,18 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
 
-  const timePeriod = (() => {
+  const timePeriod = useMemo(() => {
     const period = searchParams.get("time_period");
     const validPeriods = ["24h", "7d", "30d", "3m", "12m", "all"] as const;
     return validPeriods.includes(period as (typeof validPeriods)[number])
       ? (period as (typeof validPeriods)[number])
       : DEFAULT_TIME_PERIOD;
-  })();
+  }, [searchParams]);
 
-  const searchParamsObj = Object.fromEntries(searchParams.entries());
+  const searchParamsObj = useMemo(
+    () => Object.fromEntries(searchParams.entries()),
+    [searchParams],
+  );
 
   const {
     data: res,
@@ -102,19 +129,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     workspaceslug: workspace,
     timePeriod,
     searchParams: searchParamsObj,
-    metrics: [
-      "totalClicks",
-      "clicksOverTime",
-      "links",
-      "cities",
-      "countries",
-      "continents",
-      "devices",
-      "browsers",
-      "oses",
-      "referrers",
-      "destinations",
-    ],
+    metrics: ANALYTICS_METRICS,
   });
 
   const linksFilterOptions = (links as Array<{ slug: string; url: string; domain: string; clicks: number }>)?.map(
