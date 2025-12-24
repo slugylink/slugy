@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   // Build URL with customer info query params
   // Polar Checkout handler automatically reads query params from the request URL:
-  // - products (required): ?products=123 or ?products=123,456
+  // - products (required): ?products=123 or ?products=123&products=456 (multiple params)
   // - customerId (optional): ?customerId=xxx
   // - customerExternalId (optional): ?customerExternalId=xxx
   // - customerEmail (optional): ?customerEmail=user@example.com
@@ -38,6 +38,21 @@ export async function GET(req: NextRequest) {
   // - metadata (optional): URL-Encoded JSON string
   
   const url = new URL(req.url);
+  
+  // Handle products parameter - split comma-separated values into multiple params
+  // Polar SDK expects products as an array, so we need separate query params
+  const productsParam = url.searchParams.get('products');
+  if (productsParam) {
+    // Remove the original products parameter
+    url.searchParams.delete('products');
+    
+    // Split by comma and add each product ID as a separate 'products' parameter
+    // This allows Polar SDK to properly parse it as an array
+    const productIds = productsParam.split(',').map(id => id.trim()).filter(Boolean);
+    productIds.forEach(productId => {
+      url.searchParams.append('products', productId);
+    });
+  }
   
   // Set customer info if not already provided in query params
   if (user.customerId && !url.searchParams.has('customerId')) {

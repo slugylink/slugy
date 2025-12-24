@@ -7,24 +7,32 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import NumberFlow from "@number-flow/react";
 
-// Get checkout URL with price ID based on billing period
-const getCheckoutUrl = (billingPeriod: "monthly" | "yearly") => {
+// Get checkout URL with both monthly and yearly product IDs
+// Polar will show both options during checkout so user can choose
+const getCheckoutUrl = () => {
   const baseUrl = "/api/subscription/checkout";
-  
-  // Use environment variables if available (they should be NEXT_PUBLIC_ for client access)
-  const monthlyProductId = process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID;
-  const yearlyProductId = process.env.NEXT_PUBLIC_PRO_YEARLY_PRODUCT_ID;
-  
-  // Polar expects "products" parameter (plural), but we'll support both
-  // The route will transform product_id to products
-  if (billingPeriod === "monthly" && monthlyProductId) {
-    return `${baseUrl}?products=${monthlyProductId}`;
+
+  // Get both product IDs from environment variables
+  const monthlyProductId = process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID; // sandbox test productId
+  const yearlyProductId = "16b2a6b3-508a-4d88-b1c8-78d454992891"; // sandbox test productId
+
+  // Build products array - Polar expects comma-separated product IDs
+  const productIds: string[] = [];
+
+  if (monthlyProductId) {
+    productIds.push(monthlyProductId);
   }
-  
-  if (billingPeriod === "yearly" && yearlyProductId) {
-    return `${baseUrl}?products=${yearlyProductId}`;
+
+  if (yearlyProductId) {
+    productIds.push(yearlyProductId);
   }
-  
+
+  // If we have at least one product ID, add it to the URL
+  if (productIds.length > 0) {
+    // Polar expects "products" parameter with comma-separated IDs
+    return `${baseUrl}?products=${productIds.join(",")}`;
+  }
+
   // Fallback: return base URL (will show error but user can add params manually)
   return baseUrl;
 };
@@ -90,17 +98,29 @@ function renderFeatureValue(value: FeatureValue) {
 }
 
 export default function PricingComparator() {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">("monthly");
+  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
+    "monthly",
+  );
   const proPlan = pricingPlans.pro[billingPeriod];
+  const checkoutUrl = getCheckoutUrl();
 
   return (
     <section>
       <div className="mx-auto">
         <div className="mb-8 flex justify-end">
-          <Tabs value={billingPeriod} onValueChange={(value) => setBillingPeriod(value as "monthly" | "yearly")}>
-            <TabsList className="flex w-full max-w-md text-sm gap-1 border">
-              <TabsTrigger value="monthly" className="text-sm">Monthly</TabsTrigger>
-              <TabsTrigger value="yearly" className="text-sm">Yearly (2 Months Free)</TabsTrigger>
+          <Tabs
+            value={billingPeriod}
+            onValueChange={(value) =>
+              setBillingPeriod(value as "monthly" | "yearly")
+            }
+          >
+            <TabsList className="flex w-full max-w-md gap-1 border text-sm">
+              <TabsTrigger value="monthly" className="text-sm">
+                Monthly
+              </TabsTrigger>
+              <TabsTrigger value="yearly" className="text-sm">
+                Yearly (2 Months Free)
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
@@ -149,9 +169,7 @@ export default function PricingComparator() {
                     </span>
                   )} */}
                   <Button asChild variant={pricingPlans.pro.variant} size="sm">
-                    <Link href={getCheckoutUrl(billingPeriod)}>
-                      Upgrade to Pro
-                    </Link>
+                    <Link href={checkoutUrl}>Upgrade to Pro</Link>
                   </Button>
                 </th>
               </tr>
