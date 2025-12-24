@@ -3,6 +3,14 @@ import { SharedLayout } from "@/components/web/shared-layout";
 import { getLayoutData } from "@/lib/layout-utils";
 import { filterValidWorkspaces } from "@/lib/workspace-utils";
 
+// Shared type for workspace data - ensures consistency across layouts
+type WorkspaceData = {
+  id: string;
+  name: string;
+  slug: string;
+  userRole: "owner" | "admin" | "member" | null;
+};
+
 interface WorkspaceLayoutProps {
   children: React.ReactNode;
   params: Promise<{
@@ -25,12 +33,7 @@ export default async function WorkspaceLayout({
   return (
     <SharedLayout
       workspaceslug={layoutData.workspaceslug}
-      workspaces={filterValidWorkspaces(layoutData.workspaces) as {
-        id: string;
-        name: string;
-        slug: string;
-        userRole: "owner" | "admin" | "member" | null;
-      }[]}
+      workspaces={filterValidWorkspaces(layoutData.workspaces) as WorkspaceData[]}
     >
       {children}
     </SharedLayout>

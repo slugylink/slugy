@@ -123,15 +123,7 @@ const LinkItem = memo(({
   onSelect: () => void;
   isTransitioning?: boolean;
 }) => (
-  <div
-    className={`animate-in fade-in slide-in-from-bottom-2 duration-300 ease-out transform transition-all ${
-      isTransitioning ? "scale-[0.98] opacity-95" : ""
-    }`}
-    style={{
-      animationDelay: `${Math.min(index * 30, 500)}ms`,
-      animationFillMode: 'both'
-    }}
-  >
+  <div>
     <LinkCard
       link={link}
       isPublic={link.isPublic}
@@ -164,12 +156,10 @@ export const LinkList = memo(({
 }) => {
   // Memoize the grid classes to prevent unnecessary recalculations
   const gridClasses = useMemo(() =>
-    `mb-24 grid gap-4 transition-all duration-300 ease-in-out ${
+    `mb-24 grid gap-4 ${
       isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
-    } ${isLoading ? "opacity-70" : ""} ${
-      isTransitioning ? "scale-[0.99] opacity-90" : ""
-    }`,
-    [isGridLayout, isLoading, isTransitioning]
+    } ${isLoading ? "opacity-70" : ""}`,
+    [isGridLayout, isLoading]
   );
 
   return (

@@ -5,7 +5,7 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import SidebarHeader from "./_sidebar/sidebar-header";
 import MaxWidthContainer from "../max-width-container";
 
-interface SharedLayoutProps {
+export interface SharedLayoutProps {
   children: React.ReactNode;
   workspaceslug: string;
   className?: string;
@@ -35,7 +35,7 @@ export const SharedLayout = memo(function SharedLayout({
   workspaces,
   className,
 }: SharedLayoutProps) {
-  // Memoize sidebar props to prevent unnecessary re-renders
+
   const sidebarProps = useMemo(
     () => ({
       workspaceslug,
