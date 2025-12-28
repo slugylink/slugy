@@ -1,20 +1,27 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { db } from "@/server/db";
 
+// Polar webhook handler - processes subscription events from Polar payment provider
 export const POST = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
 
+  // When a new order is created, link the customer ID to the user account
   onOrderCreated: async (payload) => {
     const order = payload.data as any;
     console.log("[Polar] Order created:", order.id);
 
     try {
-      const userId = 
-        order.metadata?.userId ||
-        order.user_metadata?.userId || 
-        order.user_metadata?.user_id;
+      // Extract user ID from various possible metadata locations
+      const userId = order.metadata?.userId;
+
+      if (!userId) {
+        console.error("[Polar] No user ID found in order metadata");
+        return;
+      }
+
       const customerId = order.customer_id;
-      
+
+      // Link Polar customer ID to our user account for future reference
       if (userId && customerId) {
         await db.user.update({
           where: { id: userId },
@@ -27,22 +34,22 @@ export const POST = Webhooks({
     }
   },
 
+  // When a new subscription is created, create/update subscription record in database
   onSubscriptionCreated: async (payload) => {
     const subscription = payload.data as any;
     console.log("[Polar] Subscription created:", subscription.id);
 
     try {
-      const userId = 
-        subscription.metadata?.userId ||
-        subscription.user_metadata?.userId || 
-        subscription.user_metadata?.user_id;
-      
+      // Extract user ID from subscription metadata
+      const userId = subscription.metadata?.userId;
+
       if (!userId) {
         console.error("[Polar] No user ID found in subscription metadata");
         return;
       }
 
-      const priceId = 
+      // Extract price ID to determine which plan was purchased
+      const priceId =
         subscription.prices?.[0]?.id ||
         subscription.product?.prices?.[0]?.id ||
         subscription.priceId;
@@ -52,17 +59,14 @@ export const POST = Webhooks({
         return;
       }
 
-      // Find plan by price ID with trim fallback for whitespace issues
+      // Find matching plan in database by price ID (handles whitespace issues) / we can use redis alternatively as plans are static / aslo we can avoid db queries
       let plan = await db.plan.findFirst({
         where: {
-          OR: [
-            { monthlyPriceId: priceId },
-            { yearlyPriceId: priceId },
-          ],
+          OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
         },
       });
 
-      // Fallback: trim whitespace
+      // Fallback: if not found, search all plans and trim whitespace for comparison
       if (!plan) {
         const allPlans = await db.plan.findMany({
           where: {
@@ -72,12 +76,13 @@ export const POST = Webhooks({
             ],
           },
         });
-        
-        plan = allPlans.find(
-          (p) => 
-            p.monthlyPriceId?.trim() === priceId.trim() || 
-            p.yearlyPriceId?.trim() === priceId.trim()
-        ) || null;
+
+        plan =
+          allPlans.find(
+            (p) =>
+              p.monthlyPriceId?.trim() === priceId.trim() ||
+              p.yearlyPriceId?.trim() === priceId.trim(),
+          ) || null;
       }
 
       if (!plan) {
@@ -86,14 +91,24 @@ export const POST = Webhooks({
         return;
       }
 
+      // Extract subscription details from Polar payload
       const subscriptionId = subscription.id;
-      const customerId = subscription.customerId || subscription.customer_id || subscription.customer?.id;
+      const customerId =
+        subscription.customerId ||
+        subscription.customer_id;
       const status = subscription.status;
-      const periodStart = subscription.currentPeriodStart || subscription.current_period_start;
-      const periodEnd = subscription.currentPeriodEnd || subscription.current_period_end;
-      const recurringInterval = subscription.recurringInterval || subscription.recurring_interval;
-      const cancelAtPeriodEnd = subscription.cancelAtPeriodEnd || subscription.cancel_at_period_end || false;
+      const periodStart =
+        subscription.currentPeriodStart || subscription.current_period_start;
+      const periodEnd =
+        subscription.currentPeriodEnd || subscription.current_period_end;
+      const recurringInterval =
+        subscription.recurringInterval || subscription.recurring_interval;
+      const cancelAtPeriodEnd =
+        subscription.cancelAtPeriodEnd ||
+        subscription.cancel_at_period_end ||
+        false;
 
+      // Create or update subscription record in database
       await db.subscription.upsert({
         where: { referenceId: userId },
         create: {
@@ -115,6 +130,7 @@ export const POST = Webhooks({
           subscriptionId,
           customerId,
           status,
+          provider: "polar",
           periodStart: new Date(periodStart),
           periodEnd: new Date(periodEnd),
           billingInterval: recurringInterval === "year" ? "year" : "month",
@@ -122,6 +138,7 @@ export const POST = Webhooks({
         },
       });
 
+      // Update user's customer ID if available
       if (customerId) {
         await db.user.update({
           where: { id: userId },
@@ -136,23 +153,30 @@ export const POST = Webhooks({
     }
   },
 
+  // When subscription details change (status, billing period, etc.)
   onSubscriptionUpdated: async (payload) => {
     const subscription = payload.data as any;
     console.log("[Polar] Subscription updated:", subscription.id);
 
     try {
+      // Find existing subscription by subscription ID
       const subscriptionId = subscription.id;
       let existingSubscription = await db.subscription.findFirst({
         where: { subscriptionId },
       });
 
+      // If not found by ID, try finding by customer ID (handles edge cases)
       if (!existingSubscription) {
-        const customerId = subscription.customerId || subscription.customer_id || subscription.customer?.id;
+        const customerId =
+          subscription.customerId ||
+          subscription.customer_id ||
+          subscription.customer?.id;
         if (customerId) {
           existingSubscription = await db.subscription.findFirst({
             where: { customerId },
           });
           if (existingSubscription) {
+            // Link the subscription ID to the found record
             await db.subscription.update({
               where: { id: existingSubscription.id },
               data: { subscriptionId },
@@ -165,19 +189,25 @@ export const POST = Webhooks({
         }
       }
 
-      const periodStart = subscription.currentPeriodStart || subscription.current_period_start;
-      const periodEnd = subscription.currentPeriodEnd || subscription.current_period_end;
-      const cancelAtPeriodEnd = subscription.cancelAtPeriodEnd || subscription.cancel_at_period_end || false;
+      // Extract updated subscription details
+      const periodStart =
+        subscription.currentPeriodStart || subscription.current_period_start;
+      const periodEnd =
+        subscription.currentPeriodEnd || subscription.current_period_end;
+      const cancelAtPeriodEnd =
+        subscription.cancelAtPeriodEnd ||
+        subscription.cancel_at_period_end ||
+        false;
       const status = subscription.status;
 
-      // If subscription is canceled or revoked, set user back to free tier
+      // Handle cancellation/revocation: downgrade user to free plan
       if (status === "canceled" || status === "revoked") {
         const freePlan = await db.plan.findFirst({
           where: { planType: "free" },
         });
 
         if (freePlan) {
-          // Calculate free subscription period (20 years from now)
+          // Set free plan period to 20 years (effectively unlimited for free tier)
           const currentPeriodStart = new Date();
           const currentPeriodEnd = new Date(currentPeriodStart);
           currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
@@ -186,12 +216,16 @@ export const POST = Webhooks({
               (1000 * 60 * 60 * 24),
           );
 
+          // Update subscription to free plan
           await db.subscription.update({
             where: { id: existingSubscription.id },
             data: {
               status: "active",
               planId: freePlan.id,
-              canceledAt: status === "canceled" || status === "revoked" ? new Date() : existingSubscription.canceledAt,
+              canceledAt:
+                status === "canceled" || status === "revoked"
+                  ? new Date()
+                  : existingSubscription.canceledAt,
               cancelAtPeriodEnd: false,
               periodStart: currentPeriodStart,
               periodEnd: currentPeriodEnd,
@@ -200,11 +234,14 @@ export const POST = Webhooks({
             },
           });
 
-          console.log("[Polar] Subscription updated to canceled/revoked and user set to free tier");
+          console.log(
+            "[Polar] Subscription updated to canceled/revoked and user set to free tier",
+          );
           return;
         }
       }
 
+      // Update subscription with new period dates and status
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
@@ -222,6 +259,7 @@ export const POST = Webhooks({
     }
   },
 
+  // When subscription becomes active (payment successful, trial started, etc.)
   onSubscriptionActive: async (payload) => {
     const subscription = payload.data as any;
     console.log("[Polar] Subscription activated:", subscription.id);
@@ -232,37 +270,34 @@ export const POST = Webhooks({
         where: { subscriptionId },
       });
 
-      // Create subscription if it doesn't exist (missed subscription.created event)
+      // Handle case where subscription.created event was missed - create it now
       if (!existingSubscription) {
-        const userId = 
+        const userId =
           subscription.metadata?.userId ||
-          subscription.user_metadata?.userId || 
+          subscription.user_metadata?.userId ||
           subscription.customer?.externalId;
-        
+
         if (!userId) {
           console.error("[Polar] Cannot create subscription - no user ID");
           return;
         }
 
-        const priceId = 
-          subscription.prices?.[0]?.id ||
-          subscription.product?.prices?.[0]?.id;
+        const priceId =
+          subscription.prices?.[0]?.id || subscription.product?.prices?.[0]?.id;
 
         if (!priceId) {
           console.error("[Polar] Cannot create subscription - no price ID");
           return;
         }
 
+        // Find plan by price ID (same logic as subscription.created)
         let plan = await db.plan.findFirst({
           where: {
-            OR: [
-              { monthlyPriceId: priceId },
-              { yearlyPriceId: priceId },
-            ],
+            OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
           },
         });
 
-        // Fallback: trim whitespace
+        // Fallback: search all plans and trim whitespace for comparison
         if (!plan) {
           const allPlans = await db.plan.findMany({
             where: {
@@ -272,13 +307,13 @@ export const POST = Webhooks({
               ],
             },
           });
-          
+
           const matchedPlan = allPlans.find(
-            (p) => 
-              p.monthlyPriceId?.trim() === priceId.trim() || 
-              p.yearlyPriceId?.trim() === priceId.trim()
+            (p) =>
+              p.monthlyPriceId?.trim() === priceId.trim() ||
+              p.yearlyPriceId?.trim() === priceId.trim(),
           );
-          
+
           if (matchedPlan) {
             plan = await db.plan.findUnique({
               where: { id: matchedPlan.id },
@@ -291,10 +326,17 @@ export const POST = Webhooks({
           return;
         }
 
-        const customerId = subscription.customerId || subscription.customer_id || subscription.customer?.id;
-        const periodStart = subscription.currentPeriodStart || subscription.current_period_start;
-        const periodEnd = subscription.currentPeriodEnd || subscription.current_period_end;
-        const recurringInterval = subscription.recurringInterval || subscription.recurring_interval;
+        // Extract subscription details and create new record
+        const customerId =
+          subscription.customerId ||
+          subscription.customer_id ||
+          subscription.customer?.id;
+        const periodStart =
+          subscription.currentPeriodStart || subscription.current_period_start;
+        const periodEnd =
+          subscription.currentPeriodEnd || subscription.current_period_end;
+        const recurringInterval =
+          subscription.recurringInterval || subscription.recurring_interval;
 
         existingSubscription = await db.subscription.create({
           data: {
@@ -314,8 +356,11 @@ export const POST = Webhooks({
 
         console.log("[Polar] Subscription created from active event");
       } else {
-        const periodStart = subscription.currentPeriodStart || subscription.current_period_start;
-        const periodEnd = subscription.currentPeriodEnd || subscription.current_period_end;
+        // Subscription exists - just update status and period dates
+        const periodStart =
+          subscription.currentPeriodStart || subscription.current_period_start;
+        const periodEnd =
+          subscription.currentPeriodEnd || subscription.current_period_end;
 
         await db.subscription.update({
           where: { id: existingSubscription.id },
@@ -334,6 +379,7 @@ export const POST = Webhooks({
     }
   },
 
+  // When subscription is canceled by user - downgrade to free plan
   onSubscriptionCanceled: async (payload) => {
     const subscription = payload.data as any;
     console.log("[Polar] Subscription canceled:", subscription.id);
@@ -351,7 +397,7 @@ export const POST = Webhooks({
 
       const canceledAt = subscription.canceledAt || subscription.canceled_at;
 
-      // Find free plan to set user back to free tier
+      // Find free plan to downgrade user to free tier
       const freePlan = await db.plan.findFirst({
         where: { planType: "free" },
       });
@@ -370,7 +416,7 @@ export const POST = Webhooks({
         return;
       }
 
-      // Calculate free subscription period (20 years from now)
+      // Set free plan period to 20 years (unlimited for free tier)
       const currentPeriodStart = new Date();
       const currentPeriodEnd = new Date(currentPeriodStart);
       currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
@@ -379,6 +425,7 @@ export const POST = Webhooks({
           (1000 * 60 * 60 * 24),
       );
 
+      // Update subscription to free plan
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
@@ -400,6 +447,7 @@ export const POST = Webhooks({
     }
   },
 
+  // When subscription is revoked (payment failed, fraud, etc.) - downgrade to free plan
   onSubscriptionRevoked: async (payload) => {
     const subscription = payload.data as any;
     console.log("[Polar] Subscription revoked:", subscription.id);
@@ -415,7 +463,7 @@ export const POST = Webhooks({
         return;
       }
 
-      // Find free plan to set user back to free tier
+      // Find free plan to downgrade user to free tier
       const freePlan = await db.plan.findFirst({
         where: { planType: "free" },
       });
@@ -433,7 +481,7 @@ export const POST = Webhooks({
         return;
       }
 
-      // Calculate free subscription period (20 years from now)
+      // Set free plan period to 20 years (unlimited for free tier)
       const currentPeriodStart = new Date();
       const currentPeriodEnd = new Date(currentPeriodStart);
       currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
@@ -442,6 +490,7 @@ export const POST = Webhooks({
           (1000 * 60 * 60 * 24),
       );
 
+      // Update subscription to free plan
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
