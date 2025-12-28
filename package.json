@@ -50,6 +50,7 @@
     "@radix-ui/react-switch": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@sentry/nextjs": "^10.32.1",
     "@sindresorhus/slugify": "^2.2.1",
     "@stripe/stripe-js": "^7.3.1",
     "@upstash/qstash": "^2.8.1",

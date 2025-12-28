@@ -14,7 +14,7 @@ const getCheckoutUrl = () => {
 
   // Get both product IDs from environment variables
   const monthlyProductId = process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID; // sandbox test productId
-  const yearlyProductId = "16b2a6b3-508a-4d88-b1c8-78d454992891"; // sandbox test productId
+  const yearlyProductId = process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID; // sandbox test productId
 
   // Build products array - Polar expects comma-separated product IDs
   const productIds: string[] = [];
