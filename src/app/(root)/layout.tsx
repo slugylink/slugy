@@ -1,13 +1,11 @@
 import React from "react";
 import Footer from "./_components/footer";
 import Navbar from "./_components/navbar";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { getCachedRootSession } from "@/lib/auth";
 
 const HomeLayout = async ({ children }: { children: React.ReactNode }) => {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  // Use cached session to avoid blocking SSR with database calls
+  const session = await getCachedRootSession();
 
   return (
     <main className="h-full flex-col bg-white dark:bg-[#121212]">
