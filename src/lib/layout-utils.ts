@@ -41,20 +41,17 @@ export async function getLayoutData(workspaceSlug?: string) {
   const { session } = authResult;
   const userId = session.user.id;
 
-  // Fetch all workspaces with caching
-  // Note: This uses unstable_cache which should be invalidated by revalidateTag
-  let workspaces;
-  try {
-    workspaces = await getCachedWorkspaces(userId);
-  } catch (error) {
-    console.error("Error fetching cached workspaces, falling back to direct fetch:", error);
-    // Fallback to direct fetch if cache fails
-    const result = await fetchAllWorkspaces(userId);
-    workspaces = result.success ? result.workspaces : [];
-  }
-
-  // If no workspace slug provided (for "others" layout), use first available workspace
+  // If no workspace slug provided (for "others" layout), only fetch workspaces
   if (!workspaceSlug) {
+    let workspaces;
+    try {
+      workspaces = await getCachedWorkspaces(userId);
+    } catch (error) {
+      console.error("Error fetching cached workspaces, falling back to direct fetch:", error);
+      const result = await fetchAllWorkspaces(userId);
+      workspaces = result.success ? result.workspaces : [];
+    }
+
     const defaultSlug = workspaces.length > 0 && workspaces[0] ? workspaces[0].slug : "";
     return {
       workspaces,
@@ -63,8 +60,25 @@ export async function getLayoutData(workspaceSlug?: string) {
     };
   }
 
-  // Validate workspace slug for dashboard layout
-  const validation = await getCachedWorkspaceValidation(userId, workspaceSlug);
+  // For dashboard layout: fetch workspaces and validate workspace slug in parallel
+  // This reduces total time from sequential (workspaces + validation) to max(workspaces, validation)
+  const [workspacesResult, validationResult] = await Promise.all([
+    // Fetch all workspaces with caching
+    (async () => {
+      try {
+        return await getCachedWorkspaces(userId);
+      } catch (error) {
+        console.error("Error fetching cached workspaces, falling back to direct fetch:", error);
+        const result = await fetchAllWorkspaces(userId);
+        return result.success ? result.workspaces : [];
+      }
+    })(),
+    // Validate workspace slug in parallel
+    getCachedWorkspaceValidation(userId, workspaceSlug),
+  ]);
+
+  const workspaces = workspacesResult;
+  const validation = validationResult;
 
   if (!validation.success) {
     // Return not found state instead of throwing - let component handle it

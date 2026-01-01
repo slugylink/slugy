@@ -50,6 +50,8 @@ model Session {
   activeOrganizationId String?
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([token, userId])
   @@map("session")
 }
 
@@ -218,6 +220,8 @@ model Workspace {
   apiKeys          WorkspaceApiKey[]
   creator          User              @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([slug])
+  @@index([userId])
   @@index([userId, slug])
   @@index([userId, isDefault])
   @@map("workspaces")
@@ -291,16 +295,20 @@ model Link {
 
   @@unique([slug, domain])
   @@index([slug])
+  @@index([slug, domain])
   @@index([url])
   @@index([userId])
   @@index([workspaceId])
+  @@index([workspaceId, slug])
+  @@index([workspaceId, domain])
+  @@index([workspaceId, id])
+  @@index([workspaceId, slug, domain])
   @@index([description])
   @@index([workspaceId, isArchived])
+  @@index([workspaceId, isArchived, createdAt])
   @@index([workspaceId, createdAt])
   @@index([workspaceId, clicks])
   @@index([workspaceId, lastClicked])
-  @@index([workspaceId, isArchived, createdAt])
-  @@index([workspaceId, id])
   @@map("links")
 }
 
@@ -394,6 +402,8 @@ model Member {
 
   @@unique([workspaceId, userId])
   @@index([userId])
+  @@index([workspaceId])
+  @@index([workspaceId, userId])
   @@map("members")
 }
 
@@ -546,6 +556,7 @@ model Usage {
 
   @@index([userId])
   @@index([workspaceId])
+  @@index([userId, workspaceId])
   @@index([deletedAt, createdAt(sort: Desc)])
   @@map("usages")
 }

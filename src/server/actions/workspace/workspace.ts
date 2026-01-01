@@ -207,36 +207,70 @@ export async function fetchAllWorkspaces(userId: string) {
     }
 
     // Cache miss: fetch from database
-    const workspaces = await db.workspace.findMany({
-      where: {
-        OR: [
-          { userId },
-          {
-            members: {
-              some: {
-                userId,
-              },
+    // Optimized: Fetch owned workspaces and member workspaces separately, then merge
+    // This avoids the slow OR/EXISTS query pattern which causes 400ms+ queries
+    const [ownedWorkspaces, memberWorkspaces] = await Promise.all([
+      // Fetch workspaces where user is owner (uses userId index - fast)
+      db.workspace.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+          logo: true,
+          createdAt: true,
+          members: {
+            select: {
+              userId: true,
+              role: true,
             },
           },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        userId: true,
-        logo: true,
-        members: {
-          select: {
-            userId: true,
-            role: true,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      // Fetch workspaces where user is a member (uses members.userId index - fast)
+      db.workspace.findMany({
+        where: {
+          members: {
+            some: { userId },
           },
         },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+          logo: true,
+          createdAt: true,
+          members: {
+            select: {
+              userId: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+    // Merge and deduplicate workspaces (user might be both owner and member)
+    const workspaceMap = new Map<string, typeof ownedWorkspaces[0]>();
+    
+    // Add owned workspaces first
+    ownedWorkspaces.forEach((ws) => workspaceMap.set(ws.id, ws));
+    
+    // Add member workspaces (won't overwrite if already exists)
+    memberWorkspaces.forEach((ws) => {
+      if (!workspaceMap.has(ws.id)) {
+        workspaceMap.set(ws.id, ws);
+      }
     });
+
+    // Convert back to array and sort by createdAt
+    const workspaces = Array.from(workspaceMap.values()).sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+    );
 
     const workspacesWithRoles = workspaces.map((workspace) => {
       const isOwner = workspace.userId === userId;
@@ -282,22 +316,30 @@ export async function validateworkspaceslug(userId: string, slug: string) {
     }
 
     // Cache miss: fetch from database
-    const workspace = await db.workspace.findUnique({
+    // Optimized: First check if user owns the workspace (fast with userId index)
+    // Then check if user is a member (only if not owner)
+    let workspace = await db.workspace.findFirst({
       where: {
         slug: slug,
-        OR: [
-          { userId: userId },
-          {
-            members: {
-              some: {
-                userId: userId,
-              },
-            },
-          },
-        ],
+        userId: userId, // Check ownership first (uses userId index)
       },
       select: { id: true, name: true, slug: true, logo: true },
     });
+
+    // If not owner, check if user is a member
+    if (!workspace) {
+      workspace = await db.workspace.findFirst({
+        where: {
+          slug: slug,
+          members: {
+            some: {
+              userId: userId, // Uses members.userId index
+            },
+          },
+        },
+        select: { id: true, name: true, slug: true, logo: true },
+      });
+    }
 
     if (!workspace) {
       // Cache null result to avoid repeated DB queries

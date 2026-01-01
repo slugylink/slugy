@@ -25,18 +25,12 @@ export async function checkWorkspaceAccessAndLimits(
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
 
-    // Single query to get workspace and link count
-    const workspace = await db.workspace.findFirst({
+    // Optimized: Check ownership first (fast with userId index), then membership if needed
+    // This avoids the slow OR/EXISTS query pattern
+    let workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
-        OR: [
-          { userId },
-          {
-            members: {
-              some: { userId },
-            },
-          },
-        ],
+        userId, // Check ownership first (uses userId index)
       },
       select: {
         id: true,
@@ -49,6 +43,28 @@ export async function checkWorkspaceAccessAndLimits(
         },
       },
     });
+
+    // If not owner, check if user is a member
+    if (!workspace) {
+      workspace = await db.workspace.findFirst({
+        where: {
+          slug: workspaceslug,
+          members: {
+            some: { userId }, // Uses members.userId index
+          },
+        },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          _count: {
+            select: {
+              links: true,
+            },
+          },
+        },
+      });
+    }
 
     if (!workspace) {
       return {

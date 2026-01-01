@@ -191,16 +191,28 @@ export async function GET(
       );
     }
 
-    const workspace = await db.workspace.findFirst({
+    // Optimized: Check ownership first (fast with userId index), then membership if needed
+    // This avoids the slow OR/EXISTS query pattern
+    let workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
-        OR: [
-          { userId: session.user.id },
-          { members: { some: { userId: session.user.id } } },
-        ],
+        userId: session.user.id, // Check ownership first (uses userId index)
       },
       select: { id: true },
     });
+
+    // If not owner, check if user is a member
+    if (!workspace) {
+      workspace = await db.workspace.findFirst({
+        where: {
+          slug: workspaceslug,
+          members: {
+            some: { userId: session.user.id }, // Uses members.userId index
+          },
+        },
+        select: { id: true },
+      });
+    }
 
     if (!workspace) {
       return NextResponse.json(
