@@ -12,15 +12,6 @@ const AppLogo = () => {
         className="object-contain p-[2px] overflow-hidden rounded-2xl"
         priority
       />
-
-      <Image
-        src="/icons/cap.png"
-        alt="Slugy"
-        width={35}
-        height={35}
-        className="absolute -top-3.5 -left-3.5 z-10 object-contain p-[2px]"
-        priority
-      />
     </div>
   );
 };
