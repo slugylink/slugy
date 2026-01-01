@@ -177,10 +177,10 @@ ExpirationBadge.displayName = "ExpirationBadge";
 
 interface LinkCardProps {
   link: {
-    short: string;
-    original: string;
-    clicks: number;
-    expires: string | null;
+    short?: string;
+    original?: string;
+    clicks?: number;
+    expires?: string | null;
   };
   isSelectModeOn?: boolean;
   isSelected?: boolean;
@@ -196,8 +196,8 @@ export default function LinkCard({ link }: LinkCardProps) {
   const [isCopied, setIsCopied] = useState(false);
   const pathname = usePathname();
 
-  // Memoize the short URL
-  const shortUrl = useMemo(() => link.short, [link.short]);
+  // Memoize the short URL with fallback
+  const shortUrl = useMemo(() => link.short || "", [link.short]);
 
   // Create helper functions to update dialog states
   const updateDialog = useCallback(
@@ -228,25 +228,25 @@ export default function LinkCard({ link }: LinkCardProps) {
         )}
       >
         <div className="rounded-full">
-          <UrlAvatar url={link.original} />
+          <UrlAvatar url={link.original || ""} />
         </div>
         <div className="min-w-0 flex-1 space-y-[6px]">
           <div className="flex items-center gap-2 sm:flex-row">
             <p className="max-w-[calc(100%-3rem)] truncate text-sm font-medium">
-              {link.short}
+              {link.short || "N/A"}
             </p>
             <div className="flex items-center gap-2">
               <CopyButton isCopied={isCopied} onClick={handleCopy} />
             </div>
           </div>
-          <LinkPreviewComponent url={link.original} />
+          <LinkPreviewComponent url={link.original || ""} />
         </div>
         <div className="flex h-full w-auto items-center justify-end">
           <AnalyticsBadge
-            clicks={link.clicks}
+            clicks={link.clicks ?? 0}
             pathname={pathname}
-            slug={link.short.split("/").pop() ?? ""}
-            expires={link.expires}
+            slug={link.short?.split("/").pop()?.replace("&c", "") ?? ""}
+            expires={link.expires ?? null}
           />
         </div>
       </div>
@@ -262,8 +262,8 @@ export default function LinkCard({ link }: LinkCardProps) {
             </DialogHeader>
             <QRCodeDesign
               domain="slugy.co"
-              linkId={link.short}
-              code={link.short.split("/").pop() ?? ""}
+              linkId={link.short || ""}
+              code={link.short?.split("/").pop()?.replace("&c", "") ?? ""}
               onOpenChange={(open) => updateDialog("qrCode", open)}
             />
           </DialogContent>

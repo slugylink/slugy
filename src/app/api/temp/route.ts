@@ -14,7 +14,7 @@ interface LinkResponse {
   short: string;
   original: string;
   clicks: number;
-  expires: string;
+  expires: string | null;
 }
 
 interface LinkData {
@@ -57,9 +57,11 @@ export async function GET() {
 
     // Get all link codes for this IP
     const linkCodes = await redis.smembers(ipKey);
+    
+    console.log(`[TEMP API] IP: ${normalizedIp}, Found ${linkCodes.length} link codes:`, linkCodes);
 
     if (!linkCodes.length) {
-      return Response.json(apiSuccess({ links: [] }));
+      return apiSuccess({ links: [] });
     }
 
     // Fetch all link data in parallel
@@ -94,7 +96,8 @@ export async function GET() {
       (link): link is LinkResponse => link !== null,
     );
 
-    return Response.json(apiSuccess({ links: validLinks }));
+    console.log(`[TEMP API] Returning ${validLinks.length} valid links`);
+    return apiSuccess({ links: validLinks });
   } catch (error) {
     console.error("GET /api/temp error:", error);
     return Response.json(apiErrors.internalError("Failed to fetch temporary links"));
@@ -149,7 +152,7 @@ export async function POST(req: Request) {
     await pipeline.exec();
 
     const response = createLinkResponse(linkData);
-    return Response.json(apiSuccess(response));
+    return apiSuccess(response);
   } catch (error) {
     console.error("POST /api/temp error:", error);
 
