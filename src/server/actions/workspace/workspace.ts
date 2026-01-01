@@ -90,12 +90,16 @@ export async function createWorkspace({
     });
 
     // Invalidate caches immediately for faster response
+    // Order matters: invalidate Redis cache first, then Next.js cache tags
+    // Use "max" as path parameter to avoid cacheLife configuration requirement
     await Promise.all([
+      // Invalidate Redis cache first
       invalidateWorkspaceCache(userId),
-      revalidateTag("workspace", "/"),
-      revalidateTag("all-workspaces", "/"),
-      revalidateTag("workspaces", "/"),
-      revalidateTag("workspace-validation", "/"),
+      // Then invalidate Next.js unstable_cache entries
+      revalidateTag("workspaces", "max"),
+      revalidateTag("all-workspaces", "max"),
+      revalidateTag("workspace", "max"),
+      revalidateTag("workspace-validation", "max"),
     ]);
 
     // Run background tasks

@@ -30,7 +30,8 @@ export async function saveQrCode({
     });
 
     // Invalidate the cache for this specific QR code
-    revalidateTag(`qr-code-${linkId}`, "/");
+    // Use "max" as path parameter to avoid cacheLife configuration requirement
+    revalidateTag(`qr-code-${linkId}`, "max");
 
     return { success: true, qrCode };
   } catch (error) {

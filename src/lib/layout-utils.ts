@@ -42,7 +42,16 @@ export async function getLayoutData(workspaceSlug?: string) {
   const userId = session.user.id;
 
   // Fetch all workspaces with caching
-  const workspaces = await getCachedWorkspaces(userId);
+  // Note: This uses unstable_cache which should be invalidated by revalidateTag
+  let workspaces;
+  try {
+    workspaces = await getCachedWorkspaces(userId);
+  } catch (error) {
+    console.error("Error fetching cached workspaces, falling back to direct fetch:", error);
+    // Fallback to direct fetch if cache fails
+    const result = await fetchAllWorkspaces(userId);
+    workspaces = result.success ? result.workspaces : [];
+  }
 
   // If no workspace slug provided (for "others" layout), use first available workspace
   if (!workspaceSlug) {
@@ -77,9 +86,10 @@ export async function getLayoutData(workspaceSlug?: string) {
 
 
 // Revalidation utility for workspace changes
-export async function revalidateWorkspaceData(userId?: string, path: string = "/") {
+export async function revalidateWorkspaceData(userId?: string, path: string = "max") {
   try {
     // Revalidate Next.js cache tags
+    // Use "max" as default path parameter to avoid cacheLife configuration requirement
     await Promise.all([
       revalidateTag("workspaces", path),
       revalidateTag("all-workspaces", path),
