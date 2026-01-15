@@ -104,14 +104,11 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     setIsSelectModeOn(false);
   }, []);
 
-  const pagination: PaginationData = useMemo(
-    () => ({
-      total_pages: totalPages,
-      limit: DEFAULT_LIMIT,
-      total_links: totalLinks,
-    }),
-    [totalLinks, totalPages],
-  );
+  const pagination: PaginationData = {
+    total_pages: totalPages,
+    limit: DEFAULT_LIMIT,
+    total_links: totalLinks,
+  };
 
   const { layout, setLayout, isTransitioning } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
@@ -169,7 +166,6 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
           isSelectModeOn={isSelectModeOn}
           selectedLinks={selectedLinks}
           onSelect={handleSelectLink}
-          isTransitioning={isTransitioning}
         />
       ) : (
         <EmptyState searchQuery={searchConfig.search} />

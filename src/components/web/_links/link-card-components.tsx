@@ -13,7 +13,6 @@ import {
   ForwardIcon,
   CornerDownRight,
 } from "lucide-react";
-import { LinkPreview } from "@/components/ui/link-preview";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -54,17 +53,19 @@ export const AnalyticsIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Link Preview Component
+// Link Preview Component (simplified - no preview to improve LCP)
 export const LinkPreviewComponent = ({ url }: { url: string }) => (
   <div className="flex w-full items-center">
     <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
       <CornerDownRight strokeWidth={1.5} size={15} className="mt-0.5" />
-      <LinkPreview
-        url={url}
-        className="text-muted-foreground max-w-[calc(100%-3rem)] cursor-pointer truncate hover:underline"
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-muted-foreground max-w-[calc(100%-3rem)] cursor-pointer truncate hover:underline dark:text-white"
       >
         {cleanUrl(url)}
-      </LinkPreview>
+      </a>
     </div>
   </div>
 );

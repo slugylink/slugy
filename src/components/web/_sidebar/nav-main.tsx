@@ -24,7 +24,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback } from "react";
+import { memo, useMemo, useCallback, type ReactNode } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { LinkIcon } from "@/utils/icons/link";
 import { PhoneIcon } from "@/utils/icons/phone";
@@ -106,9 +106,8 @@ const hasAccess = (
 const buildUrl = (baseUrl: string, path: string): string => {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return baseUrl && !path.startsWith(baseUrl)
-    ? `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`
-    : path;
+  if (!baseUrl || path.startsWith(baseUrl)) return path;
+  return `${baseUrl}${path.startsWith("/") ? path : `/${path}`}`;
 };
 
 const getLastSegment = (url: string): string => {
@@ -122,7 +121,7 @@ const getLastSegment = (url: string): string => {
 const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
-  renderSubItems: (items: NavSubItem[]) => React.ReactNode;
+  renderSubItems: (items: NavSubItem[]) => ReactNode;
   onNavItemClick?: () => void;
 }>(({ item, isActive, renderSubItems, onNavItemClick }) => {
   const chevronIcon = (
@@ -198,16 +197,16 @@ const SubItemComponent = memo<{
 }>(({ subItem, isActive, onClick }) => {
   const buttonClasses = cn(
     "group-hover/menu-item transition-colors duration-200",
-    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+    isActive && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
   );
-
-  const titleClasses = cn("font-normal", isActive && "font-medium");
 
   return (
     <SidebarMenuSubItem key={subItem.title}>
       <SidebarMenuSubButton asChild className={buttonClasses}>
         <Link href={subItem.url} prefetch={false} onClick={onClick}>
-          <span className={titleClasses}>{subItem.title}</span>
+          <span className={cn("font-normal", isActive && "font-medium")}>
+            {subItem.title}
+          </span>
         </Link>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
@@ -218,28 +217,25 @@ SubItemComponent.displayName = "SubItemComponent";
 // --------------------------
 // Main Sidebar Nav
 // --------------------------
-export const NavMain = memo<NavMainProps>(function NavMain({
-  workspaceslug,
-  workspaces,
-}) {
+export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
 
-  // Workspace & role with better memoization
+  // Workspace & role - memoized because used as dependency for processedNavItems
   const { userRole, baseUrl } = useMemo(() => {
     const currentWorkspace = workspaces.find((w) => w.slug === workspaceslug);
-    const userRole = currentWorkspace?.userRole ?? null;
-    const baseUrl = workspaceslug ? `/${workspaceslug}` : "";
-    return { userRole, baseUrl };
+    return {
+      userRole: currentWorkspace?.userRole ?? null,
+      baseUrl: workspaceslug ? `/${workspaceslug}` : "",
+    };
   }, [workspaces, workspaceslug]);
 
-  // Processed nav items with better performance
   const processedNavItems = useMemo(() => {
     return SIDEBAR_DATA.navMain.map((item) => {
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
         ? isBioLinks
-          ? item.url // Bio-links always uses root path, independent of workspace
+          ? item.url
           : buildUrl(baseUrl, item.url)
         : undefined;
 
@@ -260,45 +256,51 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     });
   }, [baseUrl, userRole]);
 
-  // Active checker with better performance
-  const activeStateChecker = useMemo(() => {
-    const lastSegment = getLastSegment(pathname);
+  // Last segment - memoized because pathname changes frequently on navigation
+  const lastSegment = useMemo(
+    () => getLastSegment(pathname),
+    [pathname]
+  );
 
-    return {
-      isItemActive: (item: NavItem): boolean => {
-        if (item.title === "Bio Links") {
-          return pathname.includes("/bio-links");
-        }
-        if (item.url && getLastSegment(item.url) === lastSegment) return true;
-        return (
-          item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ??
-          false
-        );
-      },
-      isSubItemActive: (subUrl: string): boolean =>
-        getLastSegment(subUrl) === lastSegment,
-    };
-  }, [pathname]);
+  // Active state checkers - simplified, no need to memoize object wrapper
+  const isItemActive = useCallback(
+    (item: NavItem): boolean => {
+      if (item.title === "Bio Links") {
+        return pathname.includes("/bio-links");
+      }
+      if (item.url && getLastSegment(item.url) === lastSegment) return true;
+      return (
+        item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ??
+        false
+      );
+    },
+    [pathname, lastSegment]
+  );
 
-  // Handle navigation item click - close mobile sidebar
+  const isSubItemActive = useCallback(
+    (subUrl: string): boolean => getLastSegment(subUrl) === lastSegment,
+    [lastSegment]
+  );
+
+  // Handle navigation item click - memoized because passed to memoized children
   const handleNavItemClick = useCallback(() => {
     if (isMobile) {
       setOpenMobile(false);
     }
   }, [isMobile, setOpenMobile]);
 
-  // Sub-item renderer with better memoization
+  // Sub-item renderer - memoized because passed to memoized NavItemComponent
   const renderSubItems = useCallback(
     (items: NavSubItem[]) =>
       items.map((subItem) => (
         <SubItemComponent
           key={subItem.title}
           subItem={subItem}
-          isActive={activeStateChecker.isSubItemActive(subItem.url)}
+          isActive={isSubItemActive(subItem.url)}
           onClick={handleNavItemClick}
         />
       )),
-    [activeStateChecker, handleNavItemClick],
+    [isSubItemActive, handleNavItemClick],
   );
 
   return (
@@ -308,7 +310,7 @@ export const NavMain = memo<NavMainProps>(function NavMain({
           <NavItemComponent
             key={item.title}
             item={item}
-            isActive={activeStateChecker.isItemActive(item)}
+            isActive={isItemActive(item)}
             renderSubItems={renderSubItems}
             onNavItemClick={handleNavItemClick}
           />
@@ -317,3 +319,4 @@ export const NavMain = memo<NavMainProps>(function NavMain({
     </SidebarGroup>
   );
 });
+NavMain.displayName = "NavMain";

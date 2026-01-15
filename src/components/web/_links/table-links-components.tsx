@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { Link as LinkIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -43,14 +43,10 @@ export const LinkCardSkeleton = memo(() => (
 
 LinkCardSkeleton.displayName = "LinkCardSkeleton";
 
-// Optimized empty state with better accessibility
 export const EmptyState = memo(({ searchQuery }: { searchQuery: string }) => {
-  const message = useMemo(() =>
-    searchQuery
-      ? "No links match your search criteria."
-      : "You haven't created any links yet.",
-    [searchQuery]
-  );
+  const message = searchQuery
+    ? "No links match your search criteria."
+    : "You haven't created any links yet.";
 
   return (
     <div
@@ -74,13 +70,10 @@ export const EmptyState = memo(({ searchQuery }: { searchQuery: string }) => {
 
 EmptyState.displayName = "EmptyState";
 
-// Optimized error state with better UX
 export const ErrorState = memo(
   ({ error, onRetry }: { error: Error; onRetry: () => void }) => {
-    const errorMessage = useMemo(() =>
-      error.message || "There was an error loading your links. Please try again later.",
-      [error.message]
-    );
+    const errorMessage =
+      error.message || "There was an error loading your links. Please try again later.";
 
     return (
       <div
@@ -107,21 +100,16 @@ export const ErrorState = memo(
 
 ErrorState.displayName = "ErrorState";
 
-// Optimized link item component
 const LinkItem = memo(({
   link,
-  index,
   isSelectModeOn,
   isSelected,
   onSelect,
-  isTransitioning
 }: {
   link: Link;
-  index: number;
   isSelectModeOn: boolean;
   isSelected: boolean;
   onSelect: () => void;
-  isTransitioning?: boolean;
 }) => (
   <div>
     <LinkCard
@@ -136,7 +124,6 @@ const LinkItem = memo(({
 
 LinkItem.displayName = "LinkItem";
 
-// Optimized link list with better memoization
 export const LinkList = memo(({
   links,
   isGridLayout,
@@ -144,7 +131,6 @@ export const LinkList = memo(({
   isSelectModeOn,
   selectedLinks,
   onSelect,
-  isTransitioning,
 }: {
   links: Link[];
   isGridLayout: boolean;
@@ -152,15 +138,10 @@ export const LinkList = memo(({
   isSelectModeOn: boolean;
   selectedLinks: Set<string>;
   onSelect: (id: string) => void;
-  isTransitioning?: boolean;
 }) => {
-  // Memoize the grid classes to prevent unnecessary recalculations
-  const gridClasses = useMemo(() =>
-    `mb-24 grid gap-4 ${
-      isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
-    } ${isLoading ? "opacity-70" : ""}`,
-    [isGridLayout, isLoading]
-  );
+  const gridClasses = `mb-24 grid gap-4 ${
+    isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+  } ${isLoading ? "opacity-70" : ""}`;
 
   return (
     <div
@@ -169,15 +150,13 @@ export const LinkList = memo(({
       role="grid"
       aria-rowcount={links.length}
     >
-      {links.map((link, index) => (
+      {links.map((link) => (
         <LinkItem
           key={link.id}
           link={link}
-          index={index}
           isSelectModeOn={isSelectModeOn}
           isSelected={selectedLinks.has(link.id)}
           onSelect={() => onSelect(link.id)}
-          isTransitioning={isTransitioning}
         />
       ))}
     </div>
@@ -186,7 +165,6 @@ export const LinkList = memo(({
 
 LinkList.displayName = "LinkList";
 
-// Optimized bulk operation confirmation dialog
 export const BulkOperationDialog = memo(({
   isOpen,
   onClose,
@@ -202,24 +180,11 @@ export const BulkOperationDialog = memo(({
   onConfirm: () => void;
   isProcessing: boolean;
 }) => {
-  // Use useMemo hooks before any conditional returns
-  const title = useMemo(() =>
-    operation ? `${operation === "delete" ? "Delete" : "Archive"} Links` : "",
-    [operation]
-  );
-
-  const description = useMemo(() =>
-    operation ? `Are you sure you want to ${operation} ${selectedCount} selected ${selectedCount === 1 ? "link" : "links"}?${operation === "delete" ? " This action cannot be undone." : ""}` : "",
-    [operation, selectedCount]
-  );
-
-  const actionText = useMemo(() =>
-    operation === "delete" ? "Delete" : "Archive",
-    [operation]
-  );
-
-  // Early return for better performance
   if (!operation) return null;
+
+  const title = `${operation === "delete" ? "Delete" : "Archive"} Links`;
+  const description = `Are you sure you want to ${operation} ${selectedCount} selected ${selectedCount === 1 ? "link" : "links"}?${operation === "delete" ? " This action cannot be undone." : ""}`;
+  const actionText = operation === "delete" ? "Delete" : "Archive";
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
