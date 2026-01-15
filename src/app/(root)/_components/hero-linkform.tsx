@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -164,11 +164,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     [reset, mutate],
   );
 
-  // Derived UI state
-  const isFormDisabled = useMemo(
-    () => isSubmitting || links.length >= MAX_LINKS_DISPLAY,
-    [isSubmitting, links.length],
-  );
+  const isFormDisabled = isSubmitting || links.length >= MAX_LINKS_DISPLAY;
 
   return (
     <div>

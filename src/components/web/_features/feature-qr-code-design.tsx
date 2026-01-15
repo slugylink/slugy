@@ -115,7 +115,7 @@ const ColorButtons = ({
   </div>
 );
 
-const QRCodeDesigner: React.FC<QRCodeDesignerProps> = ({ code }) => {
+const QRCodeDesigner = ({ code }: QRCodeDesignerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<QRCodeStyling | null>(null);
   const [selectedColor, setSelectedColor] = useState<string>(COLORS[1]); // default color

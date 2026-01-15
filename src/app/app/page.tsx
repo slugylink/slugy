@@ -8,20 +8,21 @@ export default async function App() {
   if (!authResult.success) {
     redirect(authResult.redirectTo);
   }
-  const session = authResult.session;
+
+  const { session } = authResult;
 
   const [subscriptionStatus, defaultWorkspace] = await Promise.all([
-    getActiveSubscription(session?.user?.id),
-    getDefaultWorkspace(session?.user?.id),
+    getActiveSubscription(session.user.id),
+    getDefaultWorkspace(session.user.id),
   ]);
 
   if (!subscriptionStatus.status && !subscriptionStatus.subscription) {
-    return redirect("/onboarding/welcome");
+    redirect("/onboarding/welcome");
   }
 
-  if (defaultWorkspace.success === false && !defaultWorkspace.workspace) {
-    return redirect("/onboarding/create-workspace");
+  if (!defaultWorkspace.success || !defaultWorkspace.workspace) {
+    redirect("/onboarding/create-workspace");
   }
 
-  return redirect(`/${defaultWorkspace.workspace?.slug}`);
+  redirect(`/${defaultWorkspace.workspace.slug}`);
 }

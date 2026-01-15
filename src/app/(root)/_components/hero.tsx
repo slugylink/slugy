@@ -7,7 +7,7 @@ import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { motion } from "motion/react";
 import { Bricolage_Grotesque } from "next/font/google";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 
 // ---------------------
 // Optimized Data-Driven Content
@@ -72,9 +72,6 @@ const heroData = {
 } as const;
 
 const Hero = memo(function Hero() {
-  // Memoized hero data access
-  const hero = useMemo(() => heroData, []);
-
   return (
     <section className="mx-auto max-w-6xl px-4">
       {/* Decorative Background */}
@@ -85,8 +82,8 @@ const Hero = memo(function Hero() {
         transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <Image
-          src={hero.backgroundImage}
-          alt={hero.backgroundAlt}
+          src={heroData.backgroundImage}
+          alt={heroData.backgroundAlt}
           fill
           priority
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
@@ -117,7 +114,7 @@ const Hero = memo(function Hero() {
               )}
             >
               <AnimatedShinyText className="inline-flex items-center justify-center px-3 py-1 text-xs transition ease-out hover:text-neutral-600 hover:duration-300 sm:text-sm hover:dark:text-neutral-400">
-                <span className="inline"></span> {hero.announcement.text}
+                <span className="inline"></span> {heroData.announcement.text}
                 <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
               </AnimatedShinyText>
             </div>
@@ -140,12 +137,12 @@ const Hero = memo(function Hero() {
                 delay: 0.2,
               }}
             >
-              {hero.heading1}
+              {heroData.heading1}
             </motion.h2>
             <motion.h2
               className={cn(
                 bricolage.className,
-                hero.heading2Gradient,
+                heroData.heading2Gradient,
                 "font-medium",
               )}
               initial={{ opacity: 0, y: 6 }}
@@ -156,7 +153,7 @@ const Hero = memo(function Hero() {
                 delay: 0.25,
               }}
             >
-              {hero.heading2}
+              {heroData.heading2}
             </motion.h2>
           </motion.div>
           <div className="mx-auto max-w-2xl text-zinc-700">
@@ -170,9 +167,9 @@ const Hero = memo(function Hero() {
                 delay: 0.3,
               }}
             >
-              {hero.subheading1}
+              {heroData.subheading1}
             </motion.p>
-            {hero.subheading2 && (
+            {heroData.subheading2 && (
               <motion.p
                 className="text-sm sm:text-base md:text-lg"
                 initial={{ opacity: 0, y: 6 }}
@@ -183,7 +180,7 @@ const Hero = memo(function Hero() {
                   delay: 0.35,
                 }}
               >
-                {hero.subheading2}
+                {heroData.subheading2}
               </motion.p>
             )}
           </div>

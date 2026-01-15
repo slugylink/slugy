@@ -1,6 +1,5 @@
 "use client";
 
-import type React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
@@ -39,7 +38,7 @@ interface NavbarProps {
   session: Session | null;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ session }) => {
+const Navbar = ({ session }: NavbarProps) => {
   const pathname = usePathname();
   const isVisible = VISIBLE_PATHS.includes(pathname);
 
@@ -56,7 +55,7 @@ const Navbar: React.FC<NavbarProps> = ({ session }) => {
   );
 };
 
-const NavbarLogo: React.FC = () => (
+const NavbarLogo = () => (
   <Link
     href="/"
     className="flex items-center gap-3"
@@ -73,7 +72,7 @@ const NavbarLogo: React.FC = () => (
   </Link>
 );
 
-const DesktopMenu: React.FC = () => (
+const DesktopMenu = () => (
   <NavigationMenu className="hidden lg:flex">
     <NavigationMenuList>
       {NAV_LINKS.map((link) => (
@@ -97,8 +96,10 @@ const DesktopMenu: React.FC = () => (
   </NavigationMenu>
 );
 
-const DesktopSubmenu: React.FC<{ link: (typeof NAV_LINKS)[0] }> = ({
+const DesktopSubmenu = ({
   link,
+}: {
+  link: (typeof NAV_LINKS)[0];
 }) => {
   const isFeatures = link.title === "Features";
 
@@ -151,7 +152,7 @@ interface MobileMenuProps {
   session: Session | null;
 }
 
-const MobileMenu: React.FC<MobileMenuProps> = ({ session }) => (
+const MobileMenu = ({ session }: MobileMenuProps) => (
   <div className="flex items-center gap-2">
     <GetStartedButton isGitVisible={true} className="flex" />
     <Sheet>
@@ -171,17 +172,13 @@ const MobileMenu: React.FC<MobileMenuProps> = ({ session }) => (
             <span className="text-lg font-medium">slugy</span>
           </SheetTitle>
         </SheetHeader>
-        <MobileMenuContent session={session} />
+        <MobileMenuContent />
       </SheetContent>
     </Sheet>
   </div>
 );
 
-interface MobileMenuContentProps {
-  session: Session | null;
-}
-
-const MobileMenuContent: React.FC<MobileMenuContentProps> = () => (
+const MobileMenuContent = () => (
   <div className="flex flex-col">
     <div className="flex-1 overflow-auto">
       <Accordion type="single" collapsible className="w-full border-none">

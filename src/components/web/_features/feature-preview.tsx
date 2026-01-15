@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useThemeStore } from "@/store/theme-store";
@@ -34,8 +34,8 @@ const FeatureLinkPreview = ({
   bio,
 }: GalleryLinkPreviewProps) => {
   const setTheme = useThemeStore((state) => state.setTheme);
-  // Sync Zustand store with initialTheme from props
-  React.useEffect(() => {
+
+  useEffect(() => {
     setTheme(initialTheme);
   }, [initialTheme, setTheme]);
 

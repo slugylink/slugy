@@ -9,7 +9,6 @@ import FeatureQRCodeDesign from "@/components/web/_features/feature-qr-code-desi
 import FeatureAnalyticsChart from "@/components/web/_features/feature-chart";
 import FeatureLinkPreview from "@/components/web/_features/feature-preview";
 
-// Memoized feature cards data for better performance
 const featureCardsData = [
   {
     title: "Link Shortening",

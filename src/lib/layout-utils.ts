@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { unstable_cache, revalidateTag } from "next/cache";
 import { getAuthSession } from "@/lib/auth";
-import { fetchAllWorkspaces, validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { fetchAllWorkspaces, validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
 
 // Cached workspace data with proper revalidation
 const getCachedWorkspaces = unstable_cache(
@@ -21,7 +21,7 @@ const getCachedWorkspaces = unstable_cache(
 // Cached workspace validation
 const getCachedWorkspaceValidation = unstable_cache(
   async (userId: string, slug: string) => {
-    return await validateworkspaceslug(userId, slug);
+    return await validateWorkspaceSlug(userId, slug);
   },
   ["workspace-validation"],
   {
