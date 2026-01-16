@@ -1,14 +1,7 @@
-import dynamic from "next/dynamic";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const LinksTable = dynamic(
-  () => import("@/components/web/_links/links-table"),
-  {
-    ssr: true,
-    loading: () => <LinksTableSkeleton />,
-  },
-);
+import LinksTable from "@/components/web/_links/links-table";
 
 function LinksTableSkeleton() {
   return (

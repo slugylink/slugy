@@ -56,14 +56,12 @@ export const NavUser = () => {
   const handleSignout = async () => {
     try {
       await authClient.signOut();
-      // Redirect explicitly to login page
       router.push("/login");
     } catch (err) {
       console.error("Logout error:", err);
     }
   };
 
-  // Redirect to login if not authenticated and not loading
   useEffect(() => {
     if (!isPending && !session) {
       router.push("/login");
@@ -114,12 +112,10 @@ export const NavUser = () => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                {/* <Link href="/upgrade"> */}
-                  <span>
-                    <Sparkles className="mr-2 inline-block" />
-                    Upgrade to Pro
-                  </span>
-                {/* </Link> */}
+                <span>
+                  <Sparkles className="mr-2 inline-block" />
+                  Upgrade to Pro
+                </span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

@@ -3,24 +3,24 @@
 import { useEffect, useState, memo, useRef } from "react";
 import { UsageStatsClient } from "./usage-stats-client";
 
-interface WorkspaceData {
+type WorkspaceData = {
   maxClicksLimit: number;
   maxLinksLimit: number;
   maxUsers: number;
-}
+};
 
-interface UsageDetails {
+type UsageDetails = {
   clicksTracked: number;
   linksCreated: number;
   addedUsers: number;
   periodStart: Date | string;
   periodEnd: Date | string;
-}
+};
 
-interface UsageData {
+type UsageData = {
   workspace: WorkspaceData | null;
   usage: UsageDetails | null;
-}
+};
 
 const usageCache = new Map<string, UsageData>();
 const EMPTY_DATA: UsageData = { workspace: null, usage: null };
