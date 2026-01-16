@@ -22,6 +22,9 @@ import {
 
 // Constants for better maintainability
 const DEFAULT_TIME_PERIOD = "24h";
+
+// Default metrics to fetch (all available metrics)
+// Note: useAnalytics hook won't send this to API if it matches defaults (optimization)
 const ANALYTICS_METRICS: Array<
   | "totalClicks"
   | "clicksOverTime"
@@ -106,10 +109,33 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       : DEFAULT_TIME_PERIOD;
   }, [searchParams]);
 
-  const searchParamsObj = useMemo(
-    () => Object.fromEntries(searchParams.entries()),
-    [searchParams],
-  );
+  // Only extract filter parameters (exclude time_period as it's passed separately)
+  // This reduces redundancy and ensures clean parameter passing to useAnalytics
+  const filterParams = useMemo(() => {
+    const validFilterKeys = [
+      "slug_key",
+      "country_key", 
+      "city_key",
+      "continent_key",
+      "browser_key",
+      "os_key",
+      "device_key",
+      "referrer_key",
+      "destination_key",
+      "domain_key",
+    ] as const;
+    
+    const params: Record<string, string> = {};
+    validFilterKeys.forEach((key) => {
+      const value = searchParams.get(key);
+      // Only include non-empty filter values
+      if (value) {
+        params[key] = value;
+      }
+    });
+    
+    return params;
+  }, [searchParams]);
 
   const {
     data: res,
@@ -128,7 +154,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
-    searchParams: searchParamsObj,
+    searchParams: filterParams,
     metrics: ANALYTICS_METRICS,
   });
 
@@ -256,7 +282,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const sharedProps = {
     workspaceslug: workspace,
-    searchParams: searchParamsObj,
+    searchParams: filterParams,
     timePeriod,
     isLoading: isLoading || isValidating,
     error,

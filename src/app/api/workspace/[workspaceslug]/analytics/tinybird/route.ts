@@ -288,22 +288,22 @@ export async function GET(
     const { workspaceslug } = await params;
     const search = new URL(request.url).searchParams;
 
-    // Parse and validate input parameters
+    // Parse and validate input parameters with defaults applied at API level
     const raw = {
-      timePeriod: (search.get("time_period") as TimePeriod) || "24h",
-      slug_key: search.get("slug_key"),
-      country_key: search.get("country_key"),
-      city_key: search.get("city_key"),
-      continent_key: search.get("continent_key"),
-      browser_key: search.get("browser_key"),
-      os_key: search.get("os_key"),
-      referrer_key: search.get("referrer_key"),
-      device_key: search.get("device_key"),
-      destination_key: search.get("destination_key"),
-      domain_key: search.get("domain_key"),
+      timePeriod: (search.get("time_period") as TimePeriod) || "24h", // Default to 24h
+      slug_key: search.get("slug_key") || null,
+      country_key: search.get("country_key") || null,
+      city_key: search.get("city_key") || null,
+      continent_key: search.get("continent_key") || null,
+      browser_key: search.get("browser_key") || null,
+      os_key: search.get("os_key") || null,
+      referrer_key: search.get("referrer_key") || null,
+      device_key: search.get("device_key") || null,
+      destination_key: search.get("destination_key") || null,
+      domain_key: search.get("domain_key") || null,
       metrics: search.get("metrics")
-        ? (search.get("metrics")!.split(",") as ClientMetric[])
-        : undefined,
+        ? (search.get("metrics")!.split(",").filter(Boolean) as ClientMetric[])
+        : undefined, // Default to all metrics if not provided
     };
 
     const props = analyticsPropsSchema.parse(raw);
@@ -352,7 +352,8 @@ export async function GET(
       domain: props.domain_key || "", // Use domain_key parameter
     };
 
-    // Determine which metrics to fetch
+    // Determine which metrics to fetch (defaults to all if not specified)
+    // Client only sends metrics when requesting a subset
     const requestedMetrics = props.metrics || [
       "totalClicks",
       "clicksOverTime",

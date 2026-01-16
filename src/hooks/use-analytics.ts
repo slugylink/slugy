@@ -28,6 +28,7 @@ interface UseAnalyticsParams {
 }
 
 // Constants
+const DEFAULT_TIME_PERIOD: TimePeriod = "24h";
 const DEBOUNCE_DELAY = 500;
 const SWR_DEDUPING_INTERVAL = 8000;
 const SWR_ERROR_RETRY_COUNT = 2;
@@ -75,15 +76,45 @@ const SORTABLE_METRICS: Array<keyof AnalyticsData> = [
   "destinations",
 ];
 
+/**
+ * Check if the provided metrics array matches the default metrics
+ * Used to avoid sending redundant metrics parameter to API
+ */
+const areMetricsDefault = (metrics: Array<keyof AnalyticsData>): boolean => {
+  if (metrics.length !== DEFAULT_METRICS.length) return false;
+  const sorted = [...metrics].sort();
+  const defaultSorted = [...DEFAULT_METRICS].sort();
+  return sorted.every((metric, index) => metric === defaultSorted[index]);
+};
+
+/**
+ * Fetch analytics data from API with optimized parameter handling
+ * Only sends non-default values to reduce URL size and improve performance
+ * - Skips time_period if "24h" (default)
+ * - Skips metrics if requesting all defaults
+ * - Skips empty filter parameters
+ */
 const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
   metrics?: Array<keyof AnalyticsData>,
   useTinybird: boolean = true,
 ): Promise<Partial<AnalyticsData>> => {
-  const searchParams = new URLSearchParams(params);
+  const searchParams = new URLSearchParams();
 
-  if (metrics?.length) {
+  // Only add non-default/non-empty parameters
+  Object.entries(params).forEach(([key, value]) => {
+    // Skip time_period if it's the default "24h"
+    if (key === "time_period" && value === "24h") return;
+    
+    // Skip empty/null values
+    if (value && value.trim()) {
+      searchParams.set(key, value);
+    }
+  });
+
+  // Only send metrics if not requesting all default metrics
+  if (metrics?.length && !areMetricsDefault(metrics)) {
     searchParams.set("metrics", metrics.join(","));
   }
 
@@ -91,7 +122,10 @@ const fetchAnalyticsData = async (
     ? `/api/workspace/${workspaceslug}/analytics/tinybird`
     : `/api/workspace/${workspaceslug}/analytics`;
 
-  const response = await fetch(`${endpoint}?${searchParams}`);
+  const queryString = searchParams.toString();
+  const url = `${endpoint}${queryString ? `?${queryString}` : ""}`;
+
+  const response = await fetch(url);
 
   if (!response.ok) {
     const errorText = await response.text();

@@ -46,14 +46,24 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   }, [searchParams]);
 
   const apiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      search: searchConfig.search,
-      showArchived: searchConfig.showArchived,
-      sortBy: searchConfig.sortBy,
-      offset: searchConfig.offset.toString(),
-      limit: DEFAULT_LIMIT.toString(),
-    });
-    return `/api/workspace/${workspaceslug}/link/get?${params.toString()}`;
+    const params = new URLSearchParams();
+    
+    // Only add non-default parameters to reduce URL size
+    if (searchConfig.search) {
+      params.set("search", searchConfig.search);
+    }
+    if (searchConfig.showArchived === "true") {
+      params.set("showArchived", "true");
+    }
+    if (searchConfig.sortBy !== "date-created") {
+      params.set("sortBy", searchConfig.sortBy);
+    }
+    if (searchConfig.offset > 0) {
+      params.set("offset", searchConfig.offset.toString());
+    }
+    
+    const queryString = params.toString();
+    return `/api/workspace/${workspaceslug}/link/get${queryString ? `?${queryString}` : ""}`;
   }, [searchConfig, workspaceslug]);
 
   const { data, error, isLoading, mutate } = useSWR<ApiResponse>(
