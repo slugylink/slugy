@@ -93,7 +93,7 @@ export const metadata: Metadata = {
     alternateLocale: ["en_GB", "en_CA"],
     images: [
       {
-        url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
+        url: "https://files.slugy.co/slugy.png",
         width: 1139,
         height: 712,
         alt: "Slugy - Open Source URL Shortener Platform",
@@ -111,7 +111,7 @@ export const metadata: Metadata = {
     description:
       "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, and custom domains.",
     images: {
-      url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
+      url: "https://files.slugy.co/slugy.png",
       alt: "Slugy - Open Source URL Shortener Platform",
       width: 1139,
       height: 712,
