@@ -25,11 +25,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   // Primary metadata
   title: {
-    default: "Slugy - Simplify Links Like Magic",
+    default: "Slugy - Open Source URL Shortener with Advanced Analytics",
     template: "%s | Slugy",
   },
   description:
-    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with analytics, link-in-bio pages, custom domains, and team collaboration. Better than Bitly.",
+    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with avanced analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
 
   // Enhanced keywords for better SEO
   keywords: [
@@ -39,15 +39,23 @@ export const metadata: Metadata = {
     "link analytics",
     "link-in-bio",
     "custom domains",
-    "open source",
+    "open source URL shortener",
+    "free URL shortener",
     "bitly alternative",
     "dub alternative",
     "tinyurl alternative",
     "link tracking",
     "QR codes",
+    "QR code generator",
     "branded links",
     "team collaboration",
     "link monitoring",
+    "click tracking",
+    "UTM builder",
+    "link shortener with analytics",
+    "custom short links",
+    "bio link tool",
+    "link management platform",
   ].join(", "),
 
   // Author and publication info
@@ -85,9 +93,9 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Slugy - Simplify Links Like Magic",
+    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, custom domains, and team collaboration.",
+      "Transform long URLs into beautiful, trackable short links. Open-source platform with real-time analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
     url: "https://slugy.co/",
     locale: "en_US",
     alternateLocale: ["en_GB", "en_CA"],
@@ -96,7 +104,7 @@ export const metadata: Metadata = {
         url: "https://files.slugy.co/slugy.png",
         width: 1139,
         height: 712,
-        alt: "Slugy - Open Source URL Shortener Platform",
+        alt: "Slugy Dashboard - Create custom short links with analytics, QR codes, and link-in-bio pages. Get started for free!",
         type: "image/png",
       },
     ],
@@ -107,12 +115,12 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@slugy",
     creator: "@sandip_dev_07",
-    title: "Slugy – Simplify Links Like Magic",
+    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, and custom domains.",
+      "Transform long URLs into beautiful, trackable short links. Open-source platform with real-time analytics, link-in-bio pages, and custom domains. Start shortening links for free today!",
     images: {
       url: "https://files.slugy.co/slugy.png",
-      alt: "Slugy - Open Source URL Shortener Platform",
+      alt: "Slugy Dashboard - Create custom short links with analytics, QR codes, and link-in-bio pages. Get started for free!",
       width: 1139,
       height: 712,
     },
