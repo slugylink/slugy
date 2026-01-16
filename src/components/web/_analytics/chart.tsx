@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
-import type React from "react";
+import { useMemo, useCallback, type FC } from "react";
 import {
   Area,
   AreaChart,
@@ -60,7 +59,6 @@ const AnalyticsChart = ({
   isLoading,
   error,
 }: ChartProps) => {
-  // Memoize data processing to avoid unnecessary recalculations
   const processedData = useMemo(() => {
     if (!propData) return [];
 
@@ -121,9 +119,8 @@ const AnalyticsChart = ({
             0,
         )
       : sortedData;
-  }, [propData]);
+  }, [propData, timePeriod]);
 
-  // Memoize time formatting function to prevent recreation on every render
   const formatTime = useCallback(
     (timeStr: string): string => {
       if (!timeStr) return "";
@@ -168,8 +165,7 @@ const AnalyticsChart = ({
     label?: string;
   }
 
-  // Memoize tooltip component to prevent recreation
-  const CustomTooltip = useCallback<React.FC<CustomTooltipProps>>(
+  const CustomTooltip = useCallback<FC<CustomTooltipProps>>(
     ({ active, payload, label }) => {
       if (!active || !payload?.length || !label) return null;
 
@@ -210,7 +206,6 @@ const AnalyticsChart = ({
     [formatTime],
   );
 
-  // Memoize tick count calculation
   const getTickCount = useCallback((): number => {
     return CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
   }, [timePeriod]);

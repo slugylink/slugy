@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { X } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
@@ -25,7 +24,6 @@ interface FilterSelectedButtonsProps {
   onRemoveFilter: (categoryId: CategoryId, value: string) => void;
 }
 
-// Memoize continent names to prevent object recreation
 const CONTINENT_NAMES = Object.freeze({
   af: "Africa",
   an: "Antarctica",
@@ -37,7 +35,6 @@ const CONTINENT_NAMES = Object.freeze({
   unknown: "Unknown",
 } as const);
 
-// Memoize category background classes to prevent object recreation
 const CATEGORY_BG_CLASSES = Object.freeze({
   slug_key: "bg-orange-200/40 hover:bg-orange-200/50",
   destination_key: "bg-orange-200/40 hover:bg-orange-200/50",
@@ -50,7 +47,6 @@ const CATEGORY_BG_CLASSES = Object.freeze({
   referrer_key: "bg-red-200/40 hover:bg-red-200/50",
 } as const);
 
-// Memoized filter button component to prevent unnecessary re-renders
 interface FilterButtonProps {
   category: FilterCategory;
   value: string;
@@ -93,11 +89,11 @@ const FilterButton = ({
   );
 };
 
-const FilterSelectedButtons: React.FC<FilterSelectedButtonsProps> = ({
+const FilterSelectedButtons = ({
   filterCategories,
   selectedFilters,
   onRemoveFilter,
-}) => {
+}: FilterSelectedButtonsProps) => {
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
   const displayNames = (() => {

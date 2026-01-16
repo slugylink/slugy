@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   BadgeCheck,
   ChevronsUpDown,
@@ -39,10 +39,9 @@ interface User {
   image: string | null;
 }
 
-// Create auth client once outside component to maintain consistent state
 const { useSession } = createAuthClient();
 
-export const NavUser: React.FC = () => {
+export const NavUser = () => {
   const { isMobile } = useSidebar();
   const router = useRouter();
 

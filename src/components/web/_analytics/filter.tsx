@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from "react";
+
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,12 +28,10 @@ import CountryFlag from "./country-flag";
 import FilterSelectedButtons from "./filter-selected-buttons";
 import { useQueryState, parseAsString, parseAsArrayOf } from "nuqs";
 
-// Base interface with optional clicks
 interface BaseOption {
   clicks?: number;
 }
 
-// Specific option interfaces
 interface LinkAnalytics extends BaseOption {
   slug: string;
   url: string;
@@ -72,7 +71,6 @@ interface DestinationAnalytics extends BaseOption {
   destination: string;
 }
 
-// Union for filter option types
 type FilterOption =
   | LinkAnalytics
   | ContinentAnalytics
@@ -84,7 +82,6 @@ type FilterOption =
   | ReferrerAnalytics
   | DestinationAnalytics;
 
-// Category IDs
 export type CategoryId =
   | "slug_key"
   | "destination_key"
@@ -96,11 +93,10 @@ export type CategoryId =
   | "os_key"
   | "referrer_key";
 
-// Filter category interface
 export interface FilterCategory {
   id: CategoryId;
   label: string;
-  icon: React.ReactNode;
+  icon: ReactNode;
   options: FilterOption[];
 }
 
@@ -109,8 +105,8 @@ interface FilterActionsProps {
 }
 
 const OptimizedImage = ({ src, alt }: { src: string; alt: string }) => {
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   return (
     <Image
@@ -216,7 +212,6 @@ const FilterOptionItem = ({
   );
 };
 
-// Time period selector component
 interface TimePeriodSelectorProps {
   timePeriod: string;
   onTimePeriodChange: (value: string) => void;
@@ -277,7 +272,6 @@ const TimePeriodSelector = ({
   </Select>
 );
 
-// Filter groups component for better organization
 interface FilterGroupsProps {
   filteredCategories: FilterCategory[];
   onCategoryClick: (categoryId: CategoryId) => void;
@@ -454,8 +448,7 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
   );
 };
 
-const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
-  // nuqs query states for all category filters & time period
+const FilterActions = ({ filterCategories }: FilterActionsProps) => {
   const [timePeriod, setTimePeriod] = useQueryState(
     "time_period",
     parseAsString.withDefault("24h"),
@@ -818,7 +811,6 @@ const FilterActions: React.FC<FilterActionsProps> = ({ filterCategories }) => {
         />
       </div>
 
-      {/* Selected filters tags bar */}
       {selectedFilterCount > 0 && (
         <FilterSelectedButtons
           filterCategories={filterCategories}

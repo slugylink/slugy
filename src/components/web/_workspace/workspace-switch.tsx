@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { memo, useMemo, useCallback } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,9 +23,6 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import CreateWorkspaceDialog from "./create-workspace-dialog";
 
-// --------------------------
-// Types
-// --------------------------
 interface WorkspaceArr {
   id: string;
   name: string;
@@ -39,10 +36,7 @@ interface WorkspaceSwitcherProps {
   workspaceslug: string;
 }
 
-// --------------------------
-// Workspace Avatar Component
-// --------------------------
-const WorkspaceAvatar = React.memo<{
+const WorkspaceAvatar = memo<{
   workspace: WorkspaceArr;
   size: number;
   className?: string;
@@ -69,18 +63,13 @@ const WorkspaceAvatar = React.memo<{
 ));
 WorkspaceAvatar.displayName = "WorkspaceAvatar";
 
-// --------------------------
-// Workspace Menu Item Component
-// --------------------------
-const WorkspaceMenuItem = React.memo<{
+const WorkspaceMenuItem = memo<{
   workspace: WorkspaceArr;
   isActive: boolean;
   index: number;
   onSelect: (workspace: WorkspaceArr) => void;
-}>(({ workspace, isActive, index, onSelect }) => {
-  return (
+}>(({ workspace, isActive, index, onSelect }) => (
     <DropdownMenuItem
-      key={workspace.id}
       onClick={() => onSelect(workspace)}
       className={cn(
         "cursor-pointer gap-2 p-2",
@@ -103,13 +92,9 @@ const WorkspaceMenuItem = React.memo<{
       {workspace.name}
       <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
     </DropdownMenuItem>
-  );
-});
+));
 WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
 
-// --------------------------
-// Main Workspace Switch Component
-// --------------------------
 const WorkspaceSwitch = ({
   workspaces,
   workspaceslug,
@@ -118,15 +103,12 @@ const WorkspaceSwitch = ({
   const pathname = usePathname();
   const { isMobile } = useSidebar();
 
-  // Memoize active workspace
-  const activeWorkspace = React.useMemo(() => {
+  const activeWorkspace = useMemo(() => {
     const found = workspaces.find((ws) => ws.slug === workspaceslug);
-    // Fallback to first workspace to avoid undefined and keep UI usable
     return found ?? workspaces[0];
   }, [workspaces, workspaceslug]);
 
-  // Memoize workspace switch handler
-  const handleWorkspaceSwitch = React.useCallback(
+  const handleWorkspaceSwitch = useCallback(
     (workspace: WorkspaceArr) => {
       const workspaceSlugPattern = `/${workspaceslug}`;
       const newPath = pathname.startsWith(workspaceSlugPattern)
@@ -138,8 +120,7 @@ const WorkspaceSwitch = ({
     [pathname, router, workspaceslug]
   );
 
-  // Memoize workspace menu items
-  const workspaceMenuItems = React.useMemo(
+  const workspaceMenuItems = useMemo(
     () =>
       workspaces.map((workspace, index) => (
         <WorkspaceMenuItem
@@ -153,7 +134,6 @@ const WorkspaceSwitch = ({
     [workspaces, activeWorkspace.id, handleWorkspaceSwitch]
   );
 
-  // Loading skeleton if no workspaces yet
   if (!workspaces.length) {
     return (
       <SidebarMenu>

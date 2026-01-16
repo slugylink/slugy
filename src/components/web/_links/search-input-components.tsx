@@ -1,4 +1,3 @@
-import React from "react";
 import { Search, Check, ArrowUpDown, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -16,10 +15,13 @@ import { cn } from "@/lib/utils";
 import { LAYOUT_OPTIONS, SORT_OPTIONS, LayoutOption, SortOptionKey } from "@/constants/links";
 import { FilterBar } from "@/utils/icons/filter-bar";
 
-export const ViewModeSelector: React.FC<{
+export const ViewModeSelector = ({
+  currentLayout,
+  onLayoutChange,
+}: {
   currentLayout: LayoutOption;
   onLayoutChange: (layout: LayoutOption) => void;
-}> = ({ currentLayout, onLayoutChange }) => (
+}) => (
   <div className="grid grid-cols-2 gap-1">
     {LAYOUT_OPTIONS.map(({ value, icon: Icon, label }) => (
       <button
@@ -40,10 +42,13 @@ export const ViewModeSelector: React.FC<{
   </div>
 );
 
-export const SortSelector: React.FC<{
+export const SortSelector = ({
+  sortBy,
+  onSortChange,
+}: {
   sortBy: SortOptionKey;
   onSortChange: (value: SortOptionKey) => void;
-}> = ({ sortBy, onSortChange }) => {
+}) => {
   const currentSortOption = SORT_OPTIONS.find((opt) => opt.value === sortBy);
 
   return (
@@ -73,10 +78,13 @@ export const SortSelector: React.FC<{
   );
 };
 
-export const ArchiveToggle: React.FC<{
+export const ArchiveToggle = ({
+  checked,
+  onToggle,
+}: {
   checked: boolean;
   onToggle: (checked: boolean) => void;
-}> = ({ checked, onToggle }) => (
+}) => (
   <div className="flex items-center justify-between px-2 py-2">
     <div className="flex items-center gap-2">
       <Archive size={15} aria-hidden="true" />
@@ -92,10 +100,13 @@ export const ArchiveToggle: React.FC<{
   </div>
 );
 
-export const SearchInputField: React.FC<{
+export const SearchInputField = ({
+  value,
+  onChange,
+}: {
   value: string;
   onChange: (value: string) => void;
-}> = ({ value, onChange }) => (
+}) => (
   <div className="relative">
     <Search
       className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2"
@@ -112,7 +123,7 @@ export const SearchInputField: React.FC<{
   </div>
 );
 
-export const DisplayOptionsDropdown: React.FC<{
+interface DisplayOptionsDropdownProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentLayout: LayoutOption;
@@ -121,7 +132,9 @@ export const DisplayOptionsDropdown: React.FC<{
   onSortChange: (value: SortOptionKey) => void;
   showArchived: boolean;
   onToggleArchived: (checked: boolean) => void;
-}> = ({
+}
+
+export const DisplayOptionsDropdown = ({
   open,
   onOpenChange,
   currentLayout,
@@ -130,7 +143,7 @@ export const DisplayOptionsDropdown: React.FC<{
   onSortChange,
   showArchived,
   onToggleArchived,
-}) => (
+}: DisplayOptionsDropdownProps) => (
   <DropdownMenu open={open} onOpenChange={onOpenChange}>
     <DropdownMenuTrigger asChild>
       <Button

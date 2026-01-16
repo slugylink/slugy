@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { createAuthClient } from "better-auth/react";
@@ -39,10 +38,10 @@ const useGitHubStars = () => {
   };
 };
 
-const GetStartedButton: React.FC<GetStartedButtonProps> = ({
+const GetStartedButton = ({
   isGitVisible,
   className,
-}) => {
+}: GetStartedButtonProps) => {
   const { data: session } = useSession();
   const { stars, isLoading } = useGitHubStars();
 
@@ -51,7 +50,6 @@ const GetStartedButton: React.FC<GetStartedButtonProps> = ({
       ? `https://app.${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
       : "http://app.localhost:3000";
 
-  // Route according to session state
   const destination = session ? baseUrl : `${baseUrl}/login`;
   const label = session ? "Dashboard" : "Get started  ";
 

@@ -148,7 +148,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     <section>
       {/* Header Actions */}
       <div className="flex w-full items-center justify-between gap-4 pb-8">
-        <SearchInput workspaceslug={workspaceslug} />
+        <SearchInput />
         <LinkActions totalLinks={totalLinks} workspaceslug={workspaceslug} />
       </div>
 

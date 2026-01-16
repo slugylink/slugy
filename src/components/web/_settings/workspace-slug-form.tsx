@@ -1,11 +1,10 @@
 "use client";
 
-import React from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios, { type AxiosError } from "axios";
+import axios from "axios";
 import { toast } from "sonner";
 import slugify from "@sindresorhus/slugify";
 import { Button } from "@/components/ui/button";
@@ -37,14 +36,13 @@ interface WorkspaceSlugFormProps {
     id: string;
     slug: string;
   };
-  userId: string;
   workspaceslug: string;
 }
 
-const WorkspaceSlugForm: React.FC<WorkspaceSlugFormProps> = ({
+const WorkspaceSlugForm = ({
   initialData,
   workspaceslug,
-}) => {
+}: WorkspaceSlugFormProps) => {
   const router = useRouter();
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -71,10 +69,9 @@ const WorkspaceSlugForm: React.FC<WorkspaceSlugFormProps> = ({
       router.push(`/${slug}`);
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        const axiosError = error as AxiosError;
-        if (axiosError.response?.status === 400) {
+        if (error.response?.status === 400) {
           toast.error("Slug already exists.");
-        } else if (axiosError.response?.status === 401) {
+        } else if (error.response?.status === 401) {
           toast.error("You are not authorized.");
         } else {
           toast.error("Error updating workspace. Please try again.");

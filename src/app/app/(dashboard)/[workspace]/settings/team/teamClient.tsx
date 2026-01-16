@@ -1,5 +1,6 @@
 "use client";
-import React, { memo } from "react";
+
+import { memo } from "react";
 import useSWR from "swr";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import {
@@ -13,7 +14,6 @@ import {
 import Image from "next/image";
 import { Crown, User } from "lucide-react";
 
-// Types based on API response
 interface TeamMember {
   user: {
     id: string;
@@ -29,10 +29,8 @@ interface TeamClientProps {
   currentUserId: string;
 }
 
-const TeamClient: React.FC<TeamClientProps> = memo(
-  ({ workspaceslug, currentUserId }) => {
-    // Fetch team data
-    const {
+const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
+  const {
       data: team,
       error,
       isLoading,
@@ -148,8 +146,7 @@ const TeamClient: React.FC<TeamClientProps> = memo(
         </Table>
       </div>
     );
-  },
-);
+});
 
 TeamClient.displayName = "TeamClient";
 

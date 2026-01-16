@@ -1,25 +1,26 @@
 "use client";
-import React from "react";
+
+import type { ReactNode } from "react";
 import Link from "next/link";
 import AppLogo from "@/components/web/app-logo";
 import { usePathname } from "next/navigation";
 
 interface FooterLinkProps {
   href: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
-const FooterLink: React.FC<FooterLinkProps> = ({ href, children }) => (
-  <li className="mt-2">
-    <Link
-      href={href || "#"} // fallback to "#" if href is empty
-      className="hover:text-foreground transition-colors duration-300"
-      target={href.startsWith("http") ? "_blank" : undefined} // external links open in new tab
-      rel={href.startsWith("http") ? "noopener noreferrer" : undefined} // security for external links
-    >
-      {children}
-    </Link>
-  </li>
+const FooterLink = ({ href, children }: FooterLinkProps) => (
+    <li className="mt-2">
+      <Link
+        href={href || "#"}
+        className="hover:text-foreground transition-colors duration-300"
+        target={href.startsWith("http") ? "_blank" : undefined}
+        rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+      >
+        {children}
+      </Link>
+    </li>
 );
 
 interface FooterSectionLink {
@@ -32,7 +33,7 @@ interface FooterSectionProps {
   links: FooterSectionLink[];
 }
 
-const FooterSection: React.FC<FooterSectionProps> = ({ title, links }) => (
+const FooterSection = ({ title, links }: FooterSectionProps) => (
   <section
     className="mt-10 flex flex-col md:mt-0"
     aria-labelledby={`footer-section-${title}`}
@@ -50,18 +51,18 @@ const FooterSection: React.FC<FooterSectionProps> = ({ title, links }) => (
   </section>
 );
 
-const Footer: React.FC = () => {
+const Footer = () => {
   const footerSections: FooterSectionProps[] = [
     {
       title: "Product",
       links: [
-        { href: "#features", label: "Features" }, // replaced empty href with placeholder anchor
+        { href: "#features", label: "Features" },
       ],
     },
     {
       title: "About",
       links: [
-        { href: "/about", label: "About Us" }, // added a placeholder proper path
+        { href: "/about", label: "About Us" },
         { href: "/privacy", label: "Privacy Policy" },
         { href: "/terms", label: "Terms & Conditions" },
       ],

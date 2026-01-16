@@ -13,7 +13,7 @@ interface OthersLayoutProps {
   children: React.ReactNode;
 }
 
-export default async function OthersLayout({
+export default async function WorkspaceLayout({
   children,
 }: OthersLayoutProps) {
   const layoutData = await getLayoutData();

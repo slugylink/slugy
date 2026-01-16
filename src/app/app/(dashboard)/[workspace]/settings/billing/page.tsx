@@ -13,7 +13,6 @@ import { Progress } from "@/components/ui/progress";
 
 import type { LucideIcon } from "lucide-react";
 import { getBillingData } from "@/server/actions/subscription";
-import { getUsages } from "@/server/actions/usages/get-usages";
 import { redirect } from "next/navigation";
 
 type UsageMetric = {
@@ -30,9 +29,12 @@ export default async function Billing({
   params: Promise<{ workspace: string }>;
 }) {
   const { workspace } = await params;
-  const [result, usageData] = await Promise.all([
+
+  const [result, usageResponse] = await Promise.all([
     getBillingData(workspace),
-    getUsages({ workspaceslug: workspace }),
+    fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/workspace/${workspace}/usages`, {
+      cache: "no-store",
+    }),
   ]);
 
   if (!result.success || !result.data) {
@@ -41,15 +43,19 @@ export default async function Billing({
 
   const { plan, usage, limits } = result.data;
 
-  // Get billing cycle from usage period
-  const billingCycle = usageData.usage
+  let usageData: { workspace: unknown; usage: { periodStart: Date; periodEnd: Date } | null } | null = null;
+  if (usageResponse.ok) {
+    usageData = await usageResponse.json();
+  }
+
+  const billingCycle = usageData?.usage
     ? {
-        start: usageData.usage.periodStart.toLocaleDateString("en-US", {
+        start: new Date(usageData.usage.periodStart).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",
         }),
-        end: usageData.usage.periodEnd.toLocaleDateString("en-US", {
+        end: new Date(usageData.usage.periodEnd).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
           year: "numeric",

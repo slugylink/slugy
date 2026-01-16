@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Link2, ChevronRight, MousePointerClick } from "lucide-react";
@@ -21,15 +22,9 @@ type UsageStatsClientProps = {
   usage: Usage | null;
 };
 
-/**
- * Utility to safely calculate usage percentage
- */
 const calculateProgress = (used: number, limit: number) =>
   limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
 
-/**
- * Empty State Card for when workspace/usage data is missing
- */
 function EmptyUsageCard() {
   return (
     <Card className="w-full max-w-xs p-3.5 shadow-sm">
@@ -105,7 +100,7 @@ export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
 }
 
 type UsageProgressRowProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   used: number;
   limit: number;
