@@ -95,7 +95,7 @@ export const metadata: Metadata = {
     siteName: "Slugy",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with real-time analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
+      "Transform long URLs into beautiful, trackable short links. Open-source platform with advanced analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
     url: "https://slugy.co/",
     locale: "en_US",
     alternateLocale: ["en_GB", "en_CA"],
@@ -117,7 +117,7 @@ export const metadata: Metadata = {
     creator: "@sandip_dev_07",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with real-time analytics, link-in-bio pages, and custom domains. Start shortening links for free today!",
+      "Transform long URLs into beautiful, trackable short links. Open-source platform with advanced analytics, link-in-bio pages, and custom domains. Start shortening links for free today!",
     images: {
       url: "https://files.slugy.co/slugy.png",
       alt: "Slugy Dashboard - Create custom short links with analytics, QR codes, and link-in-bio pages. Get started for free!",
