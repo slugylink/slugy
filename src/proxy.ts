@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
-import { getCachedSession } from "@/lib/middleware/get-sesstion";
+import { getCachedSession } from "@/lib/middleware/get-session";
 import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 
 import {
