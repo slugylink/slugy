@@ -1,22 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
-
-// Hooks
+import { useState, memo } from "react";
 import { useLayout, useSearchState } from "@/hooks/search-input-hooks";
-
-// Components
 import {
   SearchInputField,
   DisplayOptionsDropdown,
 } from "./search-input-components";
 
-export interface SearchInputProps {
-  workspaceslug?: string;
-}
-
-/* ---------------- Main Search Input ---------------- */
-const SearchInput: React.FC<SearchInputProps> = React.memo(() => {
+const SearchInput = memo(() => {
   const [displayOpen, setDisplayOpen] = useState(false);
   const { currentLayout, handleChangeLayout } = useLayout();
   const {

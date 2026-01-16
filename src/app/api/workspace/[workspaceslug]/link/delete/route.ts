@@ -1,10 +1,9 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
@@ -26,7 +25,7 @@ export async function POST(
     const context = await params;
     
     // Validate workspace access
-    const workspace = await validateworkspaceslug(
+    const workspace = await validateWorkspaceSlug(
       session.user.id,
       context.workspaceslug,
     );

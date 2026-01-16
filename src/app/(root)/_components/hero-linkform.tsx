@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -71,7 +71,11 @@ interface ApiResponse {
 }
 
 interface GetLinksResponse {
-  links: Link[];
+  success: boolean;
+  data?: {
+    links: Link[];
+  };
+  links?: Link[]; // Fallback for direct links array
   error?: string;
 }
 
@@ -106,14 +110,17 @@ const HeroLinkForm = memo(function HeroLinkForm() {
 
   // Update links when new data arrives
   useEffect(() => {
-    if (!data?.links?.length) return;
+    // Handle both wrapped (data.data.links) and unwrapped (data.links) response formats
+    const linksArray = data?.data?.links || data?.links || [];
+    
+    if (!linksArray.length) return;
 
     setLinks((prevLinks) => {
-      const newLinks = data.links.filter(
+      const newLinks = linksArray.filter(
         (l) => !prevLinks.some((existing) => existing.short === l.short),
       );
       const updatedLinks = prevLinks.map(
-        (prev) => data.links.find((l) => l.short === prev.short) ?? prev,
+        (prev) => linksArray.find((l) => l.short === prev.short) ?? prev,
       );
       return [...newLinks, ...updatedLinks];
     });
@@ -129,17 +136,22 @@ const HeroLinkForm = memo(function HeroLinkForm() {
           body: JSON.stringify(formData),
         });
 
-        const result = (await response.json()) as ApiResponse;
+        const result = (await response.json()) as ApiResponse | { success: boolean; data?: ApiResponse; error?: string };
 
         if (!response.ok) {
           throw new Error(
             response.status === 429
               ? "You can only create 1 temporary link at a time. Please wait for it to expire or create an account for unlimited links."
-              : (result.error ?? "Failed to create link"),
+              : ("error" in result ? result.error : "Failed to create link"),
           );
         }
 
-        setLinks((prev) => [result, ...prev]);
+        // Handle both wrapped (result.data) and unwrapped (result) response formats
+        const linkData = ("data" in result && result.data) ? result.data : ("success" in result && result.success) ? result : null;
+        
+        if (linkData && "short" in linkData) {
+          setLinks((prev) => [linkData as Link, ...prev]);
+        }
         reset();
         toast.success("Link created successfully!");
         await mutate();
@@ -152,11 +164,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     [reset, mutate],
   );
 
-  // Derived UI state
-  const isFormDisabled = useMemo(
-    () => isSubmitting || links.length >= MAX_LINKS_DISPLAY,
-    [isSubmitting, links.length],
-  );
+  const isFormDisabled = isSubmitting || links.length >= MAX_LINKS_DISPLAY;
 
   return (
     <div>

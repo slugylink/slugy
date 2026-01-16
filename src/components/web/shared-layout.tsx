@@ -1,6 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/web/_sidebar/app-sidebar";
-import { Suspense, memo, useMemo } from "react";
+import { Suspense, memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import SidebarHeader from "./_sidebar/sidebar-header";
 import MaxWidthContainer from "../max-width-container";
@@ -28,37 +28,26 @@ const LayoutSkeleton = memo(() => (
 
 LayoutSkeleton.displayName = "LayoutSkeleton";
 
-// Memoize the SharedLayout component with optimized props
 export const SharedLayout = memo(function SharedLayout({
   children,
   workspaceslug,
   workspaces,
   className,
 }: SharedLayoutProps) {
-
-  const sidebarProps = useMemo(
-    () => ({
-      workspaceslug,
-      workspaces: workspaces || [],
-      className,
-    }),
-    [workspaceslug, workspaces, className],
-  );
-
-  // Memoize container className
-  const containerClassName = useMemo(
-    () => `m-0 w-full p-0 ${className || ""}`.trim(),
-    [className],
-  );
-
   return (
     <SidebarProvider>
-      <AppSidebar {...sidebarProps} />
+      <AppSidebar
+        workspaceslug={workspaceslug}
+        workspaces={workspaces || []}
+        className={className}
+      />
       <SidebarInset>
         <MaxWidthContainer>
           <SidebarHeader />
           <Suspense fallback={<LayoutSkeleton />}>
-            <div className={containerClassName}>{children}</div>
+            <div className={`m-0 w-full p-0 ${className || ""}`.trim()}>
+              {children}
+            </div>
           </Suspense>
         </MaxWidthContainer>
       </SidebarInset>

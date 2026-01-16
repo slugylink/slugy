@@ -16,7 +16,7 @@ model User {
   emailVerified   Boolean
   image           String?
   role            Role              @default(user)
-  customerId      String?           // Polar customer ID
+  customerId      String?
   banned          Boolean           @default(false)
   banReason       String?
   banExpires      Int?
@@ -50,6 +50,8 @@ model Session {
   activeOrganizationId String?
   user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
+  @@index([token])
   @@map("session")
 }
 
@@ -95,7 +97,6 @@ model Plan {
   planType              PlanType @default(free)
   currency              String   @default("USD")
   interval              Interval @default(month)
-  // limits
   maxWorkspaces         Int      @default(2)
   maxLinksPerWorkspace  Int      @default(25)
   maxClicksPerWorkspace Int      @default(1000)
@@ -187,7 +188,6 @@ model Tag {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@unique([name, workspaceId])
-  @@index([name])
   @@index([workspaceId])
   @@map("tags")
 }
@@ -218,7 +218,7 @@ model Workspace {
   apiKeys          WorkspaceApiKey[]
   creator          User              @relation("owner", fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId, slug])
+  @@index([slug])
   @@index([userId, isDefault])
   @@map("workspaces")
 }
@@ -242,7 +242,6 @@ model WorkspaceApiKey {
   workspace            Workspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
-  @@index([key])
   @@map("workspace_api_keys")
 }
 
@@ -291,16 +290,12 @@ model Link {
 
   @@unique([slug, domain])
   @@index([slug])
-  @@index([url])
-  @@index([userId])
   @@index([workspaceId])
-  @@index([description])
-  @@index([workspaceId, isArchived])
+  @@index([workspaceId, domain])
+  @@index([workspaceId, isArchived, createdAt])
   @@index([workspaceId, createdAt])
   @@index([workspaceId, clicks])
   @@index([workspaceId, lastClicked])
-  @@index([workspaceId, isArchived, createdAt])
-  @@index([workspaceId, id])
   @@map("links")
 }
 
@@ -330,21 +325,6 @@ model Analytics {
 
   @@index([linkId, clickedAt])
   @@index([clickedAt])
-  @@index([clickedAt, linkId])
-  @@index([clickedAt, country])
-  @@index([clickedAt, city])
-  @@index([clickedAt, continent])
-  @@index([clickedAt, device])
-  @@index([clickedAt, browser])
-  @@index([clickedAt, os])
-  @@index([clickedAt, referer])
-  @@index([country])
-  @@index([city])
-  @@index([continent])
-  @@index([device])
-  @@index([browser])
-  @@index([os])
-  @@index([referer])
   @@map("analytics")
 }
 
@@ -360,7 +340,6 @@ model SharedAnalytics {
   deletedAt     DateTime?
   link          Link      @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
-  @@index([publicId])
   @@map("shared_analytics")
 }
 
@@ -376,7 +355,6 @@ model Organization {
   invitations Invitation[]
   members     Member[]
 
-  @@index([slug])
   @@map("organizations")
 }
 
@@ -394,6 +372,7 @@ model Member {
 
   @@unique([workspaceId, userId])
   @@index([userId])
+  @@index([workspaceId])
   @@map("members")
 }
 
@@ -429,7 +408,6 @@ model QrCode {
   deletedAt     DateTime?
   link          Link      @relation(fields: [linkId], references: [id], onDelete: Cascade)
 
-  @@index([linkId])
   @@map("qr_codes")
 }
 
@@ -546,6 +524,7 @@ model Usage {
 
   @@index([userId])
   @@index([workspaceId])
+  @@index([userId, workspaceId])
   @@index([deletedAt, createdAt(sort: Desc)])
   @@map("usages")
 }

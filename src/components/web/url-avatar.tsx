@@ -1,5 +1,5 @@
 "use client";
-import React, { memo, useState, useEffect, useMemo, useCallback } from "react";
+import { memo, useState, useEffect, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { getRootDomain } from "@/utils/get-rootdomain";
 import { cn } from "@/lib/utils";
@@ -40,8 +40,7 @@ function UrlAvatar({
   icon,
 }: UrlAvatarProps) {
   const domain = useMemo(() => getRootDomain(url), [url]);
-  
-  // Memoize sources to prevent recreation
+
   const sources = useMemo(() => {
     if (
       domain === "localhost" ||
@@ -61,14 +60,12 @@ function UrlAvatar({
   const [errorCount, setErrorCount] = useState(0);
   const [src, setSrc] = useState(sources[0]);
 
-  // Reset state when URL changes
   useEffect(() => {
     setLoading(true);
     setErrorCount(0);
     setSrc(sources[0]);
   }, [url, sources]);
 
-  // Memoize handlers to prevent recreation
   const handleLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement, Event>) => {
     setLoading(false);
     const target = e.target as HTMLImageElement;
@@ -94,21 +91,12 @@ function UrlAvatar({
     }
   }, [errorCount, sources.length]);
 
-  // Memoize computed values
-  const sizeClass = useMemo(() => SIZE_CLASSES[size], [size]);
-  const imageSize = useMemo(() => size * imgSize, [size, imgSize]);
-  const quality = useMemo(() => 
-    size <= 6 ? IMAGE_QUALITY.small : IMAGE_QUALITY.medium, 
-    [size]
-  );
-  const shouldUsePriority = useMemo(() => size > 8, [size]);
-  const shouldUseEager = useMemo(() => size > 8, [size]);
-  const isFallbackAvatar = useMemo(() => 
-    src.startsWith(FALLBACK_AVATAR_BASE), 
-    [src]
-  );
+  const sizeClass = SIZE_CLASSES[size];
+  const imageSize = size * imgSize;
+  const quality = size <= 6 ? IMAGE_QUALITY.small : IMAGE_QUALITY.medium;
+  const isLargeSize = size > 8;
+  const isFallbackAvatar = src.startsWith(FALLBACK_AVATAR_BASE);
 
-  // Early return for icon
   if (icon) {
     return (
       <div
@@ -142,15 +130,15 @@ function UrlAvatar({
           width={imageSize}
           height={imageSize}
           quality={quality}
-          loading={shouldUseEager ? "eager" : "lazy"}
+          loading={isLargeSize ? "eager" : "lazy"}
           className={cn(
             loading ? "opacity-70 blur-[1.5px]" : "blur-0 opacity-100",
             "rounded-full transition-all duration-200",
           )}
-          priority={shouldUsePriority}
+          priority={isLargeSize}
           onLoad={handleLoad}
           onError={handleError}
-          unoptimized={isFallbackAvatar} // avoid next/image remote error warning
+          unoptimized={isFallbackAvatar}
         />
       </picture>
     </div>

@@ -87,7 +87,7 @@ export async function PATCH(
     }
 
     // Generate the public URL for the logo
-    const logoUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
+    const logoUrl = `https://files.slugy.co/${fileKey}`;
 
     // Update gallery with new logo URL
     const updatedGallery = await db.bio.update({

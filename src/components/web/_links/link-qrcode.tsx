@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+
 import QRCode from "react-qr-code";
 import { QrCode as QrCodeIcon } from "lucide-react";
 import type { Options } from "qr-code-styling";
@@ -62,11 +62,11 @@ function isDotType(val: unknown): val is DotType {
   return typeof val === "string" && DOT_TYPES.includes(val as DotType);
 }
 
-const LinkQrCode: React.FC<LinkQrCodeProps> = ({
+const LinkQrCode = ({
   domain,
   code,
   customization,
-}) => {
+}: LinkQrCodeProps) => {
   const mergedOptions = (() => {
     let custom: Partial<Options> = {};
     if (customization) {

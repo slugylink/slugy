@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
+import { cache } from "react";
 import { magicLink, admin, organization } from "better-auth/plugins";
 import { sendMagicLinkEmail } from "@/utils/magiclink";
 import { db } from "@/server/db";
@@ -135,6 +136,27 @@ export const getUserByEmail = async (email: string) => {
 };
 
 export type Session = typeof auth.$Infer.Session;
+
+// Cached session lookup for non-critical layouts (e.g., root layout)
+// Uses React's cache() to deduplicate session fetches within the same request
+const getCachedSession = cache(async () => {
+  const headersList = await headers();
+  const session = await auth.api.getSession({
+    headers: headersList,
+  });
+  return session;
+});
+
+// Cached session for root/public layouts
+// Uses React's cache() to deduplicate calls within the same render
+export async function getCachedRootSession(): Promise<Session | null> {
+  try {
+    return await getCachedSession();
+  } catch (error) {
+    console.error("Session fetch error:", error);
+    return null;
+  }
+}
 
 // Optimized layout utilities for better performance and code reuse
 export async function getAuthSession() {

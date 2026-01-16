@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { validateworkspaceslug } from "@/server/actions/workspace/workspace";
+import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { updateLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
@@ -53,7 +53,7 @@ export async function PATCH(
     const context = await params;
 
     // Validate workspace and link ownership
-    const workspace = await validateworkspaceslug(
+    const workspace = await validateWorkspaceSlug(
       session.user.id,
       context.workspaceslug,
     );

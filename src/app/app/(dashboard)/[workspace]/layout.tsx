@@ -22,18 +22,21 @@ export default async function WorkspaceLayout({
   children,
   params,
 }: WorkspaceLayoutProps) {
-  const awaitedParams = await params;
-  const layoutData = await getLayoutData(awaitedParams.workspace);
+  const { workspace } = await params;
+  const layoutData = await getLayoutData(workspace);
 
-  // Handle workspace not found
   if (layoutData.workspaceNotFound) {
     return <WorkspaceNotFound />;
   }
 
+  const validWorkspaces = filterValidWorkspaces(
+    layoutData.workspaces
+  ) as WorkspaceData[];
+
   return (
     <SharedLayout
       workspaceslug={layoutData.workspaceslug}
-      workspaces={filterValidWorkspaces(layoutData.workspaces) as WorkspaceData[]}
+      workspaces={validWorkspaces}
     >
       {children}
     </SharedLayout>

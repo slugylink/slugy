@@ -65,7 +65,6 @@ export default async function Settings({
       />
 
       <WorkspaceSlugForm
-        userId={session.user.id}
         workspaceslug={context.workspace}
         initialData={workspaces}
       />

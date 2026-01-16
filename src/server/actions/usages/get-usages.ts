@@ -28,29 +28,26 @@ export async function getUsages({
   workspaceslug: string;
 }): Promise<UsageData> {
   try {
-    // Authenticate session
     const authResult = await getAuthSession();
     if (!authResult.success) {
       return { workspace: null, usage: null };
     }
-    const session = authResult.session;
-    const userId = session.user.id;
+    const { user } = authResult.session;
+    const userId = user.id;
 
-    // Parallel database queries for better performance
     const [workspace, usage] = await Promise.all([
-      // Fetch workspace with user membership check
       db.workspace.findFirst({
         where: {
           slug: workspaceslug,
           OR: [
-            { userId }, // Direct owner
+            { userId },
             {
               members: {
                 some: {
                   userId,
                 },
               },
-            }, // Team member
+            },
           ],
         },
         select: {
@@ -61,7 +58,6 @@ export async function getUsages({
         },
       }),
 
-      // Fetch latest usage entry
       db.usage.findFirst({
         where: {
           userId,
@@ -97,7 +93,6 @@ export async function getUsages({
 
     return { workspace, usage };
   } catch (error) {
-    // Log error for debugging but don't expose details to client
     console.error("Failed to fetch usage data:", {
       workspaceslug,
       error: error instanceof Error ? error.message : "Unknown error",

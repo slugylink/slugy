@@ -1,15 +1,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React, {
+import {
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type HTMLAttributes,
 } from "react";
 
-interface FlickeringGridProps extends React.HTMLAttributes<HTMLDivElement> {
+interface FlickeringGridProps extends HTMLAttributes<HTMLDivElement> {
   squareSize?: number;
   gridGap?: number;
   flickerChance?: number;
@@ -20,7 +21,7 @@ interface FlickeringGridProps extends React.HTMLAttributes<HTMLDivElement> {
   maxOpacity?: number;
 }
 
-export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
+export const FlickeringGrid = ({
   squareSize = 4,
   gridGap = 6,
   flickerChance = 0.3,
@@ -30,7 +31,7 @@ export const FlickeringGrid: React.FC<FlickeringGridProps> = ({
   className,
   maxOpacity = 0.3,
   ...props
-}) => {
+}: FlickeringGridProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isInView, setIsInView] = useState(false);

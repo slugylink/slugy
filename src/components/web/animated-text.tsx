@@ -1,4 +1,4 @@
-import type { CSSProperties, FC, ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -8,11 +8,11 @@ interface AnimatedShinyTextProps {
   shimmerWidth?: number;
 }
 
-const AnimatedShinyText: FC<AnimatedShinyTextProps> = ({
+const AnimatedShinyText = ({
   children,
   className,
   shimmerWidth = 100,
-}) => {
+}: AnimatedShinyTextProps) => {
   return (
     <p
       style={

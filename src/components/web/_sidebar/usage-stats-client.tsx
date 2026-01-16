@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, type ReactNode } from "react";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Link2, ChevronRight, MousePointerClick } from "lucide-react";
 import { formatNumber } from "@/lib/format-number";
 
@@ -14,6 +15,7 @@ type Usage = {
   clicksTracked: number;
   linksCreated: number;
   periodEnd: Date | string;
+  periodStart?: Date | string;
 };
 
 type UsageStatsClientProps = {
@@ -21,15 +23,9 @@ type UsageStatsClientProps = {
   usage: Usage | null;
 };
 
-/**
- * Utility to safely calculate usage percentage
- */
 const calculateProgress = (used: number, limit: number) =>
   limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
 
-/**
- * Empty State Card for when workspace/usage data is missing
- */
 function EmptyUsageCard() {
   return (
     <Card className="w-full max-w-xs p-3.5 shadow-sm">
@@ -105,7 +101,7 @@ export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
 }
 
 type UsageProgressRowProps = {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   used: number;
   limit: number;
@@ -119,6 +115,18 @@ function UsageProgressRow({
   limit,
   progress,
 }: UsageProgressRowProps) {
+  const motionValue = useMotionValue(0);
+  const springValue = useSpring(motionValue, {
+    stiffness: 100,
+    damping: 20,
+    mass: 0.5,
+  });
+  const width = useTransform(springValue, (value) => `${value}%`);
+
+  useEffect(() => {
+    motionValue.set(progress);
+  }, [progress, motionValue]);
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -130,7 +138,12 @@ function UsageProgressRow({
           {formatNumber(used)} of {formatNumber(limit)}
         </span>
       </div>
-      <Progress value={progress} className="h-[2px]" />
+      <div className="bg-primary/20 relative h-[2px] w-full overflow-hidden rounded-full">
+        <motion.div
+          className="bg-orange-500 h-full"
+          style={{ width: width }}
+        />
+      </div>
     </div>
   );
 }

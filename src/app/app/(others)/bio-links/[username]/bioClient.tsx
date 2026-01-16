@@ -1,17 +1,12 @@
 "use client";
 
-import React from "react";
+import { useEffect } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 
-// Constants for better maintainability
-const LOADING_HEIGHT = "min-h-[80vh]";
-const CONTAINER_CLASSES = "container mx-auto py-8";
-
-// Dynamic import with loading fallback
 const GalleryLinkTable = dynamic(
   () => import("@/components/web/_bio-links/glinks-table"),
   {
@@ -20,10 +15,9 @@ const GalleryLinkTable = dynamic(
   },
 );
 
-// Loading skeleton component
 function GalleryLinkTableSkeleton() {
   return (
-    <div className={CONTAINER_CLASSES}>
+    <div className="container mx-auto py-8">
       <div className="space-y-6">
         <div className="bg-muted h-10 w-48 animate-pulse rounded" />
         <div className="space-y-4">
@@ -78,7 +72,6 @@ interface GalleryClientProps {
 export default function GalleryClient({ username }: GalleryClientProps) {
   const router = useRouter();
 
-  // SWR configuration with better error handling and performance
   const {
     data: gallery,
     isLoading,
@@ -86,42 +79,26 @@ export default function GalleryClient({ username }: GalleryClientProps) {
     mutate,
   } = useSWR<Gallery, ApiError>(`/api/bio-gallery/${username}`, fetcher);
 
-  const loadingState = (
-    <div
-      className={`flex ${LOADING_HEIGHT} w-full items-center justify-center`}
-    >
-      <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-    </div>
-  );
-
-  const handleRedirect = () => {
-    router.push("/bio-links");
-  };
-
-  // Handle redirects with useEffect hooks at the top level
-  React.useEffect(() => {
+  useEffect(() => {
     if (error) {
-      // Redirect on error after a short delay
-      const timer = setTimeout(handleRedirect, 2000);
+      const timer = setTimeout(() => {
+        router.push("/bio-links");
+      }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [error, handleRedirect]);
+  }, [error, router]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!gallery && !isLoading && !error) {
-      // Redirect immediately if no data
-      handleRedirect();
+      router.push("/bio-links");
     }
-  }, [gallery, isLoading, error, handleRedirect]);
+  }, [gallery, isLoading, error, router]);
 
-  // Handle error state
   if (error) {
     console.error("Gallery loading error:", error);
 
     return (
-      <div
-        className={`flex ${LOADING_HEIGHT} w-full flex-col items-center justify-center`}
-      >
+      <div className="flex min-h-[80vh] w-full flex-col items-center justify-center">
         <div className="text-center">
           <h2 className="text-destructive text-lg font-semibold">
             Failed to load gallery
@@ -134,19 +111,20 @@ export default function GalleryClient({ username }: GalleryClientProps) {
     );
   }
 
-  // Handle loading state
   if (isLoading) {
-    return loadingState;
+    return (
+      <div className="flex min-h-[80vh] w-full items-center justify-center">
+        <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+      </div>
+    );
   }
 
-  // Handle no data state
   if (!gallery) {
     return null;
   }
 
-  // Render gallery table
   return (
-    <div className={CONTAINER_CLASSES}>
+    <div className="container mx-auto py-8">
       <GalleryLinkTable
         gallery={gallery}
         username={username}

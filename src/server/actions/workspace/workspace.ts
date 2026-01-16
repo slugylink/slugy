@@ -15,7 +15,6 @@ import {
   invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
 
-//* Server action to create a workspace
 export async function createWorkspace({
   name,
   slug,
@@ -89,16 +88,14 @@ export async function createWorkspace({
       };
     });
 
-    // Invalidate caches immediately for faster response
     await Promise.all([
       invalidateWorkspaceCache(userId),
-      revalidateTag("workspace", "/"),
-      revalidateTag("all-workspaces", "/"),
-      revalidateTag("workspaces", "/"),
-      revalidateTag("workspace-validation", "/"),
+      revalidateTag("workspaces", "max"),
+      revalidateTag("all-workspaces", "max"),
+      revalidateTag("workspace", "max"),
+      revalidateTag("workspace-validation", "max"),
     ]);
 
-    // Run background tasks
     waitUntil(
       Promise.all([
         db.member.create({
@@ -138,10 +135,8 @@ export async function createWorkspace({
   }
 }
 
-//* Get current default workspace with more details - OPTIMIZED FOR SPEED
 export async function getDefaultWorkspace(userId: string) {
   try {
-    // Try to get from cache first (fastest path)
     const cachedWorkspace = await getDefaultWorkspaceCache(userId);
     if (cachedWorkspace) {
       return {
@@ -151,7 +146,6 @@ export async function getDefaultWorkspace(userId: string) {
       };
     }
 
-    // Cache miss: fetch from database with optimized query
     const workspace = await db.workspace.findFirst({
       where: { 
         userId, 
@@ -163,20 +157,16 @@ export async function getDefaultWorkspace(userId: string) {
         slug: true, 
         logo: true 
       },
-      // Remove orderBy for speed - just get the first default workspace
     });
 
-    // Cache the result immediately (including null results)
     const cachePromise = setDefaultWorkspaceCache(userId, workspace);
     
-    // Return response immediately, don't wait for cache to be set
     const result = {
       success: !!workspace,
       workspace,
       fromCache: false,
     };
 
-    // Set cache in background (non-blocking)
     waitUntil(cachePromise);
 
     return result;
@@ -190,10 +180,8 @@ export async function getDefaultWorkspace(userId: string) {
   }
 }
 
-//* fetch all workspaces
 export async function fetchAllWorkspaces(userId: string) {
   try {
-    // Try to get from cache first
     const cachedWorkspaces = await getAllWorkspacesCache(userId);
     if (cachedWorkspaces) {
       return {
@@ -202,37 +190,62 @@ export async function fetchAllWorkspaces(userId: string) {
       };
     }
 
-    // Cache miss: fetch from database
-    const workspaces = await db.workspace.findMany({
-      where: {
-        OR: [
-          { userId },
-          {
-            members: {
-              some: {
-                userId,
-              },
+    const [ownedWorkspaces, memberWorkspaces] = await Promise.all([
+      db.workspace.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+          logo: true,
+          createdAt: true,
+          members: {
+            select: {
+              userId: true,
+              role: true,
             },
           },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        userId: true,
-        logo: true,
-        members: {
-          select: {
-            userId: true,
-            role: true,
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+      db.workspace.findMany({
+        where: {
+          members: {
+            some: { userId },
           },
         },
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+          logo: true,
+          createdAt: true,
+          members: {
+            select: {
+              userId: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+    const workspaceMap = new Map<string, (typeof ownedWorkspaces)[0]>();
+    
+    ownedWorkspaces.forEach((ws) => workspaceMap.set(ws.id, ws));
+    
+    memberWorkspaces.forEach((ws) => {
+      if (!workspaceMap.has(ws.id)) {
+        workspaceMap.set(ws.id, ws);
+      }
     });
+
+    const workspaces = Array.from(workspaceMap.values()).sort(
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+    );
 
     const workspacesWithRoles = workspaces.map((workspace) => {
       const isOwner = workspace.userId === userId;
@@ -249,7 +262,6 @@ export async function fetchAllWorkspaces(userId: string) {
       };
     });
 
-    // Cache the result
     await setAllWorkspacesCache(userId, workspacesWithRoles);
 
     return {
@@ -265,10 +277,8 @@ export async function fetchAllWorkspaces(userId: string) {
   }
 }
 
-//* validate workspace slug
-export async function validateworkspaceslug(userId: string, slug: string) {
+export async function validateWorkspaceSlug(userId: string, slug: string) {
   try {
-    // Try to get from cache first
     const cachedWorkspace = await getWorkspaceValidationCache(userId, slug);
     if (cachedWorkspace !== null) {
       return {
@@ -277,31 +287,33 @@ export async function validateworkspaceslug(userId: string, slug: string) {
       };
     }
 
-    // Cache miss: fetch from database
-    const workspace = await db.workspace.findUnique({
+    let workspace = await db.workspace.findFirst({
       where: {
-        slug: slug,
-        OR: [
-          { userId: userId },
-          {
-            members: {
-              some: {
-                userId: userId,
-              },
-            },
-          },
-        ],
+        slug,
+        userId,
       },
       select: { id: true, name: true, slug: true, logo: true },
     });
 
     if (!workspace) {
-      // Cache null result to avoid repeated DB queries
+      workspace = await db.workspace.findFirst({
+        where: {
+          slug,
+          members: {
+            some: {
+              userId,
+            },
+          },
+        },
+        select: { id: true, name: true, slug: true, logo: true },
+      });
+    }
+
+    if (!workspace) {
       await setWorkspaceValidationCache(userId, slug, null);
       return { success: false, workspace: null };
     }
 
-    // Cache the result
     await setWorkspaceValidationCache(userId, slug, workspace);
 
     return {

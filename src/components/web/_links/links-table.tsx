@@ -46,14 +46,24 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
   }, [searchParams]);
 
   const apiUrl = useMemo(() => {
-    const params = new URLSearchParams({
-      search: searchConfig.search,
-      showArchived: searchConfig.showArchived,
-      sortBy: searchConfig.sortBy,
-      offset: searchConfig.offset.toString(),
-      limit: DEFAULT_LIMIT.toString(),
-    });
-    return `/api/workspace/${workspaceslug}/link/get?${params.toString()}`;
+    const params = new URLSearchParams();
+    
+    // Only add non-default parameters to reduce URL size
+    if (searchConfig.search) {
+      params.set("search", searchConfig.search);
+    }
+    if (searchConfig.showArchived === "true") {
+      params.set("showArchived", "true");
+    }
+    if (searchConfig.sortBy !== "date-created") {
+      params.set("sortBy", searchConfig.sortBy);
+    }
+    if (searchConfig.offset > 0) {
+      params.set("offset", searchConfig.offset.toString());
+    }
+    
+    const queryString = params.toString();
+    return `/api/workspace/${workspaceslug}/link/get${queryString ? `?${queryString}` : ""}`;
   }, [searchConfig, workspaceslug]);
 
   const { data, error, isLoading, mutate } = useSWR<ApiResponse>(
@@ -104,14 +114,11 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     setIsSelectModeOn(false);
   }, []);
 
-  const pagination: PaginationData = useMemo(
-    () => ({
-      total_pages: totalPages,
-      limit: DEFAULT_LIMIT,
-      total_links: totalLinks,
-    }),
-    [totalLinks, totalPages],
-  );
+  const pagination: PaginationData = {
+    total_pages: totalPages,
+    limit: DEFAULT_LIMIT,
+    total_links: totalLinks,
+  };
 
   const { layout, setLayout, isTransitioning } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
@@ -151,7 +158,7 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     <section>
       {/* Header Actions */}
       <div className="flex w-full items-center justify-between gap-4 pb-8">
-        <SearchInput workspaceslug={workspaceslug} />
+        <SearchInput />
         <LinkActions totalLinks={totalLinks} workspaceslug={workspaceslug} />
       </div>
 
@@ -169,7 +176,6 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
           isSelectModeOn={isSelectModeOn}
           selectedLinks={selectedLinks}
           onSelect={handleSelectLink}
-          isTransitioning={isTransitioning}
         />
       ) : (
         <EmptyState searchQuery={searchConfig.search} />

@@ -66,38 +66,6 @@ const LINK_SELECT_FIELDS = {
           },
 } as const;
 
-const validateInput = (params: {
-  search?: string | null;
-  showArchived?: string | null;
-  sortBy?: string | null;
-  offset?: string | null;
-  limit?: string | null;
-}) => {
-  const errors: string[] = [];
-
-  if (
-    params.sortBy &&
-    !VALID_SORT_OPTIONS.includes(
-      params.sortBy as (typeof VALID_SORT_OPTIONS)[number],
-    )
-  ) {
-    errors.push(
-      `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
-    );
-  }
-
-  const offset = parseInt(params.offset ?? String(DEFAULT_OFFSET), 10);
-  if (isNaN(offset) || offset < 0) {
-    errors.push("Offset must be a non-negative integer");
-  }
-
-  const limit = parseInt(params.limit ?? String(DEFAULT_LIMIT), 10);
-  if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
-    errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
-  }
-
-  return { errors, offset, limit };
-};
 
 const getSearchConditions = (
   search: string,
@@ -166,19 +134,37 @@ export async function GET(
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const search = searchParams.get("search") ?? "";
-    const showArchived = searchParams.get("showArchived") === "true";
+    
+    // Apply defaults at API level - client only sends non-default values
+    const search = searchParams.get("search")?.trim() ?? "";
+    const showArchived = searchParams.get("showArchived") === "true"; // defaults to false
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
-    const offsetParam = searchParams.get("offset") ?? String(DEFAULT_OFFSET);
-    const limitParam = searchParams.get("limit") ?? String(DEFAULT_LIMIT);
+    const offsetParam = searchParams.get("offset");
+    const limitParam = searchParams.get("limit");
+    
+    // Use defaults if not provided
+    const offset = offsetParam ? parseInt(offsetParam, 10) : DEFAULT_OFFSET;
+    const limit = limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT;
 
-    const { errors, offset, limit } = validateInput({
-      search,
-      showArchived: searchParams.get("showArchived"),
-      sortBy,
-      offset: offsetParam,
-      limit: limitParam,
-    });
+    // Validate parsed parameters
+    const errors: string[] = [];
+    
+    if (
+      sortBy &&
+      !VALID_SORT_OPTIONS.includes(sortBy as (typeof VALID_SORT_OPTIONS)[number])
+    ) {
+      errors.push(
+        `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
+      );
+    }
+    
+    if (isNaN(offset) || offset < 0) {
+      errors.push("Offset must be a non-negative integer");
+    }
+    
+    if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
+      errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
+    }
 
     if (errors.length > 0) {
       return NextResponse.json(
@@ -191,16 +177,28 @@ export async function GET(
       );
     }
 
-    const workspace = await db.workspace.findFirst({
+    // Optimized: Check ownership first (fast with userId index), then membership if needed
+    // This avoids the slow OR/EXISTS query pattern
+    let workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
-        OR: [
-          { userId: session.user.id },
-          { members: { some: { userId: session.user.id } } },
-        ],
+        userId: session.user.id, // Check ownership first (uses userId index)
       },
       select: { id: true },
     });
+
+    // If not owner, check if user is a member
+    if (!workspace) {
+      workspace = await db.workspace.findFirst({
+        where: {
+          slug: workspaceslug,
+          members: {
+            some: { userId: session.user.id }, // Uses members.userId index
+          },
+        },
+        select: { id: true },
+      });
+    }
 
     if (!workspace) {
       return NextResponse.json(

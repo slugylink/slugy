@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useCallback, useMemo } from "react";
+
+import { useState, useCallback, useMemo, useEffect, memo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -25,7 +26,6 @@ import { mutate } from "swr";
 import { customAlphabet } from "nanoid";
 import Image from "next/image";
 
-// Types
 interface EditLinkFormProps {
   initialData: LinkData;
   open: boolean;
@@ -59,7 +59,6 @@ interface UrlSafetyStatus {
   message: string;
 }
 
-// For SWR mutate typing
 interface SWRLinksList {
   links: Array<{
     id: string;
@@ -68,14 +67,12 @@ interface SWRLinksList {
   [key: string]: unknown;
 }
 
-// Constants
 const NANOID_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 const NANOID_LENGTH = 7;
 const DEFAULT_DOMAIN = "slugy.co";
 const UPDATE_ENDPOINT = "/update";
 
-// Utility functions
 const normalizeExpiresAt = (
   val: string | Date | null | undefined,
 ): string | null => {
@@ -85,17 +82,22 @@ const normalizeExpiresAt = (
   return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
-const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
-  ({ initialData, open, onOpenChange, onClose, date, creator }) => {
+const EditLinkForm = memo(
+  ({
+    initialData,
+    open,
+    onOpenChange,
+    onClose,
+    date,
+    creator,
+  }: EditLinkFormProps) => {
     const { workspaceslug } = useWorkspaceStore();
 
-    // Memoized nanoid generator
     const nanoid = useMemo(
       () => customAlphabet(NANOID_ALPHABET, NANOID_LENGTH),
       [],
     );
 
-    // State management
     const [code, setCode] = useState(initialData.slug || "");
     const [utmOpen, setUtmOpen] = useState(false);
     const [linkSettings, setLinkSettings] = useState<LinkSettings>({
@@ -103,7 +105,7 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       password: initialData.password || null,
       expirationUrl: initialData.expirationUrl || null,
     });
-    // Draft (local-only) link preview metadata while editing
+
     const [draftMetadata, setDraftMetadata] = useState<{
       image: string | null;
       title: string | null;
@@ -145,7 +147,6 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       message: "",
     });
 
-    // Form setup
     const form = useForm<LinkFormValues>({
       resolver: zodResolver(linkFormSchema),
       defaultValues: {
@@ -161,14 +162,12 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       setValue,
     } = form;
 
-    // Memoized handlers
     const handleGenerateRandomSlug = useCallback(() => {
       const randomSlug = nanoid();
       setValue("slug", randomSlug);
       setCode(randomSlug);
     }, [nanoid, setValue]);
 
-    // Memoized computed values
     const paramKeys = useMemo(
       () =>
         [
@@ -226,12 +225,10 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
 
     const [currentUrl, setCurrentUrl] = useState(initialData.url || "");
 
-    // Update currentUrl when form values change with debouncing
-    React.useEffect(() => {
+    useEffect(() => {
       let timeoutId: NodeJS.Timeout;
-      
+
       const subscription = form.watch((value) => {
-        // Debounce URL updates to prevent excessive re-renders
         clearTimeout(timeoutId);
         timeoutId = setTimeout(() => {
           setCurrentUrl(value.url || "");
@@ -244,7 +241,6 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       };
     }, [form]);
 
-    // Form submission
     const onSubmit = useCallback(
       async (data: LinkFormValues) => {
         try {
@@ -343,7 +339,6 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       ],
     );
 
-    // Memoized button content
     const submitButtonContent = useMemo(() => {
       if (isSubmitting) {
         return (
@@ -361,7 +356,6 @@ const EditLinkForm: React.FC<EditLinkFormProps> = React.memo(
       return <>Update link <CornerDownLeft size={12} /></>;
     }, [isSubmitting, urlSafetyStatus.isValid]);
 
-    // Memoized creator info
     const creatorInfo = useMemo(() => {
       if (!creator?.name && !creator?.image) {
         return null;

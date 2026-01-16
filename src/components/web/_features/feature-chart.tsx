@@ -1,6 +1,6 @@
 "use client";
 import type React from "react";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Area,
@@ -74,11 +74,7 @@ const FeatureAnalyticsChart = ({
 }: ChartProps) => {
   const [localData, setLocalData] = useState<ChartDataPoint[]>([]);
 
-  // Compute total clicks; useMemo for performance
-  const totalClicks = useMemo(
-    () => propTotalClicks ?? DUMMY_TOTALS[timePeriod] ?? 0,
-    [propTotalClicks, timePeriod],
-  );
+  const totalClicks = propTotalClicks ?? DUMMY_TOTALS[timePeriod] ?? 0;
 
   // Prepare data on mount/prop change
   useEffect(() => {
@@ -135,12 +131,11 @@ const FeatureAnalyticsChart = ({
     [timePeriod],
   );
 
-  // Custom Tooltip
-  const CustomTooltip: React.FC<TooltipProps<number, string>> = ({
+  const CustomTooltip = ({
     active,
     payload,
     label,
-  }) => {
+  }: TooltipProps<number, string>) => {
     if (!active || !payload?.length || !label) return null;
     const date = new Date(label);
     if (isNaN(date.getTime())) return null;

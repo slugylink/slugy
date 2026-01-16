@@ -104,7 +104,7 @@ export default function Home() {
         <Features />
       </section>
 
-      <section id="stats" className="scroll-mt-20">
+      <section id="pricing" className="scroll-mt-20">
         <PricingSection />
       </section>
 
@@ -112,7 +112,7 @@ export default function Home() {
         <Stats />
       </section>
 
-      <section id="stats" className="scroll-mt-20">
+      <section id="sponsors" className="scroll-mt-20">
         <Sponsors />
       </section>
 

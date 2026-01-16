@@ -1,4 +1,3 @@
-import React from "react";
 import { themes } from "@/constants/theme";
 import { Button } from "./button";
 
@@ -8,11 +7,11 @@ interface ThemeConfirmToastProps {
   onConfirm: () => void;
 }
 
-export const ThemeConfirmToast: React.FC<ThemeConfirmToastProps> = ({
+export const ThemeConfirmToast = ({
   themeId,
   onCancel,
   onConfirm,
-}) => {
+}: ThemeConfirmToastProps) => {
   const theme = themes.find((t) => t.id === themeId);
   const themeName = theme?.name || themeId;
 
@@ -20,17 +19,10 @@ export const ThemeConfirmToast: React.FC<ThemeConfirmToastProps> = ({
     <div className="flex items-center gap-2 rounded-lg border bg-white p-3 shadow-md">
       <span className="text-sm">Theme changed to {themeName}</span>
       <div className="flex gap-1">
-        <Button
-        size={"sm"}
-          onClick={onCancel}
-          variant={"outline"}
-        >
+        <Button size="sm" onClick={onCancel} variant="outline">
           Cancel
         </Button>
-        <Button
-        size={"sm"}
-          onClick={onConfirm}
-        >
+        <Button size="sm" onClick={onConfirm}>
           Confirm
         </Button>
       </div>

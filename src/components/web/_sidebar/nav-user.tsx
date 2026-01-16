@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   BadgeCheck,
   ChevronsUpDown,
@@ -39,10 +39,9 @@ interface User {
   image: string | null;
 }
 
-// Create auth client once outside component to maintain consistent state
 const { useSession } = createAuthClient();
 
-export const NavUser: React.FC = () => {
+export const NavUser = () => {
   const { isMobile } = useSidebar();
   const router = useRouter();
 
@@ -57,14 +56,12 @@ export const NavUser: React.FC = () => {
   const handleSignout = async () => {
     try {
       await authClient.signOut();
-      // Redirect explicitly to login page
       router.push("/login");
     } catch (err) {
       console.error("Logout error:", err);
     }
   };
 
-  // Redirect to login if not authenticated and not loading
   useEffect(() => {
     if (!isPending && !session) {
       router.push("/login");
@@ -115,12 +112,10 @@ export const NavUser: React.FC = () => {
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                {/* <Link href="/upgrade"> */}
-                  <span>
-                    <Sparkles className="mr-2 inline-block" />
-                    Upgrade to Pro
-                  </span>
-                {/* </Link> */}
+                <span>
+                  <Sparkles className="mr-2 inline-block" />
+                  Upgrade to Pro
+                </span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

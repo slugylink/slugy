@@ -1,4 +1,4 @@
-import * as React from "react";
+import type { ComponentProps } from "react";
 import { NavMain } from "@/components/web/_sidebar/nav-main";
 import { NavUser } from "@/components/web/_sidebar/nav-user";
 import {
@@ -21,7 +21,7 @@ export interface WorkspaceMinimal {
 }
 
 interface AppSidebarProps
-  extends Omit<React.ComponentProps<typeof Sidebar>, "workspaces"> {
+  extends Omit<ComponentProps<typeof Sidebar>, "workspaces"> {
   workspaces: WorkspaceMinimal[];
   workspaceslug: string;
 }
@@ -43,13 +43,15 @@ export default function AppSidebar({
         <NavMain workspaces={workspaces} workspaceslug={workspaceslug} />
       </SidebarContent>
       <SidebarFooter>
-        <div>
-          <Link target="_blank" href={"https://github.com/slugylink/slugy/discussions/categories/feedback"}>
-            <Button size={"sm"} variant={"secondary"} className="w-full">
-              <MessagesSquare strokeWidth={1.5} /> Feedback
-            </Button>
-          </Link>
-        </div>
+        <Link
+          target="_blank"
+          href="https://github.com/slugylink/slugy/discussions/categories/feedback"
+          rel="noopener noreferrer"
+        >
+          <Button size="sm" variant="secondary" className="w-full">
+            <MessagesSquare strokeWidth={1.5} /> Feedback
+          </Button>
+        </Link>
         <UsageStats workspaceslug={workspaceslug} />
         <NavUser />
       </SidebarFooter>

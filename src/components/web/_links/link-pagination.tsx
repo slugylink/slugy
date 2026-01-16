@@ -1,6 +1,6 @@
 "use client";
 
-import React, { memo, useState, useEffect, useCallback } from "react";
+import { memo, useState, useEffect, useCallback, type Dispatch, type SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import { useQueryState, parseAsString } from "nuqs";
 import { Archive, Trash2, X, Loader2 } from "lucide-react";
@@ -14,7 +14,7 @@ interface PaginationProps {
 
 interface PaginationComponentProps {
   isSelectModeOn: boolean;
-  setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>;
+  setIsSelectModeOn: Dispatch<SetStateAction<boolean>>;
   selectedCount: number;
   totalCount: number;
   onSelectAll: () => void;
@@ -26,7 +26,6 @@ interface PaginationComponentProps {
   selectedLinks: Set<string>;
 }
 
-/* ---------------- Selection Mode (Flipped Back) ---------------- */
 const SelectionMode = memo(
   ({
     selectedCount,
@@ -41,9 +40,8 @@ const SelectionMode = memo(
     onDeleteClick: () => void;
     isProcessing: boolean;
   }) => (
-    <div className="absolute inset-0 h-full w-full rotate-x-180 backface-hidden">
+      <div className="absolute inset-0 h-full w-full rotate-x-180 backface-hidden">
       <div className="flex h-full w-full items-center justify-between rounded-xl border bg-white p-3.5 shadow-lg md:px-4 dark:bg-black">
-        {/* Left side: count + clear */}
         <div className="flex items-center gap-2 text-sm font-normal text-zinc-700 dark:text-zinc-50">
           <Button
             variant="ghost"
@@ -57,7 +55,6 @@ const SelectionMode = memo(
           <span>{selectedCount} selected</span>
         </div>
 
-        {/* Right side: archive + delete */}
         <div className="flex items-center space-x-3">
           <Button
             variant="outline"
@@ -96,7 +93,6 @@ const SelectionMode = memo(
 
 SelectionMode.displayName = "SelectionMode";
 
-/* ---------------- Navigation Mode (Front Side Default) ---------------- */
 const NavigationMode = memo(
   ({
     currentPage,
@@ -107,7 +103,7 @@ const NavigationMode = memo(
     currentPage: number;
     pagination: PaginationProps;
     handlePageChange: (page: number) => void;
-    setIsSelectModeOn: React.Dispatch<React.SetStateAction<boolean>>;
+    setIsSelectModeOn: Dispatch<SetStateAction<boolean>>;
   }) => {
     const startIndex =
       pagination.total_links === 0
@@ -167,7 +163,6 @@ const NavigationMode = memo(
 
 NavigationMode.displayName = "NavigationMode";
 
-/* ---------------- Main Pagination Component ---------------- */
 export default function LinkPagination({
   isSelectModeOn,
   setIsSelectModeOn,
@@ -185,17 +180,14 @@ export default function LinkPagination({
     "archive" | "delete" | null
   >(null);
 
-  // Page state: default to 1
   const currentPage = Number(pageNo ?? 1);
 
-  // Animate card flip
   useEffect(() => {
     setIsAnimating(true);
     const timer = setTimeout(() => setIsAnimating(false), 1000);
     return () => clearTimeout(timer);
   }, [isSelectModeOn]);
 
-  // Handle page changes
   const handlePageChange = useCallback(
     (newPage: number) => {
       if (newPage > 1) {
@@ -207,13 +199,11 @@ export default function LinkPagination({
     [setPageNo],
   );
 
-  // Selection reset with flip-back
   const handleClearSelection = useCallback(() => {
     onClearSelection();
     setIsSelectModeOn(false);
   }, [onClearSelection, setIsSelectModeOn]);
 
-  // Confirmation dialog handlers
   const handleArchiveConfirm = useCallback(() => {
     if (selectedLinks.size > 0) {
       onArchive([...selectedLinks]);
@@ -226,18 +216,12 @@ export default function LinkPagination({
     if (selectedLinks.size > 0) {
       onDelete([...selectedLinks]);
       setShowConfirmation(null);
-      setIsSelectModeOn(false); // unified behavior
+      setIsSelectModeOn(false);
     }
   }, [onDelete, selectedLinks, setIsSelectModeOn]);
 
-  const handleArchiveClick = useCallback(
-    () => setShowConfirmation("archive"),
-    [],
-  );
-  const handleDeleteClick = useCallback(
-    () => setShowConfirmation("delete"),
-    [],
-  );
+  const handleArchiveClick = () => setShowConfirmation("archive");
+  const handleDeleteClick = () => setShowConfirmation("delete");
 
   return (
     <div className="fixed bottom-6 left-1/2 w-full -translate-x-1/2 md:-translate-x-1/3 lg:max-w-2xl">
@@ -247,7 +231,6 @@ export default function LinkPagination({
             isSelectModeOn ? "rotate-x-180" : ""
           } ${isAnimating ? "flipping" : ""}`}
         >
-          {/* Navigation Mode */}
           <NavigationMode
             currentPage={currentPage}
             pagination={pagination}
@@ -255,7 +238,6 @@ export default function LinkPagination({
             setIsSelectModeOn={setIsSelectModeOn}
           />
 
-          {/* Selection Mode */}
           <SelectionMode
             selectedCount={selectedCount}
             onClearSelection={handleClearSelection}
@@ -266,7 +248,6 @@ export default function LinkPagination({
         </div>
       </div>
 
-      {/* Confirmation Dialog */}
       <BulkOperationDialog
         isOpen={showConfirmation !== null}
         onClose={() => setShowConfirmation(null)}
