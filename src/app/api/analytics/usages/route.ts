@@ -49,16 +49,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const usageRecord = await db.usage.findFirst({
-      where: { workspaceId },
-      select: { id: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const [usageRecord, workspace] = await Promise.all([
+      db.usage.findFirst({
+        where: { workspaceId },
+        select: { id: true, clicksTracked: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      db.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { maxClicksLimit: true },
+      }),
+    ]);
 
     if (!usageRecord) {
       return NextResponse.json(
         { error: "Usage record not found for workspaceId: " + workspaceId },
         { status: 404 },
+      );
+    }
+
+    // Enforce monthly click limit per workspace (from subscription plan)
+    if (
+      workspace?.maxClicksLimit != null &&
+      usageRecord.clicksTracked >= workspace.maxClicksLimit
+    ) {
+      return NextResponse.json(
+        {
+          error: "Click limit reached for this workspace",
+          code: "CLICK_LIMIT_REACHED",
+        },
+        { status: 429 },
       );
     }
 
