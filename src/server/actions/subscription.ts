@@ -122,7 +122,7 @@ export async function getBillingData(workspaceSlug: string) {
 
     // Get subscription with plan
     const subscriptionResult = await getSubscriptionWithPlan(userId);
-    
+
     // Get bio galleries count
     const bioCount = await db.bio.count({
       where: { userId },
@@ -227,9 +227,9 @@ export async function getCheckoutUrl(productId?: string, priceId?: string) {
     const baseUrl = process.env.NODE_ENV === "production"
       ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
       : "http://app.localhost:3000";
-    
+
     const checkoutUrl = new URL(`${baseUrl}/api/subscription/checkout`);
-    
+
     if (productId) {
       checkoutUrl.searchParams.set("product_id", productId);
     }
@@ -270,7 +270,7 @@ export async function getCustomerPortalUrl() {
     const baseUrl = process.env.NODE_ENV === "production"
       ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
       : "http://app.localhost:3000";
-    
+
     const portalUrl = `${baseUrl}/api/subscription/manage`;
 
     return {

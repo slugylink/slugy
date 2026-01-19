@@ -4,40 +4,16 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import NumberFlow from "@number-flow/react";
+import { getActiveSubscription, getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { createAuthClient } from "better-auth/react";
 
-// Get checkout URL with both monthly and yearly product IDs
-// Polar will show both options during checkout so user can choose
-const getCheckoutUrl = () => {
-  const baseUrl = "/api/subscription/checkout";
-
-  // Get both product IDs from environment variables
-  const monthlyProductId = process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID; // sandbox test productId
-  const yearlyProductId = process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID; // sandbox test productId
-
-  // Build products array - Polar expects comma-separated product IDs
-  const productIds: string[] = [];
-
-  if (monthlyProductId) {
-    productIds.push(monthlyProductId);
-  }
-
-  if (yearlyProductId) {
-    productIds.push(yearlyProductId);
-  }
-
-  // If we have at least one product ID, add it to the URL
-  if (productIds.length > 0) {
-    // Polar expects "products" parameter with comma-separated IDs
-    return `${baseUrl}?products=${productIds.join(",")}`;
-  }
-
-  // Fallback: return base URL (will show error but user can add params manually)
-  return baseUrl;
-};
+const { useSession } = createAuthClient();
 
 type FeatureValue = string | boolean;
+type PriceInterval = "month" | "year" | null;
+type BillingPeriod = "monthly" | "yearly";
 
 interface Feature {
   feature: string;
@@ -45,64 +21,138 @@ interface Feature {
   pro: FeatureValue;
 }
 
-const tableData: Feature[] = [
-  { feature: "Workspaces", free: "2", pro: "8" },
+interface ProductPrice {
+  id: string;
+  amount: number;
+  currency: string;
+  interval: PriceInterval;
+}
+
+interface ProductData {
+  id: string;
+  name: string;
+  prices: ProductPrice[];
+}
+
+interface PricingComparatorProps {
+  products?: ProductData[];
+}
+
+const CHECKOUT_BASE_URL = "/api/subscription/checkout";
+const DEFAULT_MONTHLY_PRICE = 15;
+const DEFAULT_YEARLY_PRICE = 150;
+
+const CURRENCY_FORMAT = {
+  style: "currency" as const,
+  currency: "USD",
+  maximumFractionDigits: 0,
+};
+
+const FEATURES: Feature[] = [
+  { feature: "Workspaces", free: "2", pro: "5" },
   { feature: "Links", free: "25 / workspace", pro: "100 / workspace" },
-  { feature: "Analytics", free: "1,000 clicks", pro: "20,000 clicks" },
-  {
-    feature: "Analytics Retention",
-    free: "Up to 2 months",
-    pro: "Up to 12 months",
-  },
-  { feature: "Advanced Analytics", free: false, pro: true },
-  { feature: "Bio Links", free: "5", pro: "20" },
-  { feature: "Link Tags", free: "5", pro: "20" },
+  { feature: "Analytics", free: "1,000 clicks", pro: "15,000 clicks" },
+  { feature: "Analytics Retention", free: "30 days", pro: "12 months" },
+  { feature: "Advanced Analytics", free: true, pro: true },
+  { feature: "Bio Links", free: "5", pro: "15" },
+  { feature: "Link Tags", free: "5", pro: "15" },
   { feature: "Custom Domains", free: "2", pro: "10" },
   { feature: "Users", free: "1", pro: "3" },
-  { feature: "UTM Templates", free: "2", pro: "10" },
+  { feature: "UTM Templates", free: "5", pro: "15" },
   { feature: "Custom Link Preview", free: false, pro: true },
   { feature: "Link Expiration", free: false, pro: true },
   { feature: "Password Protection", free: false, pro: true },
 ];
 
-const pricingPlans = {
-  free: {
-    name: "Free",
-    price: 0,
-    subtitle: "Forever free",
-    variant: "outline" as const,
-  },
-  pro: {
-    name: "Pro",
-    monthly: {
-      price: 15,
-      subtitle: "per month",
-    },
-    yearly: {
-      price: 150,
-      subtitle: "per year",
-      savings: "2 Months Free",
-    },
-    variant: "default" as const,
-  },
-};
+/**
+ * Generates checkout URL with product IDs from products or environment variables
+ */
+function getCheckoutUrl(products?: ProductData[]): string {
+  const productIds = products?.map((p) => p.id).filter(Boolean) ?? [];
 
+  if (productIds.length > 0) {
+    return `${CHECKOUT_BASE_URL}?products=${productIds.join(",")}`;
+  }
+
+  // Fallback to environment variables
+  const envIds = [
+    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID,
+    process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,
+  ].filter(Boolean) as string[];
+
+  return envIds.length > 0
+    ? `${CHECKOUT_BASE_URL}?products=${envIds.join(",")}`
+    : CHECKOUT_BASE_URL;
+}
+
+/**
+ * Extracts monthly and yearly prices from products array
+ */
+function extractPrices(products?: ProductData[]) {
+  if (!products?.length) {
+    return {
+      monthlyPrice: DEFAULT_MONTHLY_PRICE,
+      yearlyPrice: DEFAULT_YEARLY_PRICE,
+    };
+  }
+
+  const allPrices = products.flatMap((p) => p.prices);
+  const monthly = allPrices.find((p) => p.interval === "month");
+  const yearly = allPrices.find((p) => p.interval === "year");
+
+  return {
+    monthlyPrice: monthly?.amount ?? DEFAULT_MONTHLY_PRICE,
+    yearlyPrice: yearly?.amount ?? DEFAULT_YEARLY_PRICE,
+  };
+}
+
+/**
+ * Renders feature value as checkmark, dash, or text
+ */
 function renderFeatureValue(value: FeatureValue) {
-  if (value === true) {
-    return <Check className="size-4" />;
-  }
-  if (value === false) {
-    return <span className="text-muted-foreground">—</span>;
-  }
+  if (value === true) return <Check className="size-4" />;
+  if (value === false) return <span className="text-muted-foreground">—</span>;
   return value;
 }
 
-export default function PricingComparator() {
-  const [billingPeriod, setBillingPeriod] = useState<"monthly" | "yearly">(
-    "monthly",
+export default function PricingComparator({ products }: PricingComparatorProps) {
+  const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+
+  const { monthlyPrice, yearlyPrice } = useMemo(
+    () => extractPrices(products),
+    [products]
   );
+
+  const pricingPlans = useMemo(
+    () => ({
+      free: {
+        name: "Free",
+        price: 0,
+        subtitle: "Forever free",
+        variant: "outline" as const,
+      },
+      pro: {
+        name: "Pro",
+        monthly: { price: monthlyPrice, subtitle: "per month" },
+        yearly: { price: yearlyPrice, subtitle: "per year", savings: "2 Months Free" },
+        variant: "default" as const,
+      },
+    }),
+    [monthlyPrice, yearlyPrice]
+  );
+
   const proPlan = pricingPlans.pro[billingPeriod];
-  const checkoutUrl = getCheckoutUrl();
+  const checkoutUrl = useMemo(() => getCheckoutUrl(products), [products]);
+
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      getSubscriptionWithPlan(session.user.id).then((result) => {
+        console.log("Subscription:", result);
+      });
+    }
+  }, [session?.user?.id]);
 
   return (
     <section>
@@ -110,9 +160,7 @@ export default function PricingComparator() {
         <div className="mb-8 flex justify-end">
           <Tabs
             value={billingPeriod}
-            onValueChange={(value) =>
-              setBillingPeriod(value as "monthly" | "yearly")
-            }
+            onValueChange={(value) => setBillingPeriod(value as BillingPeriod)}
           >
             <TabsList className="flex w-full max-w-md gap-1 border text-sm">
               <TabsTrigger value="monthly" className="text-sm">
@@ -132,14 +180,7 @@ export default function PricingComparator() {
                 <th className="space-y-3">
                   <span className="block">{pricingPlans.free.name}</span>
                   <span className="block text-2xl font-medium">
-                    <NumberFlow
-                      value={pricingPlans.free.price}
-                      format={{
-                        style: "currency",
-                        currency: "USD",
-                        maximumFractionDigits: 0,
-                      }}
-                    />
+                    <NumberFlow value={pricingPlans.free.price} format={CURRENCY_FORMAT} />
                   </span>
                   <span className="text-muted-foreground block text-xs">
                     {pricingPlans.free.subtitle}
@@ -151,23 +192,11 @@ export default function PricingComparator() {
                 <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
                   <span className="block">{pricingPlans.pro.name}</span>
                   <span className="block text-2xl font-medium">
-                    <NumberFlow
-                      value={proPlan.price}
-                      format={{
-                        style: "currency",
-                        currency: "USD",
-                        maximumFractionDigits: 0,
-                      }}
-                    />
+                    <NumberFlow value={proPlan.price} format={CURRENCY_FORMAT} />
                   </span>
                   <span className="text-muted-foreground block text-sm">
                     {proPlan.subtitle}
                   </span>
-                  {/* {"savings" in proPlan && proPlan.savings && (
-                    <span className="text-muted-foreground block text-xs">
-                      {proPlan.savings}
-                    </span>
-                  )} */}
                   <Button asChild variant={pricingPlans.pro.variant} size="sm">
                     <Link href={checkoutUrl}>Upgrade to Pro</Link>
                   </Button>
@@ -180,7 +209,7 @@ export default function PricingComparator() {
                 <td />
                 <td className="bg-muted border-none px-4" />
               </tr>
-              {tableData.map((row) => (
+              {FEATURES.map((row) => (
                 <tr key={row.feature} className="*:border-b *:py-3">
                   <td className="text-muted-foreground">{row.feature}</td>
                   <td>{renderFeatureValue(row.free)}</td>

@@ -9,6 +9,28 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 
+const REDIRECT_STATUS = 302;
+const UNKNOWN_VALUE = "unknown";
+const DIRECT_REFERER = "Direct";
+const RATE_LIMIT_WINDOW_SECONDS = 10;
+const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
+const DEFAULT_DOMAIN = "slugy.co";
+const DEFAULT_DEVICE = "desktop";
+const DEFAULT_BROWSER = "chrome";
+const DEFAULT_OS = "windows";
+
+/**
+ * Safely decodes a URI component with error handling
+ */
+function safeDecodeURIComponent(value: string | null): string {
+  if (!value) return UNKNOWN_VALUE;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /**
  * Extracts geolocation data from request headers, supporting both Vercel and Cloudflare
  */
@@ -27,20 +49,9 @@ function getGeoData(req: NextRequest) {
   const vercelContinent = headers.get("x-vercel-ip-continent");
   const vercelRegion = headers.get("x-vercel-ip-country-region");
 
-  // Safe decodeURIComponent with error handling
-  const getCity = (): string => {
-    const city = cfCity || vercelCity;
-    if (!city) return UNKNOWN_VALUE;
-    try {
-      return decodeURIComponent(city);
-    } catch {
-      return city;
-    }
-  };
-
   return {
     country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: getCity(),
+    city: safeDecodeURIComponent(cfCity || vercelCity),
     continent: (cfContinent || vercelContinent)?.toLowerCase() ?? UNKNOWN_VALUE,
     region: cfRegion || vercelRegion || UNKNOWN_VALUE,
   };
@@ -58,25 +69,57 @@ interface AnalyticsData {
   trigger: string;
 }
 
-const REDIRECT_STATUS = 302;
-const UNKNOWN_VALUE = "unknown";
-const DIRECT_REFERER = "Direct";
-const RATE_LIMIT_WINDOW_SECONDS = 10;
-const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
-
 /**
  * Escapes HTML special characters to prevent XSS
  */
 function escapeHtml(text: string | null | undefined): string {
   if (!text) return "";
-  const map: Record<string, string> = {
+  const htmlEscapes: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#039;",
   };
-  return String(text).replace(/[&<>"']/g, (m) => map[m] ?? m);
+  return String(text).replace(/[&<>"']/g, (char) => htmlEscapes[char] ?? char);
+}
+
+/**
+ * Extracts UTM parameters from a URL string
+ */
+function extractUTMParams(urlString: string) {
+  try {
+    const urlObj = new URL(urlString);
+    const params = urlObj.searchParams;
+    return {
+      utm_source: params.get("utm_source") || null,
+      utm_medium: params.get("utm_medium") || null,
+      utm_campaign: params.get("utm_campaign") || null,
+      utm_term: params.get("utm_term") || null,
+      utm_content: params.get("utm_content") || null,
+    };
+  } catch {
+    // Invalid URL, return null values
+    return {
+      utm_source: null,
+      utm_medium: null,
+      utm_campaign: null,
+      utm_term: null,
+      utm_content: null,
+    };
+  }
+}
+
+/**
+ * Creates a safe redirect, falling back to a fallback URL if the primary URL is invalid
+ */
+function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
+  try {
+    return NextResponse.redirect(new URL(url), REDIRECT_STATUS);
+  } catch (error) {
+    console.error(`Invalid redirect URL: ${url}`, error);
+    return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
+  }
 }
 
 /**
@@ -89,7 +132,7 @@ function serveLinkPreview(
   linkData: import("./get-link").GetLinkResult,
 ): NextResponse {
   const baseUrl = req.nextUrl.origin;
-  const title = linkData.title || "";
+  const title = linkData.title || "Slugy Link";
   const image = linkData.image || `${baseUrl}/logo.svg`;
   const metadesc = linkData.metadesc || "";
 
@@ -98,7 +141,7 @@ function serveLinkPreview(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${escapeHtml(title || "Slugy Link")}</title>
+  <title>${escapeHtml(title)}</title>
   <meta name="description" content="${escapeHtml(metadesc)}">
   <meta property="og:type" content="website">
   <meta property="og:title" content="${escapeHtml(title)}">
@@ -159,6 +202,15 @@ async function checkAnalyticsRateLimit(
   }
 }
 
+/**
+ * Extracts IP address from request headers
+ */
+function getIpAddress(req: NextRequest): string {
+  const xri = req.headers.get("x-real-ip");
+  const xff = req.headers.get("x-forwarded-for");
+  return xri || xff?.split(",")[0]?.trim() || UNKNOWN_VALUE;
+}
+
 async function trackAnalytics(
   req: NextRequest,
   linkId: string,
@@ -172,7 +224,6 @@ async function trackAnalytics(
     const ua = userAgent(req);
     const headers = req.headers;
     const timestamp = new Date().toISOString();
-
     const geoData = getGeoData(req);
 
     const analytics: AnalyticsData = {
@@ -180,35 +231,12 @@ async function trackAnalytics(
       country: geoData.country,
       city: geoData.city,
       continent: geoData.continent,
-      device: ua.device?.type?.toLowerCase() ?? "desktop",
-      browser: ua.browser?.name?.toLowerCase() ?? "chrome",
-      os: ua.os?.name?.toLowerCase() ?? "windows",
+      device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
+      browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
+      os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
       referer: headers.get("referer") ?? DIRECT_REFERER,
       trigger,
     };
-
-    function extractUTMParams(urlString: string) {
-      try {
-        const urlObj = new URL(urlString);
-        const params = urlObj.searchParams;
-        return {
-          utm_source: params.get("utm_source") || null,
-          utm_medium: params.get("utm_medium") || null,
-          utm_campaign: params.get("utm_campaign") || null,
-          utm_term: params.get("utm_term") || null,
-          utm_content: params.get("utm_content") || null,
-        };
-      } catch {
-        // Invalid URL, return null values
-        return {
-          utm_source: null,
-          utm_medium: null,
-          utm_campaign: null,
-          utm_term: null,
-          utm_content: null,
-        };
-      }
-    }
 
     const utmParams = extractUTMParams(url);
 
@@ -245,7 +273,7 @@ async function trackAnalytics(
           workspace_id: workspaceId,
           slug,
           url,
-          domain: domain || "slugy.co",
+          domain: domain || DEFAULT_DOMAIN,
           ip: analytics.ipAddress,
           country: analytics.country,
           city: analytics.city,
@@ -270,7 +298,7 @@ async function trackAnalytics(
           body: JSON.stringify({
             linkId,
             slug,
-            domain: domain || "slugy.co",
+            domain: domain || DEFAULT_DOMAIN,
             workspaceId,
             analyticsData: analytics,
             trigger,
@@ -315,12 +343,7 @@ export async function URLRedirects(
     }
 
     if (linkData.expired && linkData.url) {
-      try {
-        return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
-      } catch {
-        // Invalid expiration URL, redirect to origin
-        return NextResponse.redirect(new URL(`${origin}/?status=expired`), REDIRECT_STATUS);
-      }
+      return createSafeRedirect(linkData.url, `${origin}/?status=expired`);
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
@@ -336,14 +359,8 @@ export async function URLRedirects(
 
       // Only track analytics for non-bot users
       if (!isBot) {
-        // Check rate limiting before tracking analytics
-        const xff = req.headers.get("x-forwarded-for") ?? "";
-        const xri = req.headers.get("x-real-ip") ?? "";
-        const ipAddress = xri || xff.split(",")[0]?.trim() || UNKNOWN_VALUE;
-        const isRateLimited = await checkAnalyticsRateLimit(
-          ipAddress,
-          shortCode,
-        );
+        const ipAddress = getIpAddress(req);
+        const isRateLimited = await checkAnalyticsRateLimit(ipAddress, shortCode);
 
         if (!isRateLimited) {
           // Fire and forget analytics - don't await
@@ -360,22 +377,11 @@ export async function URLRedirects(
       }
 
       // Redirect to destination URL with validation
-      try {
-        const redirectUrl = new URL(linkData.url);
-        return NextResponse.redirect(redirectUrl, REDIRECT_STATUS);
-      } catch (urlError) {
-        // Invalid URL, redirect to error page
-        console.error(`Invalid redirect URL for slug "${shortCode}":`, urlError);
-        return NextResponse.redirect(new URL(`${origin}/?status=error`), REDIRECT_STATUS);
-      }
+      return createSafeRedirect(linkData.url, `${origin}/?status=error`);
     }
 
     if (linkData.url?.includes("status=not-found")) {
-      try {
-        return NextResponse.redirect(new URL(linkData.url), REDIRECT_STATUS);
-      } catch {
-        return NextResponse.redirect(new URL(`${origin}/?status=not-found`), REDIRECT_STATUS);
-      }
+      return createSafeRedirect(linkData.url, `${origin}/?status=not-found`);
     }
 
     return null;
