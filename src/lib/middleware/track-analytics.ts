@@ -7,6 +7,10 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 import { db } from "@/server/db";
+import {
+  getWorkspaceLimitsCache,
+  setWorkspaceLimitsCache,
+} from "@/lib/cache-utils/workspace-cache";
 
 const UNKNOWN_VALUE = "unknown";
 const DIRECT_REFERER = "Direct";
@@ -127,10 +131,17 @@ async function isWorkspaceClickLimitReached(
   workspaceId: string,
 ): Promise<boolean> {
   try {
+    // Try cache first for fast path
+    const cached = await getWorkspaceLimitsCache(workspaceId);
+    if (cached) {
+      return cached.clicksTracked >= cached.maxClicksLimit;
+    }
+
+    // Cache miss: fetch from DB and cache for next time
     const [workspace, usage] = await Promise.all([
       db.workspace.findUnique({
         where: { id: workspaceId },
-        select: { maxClicksLimit: true }, // TODO: use cache
+        select: { maxClicksLimit: true },
       }),
       db.usage.findFirst({
         where: { workspaceId },
@@ -140,6 +151,12 @@ async function isWorkspaceClickLimitReached(
     ]);
 
     if (!workspace?.maxClicksLimit || !usage) return false;
+
+    // Cache the result for future requests
+    void setWorkspaceLimitsCache(workspaceId, {
+      maxClicksLimit: workspace.maxClicksLimit,
+      clicksTracked: usage.clicksTracked,
+    });
 
     return usage.clicksTracked >= workspace.maxClicksLimit;
   } catch (error) {

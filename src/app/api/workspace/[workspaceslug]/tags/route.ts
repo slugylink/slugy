@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
@@ -31,8 +30,19 @@ export async function POST(
 
     const workspace = await db.workspace.findFirst({
       where: {
-        userId: session.user.id,
         slug: context.workspaceslug,
+        OR: [
+          { userId: session.user.id },
+          {
+            members: {
+              some: { userId: session.user.id },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        maxLinkTags: true,
       },
     });
 
@@ -40,15 +50,23 @@ export async function POST(
       return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
-    // Check the number of existing tags
+    // Check the number of existing tags against workspace limit
     const tagCount = await db.tag.count({
       where: {
         workspaceId: workspace.id,
+        deletedAt: null,
       },
     });
 
-    if (tagCount >= 5) {
-      return jsonWithETag(req, { error: "Maximum number of tags (5) reached for this workspace" }, { status: 400 });
+    if (workspace.maxLinkTags != null && tagCount >= workspace.maxLinkTags) {
+      return jsonWithETag(
+        req,
+        {
+          error: `Maximum number of tags (${workspace.maxLinkTags}) reached for this workspace. Upgrade to pro!`,
+          code: "TAG_LIMIT_REACHED",
+        },
+        { status: 400 },
+      );
     }
 
     const tag = await db.tag.create({
@@ -100,8 +118,18 @@ export async function GET(
     const context = await params;
     const workspace = await db.workspace.findFirst({
       where: {
-        userId: session.user.id,
         slug: context.workspaceslug,
+        OR: [
+          { userId: session.user.id },
+          {
+            members: {
+              some: { userId: session.user.id },
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
       },
     });
 

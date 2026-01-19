@@ -115,9 +115,9 @@ export default function DomainsClient({
                     {domains.length} of {maxDomains} domain
                     {maxDomains !== 1 ? "s" : ""} used
                   </p>
-                  {!canAddDomain && (
+                  {/* {!canAddDomain && (
                     <Badge variant="secondary">Limit reached</Badge>
-                  )}
+                  )} */}
                 </div>
               )}
               {/* {maxDomains === 0 && domains.length > 0 && (

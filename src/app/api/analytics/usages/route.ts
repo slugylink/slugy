@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
+import { setWorkspaceLimitsCache } from "@/lib/cache-utils/workspace-cache";
 
 // Input validation schema
 const usagesSchema = z.object({
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await db.$transaction(
+    const updatedUsage = await db.$transaction(
       async (tx) => {
         // Batch operations for better performance
         const [linkUpdate, usageUpdate] = await Promise.allSettled([
@@ -98,6 +99,7 @@ export async function POST(req: NextRequest) {
             data: {
               clicksTracked: { increment: 1 },
             },
+            select: { clicksTracked: true },
           }),
         ]);
 
@@ -118,6 +120,14 @@ export async function POST(req: NextRequest) {
         maxWait: 2000,
       },
     );
+
+    // Update cache with fresh clicksTracked value for fast subsequent checks
+    if (workspace?.maxClicksLimit != null && updatedUsage.usageUpdate.clicksTracked != null) {
+      void setWorkspaceLimitsCache(workspaceId, {
+        maxClicksLimit: workspace.maxClicksLimit,
+        clicksTracked: updatedUsage.usageUpdate.clicksTracked,
+      });
+    }
 
     const response = NextResponse.json({
       success: true,

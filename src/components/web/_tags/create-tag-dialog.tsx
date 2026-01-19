@@ -114,8 +114,19 @@ const CreateTagForm = ({
       reset();
     } catch (error: unknown) {
       if (error instanceof AxiosError && error.response) {
-        if (error.response.status === 400) {
-          toast.error("Tag name already exists.");
+        const data = error.response.data as {
+          error?: string;
+          code?: string;
+        };
+
+        if (data?.code === "TAG_LIMIT_REACHED") {
+          toast.error(
+            data.error ??
+              "Maximum number of tags reached for this workspace. Upgrade to pro.",
+          );
+        } else if (error.response.status === 400) {
+          // Fallback for validation errors like duplicate tag name
+          toast.error(data?.error ?? "Tag name already exists.");
         } else {
           toast.error(
             `Error ${initialData ? "updating" : "creating"} tag. Please try again.`,

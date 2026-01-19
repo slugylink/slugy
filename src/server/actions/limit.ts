@@ -314,7 +314,7 @@ export async function checkDomainLimit(
       canAdd,
       error: canAdd
         ? undefined
-        : `Custom domain limit reached. Upgrade to Pro for more domains.`,
+        : `Custom domain limit reached. Upgrade to Pro.`,
       currentCount: currentDomainCount,
       maxLimit: maxDomains,
     };
