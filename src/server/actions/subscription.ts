@@ -7,7 +7,19 @@ export async function getActiveSubscription(userId: string) {
   try {
     const subscription = await db.subscription.findUnique({
       where: { referenceId: userId },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        periodStart: true,
+        periodEnd: true,
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            planType: true,
+          },
+        },
+      },
     });
 
     if (!subscription) {

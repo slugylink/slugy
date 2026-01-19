@@ -61,6 +61,7 @@ import { COLOR_OPTIONS } from "@/constants/tag-colors";
 import { EditIcon } from "@/utils/icons/edit";
 import QRCodeDesign from "@/components/web/qr-code-design";
 import LinkCustomMetadata from "./link-custome-metadata";
+import { useSubscriptionStore } from "@/store/subscription";
 
 // Types
 interface LinkFormFieldsProps {
@@ -176,6 +177,13 @@ const LinkFormFields = ({
   onDraftMetadataSave,
 }: LinkFormFieldsProps) => {
   const { control, getValues, watch, setValue } = form;
+
+  const { isPro, fetchSubscription } = useSubscriptionStore();
+  const isFreePlan = !isPro;
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
 
   // State management
   const [currentCode, setCurrentCode] = useState(code);
@@ -874,13 +882,23 @@ const LinkFormFields = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      onClick={() => setMetadataDialogOpen(true)}
-                      className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                      onClick={() => {
+                        if (!isFreePlan) {
+                          setMetadataDialogOpen(true);
+                        }
+                      }}
+                      disabled={isFreePlan}
+                      className={cn(
+                        "text-muted-foreground cursor-pointer transition-colors hover:text-foreground",
+                        isFreePlan && "cursor-not-allowed opacity-60",
+                      )}
                     >
-                      <EditIcon className="h-4 w-4" />
+                      {isFreePlan ? <Lock className="h-4 w-4" /> : <EditIcon className="h-4 w-4" />}
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent>Edit Preview</TooltipContent>
+                  <TooltipContent>
+                    {isFreePlan ? "Upgrade to unlock custom preview" : "Edit Preview"}
+                  </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             )}
