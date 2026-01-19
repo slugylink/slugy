@@ -45,7 +45,7 @@ export const plans: Plan[] = [
     //limits:
     maxWorkspaces: 2,
     maxLinksPerWorkspace: 25,
-    maxClicksPerWorkspace: 1000,
+    maxClicksPerWorkspace: 1000, // 1000 clicks per month  (analytics)
     maxUsers: 1,
     maxCustomDomains: 2,
     maxBioLinks: 5,
@@ -86,7 +86,7 @@ export const plans: Plan[] = [
     //limits:
     maxWorkspaces: 5,
     maxLinksPerWorkspace: 100,
-    maxClicksPerWorkspace: 15000,
+    maxClicksPerWorkspace: 15000,  // 15000 clicks per month  (analytics)
     maxUsers: 3,
     maxCustomDomains: 10,
     maxBioLinks: 15,

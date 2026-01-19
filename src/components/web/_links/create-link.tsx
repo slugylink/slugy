@@ -26,6 +26,7 @@ import axios from "axios";
 import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
 import { useRouter } from "next/navigation";
+import { useSubscriptionStore } from "@/store/subscription";
 
 // Types
 type FormValues = z.infer<typeof linkFormSchema>;
@@ -75,6 +76,13 @@ const CreateLinkForm = React.memo(
   ({ workspaceslug }: { workspaceslug: string }) => {
     const router = useRouter();
     const nanoid = useNanoid();
+
+    const { isPro, fetchSubscription } = useSubscriptionStore();
+    const isFreePlan = !isPro;
+
+    useEffect(() => {
+      void fetchSubscription();
+    }, [fetchSubscription]);
 
     // State management
     const [open, setOpen] = useState(false);
@@ -133,6 +141,17 @@ const CreateLinkForm = React.memo(
         !urlSafetyStatus.isChecking &&
         urlSafetyStatus.isValid !== false,
       [isValid, urlSafetyStatus.isChecking, urlSafetyStatus.isValid],
+    );
+
+    // Check if free plan user is trying to use premium features
+    const hasPremiumFeatures = useMemo(
+      () => !!(linkSettings.expiresAt || linkSettings.password),
+      [linkSettings.expiresAt, linkSettings.password],
+    );
+
+    const shouldDisableSubmit = useMemo(
+      () => !isSafeToSubmit || isSubmitting || (isFreePlan && hasPremiumFeatures),
+      [isSafeToSubmit, isSubmitting, isFreePlan, hasPremiumFeatures],
     );
 
     const [currentUrl, setCurrentUrl] = useState("");
@@ -385,18 +404,20 @@ const CreateLinkForm = React.memo(
                       setExpirationUrl={(expirationUrl) =>
                         setLinkSettings((prev) => ({ ...prev, expirationUrl }))
                       }
+                      isFreePlan={isFreePlan}
                     />
                     <LinkPassword
                       password={linkSettings.password}
                       setPassword={(password) =>
                         setLinkSettings((prev) => ({ ...prev, password }))
                       }
+                      isFreePlan={isFreePlan}
                     />
                   </div>
                   <Button
                     type="submit"
                     className="flex w-full items-center gap-x-2 sm:w-auto"
-                    disabled={!isSafeToSubmit || isSubmitting}
+                    disabled={shouldDisableSubmit}
                   >
                     {submitButtonContent}
                   </Button>

@@ -18,6 +18,11 @@ type WorkspaceWithRoleCacheType = {
 
 type WorkspacesListCacheType = WorkspaceWithRoleCacheType[] | null;
 
+type WorkspaceLimitsCacheType = {
+  maxClicksLimit: number;
+  clicksTracked: number;
+} | null;
+
 // Type guards
 function isWorkspaceCacheType(obj: unknown): obj is WorkspaceCacheType {
   return (
@@ -44,6 +49,15 @@ function isWorkspaceWithRoleCacheType(obj: unknown): obj is WorkspaceWithRoleCac
 
 function isWorkspacesListCacheType(obj: unknown): obj is WorkspacesListCacheType {
   return Array.isArray(obj) && obj.every(isWorkspaceWithRoleCacheType);
+}
+
+function isWorkspaceLimitsCacheType(obj: unknown): obj is WorkspaceLimitsCacheType {
+  return (
+    !!obj &&
+    typeof obj === "object" &&
+    typeof (obj as { maxClicksLimit?: unknown }).maxClicksLimit === "number" &&
+    typeof (obj as { clicksTracked?: unknown }).clicksTracked === "number"
+  );
 }
 
 // Get default workspace cache - OPTIMIZED FOR SPEED
@@ -187,5 +201,49 @@ export async function invalidateWorkspaceBySlug(userId: string, slug: string): P
     await redis.del(cacheKey);
   } catch (error) {
     console.error(`Failed to invalidate workspace cache for ${userId}:${slug}:`, error);
+  }
+}
+
+// Get workspace limits cache (for fast click limit checks)
+export async function getWorkspaceLimitsCache(
+  workspaceId: string,
+): Promise<WorkspaceLimitsCacheType> {
+  const cacheKey = `workspace:limits:${workspaceId}`;
+  try {
+    const cached = await redis.get(cacheKey);
+    if (!cached) return null;
+
+    const parsed =
+      typeof cached === "string" ? JSON.parse(cached) : cached;
+    if (isWorkspaceLimitsCacheType(parsed)) return parsed;
+  } catch {}
+  return null;
+}
+
+// Set workspace limits cache
+export async function setWorkspaceLimitsCache(
+  workspaceId: string,
+  data: WorkspaceLimitsCacheType,
+): Promise<void> {
+  const cacheKey = `workspace:limits:${workspaceId}`;
+  try {
+    await redis.set(cacheKey, JSON.stringify(data), {
+      ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,
+    });
+  } catch {}
+}
+
+// Invalidate workspace limits cache (when limits or usage changes)
+export async function invalidateWorkspaceLimitsCache(
+  workspaceId: string,
+): Promise<void> {
+  const cacheKey = `workspace:limits:${workspaceId}`;
+  try {
+    await redis.del(cacheKey);
+  } catch (error) {
+    console.error(
+      `Failed to invalidate workspace limits cache for ${workspaceId}:`,
+      error,
+    );
   }
 }

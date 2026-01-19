@@ -8,7 +8,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ClockFading } from "lucide-react";
+import { ClockFading, Lock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import React, { useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ interface LinkExpirationProps {
   expirationUrl: string | null;
   setExpirationUrl: (expirationUrl: string | null) => void;
   handleExpirationSave?: (expiration: string | null) => void;
+  disabled?: boolean;
+  isFreePlan?: boolean;
 }
 
 export default function LinkExpiration({
@@ -28,6 +30,8 @@ export default function LinkExpiration({
   expirationUrl,
   setExpirationUrl,
   handleExpirationSave,
+  disabled = false,
+  isFreePlan = false,
 }: LinkExpirationProps) {
   const [open, setOpen] = useState(false);
   const [localExpiration, setLocalExpiration] = useState<string>(
@@ -66,11 +70,27 @@ export default function LinkExpiration({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="text-xs" type="button" variant="outline" size="sm">
-          <ClockFading
-            className={cn("p-[1px] font-medium", expiration && "text-blue-500")}
-            size={8}
-          />
+        <Button
+          className={cn(
+            "text-xs",
+            disabled && "cursor-not-allowed opacity-60",
+          )}
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled}
+        >
+          {disabled ? (
+            <Lock className="p-[1px] font-medium" size={8} />
+          ) : (
+            <ClockFading
+              className={cn(
+                "p-[1px] font-medium",
+                expiration && "text-blue-500",
+              )}
+              size={8}
+            />
+          )}
           Expiration
         </Button>
       </DialogTrigger>
@@ -115,7 +135,10 @@ export default function LinkExpiration({
             >
               Cancel
             </Button>
-            <Button type="button" onClick={onSave}>
+            <Button type="button" onClick={onSave} disabled={isFreePlan}>
+              {isFreePlan && (
+                <Lock className="mr-1 h-3 w-3" />
+              )}
               Save
             </Button>
           </div>

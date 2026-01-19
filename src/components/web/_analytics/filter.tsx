@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -27,6 +27,7 @@ import UrlAvatar from "@/components/web/url-avatar";
 import CountryFlag from "./country-flag";
 import FilterSelectedButtons from "./filter-selected-buttons";
 import { useQueryState, parseAsString, parseAsArrayOf } from "nuqs";
+import { useSubscriptionStore } from "@/store/subscription";
 
 interface BaseOption {
   clicks?: number;
@@ -215,11 +216,13 @@ const FilterOptionItem = ({
 interface TimePeriodSelectorProps {
   timePeriod: string;
   onTimePeriodChange: (value: string) => void;
+  isPro: boolean;
 }
 
 const TimePeriodSelector = ({
   timePeriod,
-  onTimePeriodChange
+  onTimePeriodChange,
+  isPro,
 }: TimePeriodSelectorProps) => (
   <Select value={timePeriod} onValueChange={onTimePeriodChange}>
     <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300">
@@ -242,22 +245,34 @@ const TimePeriodSelector = ({
         </SelectItem>
       </div>
       <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '90ms', animationFillMode: 'both' }}>
-        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="3m" disabled>
-          Last 3 months
-          <Lock
-            size={10}
-            className="text-muted-foreground absolute right-2 h-2.5 w-2"
-          />
-        </SelectItem>
+        {isPro ? (
+          <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="3m">
+            Last 3 months
+          </SelectItem>
+        ) : (
+          <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="3m" disabled>
+            Last 3 months
+            <Lock
+              size={10}
+              className="text-muted-foreground absolute right-2 h-2.5 w-2"
+            />
+          </SelectItem>
+        )}
       </div>
       <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
-        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="12m" disabled>
-          Last 12 months
-          <Lock
-            size={10}
-            className="text-muted-foreground absolute right-2 h-2.5 w-2"
-          />
-        </SelectItem>
+        {isPro ? (
+          <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="12m">
+            Last 12 months
+          </SelectItem>
+        ) : (
+          <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="12m" disabled>
+            Last 12 months
+            <Lock
+              size={10}
+              className="text-muted-foreground absolute right-2 h-2.5 w-2"
+            />
+          </SelectItem>
+        )}
       </div>
       <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
         <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="all" disabled>
@@ -449,6 +464,12 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
 };
 
 const FilterActions = ({ filterCategories }: FilterActionsProps) => {
+  const { isPro, fetchSubscription } = useSubscriptionStore();
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
+
   const [timePeriod, setTimePeriod] = useQueryState(
     "time_period",
     parseAsString.withDefault("24h"),
@@ -506,6 +527,8 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
   };
 
   const handleTimePeriodChange = (newTimePeriod: string) => {
+    const longRangeValues = ["3m", "12m", "all"];
+    if (!isPro && longRangeValues.includes(newTimePeriod)) return;
     void setTimePeriod(newTimePeriod);
   };
 
@@ -808,6 +831,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
         <TimePeriodSelector
           timePeriod={timePeriod}
           onTimePeriodChange={handleTimePeriodChange}
+          isPro={isPro}
         />
       </div>
 
