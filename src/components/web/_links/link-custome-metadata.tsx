@@ -19,6 +19,15 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { Upload, Link2 } from "lucide-react";
 import { Loader2 } from "@/utils/icons/loader2";
 
+type MetadataApiResponse = {
+  success: boolean;
+  data?: {
+    title?: string;
+    description?: string;
+    image?: string | null;
+  };
+};
+
 interface LinkCustomMetadataProps {
   // Server mode props
   linkId?: string;
@@ -62,19 +71,21 @@ export default function LinkCustomMetadata({
   persistMode = "server",
 }: LinkCustomMetadataProps) {
   // Fetch default metadata immediately (uses SWR cache if available)
-  const { data: defaultMetadata } = useSWR(
+  const { data: defaultMetadata } = useSWR<MetadataApiResponse>(
     linkUrl ? `/api/metadata?url=${encodeURIComponent(linkUrl)}` : null,
     { revalidateOnFocus: false, dedupingInterval: 60000 },
   );
 
+  const resolvedDefaults = defaultMetadata?.data ?? {};
+
   const [image, setImage] = useState(
-    currentImage || defaultMetadata?.image || "",
+    currentImage || resolvedDefaults.image || "",
   );
   const [title, setTitle] = useState(
-    currentTitle || defaultMetadata?.title || "",
+    currentTitle || resolvedDefaults.title || "",
   );
   const [metadesc, setMetadesc] = useState(
-    currentDescription || defaultMetadata?.description || "",
+    currentDescription || resolvedDefaults.description || "",
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -86,24 +97,31 @@ export default function LinkCustomMetadata({
   useEffect(() => {
     if (open) {
       // Reset state to current values, fallback to defaults
-      setImage(currentImage || defaultMetadata?.image || "");
-      setTitle(currentTitle || defaultMetadata?.title || "");
-      setMetadesc(currentDescription || defaultMetadata?.description || "");
+      setImage(currentImage || resolvedDefaults.image || "");
+      setTitle(currentTitle || resolvedDefaults.title || "");
+      setMetadesc(currentDescription || resolvedDefaults.description || "");
       setSelectedFile(null);
       setImagePreview("");
     }
-  }, [open, currentImage, currentTitle, currentDescription, defaultMetadata]);
+  }, [
+    open,
+    currentImage,
+    currentTitle,
+    currentDescription,
+    resolvedDefaults.image,
+    resolvedDefaults.title,
+    resolvedDefaults.description,
+  ]);
 
   const resetToDefaults = useCallback(async () => {
     try {
-      const response = await axios.get(
+      const response = await axios.get<MetadataApiResponse>(
         `/api/metadata?url=${encodeURIComponent(linkUrl)}`,
       );
-      const metadata = response.data;
-
-      setImage(metadata.image || "");
-      setTitle(metadata.title || "");
-      setMetadesc(metadata.description || "");
+      const metadata = response.data?.data;
+      setImage(metadata?.image || "");
+      setTitle(metadata?.title || "");
+      setMetadesc(metadata?.description || "");
       setSelectedFile(null);
       setImagePreview("");
       toast.success("Reset to default metadata");

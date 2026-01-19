@@ -5,6 +5,11 @@ import { Loader2 } from "@/utils/icons/loader2";
 import { Link2Off } from "lucide-react";
 import useSWR from "swr";
 
+type MetadataResponse = {
+  success: boolean;
+  data: Metadata;
+};
+
 interface Metadata {
   title: string;
   description: string;
@@ -30,12 +35,18 @@ export default function LinkPreview({
 }: LinkPreviewProps) {
   const shouldFetch = url && url.trim() !== "";
 
+  const fetcher = (endpoint: string) =>
+    fetch(endpoint)
+      .then((res) => res.json() as Promise<MetadataResponse>)
+      .then((res) => res.data);
+
   const {
     data: metadata,
     error,
     isLoading,
   } = useSWR<Metadata, Error>(
     shouldFetch ? `/api/metadata?url=${encodeURIComponent(url)}` : null,
+    fetcher,
     {
       revalidateOnFocus: false,
       dedupingInterval: 60000, // Cache for 1 minute
@@ -74,7 +85,7 @@ export default function LinkPreview({
       return (
         <>
           <div className="flex aspect-video items-center justify-center rounded-t-lg">
-            <Link2Off className="text-muted-foreground h-5 w-5" />
+            <Link2Off size={14} className="text-muted-foreground h-4 w-4" />
           </div>
           <div className="space-y-1 border-t bg-zinc-50 p-2 dark:bg-zinc-900">
             <h2 className="line-clamp-1 text-xs font-semibold">
@@ -128,7 +139,7 @@ export default function LinkPreview({
             </span>
           )}
         </div>
-        <div className="space-y-1 bg-zinc-50 p-2 dark:bg-zinc-900">
+        <div className="space-y-1 bg-zinc-50 p-2 dark:bg-zinc-900 border-t">
           <h2 className="line-clamp-1 text-xs font-semibold">
             {displayMetadata.title || "No title available"}
           </h2>

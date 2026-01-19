@@ -42,9 +42,9 @@
 │     File: src/app/api/webhook/polar/route.ts                    │
 │                                                                  │
 │     Events received (in order):                                 │
-│     a) order.created      → Links customerId to user            │
+│     a) order.created        → Links customerId to user            │
 │     b) subscription.created → Creates subscription in DB         │
-│     c) subscription.active → Activates subscription              │
+│     c) subscription.active  → Activates subscription              │
 └─────────────────────────────────────────────────────────────────┘
                               │
                               ▼

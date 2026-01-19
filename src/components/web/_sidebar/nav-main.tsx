@@ -148,9 +148,9 @@ const NavItemComponent = memo<{
     >
       <SidebarMenuItem>
         {item.url ? (
-          <Link 
-            href={item.url} 
-            prefetch={item.url === "/" || item.url.includes("/analytics")}
+          <Link
+            href={item.url}
+            prefetch={item.url === "/" || item.url.includes("/analytics") || item.url.includes("/bio-links")}
             onClick={onNavItemClick}
           >
             <SidebarMenuButton
@@ -243,7 +243,7 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
         ?.filter((sub) => {
           const allowedRoles =
             NAV_ACCESS_CONTROL.restrictedSubItems[
-              sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
+            sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
             ];
           return allowedRoles ? hasAccess(userRole, allowedRoles) : true;
         })

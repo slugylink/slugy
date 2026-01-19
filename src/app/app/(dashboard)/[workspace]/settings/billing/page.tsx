@@ -1,18 +1,13 @@
-
 import Link from "next/link";
 import { ArrowUpRight, Globe, Link2, Tag, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 import type { LucideIcon } from "lucide-react";
 import { getBillingData } from "@/server/actions/subscription";
+import { getUsages } from "@/server/actions/usages/get-usages";
 import { redirect } from "next/navigation";
 
 type UsageMetric = {
@@ -30,11 +25,9 @@ export default async function Billing({
 }) {
   const { workspace } = await params;
 
-  const [result, usageResponse] = await Promise.all([
+  const [result, usageData] = await Promise.all([
     getBillingData(workspace),
-    fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/workspace/${workspace}/usages`, {
-      cache: "no-store",
-    }),
+    getUsages({ workspaceslug: workspace }),
   ]);
 
   if (!result.success || !result.data) {
@@ -43,18 +36,16 @@ export default async function Billing({
 
   const { plan, usage, limits } = result.data;
 
-  let usageData: { workspace: unknown; usage: { periodStart: Date; periodEnd: Date } | null } | null = null;
-  if (usageResponse.ok) {
-    usageData = await usageResponse.json();
-  }
-
   const billingCycle = usageData?.usage
     ? {
-        start: new Date(usageData.usage.periodStart).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
+        start: new Date(usageData.usage.periodStart).toLocaleDateString(
+          "en-US",
+          {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          },
+        ),
         end: new Date(usageData.usage.periodEnd).toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -95,13 +86,16 @@ export default async function Billing({
   return (
     <div className="space-y-8">
       <Card className="border-border/60">
-        <CardHeader className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between px-0">
+        <CardHeader className="flex flex-col gap-6 px-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div>
               <CardTitle className="text-xl">{plan.name} Plan</CardTitle>
             </div>
-            <p className="text-sm text-muted-foreground">
-              <span className="font-medium text-primary">Current billing cycle:</span> {billingCycle.start} - {billingCycle.end}
+            <p className="text-muted-foreground text-sm">
+              <span className="text-primary font-medium">
+                Current billing cycle:
+              </span>{" "}
+              {billingCycle.start} - {billingCycle.end}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
@@ -119,7 +113,7 @@ export default async function Billing({
 
       <div className="">
         <Card className="">
-          <CardContent className="grid sm:grid-cols-2 lg:grid-cols-4 border-y border-r px-0">
+          <CardContent className="grid border-y border-r px-0 sm:grid-cols-2 lg:grid-cols-4">
             {usageMetrics.map((metric) => {
               const Icon = metric.icon;
               const limitLabel =
@@ -134,22 +128,18 @@ export default async function Billing({
                   : undefined;
 
               return (
-                <div
-                  key={metric.label}
-                  className="border-l p-4"
-                >
+                <div key={metric.label} className="border-l p-4">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2 font-medium">
-                      <span >
+                      <span>
                         <Icon className="size-4" />
                       </span>
                       {metric.label}
                     </div>
-                    
                   </div>
-                  <div className="text-muted-foreground text-sm mt-4">
-                      {`${metric.used} / ${limitLabel}`}
-                    </div>
+                  <div className="text-muted-foreground mt-4 text-sm">
+                    {`${metric.used} / ${limitLabel}`}
+                  </div>
                   {progress !== undefined && (
                     <Progress value={progress} className="mt-2.5 h-1" />
                   )}

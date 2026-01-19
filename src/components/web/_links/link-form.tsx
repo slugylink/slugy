@@ -581,7 +581,7 @@ const LinkFormFields = ({
                   }}
                 />
               </FormControl>
-              <FormMessage />
+              {/* <FormMessage /> */}
               {!urlValidation.isValid && urlValidation.message && (
                 <div className="flex items-center gap-1 text-sm text-red-600">
                   <span>{urlValidation.message}</span>

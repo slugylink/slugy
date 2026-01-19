@@ -7,6 +7,14 @@ export async function checkWorkspaceAccessAndLimits(
   userId: string,
   workspaceslug: string,
 ) {
+  const workspaceSelect = {
+    id: true,
+    name: true,
+    slug: true,
+    _count: { select: { links: true } },
+    usages: { select: { linksCreated: true } },
+  };
+
   try {
     // Get user's subscription with plan details
     const subscriptionResult = await getSubscriptionWithPlan(userId);
@@ -32,16 +40,7 @@ export async function checkWorkspaceAccessAndLimits(
         slug: workspaceslug,
         userId, // Check ownership first (uses userId index)
       },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        _count: {
-          select: {
-            links: true,
-          },
-        },
-      },
+      select: workspaceSelect,
     });
 
     // If not owner, check if user is a member
@@ -53,16 +52,7 @@ export async function checkWorkspaceAccessAndLimits(
             some: { userId }, // Uses members.userId index
           },
         },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          _count: {
-            select: {
-              links: true,
-            },
-          },
-        },
+        select: workspaceSelect,
       });
     }
 
@@ -77,7 +67,8 @@ export async function checkWorkspaceAccessAndLimits(
       };
     }
 
-    const currentLinks = workspace._count.links;
+    const currentLinks =
+      workspace.usages?.[0]?.linksCreated ?? workspace._count.links;
     const canCreateLinks = currentLinks < maxLinks;
 
     return {
