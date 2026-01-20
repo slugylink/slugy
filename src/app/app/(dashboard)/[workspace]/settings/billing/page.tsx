@@ -89,11 +89,11 @@ export default async function Billing({
         <CardHeader className="flex flex-col gap-6 px-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div>
-              <CardTitle className="text-xl">{plan.name} Plan</CardTitle>
+              <CardTitle className="text-md">{plan.name} Plan</CardTitle>
             </div>
             <p className="text-muted-foreground text-sm">
-              <span className="text-primary font-medium">
-                Current billing cycle:
+              <span className="text-muted font-medium">
+                Billing cycle:
               </span>{" "}
               {billingCycle.start} - {billingCycle.end}
             </p>

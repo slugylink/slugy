@@ -125,6 +125,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
     const hostname = normalizeHostname(req.headers.get("host"));
 
+    // Allow webhook subdomain to pass through untouched during local development
+    if (!IS_PRODUCTION && hostname === SUBDOMAINS.webhook) {
+      return NextResponse.next();
+    }
+
     if (pathname.startsWith("/api/")) {
       const clientIP = getClientIP(req);
       const isFastUser = isFastApiRoute(pathname);
