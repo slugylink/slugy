@@ -26,7 +26,7 @@ export const GET = tokenValidation.valid
   ? CustomerPortal({
       accessToken: process.env.POLAR_ACCESS_TOKEN!,
       returnUrl: getReturnUrl(),
-      server: process.env.NODE_ENV === "production" ? "production" : "sandbox",
+      server: (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox",
       // Get customer ID from authenticated user
       getCustomerId: async () => {
         try {

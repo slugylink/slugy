@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, Globe, Link2, Tag, Users } from "lucide-react";
+import { ArrowUpRight, Globe, Link2, Tag, Users, AlertCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 import type { LucideIcon } from "lucide-react";
 import { getBillingData } from "@/server/actions/subscription";
@@ -34,28 +35,17 @@ export default async function Billing({
     redirect("/app");
   }
 
-  const { plan, usage, limits } = result.data;
+  const { plan, usage, limits, billingCycle, subscription } = result.data;
 
-  const billingCycle = usageData?.usage
-    ? {
-        start: new Date(usageData.usage.periodStart).toLocaleDateString(
-          "en-US",
-          {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          },
-        ),
-        end: new Date(usageData.usage.periodEnd).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
-      }
-    : {
-        start: "N/A",
-        end: "N/A",
-      };
+  // Use subscription billing cycle from result.data (from Polar subscription)
+  // This shows the actual subscription period, not workspace usage tracking period
+  console.log("[Billing Page] Billing cycle from subscription:", billingCycle);
+
+  // Check if user has a paid subscription (not free plan)
+  const isPaidPlan = plan.planType && plan.planType.toLowerCase() !== "free";
+  
+  // Check if subscription is canceled but still active (grace period)
+  const isCanceledButActive = subscription?.cancelAtPeriodEnd === true;
 
   const usageMetrics: UsageMetric[] = [
     {
@@ -85,28 +75,58 @@ export default async function Billing({
   ];
   return (
     <div className="space-y-8">
+      {isCanceledButActive && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Your subscription has been canceled and will end on{" "}
+            <strong>{billingCycle.end}</strong>. You'll continue to have access to{" "}
+            {plan.name} features until then, after which you'll be moved to the Free plan.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Card className="border-border/60">
         <CardHeader className="flex flex-col gap-6 px-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
             <div>
-              <CardTitle className="text-md">{plan.name} Plan</CardTitle>
+              <CardTitle className="text-md">
+                {plan.name} Plan
+                {isCanceledButActive && (
+                  <span className="ml-2 text-sm font-normal text-destructive">
+                    (Canceling)
+                  </span>
+                )}
+              </CardTitle>
             </div>
             <p className="text-muted-foreground text-sm">
-              <span className="text-muted font-medium">
+              <span className=" font-medium">
                 Billing cycle:
               </span>{" "}
               {billingCycle.start} - {billingCycle.end}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="billing/upgrade">
-                Upgrade <ArrowUpRight className="ml-2 size-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg">
-              View invoices
-            </Button>
+            {isPaidPlan ? (
+              <>
+                <Button asChild size="lg">
+                  <Link href="/api/subscription/manage">
+                    Manage Subscription
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="billing/upgrade">
+                    Change Plan <ArrowUpRight className="ml-2 size-4" />
+                  </Link>
+                </Button>
+              </>
+            ) : (
+              <Button asChild size="lg">
+                <Link href="billing/upgrade">
+                  Upgrade <ArrowUpRight className="ml-2 size-4" />
+                </Link>
+              </Button>
+            )}
           </div>
         </CardHeader>
       </Card>

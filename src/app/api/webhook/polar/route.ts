@@ -1,5 +1,6 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { db } from "@/server/db";
+import { syncUserLimits, revalidateSubscriptionCache } from "@/lib/subscription/limits-sync";
 
 // Polar webhook handler - processes subscription events from Polar payment provider
 export const POST = Webhooks({
@@ -8,6 +9,7 @@ export const POST = Webhooks({
   // When a new order is created, link the customer ID to the user account
   onOrderCreated: async (payload) => {
     const order = payload.data as any;
+    console.log("[Polar webhook] onOrderCreated event:", payload?.type, order);
     console.log("[Polar] Order created:", order.id);
 
     try {
@@ -37,6 +39,11 @@ export const POST = Webhooks({
   // When a new subscription is created, create/update subscription record in database
   onSubscriptionCreated: async (payload) => {
     const subscription = payload.data as any;
+    console.log(
+      "[Polar webhook] onSubscriptionCreated event:",
+      payload?.type,
+      subscription,
+    );
     console.log("[Polar] Subscription created:", subscription.id);
 
     try {
@@ -146,6 +153,12 @@ export const POST = Webhooks({
         });
       }
 
+      // Sync workspace and bio limits based on new plan
+      await syncUserLimits(userId, plan.planType);
+
+      // Revalidate subscription cache
+      await revalidateSubscriptionCache();
+
       console.log("[Polar] Subscription created successfully");
     } catch (error) {
       console.error("[Polar] Subscription creation failed:", error);
@@ -156,6 +169,11 @@ export const POST = Webhooks({
   // When subscription details change (status, billing period, etc.)
   onSubscriptionUpdated: async (payload) => {
     const subscription = payload.data as any;
+    console.log(
+      "[Polar webhook] onSubscriptionUpdated event:",
+      payload?.type,
+      subscription,
+    );
     console.log("[Polar] Subscription updated:", subscription.id);
 
     try {
@@ -200,6 +218,14 @@ export const POST = Webhooks({
         false;
       const status = subscription.status;
 
+      // Log extracted dates for debugging
+      console.log("[Polar] Extracted subscription details:", {
+        periodStart,
+        periodEnd,
+        status,
+        cancelAtPeriodEnd,
+      });
+
       // Handle cancellation/revocation: downgrade user to free plan
       if (status === "canceled" || status === "revoked") {
         const freePlan = await db.plan.findFirst({
@@ -207,10 +233,10 @@ export const POST = Webhooks({
         });
 
         if (freePlan) {
-          // Set free plan period to 20 years (effectively unlimited for free tier)
+          // Set free plan period to 1 month (monthly billing cycle)
           const currentPeriodStart = new Date();
           const currentPeriodEnd = new Date(currentPeriodStart);
-          currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
+          currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
           const daysWithService = Math.ceil(
             (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
               (1000 * 60 * 60 * 24),
@@ -229,30 +255,91 @@ export const POST = Webhooks({
               cancelAtPeriodEnd: false,
               periodStart: currentPeriodStart,
               periodEnd: currentPeriodEnd,
+              billingInterval: "month", // Free plan always has monthly billing
               daysWithService,
               priceId: null, // Clear priceId since free plan doesn't have one
             },
           });
 
+          // Downgrade user limits to free tier
+          await syncUserLimits(existingSubscription.referenceId, "free");
+
+          // Revalidate subscription cache
+          await revalidateSubscriptionCache();
+
           console.log(
-            "[Polar] Subscription updated to canceled/revoked and user set to free tier",
+            "[Polar] Subscription updated to canceled/revoked and user set to free tier (1-month period)",
           );
           return;
         }
       }
 
+      // Check if plan changed (upgrade/downgrade)
+      const priceId =
+        subscription.prices?.[0]?.id ||
+        subscription.product?.prices?.[0]?.id ||
+        subscription.priceId;
+
+      let updatedPlan = null;
+      if (priceId && priceId !== existingSubscription.priceId) {
+        // Find new plan by price ID
+        updatedPlan = await db.plan.findFirst({
+          where: {
+            OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
+          },
+        });
+
+        // Fallback: search with whitespace trim
+        if (!updatedPlan) {
+          const allPlans = await db.plan.findMany({
+            where: {
+              OR: [
+                { monthlyPriceId: { not: null } },
+                { yearlyPriceId: { not: null } },
+              ],
+            },
+          });
+          updatedPlan =
+            allPlans.find(
+              (p) =>
+                p.monthlyPriceId?.trim() === priceId.trim() ||
+                p.yearlyPriceId?.trim() === priceId.trim(),
+            ) || null;
+        }
+      }
+
+      // Build update data object - only include dates if they're valid
+      const updateData: any = {
+        ...(updatedPlan && { planId: updatedPlan.id, priceId }),
+        status,
+        cancelAtPeriodEnd,
+      };
+
+      // Only update period dates if they're provided and valid
+      if (periodStart) {
+        updateData.periodStart = new Date(periodStart);
+        console.log("[Polar] Updating periodStart:", updateData.periodStart);
+      }
+      if (periodEnd) {
+        updateData.periodEnd = new Date(periodEnd);
+        console.log("[Polar] Updating periodEnd:", updateData.periodEnd);
+      }
+
       // Update subscription with new period dates and status
       await db.subscription.update({
         where: { id: existingSubscription.id },
-        data: {
-          status,
-          periodStart: new Date(periodStart),
-          periodEnd: new Date(periodEnd),
-          cancelAtPeriodEnd,
-        },
+        data: updateData,
       });
 
-      console.log("[Polar] Subscription updated successfully");
+      // If plan changed, sync limits
+      if (updatedPlan) {
+        await syncUserLimits(existingSubscription.referenceId, updatedPlan.planType);
+      }
+
+      // Revalidate subscription cache
+      await revalidateSubscriptionCache();
+
+      console.log("[Polar] Subscription updated successfully with data:", updateData);
     } catch (error) {
       console.error("[Polar] Subscription update failed:", error);
       throw error;
@@ -262,6 +349,11 @@ export const POST = Webhooks({
   // When subscription becomes active (payment successful, trial started, etc.)
   onSubscriptionActive: async (payload) => {
     const subscription = payload.data as any;
+    console.log(
+      "[Polar webhook] onSubscriptionActive event:",
+      payload?.type,
+      subscription,
+    );
     console.log("[Polar] Subscription activated:", subscription.id);
 
     try {
@@ -354,6 +446,12 @@ export const POST = Webhooks({
           },
         });
 
+        // Sync workspace and bio limits based on new plan
+        await syncUserLimits(userId, plan.planType);
+
+        // Revalidate subscription cache
+        await revalidateSubscriptionCache();
+
         console.log("[Polar] Subscription created from active event");
       } else {
         // Subscription exists - just update status and period dates
@@ -362,16 +460,29 @@ export const POST = Webhooks({
         const periodEnd =
           subscription.currentPeriodEnd || subscription.current_period_end;
 
+        console.log("[Polar] Activating subscription with dates:", { periodStart, periodEnd });
+
+        // Build update data - only include dates if they're valid
+        const updateData: any = {
+          status: "active",
+        };
+
+        if (periodStart) {
+          updateData.periodStart = new Date(periodStart);
+        }
+        if (periodEnd) {
+          updateData.periodEnd = new Date(periodEnd);
+        }
+
         await db.subscription.update({
           where: { id: existingSubscription.id },
-          data: {
-            status: "active",
-            periodStart: new Date(periodStart),
-            periodEnd: new Date(periodEnd),
-          },
+          data: updateData,
         });
 
-        console.log("[Polar] Subscription activated successfully");
+        // Revalidate subscription cache
+        await revalidateSubscriptionCache();
+
+        console.log("[Polar] Subscription activated successfully with data:", updateData);
       }
     } catch (error) {
       console.error("[Polar] Subscription activation failed:", error);
@@ -379,9 +490,14 @@ export const POST = Webhooks({
     }
   },
 
-  // When subscription is canceled by user - downgrade to free plan
+  // When subscription is canceled by user - keep access until period ends
   onSubscriptionCanceled: async (payload) => {
     const subscription = payload.data as any;
+    console.log(
+      "[Polar webhook] onSubscriptionCanceled event:",
+      payload?.type,
+      subscription,
+    );
     console.log("[Polar] Subscription canceled:", subscription.id);
 
     try {
@@ -397,50 +513,28 @@ export const POST = Webhooks({
 
       const canceledAt = subscription.canceledAt || subscription.canceled_at;
 
-      // Find free plan to downgrade user to free tier
-      const freePlan = await db.plan.findFirst({
-        where: { planType: "free" },
-      });
-
-      if (!freePlan) {
-        console.error("[Polar] Free plan not found");
-        // Still update subscription status even if free plan not found
-        await db.subscription.update({
-          where: { id: existingSubscription.id },
-          data: {
-            status: "canceled",
-            canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
-            cancelAtPeriodEnd: true,
-          },
-        });
-        return;
-      }
-
-      // Set free plan period to 20 years (unlimited for free tier)
-      const currentPeriodStart = new Date();
-      const currentPeriodEnd = new Date(currentPeriodStart);
-      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
-      const daysWithService = Math.ceil(
-        (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-          (1000 * 60 * 60 * 24),
-      );
-
-      // Update subscription to free plan
+      // IMPORTANT: User keeps Pro access until period ends
+      // Mark subscription for cancellation at period end (don't downgrade immediately)
       await db.subscription.update({
         where: { id: existingSubscription.id },
         data: {
-          status: "active",
-          planId: freePlan.id,
+          status: "active", // Keep active status until period ends
           canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
-          cancelAtPeriodEnd: false,
-          periodStart: currentPeriodStart,
-          periodEnd: currentPeriodEnd,
-          daysWithService,
-          priceId: null, // Clear priceId since free plan doesn't have one
+          cancelAtPeriodEnd: true, // Mark for cancellation at period end
         },
       });
 
-      console.log("[Polar] Subscription canceled and user set to free tier");
+      // DON'T downgrade limits yet - user paid for full period
+      // DON'T change plan yet - user keeps Pro until period ends
+      // The subscription-renewal cron job will handle downgrade when period ends
+
+      // Revalidate subscription cache
+      await revalidateSubscriptionCache();
+
+      console.log(
+        "[Polar] Subscription marked for cancellation at period end - user keeps Pro access until:",
+        existingSubscription.periodEnd
+      );
     } catch (error) {
       console.error("[Polar] Subscription cancellation failed:", error);
       throw error;
@@ -450,6 +544,11 @@ export const POST = Webhooks({
   // When subscription is revoked (payment failed, fraud, etc.) - downgrade to free plan
   onSubscriptionRevoked: async (payload) => {
     const subscription = payload.data as any;
+    console.log(
+      "[Polar webhook] onSubscriptionRevoked event:",
+      payload?.type,
+      subscription,
+    );
     console.log("[Polar] Subscription revoked:", subscription.id);
 
     try {
@@ -481,10 +580,10 @@ export const POST = Webhooks({
         return;
       }
 
-      // Set free plan period to 20 years (unlimited for free tier)
+      // Set free plan period to 1 month (monthly billing cycle)
       const currentPeriodStart = new Date();
       const currentPeriodEnd = new Date(currentPeriodStart);
-      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 20);
+      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
       const daysWithService = Math.ceil(
         (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
           (1000 * 60 * 60 * 24),
@@ -500,12 +599,19 @@ export const POST = Webhooks({
           cancelAtPeriodEnd: false,
           periodStart: currentPeriodStart,
           periodEnd: currentPeriodEnd,
+          billingInterval: "month", // Free plan always has monthly billing
           daysWithService,
           priceId: null, // Clear priceId since free plan doesn't have one
         },
       });
 
-      console.log("[Polar] Subscription revoked and user set to free tier");
+      // Downgrade user limits to free tier
+      await syncUserLimits(existingSubscription.referenceId, "free");
+
+      // Revalidate subscription cache
+      await revalidateSubscriptionCache();
+
+      console.log("[Polar] Subscription revoked and user set to free tier (1-month period)");
     } catch (error) {
       console.error("[Polar] Subscription revocation failed:", error);
       throw error;
