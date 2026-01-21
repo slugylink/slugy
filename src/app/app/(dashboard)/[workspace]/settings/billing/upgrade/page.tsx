@@ -1,10 +1,5 @@
 import PricingComparator from "@/components/pricing-comparator";
-import { Polar } from "@polar-sh/sdk";
-
-const polar = new Polar({
-  accessToken: process.env.POLAR_ACCESS_TOKEN!,
-  server: (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox",
-});
+import { polarClient } from "@/lib/polar";
 
 type PriceInterval = "month" | "year" | null;
 
@@ -52,7 +47,7 @@ function transformPrice(price: unknown): TransformedPrice {
 }
 
 export default async function Upgrade() {
-  const response = await polar.products.list({ isArchived: false });
+  const response = await polarClient.products.list({ isArchived: false });
   const items = response?.result?.items ?? [];
 
   const productData: TransformedProduct[] = items.map((product) => ({

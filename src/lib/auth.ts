@@ -11,10 +11,17 @@ import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { origins } from "@/constants/origins";
 
-const polarClient = new Polar({
-  accessToken: process.env.POLAR_ACCESS_TOKEN!,
-  server: "sandbox",
-});
+let _polarClientAuth: Polar | null = null;
+
+const getPolarClient = () => {
+  if (!_polarClientAuth) {
+    _polarClientAuth = new Polar({
+      accessToken: process.env.POLAR_ACCESS_TOKEN || "",
+      server: "sandbox",
+    });
+  }
+  return _polarClientAuth;
+};
 
 export const auth = betterAuth({
   database: prismaAdapter(db, {
@@ -85,7 +92,7 @@ export const auth = betterAuth({
       expiresIn: 300, // 5 minutes
     }),
     polar({
-      client: polarClient,
+      client: getPolarClient(),
       createCustomerOnSignUp: false,
       use: [
         checkout({
