@@ -9,8 +9,6 @@ export const POST = Webhooks({
   // When a new order is created, link the customer ID to the user account
   onOrderCreated: async (payload) => {
     const order = payload.data as any;
-    console.log("[Polar webhook] onOrderCreated event:", payload?.type, order);
-    console.log("[Polar] Order created:", order.id);
 
     try {
       // Extract user ID from various possible metadata locations
@@ -29,7 +27,6 @@ export const POST = Webhooks({
           where: { id: userId },
           data: { customerId },
         });
-        console.log("[Polar] Updated user customer ID");
       }
     } catch (error) {
       console.error("[Polar] Failed to update user:", error);
@@ -39,12 +36,6 @@ export const POST = Webhooks({
   // When a new subscription is created, create/update subscription record in database
   onSubscriptionCreated: async (payload) => {
     const subscription = payload.data as any;
-    console.log(
-      "[Polar webhook] onSubscriptionCreated event:",
-      payload?.type,
-      subscription,
-    );
-    console.log("[Polar] Subscription created:", subscription.id);
 
     try {
       // Extract user ID from subscription metadata
@@ -158,8 +149,6 @@ export const POST = Webhooks({
 
       // Revalidate subscription cache
       await revalidateSubscriptionCache();
-
-      console.log("[Polar] Subscription created successfully");
     } catch (error) {
       console.error("[Polar] Subscription creation failed:", error);
       throw error;
@@ -169,12 +158,6 @@ export const POST = Webhooks({
   // When subscription details change (status, billing period, etc.)
   onSubscriptionUpdated: async (payload) => {
     const subscription = payload.data as any;
-    console.log(
-      "[Polar webhook] onSubscriptionUpdated event:",
-      payload?.type,
-      subscription,
-    );
-    console.log("[Polar] Subscription updated:", subscription.id);
 
     try {
       // Find existing subscription by subscription ID
@@ -218,14 +201,6 @@ export const POST = Webhooks({
         false;
       const status = subscription.status;
 
-      // Log extracted dates for debugging
-      console.log("[Polar] Extracted subscription details:", {
-        periodStart,
-        periodEnd,
-        status,
-        cancelAtPeriodEnd,
-      });
-
       // Handle cancellation/revocation: downgrade user to free plan
       if (status === "canceled" || status === "revoked") {
         const freePlan = await db.plan.findFirst({
@@ -267,9 +242,6 @@ export const POST = Webhooks({
           // Revalidate subscription cache
           await revalidateSubscriptionCache();
 
-          console.log(
-            "[Polar] Subscription updated to canceled/revoked and user set to free tier (1-month period)",
-          );
           return;
         }
       }
@@ -318,11 +290,9 @@ export const POST = Webhooks({
       // Only update period dates if they're provided and valid
       if (periodStart) {
         updateData.periodStart = new Date(periodStart);
-        console.log("[Polar] Updating periodStart:", updateData.periodStart);
       }
       if (periodEnd) {
         updateData.periodEnd = new Date(periodEnd);
-        console.log("[Polar] Updating periodEnd:", updateData.periodEnd);
       }
 
       // Update subscription with new period dates and status
@@ -338,8 +308,6 @@ export const POST = Webhooks({
 
       // Revalidate subscription cache
       await revalidateSubscriptionCache();
-
-      console.log("[Polar] Subscription updated successfully with data:", updateData);
     } catch (error) {
       console.error("[Polar] Subscription update failed:", error);
       throw error;
@@ -349,12 +317,6 @@ export const POST = Webhooks({
   // When subscription becomes active (payment successful, trial started, etc.)
   onSubscriptionActive: async (payload) => {
     const subscription = payload.data as any;
-    console.log(
-      "[Polar webhook] onSubscriptionActive event:",
-      payload?.type,
-      subscription,
-    );
-    console.log("[Polar] Subscription activated:", subscription.id);
 
     try {
       const subscriptionId = subscription.id;
@@ -451,16 +413,12 @@ export const POST = Webhooks({
 
         // Revalidate subscription cache
         await revalidateSubscriptionCache();
-
-        console.log("[Polar] Subscription created from active event");
       } else {
         // Subscription exists - just update status and period dates
         const periodStart =
           subscription.currentPeriodStart || subscription.current_period_start;
         const periodEnd =
           subscription.currentPeriodEnd || subscription.current_period_end;
-
-        console.log("[Polar] Activating subscription with dates:", { periodStart, periodEnd });
 
         // Build update data - only include dates if they're valid
         const updateData: any = {
@@ -481,8 +439,6 @@ export const POST = Webhooks({
 
         // Revalidate subscription cache
         await revalidateSubscriptionCache();
-
-        console.log("[Polar] Subscription activated successfully with data:", updateData);
       }
     } catch (error) {
       console.error("[Polar] Subscription activation failed:", error);
@@ -493,12 +449,6 @@ export const POST = Webhooks({
   // When subscription is canceled by user - keep access until period ends
   onSubscriptionCanceled: async (payload) => {
     const subscription = payload.data as any;
-    console.log(
-      "[Polar webhook] onSubscriptionCanceled event:",
-      payload?.type,
-      subscription,
-    );
-    console.log("[Polar] Subscription canceled:", subscription.id);
 
     try {
       const subscriptionId = subscription.id;
@@ -530,11 +480,6 @@ export const POST = Webhooks({
 
       // Revalidate subscription cache
       await revalidateSubscriptionCache();
-
-      console.log(
-        "[Polar] Subscription marked for cancellation at period end - user keeps Pro access until:",
-        existingSubscription.periodEnd
-      );
     } catch (error) {
       console.error("[Polar] Subscription cancellation failed:", error);
       throw error;
@@ -544,12 +489,6 @@ export const POST = Webhooks({
   // When subscription is revoked (payment failed, fraud, etc.) - downgrade to free plan
   onSubscriptionRevoked: async (payload) => {
     const subscription = payload.data as any;
-    console.log(
-      "[Polar webhook] onSubscriptionRevoked event:",
-      payload?.type,
-      subscription,
-    );
-    console.log("[Polar] Subscription revoked:", subscription.id);
 
     try {
       const subscriptionId = subscription.id;
@@ -610,8 +549,6 @@ export const POST = Webhooks({
 
       // Revalidate subscription cache
       await revalidateSubscriptionCache();
-
-      console.log("[Polar] Subscription revoked and user set to free tier (1-month period)");
     } catch (error) {
       console.error("[Polar] Subscription revocation failed:", error);
       throw error;
