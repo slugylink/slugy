@@ -12,6 +12,8 @@ export async function getActiveSubscription(userId: string) {
         status: true,
         periodStart: true,
         periodEnd: true,
+        cancelAtPeriodEnd: true,
+        canceledAt: true,
         plan: {
           select: {
             id: true,
@@ -30,6 +32,13 @@ export async function getActiveSubscription(userId: string) {
       };
     }
 
+    console.log("[getActiveSubscription] Returning subscription with periods:", {
+      periodStart: subscription.periodStart,
+      periodEnd: subscription.periodEnd,
+      status: subscription.status,
+      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+    });
+
     return { msg: "Success", status: true, subscription: subscription };
   } catch (error) {
     console.error("Get active subscription error:", error);
@@ -41,7 +50,14 @@ export async function getSubscriptionWithPlan(userId: string) {
   try {
     const subscription = await db.subscription.findUnique({
       where: { referenceId: userId },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        periodStart: true,
+        periodEnd: true,
+        cancelAtPeriodEnd: true,
+        canceledAt: true,
+        billingInterval: true,
         plan: {
           select: {
             id: true,
@@ -132,8 +148,14 @@ export async function getBillingData(workspaceSlug: string) {
       };
     }
 
-    // Get subscription with plan
+    // Get subscription with plan (fresh data, not cached)
     const subscriptionResult = await getSubscriptionWithPlan(userId);
+
+    console.log("[Billing Data] Subscription periods:", {
+      periodStart: subscriptionResult.subscription?.periodStart,
+      periodEnd: subscriptionResult.subscription?.periodEnd,
+      status: subscriptionResult.subscription?.status,
+    });
 
     // Get bio galleries count
     const bioCount = await db.bio.count({
@@ -189,6 +211,10 @@ export async function getBillingData(workspaceSlug: string) {
             day: "numeric",
             year: "numeric",
           }),
+        },
+        subscription: {
+          cancelAtPeriodEnd: subscriptionResult.subscription?.cancelAtPeriodEnd || false,
+          canceledAt: subscriptionResult.subscription?.canceledAt,
         },
         usage: {
           customDomains: workspace._count.customDomains,
@@ -316,7 +342,7 @@ export async function syncSubscriptionFromPolar() {
 
     const userId = session.user.id;
 
-    // Get user with customer ID
+    // Get user with customer ID and subscription
     const user = await db.user.findUnique({
       where: { id: userId },
       select: { customerId: true },
@@ -329,29 +355,35 @@ export async function syncSubscriptionFromPolar() {
       };
     }
 
-    // Check if subscription already exists in database
+    // Get current subscription from database
     const existingSubscription = await db.subscription.findUnique({
       where: { referenceId: userId },
       include: { plan: true },
     });
 
-    if (existingSubscription) {
+    if (!existingSubscription) {
       return {
-        success: true,
-        message: "Subscription already exists in database. Webhooks will keep it in sync.",
+        success: false,
+        message: "No subscription found. Please complete checkout first.",
       };
     }
 
-    // If no subscription exists, return a message suggesting to complete checkout
-    // The webhook will create the subscription after checkout
-    return {
-      success: false,
-      message: "No subscription found. Please complete checkout first. Subscriptions are automatically synced via webhooks.",
-    };
+    console.log("[Sync] Current subscription in DB:", {
+      id: existingSubscription.id,
+      periodStart: existingSubscription.periodStart,
+      periodEnd: existingSubscription.periodEnd,
+      status: existingSubscription.status,
+    });
 
     return {
       success: true,
-      message: "Subscription synced successfully",
+      message: "Subscription data retrieved. Check logs for details.",
+      data: {
+        periodStart: existingSubscription.periodStart,
+        periodEnd: existingSubscription.periodEnd,
+        status: existingSubscription.status,
+        plan: existingSubscription.plan.name,
+      },
     };
   } catch (error) {
     console.error("Error syncing subscription from Polar:", error);

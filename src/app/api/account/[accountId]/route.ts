@@ -7,6 +7,7 @@ import { headers } from "next/headers";
 import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
+import { polarClient } from "@/lib/polar";
 
 // * Delete an account
 export async function DELETE(
@@ -29,18 +30,37 @@ export async function DELETE(
   }
 
   try {
-    // Check if user exists before attempting to delete
-    const userExists = await db.user.findUnique({
+    // Check if user exists and get customer ID
+    const user = await db.user.findUnique({
       where: { id: context.accountId },
-      select: { id: true },
+      select: { 
+        id: true,
+        customerId: true,
+      },
     });
 
-    if (!userExists) {
+    if (!user) {
       return apiErrors.notFound("Account not found");
     }
 
+    // Delete customer from Polar if customerId exists
+    if (user.customerId) {
+      try {
+        console.log(`[Account Delete] Deleting Polar customer: ${user.customerId}`);
+        await polarClient.customers.delete({
+          id: user.customerId,
+        });
+        console.log(`[Account Delete] Polar customer deleted successfully`);
+      } catch (polarError: any) {
+        // Log error but don't fail the account deletion
+        // Customer might already be deleted or not exist in Polar
+        console.error("[Account Delete] Failed to delete Polar customer:", polarError.message || polarError);
+        // Continue with account deletion even if Polar delete fails
+      }
+    }
+
     // Delete the account
-    // Note: Prisma cascade deletes will automatically remove related records (Session, Account, etc.)
+    // Note: Prisma cascade deletes will automatically remove related records (Session, Account, Subscription, etc.)
     // better-auth may try to clean up these records after deletion, which can cause
     // "record not found" errors, but these are harmless since cascade delete already handled it
     await db.user.delete({ where: { id: context.accountId } });

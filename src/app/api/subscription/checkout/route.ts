@@ -55,9 +55,10 @@ export async function GET(req: NextRequest) {
   }
   
   // Set customer info if not already provided in query params
-  if (user.customerId && !url.searchParams.has('customerId')) {
-    url.searchParams.set('customerId', user.customerId);
-  }
+  // Note: We don't pass customerId to avoid errors if it's invalid or from wrong environment
+  // Instead, rely on customerExternalId (user.id) + customerEmail to let Polar create/lookup customer
+  // The webhook will update user.customerId once the order/subscription is created
+  
   if (!url.searchParams.has('customerExternalId')) {
     url.searchParams.set('customerExternalId', user.id);
   }
