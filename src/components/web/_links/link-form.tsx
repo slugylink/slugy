@@ -396,8 +396,13 @@ const LinkFormFields = ({
       const res = await axios.post(AI_SLUG_ENDPOINT, {
         url: normalizedUrl,
       });
-      const data = res.data as { slug: string };
-      setValue("slug", data.slug, { shouldDirty: true });
+      // API returns { success: true, data: { slug, urlExists, ... } }
+      const responseData = res.data as { success: true; data: { slug: string } };
+      if (responseData.success && responseData.data?.slug) {
+        setValue("slug", responseData.data.slug, { shouldDirty: true });
+      } else {
+        console.error("Invalid response format from AI slug API");
+      }
     } catch (error) {
       console.error("Error generating AI slug:", error);
     } finally {
