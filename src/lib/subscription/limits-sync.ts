@@ -9,8 +9,6 @@ import { revalidateTag } from "next/cache";
  */
 export async function syncUserLimits(userId: string, planType: PlanType) {
   try {
-    console.log(`[Limits Sync] Starting limit sync for user ${userId} with plan ${planType}`);
-
     // Get the plan details from database
     const plan = await db.plan.findFirst({
       where: { planType },
@@ -51,20 +49,6 @@ export async function syncUserLimits(userId: string, planType: PlanType) {
       },
     });
 
-    console.log(`[Limits Sync] Successfully synced limits for user ${userId}`);
-    console.log(`[Limits Sync] Applied limits:`, {
-      workspaces: {
-        maxLinks: plan.maxLinksPerWorkspace,
-        maxClicks: plan.maxClicksPerWorkspace,
-        maxUsers: plan.maxUsers,
-        maxTags: plan.maxTagsPerWorkspace,
-      },
-      bioGalleries: {
-        maxLinks: plan.maxLinksPerBio,
-        maxClicks: plan.maxClicksPerWorkspace,
-      },
-    });
-
     return { success: true, message: "Limits synced successfully" };
   } catch (error) {
     console.error(`[Limits Sync] Error syncing limits for user ${userId}:`, error);
@@ -84,7 +68,6 @@ export async function revalidateSubscriptionCache() {
       revalidateTag("dbuser", "max"),
       revalidateTag("bio", "max"),
     ]);
-    console.log("[Limits Sync] Subscription cache revalidated");
     return { success: true };
   } catch (error) {
     console.error("[Limits Sync] Error revalidating cache:", error);

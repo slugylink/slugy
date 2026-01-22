@@ -32,13 +32,6 @@ export async function getActiveSubscription(userId: string) {
       };
     }
 
-    console.log("[getActiveSubscription] Returning subscription with periods:", {
-      periodStart: subscription.periodStart,
-      periodEnd: subscription.periodEnd,
-      status: subscription.status,
-      cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-    });
-
     return { msg: "Success", status: true, subscription: subscription };
   } catch (error) {
     console.error("Get active subscription error:", error);
@@ -150,12 +143,6 @@ export async function getBillingData(workspaceSlug: string) {
 
     // Get subscription with plan (fresh data, not cached)
     const subscriptionResult = await getSubscriptionWithPlan(userId);
-
-    console.log("[Billing Data] Subscription periods:", {
-      periodStart: subscriptionResult.subscription?.periodStart,
-      periodEnd: subscriptionResult.subscription?.periodEnd,
-      status: subscriptionResult.subscription?.status,
-    });
 
     // Get bio galleries count
     const bioCount = await db.bio.count({
@@ -367,13 +354,6 @@ export async function syncSubscriptionFromPolar() {
         message: "No subscription found. Please complete checkout first.",
       };
     }
-
-    console.log("[Sync] Current subscription in DB:", {
-      id: existingSubscription.id,
-      periodStart: existingSubscription.periodStart,
-      periodEnd: existingSubscription.periodEnd,
-      status: existingSubscription.status,
-    });
 
     return {
       success: true,
