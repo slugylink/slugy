@@ -30,7 +30,7 @@ interface UseAnalyticsParams {
 // Constants
 const DEFAULT_TIME_PERIOD: TimePeriod = "24h";
 const DEBOUNCE_DELAY = 500;
-const SWR_DEDUPING_INTERVAL = 8000;
+const SWR_DEDUPING_INTERVAL = 5000;
 const SWR_ERROR_RETRY_COUNT = 2;
 const SWR_ERROR_RETRY_INTERVAL = 3000;
 

@@ -28,6 +28,8 @@ export interface LinkClickEvent {
   utm_content?: string;
 }
 
+const TINYBIRD_TIMEOUT_MS = 5000; // 5 seconds timeout
+
 export async function sendLinkClickEvent(event: LinkClickEvent) {
   const payload = {
     timestamp: event.timestamp ?? new Date().toISOString(),
@@ -54,20 +56,37 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
     utm_content: event.utm_content ?? "",
   };
 
-  const res = await fetch(
-    `${API_BASE}/events?name=${tb.link_click_events}&wait=true`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TINYBIRD_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    },
-  );
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TINYBIRD_TIMEOUT_MS);
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Tinybird link_click_events error:", res.status, text);
+  try {
+    const res = await fetch(
+      `${API_BASE}/events?name=${tb.link_click_events}&wait=true`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${TINYBIRD_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      },
+    );
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Tinybird link_click_events error:", res.status, text);
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      const timeoutError = new Error(
+        `Tinybird request timeout after ${TINYBIRD_TIMEOUT_MS}ms`,
+      );
+      timeoutError.name = "TinybirdTimeoutError";
+      throw timeoutError;
+    }
+    throw error; // Re-throw other errors
+  } finally {
+    clearTimeout(timeoutId);
   }
 }

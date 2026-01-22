@@ -3,14 +3,15 @@ import type { SWRConfiguration } from "swr";
 
 export const swrConfig: SWRConfiguration = {
   fetcher,
-  dedupingInterval: 10000, // 10 seconds
+  dedupingInterval: 7000, // 7 seconds
   errorRetryCount: 2,
   errorRetryInterval: 3000,
   revalidateOnMount: true,
-  revalidateOnFocus: false,
+  revalidateOnFocus: true,
   revalidateOnReconnect: false,
   keepPreviousData: true,
-  loadingTimeout: 8000,
+  loadingTimeout: 5000,
+  revalidateIfStale: true,
   // Error handling
   onError: (error: Error, key) => {
     console.error(`SWR Error on ${key}:`, error);

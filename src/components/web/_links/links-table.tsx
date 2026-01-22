@@ -70,8 +70,8 @@ const LinksTable = ({ workspaceslug }: { workspaceslug: string }) => {
     apiUrl,
     fetcher,
     {
-      revalidateOnFocus: false,
-      revalidateOnReconnect: false,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
       dedupingInterval: 3000,
     },
   );
