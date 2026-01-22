@@ -14,7 +14,7 @@ import {
 
 const UNKNOWN_VALUE = "unknown";
 const DIRECT_REFERER = "Direct";
-const RATE_LIMIT_WINDOW_SECONDS = 10;
+const RATE_LIMIT_WINDOW_SECONDS = 8;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 const DEFAULT_DOMAIN = "slugy.co";
 const DEFAULT_DEVICE = "desktop";
@@ -175,9 +175,10 @@ async function dispatchAnalytics(
   const headers = req.headers;
   const timestamp = new Date().toISOString();
   const geoData = getGeoData(req);
+  const ipAddress = getIpAddress(req);
 
   const analytics: AnalyticsData = {
-    ipAddress: headers.get("x-forwarded-for") ?? UNKNOWN_VALUE,
+    ipAddress,
     country: geoData.country,
     city: geoData.city,
     continent: geoData.continent,
@@ -206,11 +207,11 @@ async function dispatchAnalytics(
     os: analytics.os,
     referer: analytics.referer,
     trigger: analytics.trigger,
-    utm_source: utmParams.utm_source || undefined,
-    utm_medium: utmParams.utm_medium || undefined,
-    utm_campaign: utmParams.utm_campaign || undefined,
-    utm_term: utmParams.utm_term || undefined,
-    utm_content: utmParams.utm_content || undefined,
+    utm_source: utmParams.utm_source ?? undefined,
+    utm_medium: utmParams.utm_medium ?? undefined,
+    utm_campaign: utmParams.utm_campaign ?? undefined,
+    utm_term: utmParams.utm_term ?? undefined,
+    utm_content: utmParams.utm_content ?? undefined,
   };
 
   waitUntil(
@@ -253,7 +254,9 @@ async function dispatchAnalytics(
         }),
       }).catch((err) => console.error("[Internal Analytics Error]", err)),
 
-      cacheAnalyticsEvent(cachedData),
+      cacheAnalyticsEvent(cachedData).catch((err) =>
+        console.error("[Analytics Cache Error]", err),
+      ),
     ]),
   );
 }
@@ -264,7 +267,12 @@ export async function trackLinkAnalytics(
 ): Promise<void> {
   try {
     const limitReached = await isWorkspaceClickLimitReached(params.workspaceId);
-    if (limitReached) return;
+    if (limitReached) {
+      console.warn(
+        `[Analytics] Click limit reached for workspace ${params.workspaceId}`,
+      );
+      return;
+    }
 
     const ipAddress = getIpAddress(req);
     const isRateLimited = await checkAnalyticsRateLimit(
