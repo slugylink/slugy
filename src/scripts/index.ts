@@ -36,6 +36,7 @@ async function main() {
             "30 links/workspace",
             "1k tracked clicks/month",
             "Advanced analytics",
+            "Custom link preview"
             "Basic QR codes",
             "5 links/link-in-bio",
             "5 link tags",
