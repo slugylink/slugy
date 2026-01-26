@@ -52,7 +52,12 @@ export function SignupForm({
   const [pending, setPending] = useState(false);
   const [isGithubLoading, setIsGithubLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Computed state: true if any authentication is in progress
+  const isAnyAuthInProgress =
+    pending || isGoogleLoading || isGithubLoading || isRedirecting;
 
   const {
     register,
@@ -76,12 +81,17 @@ export function SignupForm({
 
   const handleGoogleLogin = async () => {
     try {
+      setIsGoogleLoading(true);
       await authClient.signIn.social(
         { provider: "google" },
         {
-          onRequest: () => setIsGoogleLoading(true),
-          onSuccess: () => router.push("/?status=success"),
+          onSuccess: () => {
+            setIsRedirecting(true);
+            router.push("/");
+            router.refresh();
+          },
           onError: (err) => {
+            setIsRedirecting(false);
             toast.error(
               err instanceof Error
                 ? err.message
@@ -91,6 +101,7 @@ export function SignupForm({
         },
       );
     } catch (err) {
+      setIsRedirecting(false);
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
     } finally {
@@ -100,12 +111,17 @@ export function SignupForm({
 
   const handleGithubLogin = async () => {
     try {
+      setIsGithubLoading(true);
       await authClient.signIn.social(
         { provider: "github" },
         {
-          onRequest: () => setIsGithubLoading(true),
-          onSuccess: () => router.push("/?status=success"),
+          onSuccess: () => {
+            setIsRedirecting(true);
+            router.push("/");
+            router.refresh();
+          },
           onError: (err) => {
+            setIsRedirecting(false);
             console.error("GitHub login error details:", err);
             toast.error(
               err instanceof Error
@@ -116,6 +132,7 @@ export function SignupForm({
         },
       );
     } catch (err) {
+      setIsRedirecting(false);
       console.error("GitHub login error:", err);
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
@@ -210,6 +227,7 @@ export function SignupForm({
                 aria-invalid={!!errors.name}
                 aria-describedby={errors.name ? "name-error" : undefined}
                 required
+                disabled={isAnyAuthInProgress}
               />
               {errors.name && (
                 <p
@@ -236,6 +254,7 @@ export function SignupForm({
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? "email-error" : undefined}
                 required
+                disabled={isAnyAuthInProgress}
               />
               {errors.email && (
                 <p
@@ -268,12 +287,14 @@ export function SignupForm({
                   minLength={8}
                   maxLength={100}
                   autoComplete="new-password"
+                  disabled={isAnyAuthInProgress}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   aria-label={showPassword ? "Hide password" : "Show password"}
+                  disabled={isAnyAuthInProgress}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -362,10 +383,8 @@ export function SignupForm({
             <div className="flex gap-1">
               <Button
                 type="submit"
-                className="flex-1 cursor-pointer"
-                disabled={
-                  isSubmitting || pending || isGoogleLoading || isGithubLoading
-                }
+                className="flex-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isAnyAuthInProgress || isSubmitting}
                 aria-busy={isSubmitting || pending}
               >
                 {(isSubmitting || pending) && (
@@ -378,7 +397,7 @@ export function SignupForm({
             <SocialLoginButtons
               handleGoogleLogin={handleGoogleLogin}
               handleGithubLogin={handleGithubLogin}
-              isLoading={pending}
+              isLoading={isAnyAuthInProgress}
               isSubmitting={isSubmitting}
               isGoogleLoading={isGoogleLoading}
               isGithubLoading={isGithubLoading}

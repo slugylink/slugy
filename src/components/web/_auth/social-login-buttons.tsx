@@ -38,10 +38,8 @@ export default function SocialLoginButtons({
             type="button"
             variant="outline"
             onClick={handleGoogleLogin}
-            className="w-full cursor-pointer"
-            disabled={
-              isLoading || isSubmitting || isGoogleLoading || isGithubLoading
-            }
+            className="w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || isSubmitting || isGoogleLoading || isGithubLoading}
           >
             {isGoogleLoading ? (
               <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
@@ -64,10 +62,8 @@ export default function SocialLoginButtons({
             type="button"
             variant="outline"
             onClick={handleGithubLogin}
-            className="w-full cursor-pointer"
-            disabled={
-              isLoading || isSubmitting || isGoogleLoading || isGithubLoading
-            }
+            className="w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isLoading || isSubmitting || isGoogleLoading || isGithubLoading}
           >
             {isGithubLoading ? (
               <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />

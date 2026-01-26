@@ -18,7 +18,7 @@ import SocialLoginButtons from "./social-login-buttons";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required").optional(),
+  password: z.string().optional(),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -33,17 +33,34 @@ export function LoginForm({
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isPasswordLogin, setIsPasswordLogin] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
 
+  // Computed state: true if any authentication is in progress
+  const isAnyAuthInProgress =
+    isLoading || isGoogleLoading || isGithubLoading || isRedirecting;
+
   useEffect(() => {
+    // Reset loading states on mount
     setIsGoogleLoading(false);
     setIsGithubLoading(false);
     setIsLoading(false);
-    
-    // Load last used provider from localStorage
-    const savedProvider = localStorage.getItem('lastUsedProvider');
-    if (savedProvider && ['google', 'github', 'credential'].includes(savedProvider)) {
-      setLastUsedProvider(savedProvider);
+    setIsRedirecting(false);
+
+    // Load last used provider from localStorage (client-side only)
+    try {
+      const savedProvider = localStorage.getItem("lastUsedProvider");
+      if (
+        savedProvider &&
+        ["google", "github", "credential"].includes(savedProvider)
+      ) {
+        setLastUsedProvider(savedProvider);
+      }
+    } catch (error) {
+      // localStorage might not be available in some environments
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Failed to access localStorage:", error);
+      }
     }
   }, []);
 
@@ -58,21 +75,26 @@ export function LoginForm({
 
   const handleGoogleLogin = async () => {
     try {
+      setIsGoogleLoading(true);
       await authClient.signIn.social(
         {
           provider: "google",
         },
         {
-          onRequest: () => {
-            setIsGoogleLoading(true);
-          },
           onSuccess: () => {
             // Save last used provider
-            localStorage.setItem('lastUsedProvider', 'google');
-            setLastUsedProvider('google');
-            router.push("/?status=success");
+            try {
+              localStorage.setItem("lastUsedProvider", "google");
+            } catch (error) {
+              // localStorage might not be available
+            }
+            setLastUsedProvider("google");
+            setIsRedirecting(true);
+            router.push("/");
+            router.refresh();
           },
           onError: (err) => {
+            setIsRedirecting(false);
             toast.error(
               err instanceof Error
                 ? err.message
@@ -82,31 +104,36 @@ export function LoginForm({
         },
       );
     } catch (err) {
+      setIsRedirecting(false);
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
-    }
-    finally {
+    } finally {
       setIsGoogleLoading(false);
     }
   };
 
   const handleGithubLogin = async () => {
     try {
+      setIsGithubLoading(true);
       await authClient.signIn.social(
         {
           provider: "github",
         },
         {
-          onRequest: () => {
-            setIsGithubLoading(true);
-          },
           onSuccess: () => {
             // Save last used provider
-            localStorage.setItem('lastUsedProvider', 'github');
-            setLastUsedProvider('github');
-            router.push("/?status=success");
+            try {
+              localStorage.setItem("lastUsedProvider", "github");
+            } catch (error) {
+              // localStorage might not be available
+            }
+            setLastUsedProvider("github");
+            setIsRedirecting(true);
+            router.push("/");
+            router.refresh();
           },
           onError: (err) => {
+            setIsRedirecting(false);
             console.error("GitHub login error details:", err);
             toast.error(
               err instanceof Error
@@ -117,12 +144,12 @@ export function LoginForm({
         },
       );
     } catch (err) {
+      setIsRedirecting(false);
       console.error("GitHub login error:", err);
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
-    }
-    finally {
+    } finally {
       setIsGithubLoading(false);
     }
   };
@@ -138,11 +165,18 @@ export function LoginForm({
         {
           onSuccess: () => {
             // Save last used provider
-            localStorage.setItem('lastUsedProvider', 'credential');
-            setLastUsedProvider('credential');
-            router.push("/?status=success");
+            try {
+              localStorage.setItem("lastUsedProvider", "credential");
+            } catch (error) {
+              // localStorage might not be available
+            }
+            setLastUsedProvider("credential");
+            setIsRedirecting(true);
+            router.push("/");
+            router.refresh();
           },
           onError: (err) => {
+            setIsRedirecting(false);
             toast.error(
               err instanceof Error ? err.message : "Invalid email or password",
             );
@@ -150,6 +184,7 @@ export function LoginForm({
         },
       );
     } catch (err) {
+      setIsRedirecting(false);
       toast.error("An unexpected error occurred during login");
       console.error("Login error:", err);
     } finally {
@@ -230,8 +265,10 @@ export function LoginForm({
 
         // Fallback to magic link if no provider is found (user might have signed up with magic link)
         await handleMagicLinkLogin(data.email);
-      } else if (data.password) {
+      } else if (data.password && data.password.trim()) {
         await handlePasswordLogin(data.email, data.password);
+      } else {
+        toast.error("Password is required");
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to sign in");
@@ -242,9 +279,6 @@ export function LoginForm({
 
   const renderPasswordField = (email: string) => {
     if (!isPasswordLogin) return null;
-
-    // Don't show password field if we know the user uses a social provider
-    // This will be handled by the onSubmit logic
 
     return (
       <div className="space-y-2">
@@ -258,21 +292,25 @@ export function LoginForm({
           </Link>
         </div>
         <div className="relative">
-          <Input
-            id="password"
-            type={showPassword ? "text" : "password"}
-            placeholder=""
-            {...register("password")}
-            className={cn(
-              "w-full pr-10",
-              errors.password && "border-red-500 focus-visible:ring-red-500",
-            )}
-            required
-          />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Enter your password"
+              {...register("password", {
+                required: isPasswordLogin ? "Password is required" : false,
+              })}
+              className={cn(
+                "w-full pr-10",
+                errors.password && "border-red-500 focus-visible:ring-red-500",
+              )}
+              required={isPasswordLogin}
+              disabled={isAnyAuthInProgress}
+            />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700"
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isAnyAuthInProgress}
           >
             {showPassword ? (
               <EyeOff className="h-4 w-4" />
@@ -307,6 +345,7 @@ export function LoginForm({
                   errors.email && "border-red-500 focus-visible:ring-red-500",
                 )}
                 required
+                disabled={isAnyAuthInProgress}
               />
             </div>
 
@@ -316,12 +355,7 @@ export function LoginForm({
               <Button
                 type="submit"
                 className="flex-1 cursor-pointer"
-                disabled={
-                  isLoading ||
-                  isSubmitting ||
-                  isGoogleLoading ||
-                  isGithubLoading
-                }
+                disabled={isAnyAuthInProgress || isSubmitting}
               >
                 {isLoading && (
                   <LoaderCircle className="mr-1 h-2.5 w-2.5 animate-[spin_1.2s_linear_infinite]" />
@@ -330,15 +364,15 @@ export function LoginForm({
               </Button>
             </div>
 
-                         <SocialLoginButtons
-               handleGoogleLogin={handleGoogleLogin}
-               handleGithubLogin={handleGithubLogin}
-               isLoading={isLoading}
-               isSubmitting={isSubmitting}
-               isGoogleLoading={isGoogleLoading}
-               isGithubLoading={isGithubLoading}
-               lastUsedProvider={lastUsedProvider}
-             />
+            <SocialLoginButtons
+              handleGoogleLogin={handleGoogleLogin}
+              handleGithubLogin={handleGithubLogin}
+              isLoading={isAnyAuthInProgress}
+              isSubmitting={isSubmitting}
+              isGoogleLoading={isGoogleLoading}
+              isGithubLoading={isGithubLoading}
+              lastUsedProvider={lastUsedProvider}
+            />
 
             <div className="text-center text-sm">
               Don&apos;t have an account?{" "}
