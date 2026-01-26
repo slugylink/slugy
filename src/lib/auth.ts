@@ -10,12 +10,6 @@ import { sendEmail, sendOrganizationInvitation } from "@/server/actions/email";
 import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { origins } from "@/constants/origins";
-import {
-  getTemporarySession,
-  setTemporarySession,
-  invalidateSessionPattern,
-  hashKey,
-} from "@/lib/redis";
 
 let _polarClientAuth: Polar | null = null;
 
@@ -150,59 +144,14 @@ export const getUserByEmail = async (email: string) => {
 
 export type Session = typeof auth.$Infer.Session;
 
-// Session cache configuration
-const SESSION_CACHE_TTL = 60 * 15; // 15 minutes - shorter than session expiry for safety
-const SESSION_CACHE_PREFIX = "sess:data:";
-
-// Helper to generate Redis cache key from cookie header
-// Uses hash of cookie header to create a stable cache key
-function getSessionCacheKey(cookieHeader: string): string {
-  return `${SESSION_CACHE_PREFIX}${hashKey(cookieHeader)}`;
-}
-
-// Invalidate session cache for a specific user
-export async function invalidateSessionCache(userId: string): Promise<void> {
-  try {
-    // Invalidate all session caches for this user
-    // Note: This is a broad invalidation; for more precise control,
-    // you could maintain a user->session mapping in Redis
-    await invalidateSessionPattern(`${SESSION_CACHE_PREFIX}*`);
-  } catch (error) {
-    // Best-effort cache invalidation; don't fail if Redis is unavailable
-    if (process.env.NODE_ENV === "development") {
-      console.warn("Session cache invalidation failed:", error);
-    }
-  }
-}
-
-// Base cached session lookup with Redis + React cache
-// Layered caching: React cache (request-level) -> Redis (cross-request) -> Database
+// Base cached session lookup - uses React's cache() to deduplicate session fetches
+// within the same request/render cycle, preventing duplicate database calls
 const getCachedSession = cache(async (): Promise<Session | null> => {
   try {
     const headersList = await headers();
-    const cookieHeader = headersList.get("cookie") ?? "";
-
-    // Try Redis cache first if we have cookies
-    if (cookieHeader) {
-      const cacheKey = getSessionCacheKey(cookieHeader);
-      const cachedSession = await getTemporarySession<Session>(cacheKey);
-      if (cachedSession) {
-        return cachedSession;
-      }
-    }
-
-    // Cache miss - fetch from database via better-auth
     const session = await auth.api.getSession({
       headers: headersList,
     });
-
-    // Cache the session in Redis if we have cookies and a valid session
-    if (session && cookieHeader) {
-      const cacheKey = getSessionCacheKey(cookieHeader);
-      // Use shorter TTL than session expiry for safety
-      await setTemporarySession(cacheKey, session, SESSION_CACHE_TTL);
-    }
-
     return session;
   } catch (error) {
     // Only log in development to avoid noise in production
@@ -220,7 +169,7 @@ export async function getCachedRootSession(): Promise<Session | null> {
 }
 
 // Optimized session getter for protected routes/API routes
-// Uses layered caching (React cache + Redis) to prevent duplicate fetches
+// Uses React's cache() to prevent duplicate fetches within the same request
 // Returns a discriminated union for type-safe handling
 export async function getAuthSession(): Promise<
   | { success: true; session: Session }
