@@ -30,7 +30,7 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 const UserAccountSchema = z.object({
   name: z
     .string()
-    .min(1, "Name is required")
+    .min(3, "Name is required")
     .max(32, "Name must be 32 characters or less"),
   defaultWorkspaceId: z.string().optional(),
 });
@@ -248,7 +248,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
         </Card>
 
         {/* ID Card */}
-        <Card className="bg-background border">
+        {/* <Card className="bg-background border">
           <CardHeader>
             <CardTitle>Your User ID</CardTitle>
             <CardDescription>
@@ -277,7 +277,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
               </Button>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {/* Delete Account */}
         <Card className="border-destructive border">

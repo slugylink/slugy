@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, revalidatePath } from "next/cache";
 import {
   getDefaultWorkspaceCache,
   setDefaultWorkspaceCache,
@@ -95,6 +95,8 @@ export async function createWorkspace({
       revalidateTag("workspace", "max"),
       revalidateTag("workspace-validation", "max"),
     ]);
+    // Invalidate dashboard layout for new workspace so workspace switch shows after redirect
+    revalidatePath(`/${workspace.slug}`);
 
     waitUntil(
       Promise.all([

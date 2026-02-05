@@ -35,7 +35,7 @@ LoadingSection.displayName = "LoadingSection";
 // Skeleton loader for Hero section
 const HeroSkeleton = memo(function HeroSkeleton() {
   return (
-    <section className="mx-auto max-w-6xl px-4">
+    <section className="mx-auto max-w-6xl px-4 overflow-x-hidden">
       {/* Announcement Banner Skeleton */}
       <div className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12">
         <div className="bg-muted/50 h-8 w-48 animate-pulse rounded-full" />
@@ -92,7 +92,7 @@ const PricingSection = dynamic(
 
 export default function Home() {
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen overflow-x-hidden">
       {/* Hero section rendered immediately */}
       <div className="relative mx-auto w-[99%] rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16">
         <div className="z-20 mx-auto max-w-6xl py-4">

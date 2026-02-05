@@ -55,9 +55,17 @@ function getHandler() {
               throw new Error("No customer ID found");
             }
 
+            // Validate customer ID format
+            if (
+              typeof user.customerId !== "string" ||
+              user.customerId.trim().length === 0
+            ) {
+              throw new Error("Invalid customer ID");
+            }
+
             return user.customerId;
           } catch (error) {
-            console.error("Error getting customer ID:", error);
+            console.error("[Subscription Manage] Error getting customer ID:", error);
             throw error;
           }
         },
@@ -73,7 +81,93 @@ function getHandler() {
 }
 
 export async function GET(req: NextRequest) {
-  const handler = getHandler();
-  return handler(req);
+  try {
+    const handler = getHandler();
+    const response = await handler(req);
+    return response;
+  } catch (error: unknown) {
+    console.error("[Subscription Manage] Error:", error);
+
+    // Handle Polar API errors
+    if (
+      error &&
+      typeof error === "object" &&
+      "statusCode" in error &&
+      "body" in error
+    ) {
+      const polarError = error as {
+        statusCode: number;
+        body: string;
+        detail?: Array<{ msg: string; loc: string[] }>;
+      };
+
+      // Customer doesn't exist in Polar
+      if (
+        polarError.statusCode === 422 &&
+        polarError.detail?.some(
+          (d) =>
+            d.msg.includes("Customer does not exist") ||
+            d.loc.includes("customer_id"),
+        )
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Customer account not found. Please contact support or create a new subscription.",
+          },
+          { status: 404 },
+        );
+      }
+
+      // Other Polar API errors
+      return NextResponse.json(
+        {
+          error: "Failed to access subscription portal",
+          details:
+            process.env.NODE_ENV === "development"
+              ? polarError.body
+              : undefined,
+        },
+        { status: polarError.statusCode || 500 },
+      );
+    }
+
+    // Handle generic errors
+    if (error instanceof Error) {
+      // Unauthorized errors
+      if (error.message === "Unauthorized") {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 },
+        );
+      }
+
+      // No customer ID errors
+      if (error.message === "No customer ID found") {
+        return NextResponse.json(
+          {
+            error:
+              "No subscription found. Please create a subscription first.",
+          },
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "Failed to access subscription portal",
+          details:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        },
+        { status: 500 },
+      );
+    }
+
+    // Unknown error
+    return NextResponse.json(
+      { error: "An unexpected error occurred" },
+      { status: 500 },
+    );
+  }
 }
 

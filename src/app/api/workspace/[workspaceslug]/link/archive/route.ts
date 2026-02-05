@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 
 const bulkArchiveSchema = z.object({
@@ -22,12 +22,9 @@ export async function POST(
 
     const context = await params;
     
-    // Validate workspace access
-    const workspace = await validateWorkspaceSlug(
-      session.user.id,
-      context.workspaceslug,
-    );
-    if (!workspace.success || !workspace.workspace)
+    // Check workspace access (member/admin/owner can archive links)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
@@ -37,7 +34,7 @@ export async function POST(
     const links = await db.link.findMany({
       where: {
         id: { in: linkIds },
-        workspaceId: workspace.workspace.id,
+        workspaceId: access.workspace.id,
       },
       select: { id: true, slug: true },
     });
@@ -50,7 +47,7 @@ export async function POST(
     await db.link.updateMany({
       where: {
         id: { in: linkIds },
-        workspaceId: workspace.workspace.id,
+        workspaceId: access.workspace.id,
       },
       data: { isArchived: true },
     });

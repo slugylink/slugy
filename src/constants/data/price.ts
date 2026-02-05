@@ -74,7 +74,7 @@ export const plans: Plan[] = [
       "Perfect for individuals and small teams who need advanced features.",
     monthlyPrice: 12,
     yearlyPrice: 120,
-    monthlyPriceId: process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID!,
+    monthlyPriceId: process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID!,
     yearlyPriceId: process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID!,
     isRecommended: true,
     buttonLabel: "Get pro",

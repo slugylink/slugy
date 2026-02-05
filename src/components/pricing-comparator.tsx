@@ -74,7 +74,7 @@ function getCheckoutUrl(products?: ProductData[]): string {
     return `${CHECKOUT_BASE_URL}?products=${productIds.join(",")}`;
   }
 
-  // Fallback to environment variables
+  // Fallback to environment variables (Polar product IDs for checkout URL)
   const envIds = [
     process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID,
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,

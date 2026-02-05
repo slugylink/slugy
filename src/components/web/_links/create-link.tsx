@@ -357,7 +357,7 @@ const CreateLinkForm = React.memo(
             <span className="hidden sm:inline">Create Link</span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[90vh] w-full max-w-5xl overflow-y-auto p-0 md:p-0">
+        <DialogContent className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
           <Form {...form}>
             <form
               onSubmit={handleSubmit(onSubmit)}

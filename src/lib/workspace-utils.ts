@@ -15,9 +15,9 @@ export interface LayoutData {
   workspaceNotFound?: boolean;
 }
 
-// Type-safe workspace filtering utility
+// Type-safe workspace filtering utility (filters out null and undefined)
 export function filterValidWorkspaces<T>(
   workspaces: T[]
 ): NonNullable<T>[] {
-  return workspaces.filter((workspace): workspace is NonNullable<T> => workspace !== null);
+  return workspaces.filter((workspace): workspace is NonNullable<T> => workspace != null);
 }

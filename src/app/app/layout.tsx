@@ -1,5 +1,4 @@
 import { ThemeProvider } from "@/components/theme-provider";
-// import { Toaster } from "@/components/ui/sonner";
 import React from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { cn } from "@/lib/utils";
@@ -24,7 +23,6 @@ const AppLayout = ({ children }: RootLayoutProps) => {
     <div className={cn("min-h-screen", geistSans.variable, geistMono.variable)}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
         <div className="h-full">{children}</div>
-        {/* <Toaster /> */}
         <SpeedInsights />
       </ThemeProvider>
     </div>

@@ -32,7 +32,7 @@ import { COLOR_OPTIONS } from "@/constants/tag-colors";
 import AppLogo from "../app-logo";
 
 const formSchema = z.object({
-  name: z.string().min(1, { message: "Tag name is required" }).max(40),
+  name: z.string().min(3, { message: "Tag name is required" }).max(40),
   color: z.string().optional(),
 });
 

@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { sendOrganizationInvitation } from "@/server/actions/email";
+import { revalidateWorkspaceData } from "@/lib/layout-utils";
 
 export async function createOrganization({
   name,
@@ -284,27 +285,43 @@ export async function acceptInvitation(invitationId: string) {
       return { success: false, error: "Invitation has expired" };
     }
 
-    // Check if user is already a member
+    const isWorkspaceOnly = invitation.organizationId == null;
+    if (isWorkspaceOnly) {
+      const sessionUser = await db.user.findUnique({
+        where: { id: userId },
+        select: { email: true },
+      });
+      if (
+        !sessionUser ||
+        sessionUser.email?.toLowerCase() !== invitation.email.toLowerCase()
+      ) {
+        return {
+          success: false,
+          error: "You must be signed in with the invited email address to accept",
+        };
+      }
+    }
+
     const existingMember = await db.member.findFirst({
-      where: {
-        organizationId: invitation.organizationId,
-        userId,
-      },
+      where: isWorkspaceOnly
+        ? { workspaceId: invitation.workspaceId, userId }
+        : { organizationId: invitation.organizationId, userId },
     });
 
     if (existingMember) {
-      return { success: false, error: "You are already a member of this organization" };
+      return {
+        success: false,
+        error: isWorkspaceOnly
+          ? "You are already a member of this workspace"
+          : "You are already a member of this organization",
+      };
     }
 
-    // Use transaction to ensure data consistency
     await db.$transaction(async (tx) => {
-      // Update invitation status
       await tx.invitation.update({
         where: { id: invitationId },
         data: { status: "accepted" },
       });
-
-      // Create member record
       await tx.member.create({
         data: {
           userId,
@@ -315,8 +332,11 @@ export async function acceptInvitation(invitationId: string) {
       });
     });
 
-    return { 
-      success: true, 
+    // Revalidate workspace-related caches so newly joined workspaces appear in switchers
+    await revalidateWorkspaceData(userId);
+
+    return {
+      success: true,
       organization: invitation.organization,
       workspace: invitation.workspace,
     };
@@ -335,6 +355,13 @@ export async function getInvitationDetails(invitationId: string) {
       where: { id: invitationId },
       include: {
         organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+          },
+        },
+        workspace: {
           select: {
             id: true,
             name: true,
@@ -363,13 +390,14 @@ export async function getInvitationDetails(invitationId: string) {
       return { success: false, error: "Invitation has expired" };
     }
 
-    return { 
-      success: true, 
+    return {
+      success: true,
       invitation: {
         id: invitation.id,
         email: invitation.email,
         role: invitation.role,
         organization: invitation.organization,
+        workspace: invitation.workspace,
         inviter: invitation.inviter,
         expiresAt: invitation.expiresAt,
       },

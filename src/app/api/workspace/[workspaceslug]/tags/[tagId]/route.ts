@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { z } from "zod";
 import { headers } from "next/headers";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 
 const updateTagSchema = z.object({
   name: z.string().min(1).max(40),
@@ -26,22 +27,16 @@ export async function PATCH(
     }
 
     const context = await params;
-    const workspace = await db.workspace.findFirst({
-      where: {
-        userId: session.user.id,
-        slug: context.workspaceslug,
-      },
-    });
-
-    if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
-    }
+    // Check workspace access (member/admin/owner can edit tags)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "member"))
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     // Check if tag exists and belongs to the workspace
     const existingTag = await db.tag.findFirst({
       where: {
         id: context.tagId,
-        workspaceId: workspace.id,
+        workspaceId: access.workspace.id,
       },
     });
 
@@ -57,7 +52,7 @@ export async function PATCH(
     if (validatedData.name !== existingTag.name) {
       const existingTagWithName = await db.tag.findFirst({
         where: {
-          workspaceId: workspace.id,
+          workspaceId: access.workspace.id,
           name: validatedData.name,
         },
       });
@@ -67,14 +62,22 @@ export async function PATCH(
       }
     }
 
-    // Update the tag
-    const updatedTag = await db.tag.update({
+    // Update the tag (scoped by workspace)
+    await db.tag.updateMany({
       where: {
         id: context.tagId,
+        workspaceId: access.workspace.id,
       },
       data: {
         name: validatedData.name,
         color: validatedData.color,
+      },
+    });
+
+    const updatedTag = await db.tag.findFirst({
+      where: {
+        id: context.tagId,
+        workspaceId: access.workspace.id,
       },
       select: {
         id: true,
@@ -87,6 +90,10 @@ export async function PATCH(
         },
       },
     });
+
+    if (!updatedTag) {
+      return jsonWithETag(req, { error: "Tag not found" }, { status: 404 });
+    }
 
     // Transform the response to include linkCount
     const tagWithLinkCount = {
@@ -122,22 +129,16 @@ export async function DELETE(
 
     const context = await params;
 
-    const workspace = await db.workspace.findFirst({
-      where: {
-        userId: session.user.id,
-        slug: context.workspaceslug,
-      },
-    });
-
-    if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
-    }
+    // Check workspace access (member/admin/owner can delete tags)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "member"))
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     // Check if tag exists and belongs to the workspace
     const tag = await db.tag.findFirst({
       where: {
         id: context.tagId,
-        workspaceId: workspace.id,
+        workspaceId: access.workspace.id,
       },
     });
 
@@ -145,10 +146,11 @@ export async function DELETE(
       return jsonWithETag(req, { error: "Tag not found" }, { status: 404 });
     }
 
-    // Delete the tag
-    await db.tag.delete({
+    // Delete the tag (scoped by workspace)
+    await db.tag.deleteMany({
       where: {
         id: context.tagId,
+        workspaceId: access.workspace.id,
       },
     });
 

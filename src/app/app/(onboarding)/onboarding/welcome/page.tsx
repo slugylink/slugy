@@ -4,14 +4,10 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-export default async function Welcome() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export default async function WelcomePage() {
+  const session = await auth.api.getSession({ headers: await headers() });
 
-  if (!session?.user?.id) {
-    return redirect("/login");
-  }
+  if (!session?.user?.id) redirect("/login");
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden">
@@ -23,7 +19,8 @@ export default async function Welcome() {
               Welcome to Slugy
             </h2>
             <p className="text-muted-foreground text-base">
-              Shorten smarter, share better, and grow faster <br />
+              Shorten smarter, share better, and grow faster{" "}
+              <br />
               with every link you create.
             </p>
           </div>

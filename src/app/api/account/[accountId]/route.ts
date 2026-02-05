@@ -1,6 +1,5 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
 import { revalidateTag, revalidatePath } from "next/cache";
 import { z } from "zod";
 import { headers } from "next/headers";
@@ -53,31 +52,38 @@ export async function DELETE(
         console.log(`[Account Delete] Polar customer deleted successfully`);
       } catch (polarError: any) {
         // Log error but don't fail the account deletion
-        // Customer might already be deleted or not exist in Polar
         console.error("[Account Delete] Failed to delete Polar customer:", polarError.message || polarError);
-        // Continue with account deletion even if Polar delete fails
       }
     }
 
-    // Delete the account
-    // Note: Prisma cascade deletes will automatically remove related records (Session, Account, Subscription, etc.)
-    // better-auth may try to clean up these records after deletion, which can cause
-    // "record not found" errors, but these are harmless since cascade delete already handled it
-    await db.user.delete({ where: { id: context.accountId } });
+    // Let better-auth delete the current session first (so it won't try to delete it later and throw)
+    try {
+      await auth.api.signOut({ headers: await headers() });
+    } catch {
+      // Ignore – session may already be gone or signOut may fail; we'll remove rows below
+    }
+
+    // Then remove all auth rows and user (deleteMany is safe when rows are missing)
+    await db.$transaction(async (tx) => {
+      await tx.session.deleteMany({ where: { userId: context.accountId } });
+      await tx.account.deleteMany({ where: { userId: context.accountId } });
+      await tx.user.delete({ where: { id: context.accountId } });
+    });
 
     // Invalidate all related caches
-    // Use "max" as path parameter to avoid cacheLife configuration requirement
     await Promise.all([
       revalidateTag("workspace", "max"),
       revalidateTag("all-workspaces", "max"),
       revalidateTag("dbuser", "max"),
-      // Invalidate workspace cache for the deleted user
       invalidateWorkspaceCache(context.accountId),
-      // Invalidate bio cache for the deleted user
       invalidateBioCache(context.accountId),
     ]);
 
-    return apiSuccess(null, "Account deleted successfully");
+    // Clear session cookie so client is signed out and no follow-up logic tries to delete the session
+    return apiSuccess(null, "Account deleted successfully", 200, {
+      "Set-Cookie":
+        "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
+    });
   } catch (error) {
     console.error("Account deletion error:", error);
     // Handle Prisma errors
@@ -150,7 +156,6 @@ export async function PATCH(
 
       // Update default workspace if provided
       if (validatedData.defaultWorkspaceId) {
-        // First, reset all workspaces to non-default
         await prisma.workspace.updateMany({
           where: {
             userId: context.accountId,

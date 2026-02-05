@@ -1,556 +1,418 @@
 import { Webhooks } from "@polar-sh/nextjs";
 import { db } from "@/server/db";
 import { syncUserLimits, revalidateSubscriptionCache } from "@/lib/subscription/limits-sync";
+import { polarClient } from "@/lib/polar";
 
-// Polar webhook handler - processes subscription events from Polar payment provider
+const LOG_PREFIX = "[Polar]";
+
+type PolarSubscription = {
+  id?: string;
+  status?: string;
+  metadata?: { userId?: string };
+  user_metadata?: { userId?: string };
+  customer?: { id?: string; externalId?: string };
+  customerId?: string;
+  customer_id?: string;
+  priceId?: string;
+  prices?: { id?: string }[];
+  product?: { name?: string; prices?: { id?: string }[] };
+  currentPeriodStart?: string;
+  current_period_start?: string;
+  currentPeriodEnd?: string;
+  current_period_end?: string;
+  recurringInterval?: string;
+  recurring_interval?: string;
+  cancelAtPeriodEnd?: boolean;
+  cancel_at_period_end?: boolean;
+  canceledAt?: string;
+  canceled_at?: string;
+};
+
+function getPriceId(sub: PolarSubscription): string | null {
+  const id =
+    sub.prices?.[0]?.id ??
+    sub.product?.prices?.[0]?.id ??
+    sub.priceId ??
+    null;
+  return id ?? null;
+}
+
+function matchesPriceId(plan: { monthlyPriceId: string | null; yearlyPriceId: string | null }, priceId: string): boolean {
+  const p = priceId.trim();
+  return plan.monthlyPriceId?.trim() === p || plan.yearlyPriceId?.trim() === p;
+}
+
+async function findPlanByPriceId(priceId: string) {
+  let plan = await db.plan.findFirst({
+    where: { OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }] },
+  });
+  if (plan) return plan;
+  const plans = await db.plan.findMany({
+    where: {
+      OR: [
+        { monthlyPriceId: { not: null } },
+        { yearlyPriceId: { not: null } },
+      ],
+    },
+  });
+  return plans.find((p) => matchesPriceId(p, priceId)) ?? null;
+}
+
+async function syncProPlanPriceIdsFromPolar(): Promise<void> {
+  try {
+    const response = await polarClient.products.list({ isArchived: false });
+    const items = response?.result?.items ?? [];
+    let monthlyPriceId: string | null = null;
+    let yearlyPriceId: string | null = null;
+    for (const product of items) {
+      for (const price of product.prices ?? []) {
+        const raw = price as { id?: string; recurring_interval?: string; recurringInterval?: string };
+        const id = raw.id ?? "";
+        const interval = (raw.recurringInterval ?? raw.recurring_interval ?? "") as string;
+        if (!id) continue;
+        if (interval === "month") monthlyPriceId = id;
+        if (interval === "year") yearlyPriceId = id;
+      }
+    }
+    if (!monthlyPriceId && !yearlyPriceId) return;
+    const pro = await db.plan.findFirst({ where: { planType: "pro" } });
+    if (!pro) return;
+    await db.plan.update({
+      where: { id: pro.id },
+      data: {
+        ...(monthlyPriceId && { monthlyPriceId }),
+        ...(yearlyPriceId && { yearlyPriceId }),
+      },
+    });
+    console.log(`${LOG_PREFIX} Synced Pro plan price IDs from Polar API`);
+  } catch (err) {
+    console.error(`${LOG_PREFIX} Failed to sync Pro plan price IDs:`, err);
+  }
+}
+
+async function findPlanByPriceIdWithSync(priceId: string) {
+  let plan = await findPlanByPriceId(priceId);
+  if (plan) return plan;
+  await syncProPlanPriceIdsFromPolar();
+  plan = await findPlanByPriceId(priceId);
+  if (plan) return plan;
+  const proPlans = await db.plan.findMany({ where: { planType: "pro" } });
+  return proPlans.find((p) => matchesPriceId(p, priceId)) ?? null;
+}
+
+function getUserId(sub: PolarSubscription): string | null {
+  return sub.metadata?.userId ?? sub.user_metadata?.userId ?? sub.customer?.externalId ?? null;
+}
+
+function getCustomerId(sub: PolarSubscription): string | null {
+  return sub.customerId ?? sub.customer_id ?? sub.customer?.id ?? null;
+}
+
+function getSubscriptionFields(sub: PolarSubscription) {
+  const periodStart = sub.currentPeriodStart ?? sub.current_period_start;
+  const periodEnd = sub.currentPeriodEnd ?? sub.current_period_end;
+  const recurringInterval = sub.recurringInterval ?? sub.recurring_interval;
+  const cancelAtPeriodEnd = sub.cancelAtPeriodEnd ?? sub.cancel_at_period_end ?? false;
+  return {
+    customerId: getCustomerId(sub),
+    periodStart: periodStart ? new Date(periodStart) : undefined,
+    periodEnd: periodEnd ? new Date(periodEnd) : undefined,
+    billingInterval: recurringInterval === "year" ? "year" as const : "month" as const,
+    cancelAtPeriodEnd,
+  };
+}
+
+async function findExistingSubscription(sub: PolarSubscription) {
+  const subscriptionId = sub.id;
+  if (!subscriptionId) return null;
+  let existing = await db.subscription.findFirst({ where: { subscriptionId } });
+  if (existing) return existing;
+  const customerId = getCustomerId(sub);
+  if (!customerId) return null;
+  existing = await db.subscription.findFirst({ where: { customerId } });
+  if (existing) {
+    await db.subscription.update({
+      where: { id: existing.id },
+      data: { subscriptionId },
+    });
+  }
+  return existing;
+}
+
+async function downgradeToFreePlan(
+  subscriptionId: string,
+  referenceId: string,
+  options?: { canceledAt?: Date }
+) {
+  const freePlan = await db.plan.findFirst({ where: { planType: "free" } });
+  if (!freePlan) return false;
+  const currentPeriodStart = new Date();
+  const currentPeriodEnd = new Date(currentPeriodStart);
+  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
+  const daysWithService = Math.ceil(
+    (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  await db.subscription.update({
+    where: { id: subscriptionId },
+    data: {
+      status: "active",
+      planId: freePlan.id,
+      canceledAt: options?.canceledAt ?? new Date(),
+      cancelAtPeriodEnd: false,
+      periodStart: currentPeriodStart,
+      periodEnd: currentPeriodEnd,
+      billingInterval: "month",
+      daysWithService,
+      priceId: null,
+    },
+  });
+  await syncUserLimits(referenceId, "free");
+  await revalidateSubscriptionCache();
+  return true;
+}
+
+async function revokeSubscriptionOnly(subscriptionId: string) {
+  await db.subscription.update({
+    where: { id: subscriptionId },
+    data: { status: "revoked", canceledAt: new Date() },
+  });
+  await revalidateSubscriptionCache();
+}
+
+// --- Webhook handlers ---
+
 export const POST = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
 
-  // When a new order is created, link the customer ID to the user account
   onOrderCreated: async (payload) => {
-    const order = payload.data as any;
-
+    const order = payload.data as { id?: string; metadata?: { userId?: string }; customer_id?: string };
+    console.log(`${LOG_PREFIX} order.created`, order?.id ?? "no-id");
     try {
-      // Extract user ID from various possible metadata locations
       const userId = order.metadata?.userId;
-
       if (!userId) {
-        console.error("[Polar] No user ID found in order metadata");
+        console.error(`${LOG_PREFIX} No user ID in order metadata`);
         return;
       }
-
       const customerId = order.customer_id;
-
-      // Link Polar customer ID to our user account for future reference
-      if (userId && customerId) {
-        await db.user.update({
-          where: { id: userId },
-          data: { customerId },
-        });
-      }
-    } catch (error) {
-      console.error("[Polar] Failed to update user:", error);
-    }
-  },
-
-  // When a new subscription is created, create/update subscription record in database
-  onSubscriptionCreated: async (payload) => {
-    const subscription = payload.data as any;
-
-    try {
-      // Extract user ID from subscription metadata
-      const userId = subscription.metadata?.userId;
-
-      if (!userId) {
-        console.error("[Polar] No user ID found in subscription metadata");
-        return;
-      }
-
-      // Extract price ID to determine which plan was purchased
-      const priceId =
-        subscription.prices?.[0]?.id ||
-        subscription.product?.prices?.[0]?.id ||
-        subscription.priceId;
-
-      if (!priceId) {
-        console.error("[Polar] No price ID found in subscription");
-        return;
-      }
-
-      // Find matching plan in database by price ID (handles whitespace issues) / we can use redis alternatively as plans are static / aslo we can avoid db queries
-      let plan = await db.plan.findFirst({
-        where: {
-          OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
-        },
-      });
-
-      // Fallback: if not found, search all plans and trim whitespace for comparison
-      if (!plan) {
-        const allPlans = await db.plan.findMany({
-          where: {
-            OR: [
-              { monthlyPriceId: { not: null } },
-              { yearlyPriceId: { not: null } },
-            ],
-          },
-        });
-
-        plan =
-          allPlans.find(
-            (p) =>
-              p.monthlyPriceId?.trim() === priceId.trim() ||
-              p.yearlyPriceId?.trim() === priceId.trim(),
-          ) || null;
-      }
-
-      if (!plan) {
-        console.error("[Polar] Plan not found for price ID:", priceId);
-        console.error("[Polar] Product:", subscription.product?.name);
-        return;
-      }
-
-      // Extract subscription details from Polar payload
-      const subscriptionId = subscription.id;
-      const customerId =
-        subscription.customerId ||
-        subscription.customer_id;
-      const status = subscription.status;
-      const periodStart =
-        subscription.currentPeriodStart || subscription.current_period_start;
-      const periodEnd =
-        subscription.currentPeriodEnd || subscription.current_period_end;
-      const recurringInterval =
-        subscription.recurringInterval || subscription.recurring_interval;
-      const cancelAtPeriodEnd =
-        subscription.cancelAtPeriodEnd ||
-        subscription.cancel_at_period_end ||
-        false;
-
-      // Create or update subscription record in database
-      await db.subscription.upsert({
-        where: { referenceId: userId },
-        create: {
-          referenceId: userId,
-          planId: plan.id,
-          priceId,
-          subscriptionId,
-          customerId,
-          status,
-          provider: "polar",
-          periodStart: new Date(periodStart),
-          periodEnd: new Date(periodEnd),
-          billingInterval: recurringInterval === "year" ? "year" : "month",
-          cancelAtPeriodEnd,
-        },
-        update: {
-          planId: plan.id,
-          priceId,
-          subscriptionId,
-          customerId,
-          status,
-          provider: "polar",
-          periodStart: new Date(periodStart),
-          periodEnd: new Date(periodEnd),
-          billingInterval: recurringInterval === "year" ? "year" : "month",
-          cancelAtPeriodEnd,
-        },
-      });
-
-      // Update user's customer ID if available
       if (customerId) {
         await db.user.update({
           where: { id: userId },
           data: { customerId },
         });
       }
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Order created handler failed:`, error);
+    }
+  },
 
-      // Sync workspace and bio limits based on new plan
+  onSubscriptionCreated: async (payload) => {
+    const sub = payload.data as unknown as PolarSubscription;
+    console.log(`${LOG_PREFIX} subscription.created`, sub?.id ?? "no-id");
+    try {
+      const userId = getUserId(sub);
+      if (!userId) {
+        console.error(`${LOG_PREFIX} No user ID in subscription metadata`);
+        return;
+      }
+      const priceId = getPriceId(sub);
+      if (!priceId) {
+        console.error(`${LOG_PREFIX} No price ID in subscription`);
+        return;
+      }
+      const plan = await findPlanByPriceIdWithSync(priceId);
+      if (!plan) {
+        console.error(`${LOG_PREFIX} Plan not found for price ID:`, priceId, "Product:", sub.product?.name);
+        return;
+      }
+      const fields = getSubscriptionFields(sub);
+      await db.subscription.upsert({
+        where: { referenceId: userId },
+        create: {
+          referenceId: userId,
+          planId: plan.id,
+          priceId,
+          subscriptionId: sub.id,
+          customerId: fields.customerId ?? undefined,
+          status: sub.status ?? "active",
+          provider: "polar",
+          periodStart: fields.periodStart!,
+          periodEnd: fields.periodEnd!,
+          billingInterval: fields.billingInterval,
+          cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
+        },
+        update: {
+          planId: plan.id,
+          priceId,
+          subscriptionId: sub.id,
+          customerId: fields.customerId ?? undefined,
+          status: sub.status ?? "active",
+          provider: "polar",
+          periodStart: fields.periodStart!,
+          periodEnd: fields.periodEnd!,
+          billingInterval: fields.billingInterval,
+          cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
+        },
+      });
+      if (fields.customerId) {
+        await db.user.update({
+          where: { id: userId },
+          data: { customerId: fields.customerId },
+        });
+      }
       await syncUserLimits(userId, plan.planType);
-
-      // Revalidate subscription cache
       await revalidateSubscriptionCache();
     } catch (error) {
-      console.error("[Polar] Subscription creation failed:", error);
+      console.error(`${LOG_PREFIX} Subscription creation failed:`, error);
       throw error;
     }
   },
 
-  // When subscription details change (status, billing period, etc.)
   onSubscriptionUpdated: async (payload) => {
-    const subscription = payload.data as any;
-
+    const sub = payload.data as unknown as PolarSubscription;
+    console.log(`${LOG_PREFIX} subscription.updated`, sub?.id ?? "no-id", sub?.status);
     try {
-      // Find existing subscription by subscription ID
-      const subscriptionId = subscription.id;
-      let existingSubscription = await db.subscription.findFirst({
-        where: { subscriptionId },
-      });
-
-      // If not found by ID, try finding by customer ID (handles edge cases)
-      if (!existingSubscription) {
-        const customerId =
-          subscription.customerId ||
-          subscription.customer_id ||
-          subscription.customer?.id;
-        if (customerId) {
-          existingSubscription = await db.subscription.findFirst({
-            where: { customerId },
-          });
-          if (existingSubscription) {
-            // Link the subscription ID to the found record
-            await db.subscription.update({
-              where: { id: existingSubscription.id },
-              data: { subscriptionId },
-            });
-          }
-        }
-        if (!existingSubscription) {
-          console.error("[Polar] Subscription not found:", subscriptionId);
-          return;
-        }
+      const existing = await findExistingSubscription(sub);
+      if (!existing) {
+        console.error(`${LOG_PREFIX} Subscription not found:`, sub.id);
+        return;
       }
+      const status = sub.status ?? existing.status;
+      const fields = getSubscriptionFields(sub);
 
-      // Extract updated subscription details
-      const periodStart =
-        subscription.currentPeriodStart || subscription.current_period_start;
-      const periodEnd =
-        subscription.currentPeriodEnd || subscription.current_period_end;
-      const cancelAtPeriodEnd =
-        subscription.cancelAtPeriodEnd ||
-        subscription.cancel_at_period_end ||
-        false;
-      const status = subscription.status;
-
-      // Handle cancellation/revocation: downgrade user to free plan
       if (status === "canceled" || status === "revoked") {
-        const freePlan = await db.plan.findFirst({
-          where: { planType: "free" },
+        const ok = await downgradeToFreePlan(existing.id, existing.referenceId, {
+          canceledAt: status === "canceled" || status === "revoked" ? new Date() : undefined,
         });
-
-        if (freePlan) {
-          // Set free plan period to 1 month (monthly billing cycle)
-          const currentPeriodStart = new Date();
-          const currentPeriodEnd = new Date(currentPeriodStart);
-          currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-          const daysWithService = Math.ceil(
-            (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-
-          // Update subscription to free plan
-          await db.subscription.update({
-            where: { id: existingSubscription.id },
-            data: {
-              status: "active",
-              planId: freePlan.id,
-              canceledAt:
-                status === "canceled" || status === "revoked"
-                  ? new Date()
-                  : existingSubscription.canceledAt,
-              cancelAtPeriodEnd: false,
-              periodStart: currentPeriodStart,
-              periodEnd: currentPeriodEnd,
-              billingInterval: "month", // Free plan always has monthly billing
-              daysWithService,
-              priceId: null, // Clear priceId since free plan doesn't have one
-            },
-          });
-
-          // Downgrade user limits to free tier
-          await syncUserLimits(existingSubscription.referenceId, "free");
-
-          // Revalidate subscription cache
-          await revalidateSubscriptionCache();
-
-          return;
+        if (!ok) {
+          console.error(`${LOG_PREFIX} Free plan not found`);
         }
+        return;
       }
 
-      // Check if plan changed (upgrade/downgrade)
-      const priceId =
-        subscription.prices?.[0]?.id ||
-        subscription.product?.prices?.[0]?.id ||
-        subscription.priceId;
-
-      let updatedPlan = null;
-      if (priceId && priceId !== existingSubscription.priceId) {
-        // Find new plan by price ID
-        updatedPlan = await db.plan.findFirst({
-          where: {
-            OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
-          },
-        });
-
-        // Fallback: search with whitespace trim
-        if (!updatedPlan) {
-          const allPlans = await db.plan.findMany({
-            where: {
-              OR: [
-                { monthlyPriceId: { not: null } },
-                { yearlyPriceId: { not: null } },
-              ],
-            },
-          });
-          updatedPlan =
-            allPlans.find(
-              (p) =>
-                p.monthlyPriceId?.trim() === priceId.trim() ||
-                p.yearlyPriceId?.trim() === priceId.trim(),
-            ) || null;
-        }
+      const priceId = getPriceId(sub);
+      let updatedPlan: Awaited<ReturnType<typeof findPlanByPriceId>> = null;
+      if (priceId && priceId !== existing.priceId) {
+        updatedPlan = await findPlanByPriceId(priceId);
       }
 
-      // Build update data object - only include dates if they're valid
-      const updateData: any = {
-        ...(updatedPlan && { planId: updatedPlan.id, priceId }),
+      const updateData: Record<string, unknown> = {
         status,
-        cancelAtPeriodEnd,
+        cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
+        ...(updatedPlan && { planId: updatedPlan.id, priceId }),
       };
+      if (fields.periodStart) updateData.periodStart = fields.periodStart;
+      if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
 
-      // Only update period dates if they're provided and valid
-      if (periodStart) {
-        updateData.periodStart = new Date(periodStart);
-      }
-      if (periodEnd) {
-        updateData.periodEnd = new Date(periodEnd);
-      }
-
-      // Update subscription with new period dates and status
       await db.subscription.update({
-        where: { id: existingSubscription.id },
+        where: { id: existing.id },
         data: updateData,
       });
-
-      // If plan changed, sync limits
       if (updatedPlan) {
-        await syncUserLimits(existingSubscription.referenceId, updatedPlan.planType);
+        await syncUserLimits(existing.referenceId, updatedPlan.planType);
       }
-
-      // Revalidate subscription cache
       await revalidateSubscriptionCache();
     } catch (error) {
-      console.error("[Polar] Subscription update failed:", error);
+      console.error(`${LOG_PREFIX} Subscription update failed:`, error);
       throw error;
     }
   },
 
-  // When subscription becomes active (payment successful, trial started, etc.)
   onSubscriptionActive: async (payload) => {
-    const subscription = payload.data as any;
-
+    const sub = payload.data as unknown as PolarSubscription;
+    console.log(`${LOG_PREFIX} subscription.active`, sub?.id ?? "no-id");
     try {
-      const subscriptionId = subscription.id;
-      let existingSubscription = await db.subscription.findFirst({
-        where: { subscriptionId },
-      });
-
-      // Handle case where subscription.created event was missed - create it now
-      if (!existingSubscription) {
-        const userId =
-          subscription.metadata?.userId ||
-          subscription.user_metadata?.userId ||
-          subscription.customer?.externalId;
-
+      let existing = await findExistingSubscription(sub);
+      if (!existing) {
+        const userId = getUserId(sub);
         if (!userId) {
-          console.error("[Polar] Cannot create subscription - no user ID");
+          console.error(`${LOG_PREFIX} Cannot create subscription - no user ID`);
           return;
         }
-
-        const priceId =
-          subscription.prices?.[0]?.id || subscription.product?.prices?.[0]?.id;
-
+        const priceId = getPriceId(sub);
         if (!priceId) {
-          console.error("[Polar] Cannot create subscription - no price ID");
+          console.error(`${LOG_PREFIX} Cannot create subscription - no price ID`);
           return;
         }
-
-        // Find plan by price ID (same logic as subscription.created)
-        let plan = await db.plan.findFirst({
-          where: {
-            OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }],
-          },
-        });
-
-        // Fallback: search all plans and trim whitespace for comparison
+        const plan = await findPlanByPriceIdWithSync(priceId);
         if (!plan) {
-          const allPlans = await db.plan.findMany({
-            where: {
-              OR: [
-                { monthlyPriceId: { not: null } },
-                { yearlyPriceId: { not: null } },
-              ],
-            },
-          });
-
-          const matchedPlan = allPlans.find(
-            (p) =>
-              p.monthlyPriceId?.trim() === priceId.trim() ||
-              p.yearlyPriceId?.trim() === priceId.trim(),
-          );
-
-          if (matchedPlan) {
-            plan = await db.plan.findUnique({
-              where: { id: matchedPlan.id },
-            });
-          }
-        }
-
-        if (!plan) {
-          console.error("[Polar] Plan not found for price:", priceId);
+          console.error(`${LOG_PREFIX} Plan not found for price:`, priceId);
           return;
         }
-
-        // Extract subscription details and create new record
-        const customerId =
-          subscription.customerId ||
-          subscription.customer_id ||
-          subscription.customer?.id;
-        const periodStart =
-          subscription.currentPeriodStart || subscription.current_period_start;
-        const periodEnd =
-          subscription.currentPeriodEnd || subscription.current_period_end;
-        const recurringInterval =
-          subscription.recurringInterval || subscription.recurring_interval;
-
-        existingSubscription = await db.subscription.create({
+        const fields = getSubscriptionFields(sub);
+        existing = await db.subscription.create({
           data: {
             referenceId: userId,
             planId: plan.id,
             priceId,
-            subscriptionId,
-            customerId,
+            subscriptionId: sub.id,
+            customerId: fields.customerId ?? undefined,
             status: "active",
             provider: "polar",
-            periodStart: new Date(periodStart),
-            periodEnd: new Date(periodEnd),
-            billingInterval: recurringInterval === "year" ? "year" : "month",
+            periodStart: fields.periodStart!,
+            periodEnd: fields.periodEnd!,
+            billingInterval: fields.billingInterval,
             cancelAtPeriodEnd: false,
           },
         });
-
-        // Sync workspace and bio limits based on new plan
         await syncUserLimits(userId, plan.planType);
-
-        // Revalidate subscription cache
-        await revalidateSubscriptionCache();
       } else {
-        // Subscription exists - just update status and period dates
-        const periodStart =
-          subscription.currentPeriodStart || subscription.current_period_start;
-        const periodEnd =
-          subscription.currentPeriodEnd || subscription.current_period_end;
-
-        // Build update data - only include dates if they're valid
-        const updateData: any = {
-          status: "active",
-        };
-
-        if (periodStart) {
-          updateData.periodStart = new Date(periodStart);
-        }
-        if (periodEnd) {
-          updateData.periodEnd = new Date(periodEnd);
-        }
-
+        const fields = getSubscriptionFields(sub);
+        const updateData: Record<string, unknown> = { status: "active" };
+        if (fields.periodStart) updateData.periodStart = fields.periodStart;
+        if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
         await db.subscription.update({
-          where: { id: existingSubscription.id },
+          where: { id: existing.id },
           data: updateData,
         });
-
-        // Revalidate subscription cache
-        await revalidateSubscriptionCache();
       }
-    } catch (error) {
-      console.error("[Polar] Subscription activation failed:", error);
-      throw error;
-    }
-  },
-
-  // When subscription is canceled by user - keep access until period ends
-  onSubscriptionCanceled: async (payload) => {
-    const subscription = payload.data as any;
-
-    try {
-      const subscriptionId = subscription.id;
-      const existingSubscription = await db.subscription.findFirst({
-        where: { subscriptionId },
-      });
-
-      if (!existingSubscription) {
-        console.error("[Polar] Subscription not found:", subscriptionId);
-        return;
-      }
-
-      const canceledAt = subscription.canceledAt || subscription.canceled_at;
-
-      // IMPORTANT: User keeps Pro access until period ends
-      // Mark subscription for cancellation at period end (don't downgrade immediately)
-      await db.subscription.update({
-        where: { id: existingSubscription.id },
-        data: {
-          status: "active", // Keep active status until period ends
-          canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
-          cancelAtPeriodEnd: true, // Mark for cancellation at period end
-        },
-      });
-
-      // DON'T downgrade limits yet - user paid for full period
-      // DON'T change plan yet - user keeps Pro until period ends
-      // The subscription-renewal cron job will handle downgrade when period ends
-
-      // Revalidate subscription cache
       await revalidateSubscriptionCache();
     } catch (error) {
-      console.error("[Polar] Subscription cancellation failed:", error);
+      console.error(`${LOG_PREFIX} Subscription activation failed:`, error);
       throw error;
     }
   },
 
-  // When subscription is revoked (payment failed, fraud, etc.) - downgrade to free plan
-  onSubscriptionRevoked: async (payload) => {
-    const subscription = payload.data as any;
-
+  onSubscriptionCanceled: async (payload) => {
+    const sub = payload.data as unknown as PolarSubscription;
+    console.log(`${LOG_PREFIX} subscription.canceled`, sub?.id ?? "no-id");
     try {
-      const subscriptionId = subscription.id;
-      const existingSubscription = await db.subscription.findFirst({
-        where: { subscriptionId },
-      });
-
-      if (!existingSubscription) {
-        console.error("[Polar] Subscription not found:", subscriptionId);
+      const existing = await findExistingSubscription(sub);
+      if (!existing) {
+        console.error(`${LOG_PREFIX} Subscription not found:`, sub.id);
         return;
       }
-
-      // Find free plan to downgrade user to free tier
-      const freePlan = await db.plan.findFirst({
-        where: { planType: "free" },
-      });
-
-      if (!freePlan) {
-        console.error("[Polar] Free plan not found");
-        // Still update subscription status even if free plan not found
-        await db.subscription.update({
-          where: { id: existingSubscription.id },
-          data: {
-            status: "revoked",
-            canceledAt: new Date(),
-          },
-        });
-        return;
-      }
-
-      // Set free plan period to 1 month (monthly billing cycle)
-      const currentPeriodStart = new Date();
-      const currentPeriodEnd = new Date(currentPeriodStart);
-      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-      const daysWithService = Math.ceil(
-        (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) /
-          (1000 * 60 * 60 * 24),
-      );
-
-      // Update subscription to free plan
+      const canceledAt = sub.canceledAt ?? sub.canceled_at;
       await db.subscription.update({
-        where: { id: existingSubscription.id },
+        where: { id: existing.id },
         data: {
           status: "active",
-          planId: freePlan.id,
-          canceledAt: new Date(),
-          cancelAtPeriodEnd: false,
-          periodStart: currentPeriodStart,
-          periodEnd: currentPeriodEnd,
-          billingInterval: "month", // Free plan always has monthly billing
-          daysWithService,
-          priceId: null, // Clear priceId since free plan doesn't have one
+          canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
+          cancelAtPeriodEnd: true,
         },
       });
-
-      // Downgrade user limits to free tier
-      await syncUserLimits(existingSubscription.referenceId, "free");
-
-      // Revalidate subscription cache
       await revalidateSubscriptionCache();
     } catch (error) {
-      console.error("[Polar] Subscription revocation failed:", error);
+      console.error(`${LOG_PREFIX} Subscription cancellation failed:`, error);
+      throw error;
+    }
+  },
+
+  onSubscriptionRevoked: async (payload) => {
+    const sub = payload.data as unknown as PolarSubscription;
+    console.log(`${LOG_PREFIX} subscription.revoked`, sub?.id ?? "no-id");
+    try {
+      const existing = await findExistingSubscription(sub);
+      if (!existing) {
+        console.error(`${LOG_PREFIX} Subscription not found:`, sub.id);
+        return;
+      }
+      const ok = await downgradeToFreePlan(existing.id, existing.referenceId, { canceledAt: new Date() });
+      if (!ok) {
+        console.error(`${LOG_PREFIX} Free plan not found`);
+        await revokeSubscriptionOnly(existing.id);
+      }
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Subscription revocation failed:`, error);
       throw error;
     }
   },

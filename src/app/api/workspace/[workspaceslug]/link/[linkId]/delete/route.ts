@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
-import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
@@ -19,16 +19,13 @@ export async function DELETE(
     }
 
     const context = await params;
-    // Validate workspace and link ownership
-    const workspace = await validateWorkspaceSlug(
-      session.user.id,
-      context.workspaceslug,
-    );
-    if (!workspace.success || !workspace.workspace)
+    // Check workspace access (member/admin/owner can delete links)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const link = await db.link.findUnique({
-      where: { id: context.linkId, workspaceId: workspace.workspace.id },
+      where: { id: context.linkId, workspaceId: access.workspace.id },
       include: {
         customDomain: true,
         tags: {
@@ -51,7 +48,7 @@ export async function DELETE(
     const linkDomain = link.customDomain?.domain || "slugy.co";
 
     await db.link.delete({
-      where: { id: context.linkId },
+      where: { id: context.linkId, workspaceId: access.workspace.id },
     });
 
     // Invalidate cache for the deleted link
@@ -63,7 +60,7 @@ export async function DELETE(
       domain: link.customDomain?.domain || "slugy.co",
       slug: link.slug,
       url: link.url,
-      workspaceId: workspace.workspace.id,
+      workspaceId: access.workspace.id,
       createdAt: link.createdAt,
       tags: link.tags.map((t) => ({ tagId: t.tag.id })),
     };

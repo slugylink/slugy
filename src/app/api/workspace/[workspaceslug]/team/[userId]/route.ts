@@ -5,9 +5,10 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 
 const updateRoleSchema = z.object({
-  role: z.enum(["owner", "admin", "member"]),
+  role: z.enum(["admin", "member"]), // Owner role cannot be changed
 });
 
 export async function PATCH(
@@ -55,6 +56,11 @@ export async function PATCH(
       return jsonWithETag(req, { error: "Cannot update your own role" }, { status: 400 });
     }
 
+    // Prevent changing owner role
+    if (member.role === "owner") {
+      return jsonWithETag(req, { error: "Cannot change owner role" }, { status: 400 });
+    }
+
     // Update member role
     await db.member.update({
       where: {
@@ -95,16 +101,19 @@ export async function DELETE(
 
     const context = await params;
 
-    // Check if user is workspace owner
+    // Check workspace access (admin/owner can remove members)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "admin"))
+      return jsonWithETag(req, { error: "Unauthorized" }, { status: 403 });
+
     const workspace = await db.workspace.findFirst({
       where: {
-        slug: context.workspaceslug,
-        userId: session.user.id, // Only workspace owner can remove members
+        id: access.workspace.id,
       },
     });
 
     if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found or access denied" }, { status: 404 });
+      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
     }
 
     // Check if member exists in workspace

@@ -1,6 +1,5 @@
 "use client";
-import React, { ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { ChangeEvent } from "react";
 import { createWorkspace } from "@/server/actions/workspace/workspace";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +25,7 @@ type FormData = z.infer<typeof formSchema>;
 const formSchema = z.object({
   workspaceName: z
     .string()
-    .min(1, { message: "Workspace name is required" })
+    .min(3, { message: "Workspace name is required" })
     .max(30, { message: "Workspace name cannot exceed 30 characters" }),
   workspaceslug: z
     .string()
@@ -39,7 +38,6 @@ const formSchema = z.object({
 });
 
 export default function CreateWorkspace() {
-  const router = useRouter();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -71,7 +69,8 @@ export default function CreateWorkspace() {
       if (res.success) {
         toast.success("Workspace created successfully!");
         form.reset();
-        router.push(`/${data.workspaceslug}`);
+        // Full navigation so dashboard layout fetches fresh workspaces (workspace switch appears without manual refresh)
+        window.location.assign(`/${data.workspaceslug}`);
       } else {
         const errorMessage = res.error || "Failed to create workspace";
 

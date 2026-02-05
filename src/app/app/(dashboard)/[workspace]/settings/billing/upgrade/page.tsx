@@ -1,5 +1,6 @@
 import PricingComparator from "@/components/pricing-comparator";
 import { polarClient } from "@/lib/polar";
+import { db } from "@/server/db";
 
 type PriceInterval = "month" | "year" | null;
 
@@ -49,6 +50,32 @@ function transformPrice(price: unknown): TransformedPrice {
 export default async function Upgrade() {
   const response = await polarClient.products.list({ isArchived: false });
   const items = response?.result?.items ?? [];
+
+  // Sync Pro plan price IDs from Polar so webhooks can match (Plan not found for price ID)
+  let monthlyPriceId: string | null = null;
+  let yearlyPriceId: string | null = null;
+  for (const product of items) {
+    for (const price of product.prices ?? []) {
+      const raw = price as { id?: string; recurring_interval?: string; recurringInterval?: string };
+      const id = raw.id ?? "";
+      const interval = (raw.recurringInterval ?? raw.recurring_interval ?? "") as string;
+      if (!id) continue;
+      if (interval === "month") monthlyPriceId = id;
+      if (interval === "year") yearlyPriceId = id;
+    }
+  }
+  if (monthlyPriceId || yearlyPriceId) {
+    const pro = await db.plan.findFirst({ where: { planType: "pro" } });
+    if (pro) {
+      await db.plan.update({
+        where: { id: pro.id },
+        data: {
+          ...(monthlyPriceId && { monthlyPriceId }),
+          ...(yearlyPriceId && { yearlyPriceId }),
+        },
+      });
+    }
+  }
 
   const productData: TransformedProduct[] = items.map((product) => ({
     id: product.id ?? "",

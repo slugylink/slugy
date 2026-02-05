@@ -2,6 +2,7 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { syncUserLimits } from "@/lib/subscription/limits-sync";
 
 export async function getActiveSubscription(userId: string) {
   try {
@@ -143,6 +144,7 @@ export async function getBillingData(workspaceSlug: string) {
 
     // Get subscription with plan (fresh data, not cached)
     const subscriptionResult = await getSubscriptionWithPlan(userId);
+    const plan = subscriptionResult.subscription?.plan;
 
     // Get bio galleries count
     const bioCount = await db.bio.count({
@@ -166,6 +168,11 @@ export async function getBillingData(workspaceSlug: string) {
         },
       },
     });
+
+    // If user has a plan and workspace/bio limits don't match plan, sync (fixes Pro limits after seed update)
+    if (plan?.planType && (workspace.maxLinkTags !== plan.maxTagsPerWorkspace || (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)) {
+      await syncUserLimits(userId, plan.planType);
+    }
 
     // Format billing cycle dates
     const periodStart = subscriptionResult.subscription?.periodStart || new Date();
@@ -213,13 +220,13 @@ export async function getBillingData(workspaceSlug: string) {
           bioLinksPerGallery: bioWithMostLinks?._count.links || 0,
         },
         limits: {
-          customDomains: subscriptionResult.subscription?.plan?.maxCustomDomains || 2,
-          bioGalleries: subscriptionResult.subscription?.plan?.maxGalleries || 1,
-          tags: workspace.maxLinkTags,
-          teammates: workspace.maxUsers,
-          links: workspace.maxLinksLimit,
-          clicks: workspace.maxClicksLimit,
-          bioLinksPerGallery: bioWithMostLinks?.maxLinksLimit || subscriptionResult.subscription?.plan?.maxLinksPerBio || 5,
+          customDomains: subscriptionResult.subscription?.plan?.maxCustomDomains ?? 2,
+          bioGalleries: subscriptionResult.subscription?.plan?.maxGalleries ?? 1,
+          tags: subscriptionResult.subscription?.plan?.maxTagsPerWorkspace ?? workspace.maxLinkTags,
+          teammates: subscriptionResult.subscription?.plan?.maxUsers ?? workspace.maxUsers,
+          links: subscriptionResult.subscription?.plan?.maxLinksPerWorkspace ?? workspace.maxLinksLimit,
+          clicks: subscriptionResult.subscription?.plan?.maxClicksPerWorkspace ?? workspace.maxClicksLimit,
+          bioLinksPerGallery: subscriptionResult.subscription?.plan?.maxLinksPerBio ?? bioWithMostLinks?.maxLinksLimit ?? 5,
         },
       },
     };

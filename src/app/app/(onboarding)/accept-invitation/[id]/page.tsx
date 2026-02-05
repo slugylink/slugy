@@ -14,7 +14,8 @@ interface InvitationPageProps {
 }
 
 interface InvitationData {
-  organizationName: string;
+  targetName: string;
+  targetType: "organization" | "workspace";
   inviterName: string;
   inviterEmail: string;
   role: string;
@@ -38,13 +39,18 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
   const loadInvitationDetails = async () => {
     try {
       const result = await getInvitationDetails(id);
-      if (result.success && result.invitation && result.invitation.organization && result.invitation.inviter) {
+      if (result.success && result.invitation && result.invitation.inviter) {
+        const inv = result.invitation;
+        const targetName =
+          inv.organization?.name ?? inv.workspace?.name ?? "the team";
+        const targetType = inv.organization ? "organization" : "workspace";
         setInvitationData({
-          organizationName: result.invitation.organization.name,
-          inviterName: result.invitation.inviter.name,
-          inviterEmail: result.invitation.inviter.email,
-          role: result.invitation.role,
-          expiresAt: result.invitation.expiresAt,
+          targetName,
+          targetType,
+          inviterName: inv.inviter.name ?? "Someone",
+          inviterEmail: inv.inviter.email ?? "",
+          role: inv.role,
+          expiresAt: inv.expiresAt,
         });
       } else {
         setError(result.error || "Failed to load invitation details");
@@ -113,10 +119,12 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
           <AppLogo />
           <div className="flex flex-col items-center space-y-2">
             <h2 className="text-xl font-medium text-zinc-800 dark:text-white">
-              Organization Invitation
+              {invitationData?.targetType === "workspace"
+                ? "Workspace Invitation"
+                : "Organization Invitation"}
             </h2>
             <p className="text-center text-zinc-600 dark:text-zinc-300">
-              You&apos;ve been invited to join an organization
+              You&apos;ve been invited to join {invitationData?.targetType === "workspace" ? "a workspace" : "an organization"}
             </p>
           </div>
         </div>
@@ -136,14 +144,14 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
           </div>
         ) : invitationData ? (
           <div className="space-y-6">
-            <div className="rounded-md bg-blue-50 p-4 dark:bg-blue-900/20">
+            <div className="rounded-md bg-yellow-50 p-4">
               <div className="space-y-2">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>{invitationData.inviterName}</strong> has invited you to join{" "}
-                  <strong>{invitationData.organizationName}</strong> as a{" "}
-                  <strong>{invitationData.role}</strong>.
+                <p className="text-sm dark:text-blue-200">
+                  <span className="font-semibold">{invitationData.inviterName}</span> has invited you to join{" "}
+                  <span className="font-semibold">{invitationData.targetName}</span> workspace as a{" "}
+                  <span className="font-semibold">{invitationData.role}</span>.
                 </p>
-                <p className="text-xs text-blue-700 dark:text-blue-300">
+                <p className="text-xs dark:text-blue-300">
                   Invitation expires: {invitationData.expiresAt.toLocaleDateString()}
                 </p>
               </div>

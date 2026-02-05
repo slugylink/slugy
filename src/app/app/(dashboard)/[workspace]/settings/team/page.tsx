@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import TeamClient from "./teamClient";
+import { redirect } from "next/navigation";
 
 export default async function Team({
   params,
@@ -13,7 +14,7 @@ export default async function Team({
   });
 
   if (!session) {
-    return <div>Unauthorized</div>;
+    return redirect("/login");
   }
 
   return (

@@ -403,7 +403,7 @@ const EditLinkForm = memo(
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] w-full max-w-5xl overflow-y-auto p-0 md:p-0">
+        <DialogContent className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
           <Form {...form}>
             <form
               onSubmit={handleSubmit(onSubmit)}

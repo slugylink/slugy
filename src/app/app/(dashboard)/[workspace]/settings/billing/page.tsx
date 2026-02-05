@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Globe, Link2, Tag, Users, AlertCircle } from "lucide-react";
+import { Globe, Link2, Tag, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,11 +76,10 @@ export default async function Billing({
   return (
     <div className="space-y-8">
       {isCanceledButActive && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
+        <Alert variant="default" className="bg-yellow-300/10">
+          <AlertDescription className="">
             Your subscription has been canceled and will end on{" "}
-            <strong>{billingCycle.end}</strong>. You'll continue to have access to{" "}
+            <span className="font-medium">{billingCycle.end}</span>. You'll continue to have access to{" "}
             {plan.name} features until then, after which you'll be moved to the Free plan.
           </AlertDescription>
         </Alert>
@@ -94,7 +93,7 @@ export default async function Billing({
                 {plan.name} Plan
                 {isCanceledButActive && (
                   <span className="ml-2 text-sm font-normal text-destructive">
-                    (Canceling)
+                    [Canceling]
                   </span>
                 )}
               </CardTitle>
@@ -109,21 +108,16 @@ export default async function Billing({
           <div className="flex flex-col gap-2 sm:flex-row">
             {isPaidPlan ? (
               <>
-                <Button asChild size="lg">
+                <Button variant={"outline"} asChild>
                   <Link href="/api/subscription/manage">
-                    Manage Subscription
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="billing/upgrade">
-                    Change Plan <ArrowUpRight className="ml-2 size-4" />
+                    Manage
                   </Link>
                 </Button>
               </>
             ) : (
-              <Button asChild size="lg">
+              <Button asChild>
                 <Link href="billing/upgrade">
-                  Upgrade <ArrowUpRight className="ml-2 size-4" />
+                  Upgrade
                 </Link>
               </Button>
             )}

@@ -105,10 +105,10 @@ export async function revalidateWorkspaceData(userId?: string, path: string = "m
     // Revalidate Next.js cache tags
     // Use "max" as default path parameter to avoid cacheLife configuration requirement
     await Promise.all([
-      revalidateTag("workspaces", path),
-      revalidateTag("all-workspaces", path),
-      revalidateTag("workspace", path),
-      revalidateTag("workspace-validation", path),
+      revalidateTag("workspaces", "max"),
+      revalidateTag("all-workspaces", "max"),
+      revalidateTag("workspace", "max"),
+      revalidateTag("workspace-validation", "max"),
     ]);
     
     // If userId provided, also invalidate Redis caches

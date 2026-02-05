@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
-import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { updateLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
@@ -52,16 +52,15 @@ export async function PATCH(
 
     const context = await params;
 
-    // Validate workspace and link ownership
-    const workspace = await validateWorkspaceSlug(
-      session.user.id,
-      context.workspaceslug,
-    );
-    if (!workspace.success || !workspace.workspace)
+    // Check workspace access (member/admin/owner can edit links)
+    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
+    const workspace = access.workspace;
+
     const link = await db.link.findUnique({
-      where: { id: context.linkId, workspaceId: workspace.workspace.id },
+      where: { id: context.linkId, workspaceId: workspace.id },
     });
     if (!link) {
       return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
@@ -74,7 +73,7 @@ export async function PATCH(
         const customDomain = await db.customDomain.findFirst({
           where: {
             id: validatedData.customDomainId,
-            workspaceId: workspace.workspace.id,
+            workspaceId: workspace.id,
             verified: true,
             dnsConfigured: true,
           },
@@ -216,7 +215,7 @@ export async function PATCH(
             // Get existing tags for this workspace
             const existingTags = await tx.tag.findMany({
               where: {
-                workspaceId: workspace.workspace.id,
+                workspaceId: workspace.id,
                 name: { in: validatedData.tags },
                 deletedAt: null,
               },
@@ -235,7 +234,7 @@ export async function PATCH(
               // Check if we can create more tags (limit of 5 per workspace)
               const currentTagCount = await tx.tag.count({
                 where: {
-                  workspaceId: workspace.workspace.id,
+                  workspaceId: workspace.id,
                   deletedAt: null,
                 },
               });
@@ -253,7 +252,7 @@ export async function PATCH(
                     tx.tag.create({
                       data: {
                         name: tagName,
-                        workspaceId: workspace.workspace.id,
+                        workspaceId: workspace.id,
                         color: null, // Default color
                       },
                       select: { id: true, name: true },
@@ -353,7 +352,7 @@ export async function PATCH(
       domain: linkWithTags.domain || "slugy.co", // Use custom domain if set, otherwise default
       slug: linkWithTags.slug,
       url: linkWithTags.url,
-      workspaceId: workspace.workspace.id,
+      workspaceId: workspace.id,
       createdAt: linkWithTags.createdAt,
       tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
     };

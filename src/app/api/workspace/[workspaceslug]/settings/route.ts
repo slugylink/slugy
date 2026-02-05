@@ -73,10 +73,10 @@ export async function PATCH(
 
   // Invalidate caches
   await Promise.all([
-    revalidateTag("workspace", path),
-    revalidateTag("all-workspaces", path),
-    revalidateTag("workspaces", path),
-    revalidateTag("workspace-validation", path),
+    revalidateTag("workspace", "max"),
+    revalidateTag("all-workspaces", "max"),
+    revalidateTag("workspaces", "max"),
+    revalidateTag("workspace-validation", "max"),
     // Invalidate workspace cache for the user
     invalidateWorkspaceCache(session.user.id),
     // Invalidate specific workspace validation cache if slug changed
@@ -145,11 +145,11 @@ export async function DELETE(
 
     // Invalidate caches
     await Promise.all([
-      revalidateTag("workspace", path),
-      revalidateTag("all-workspaces", path),
-      revalidateTag("workspaces", path),
-      revalidateTag("workspace-validation", path),
-      revalidateTag("links", path),
+      revalidateTag("workspace", "max"),
+      revalidateTag("all-workspaces", "max"),
+      revalidateTag("workspaces", "max"),
+      revalidateTag("workspace-validation", "max"),
+      revalidateTag("links", "max"),
       // Invalidate workspace cache for the user
       invalidateWorkspaceCache(session.user.id),
       // Invalidate specific workspace validation cache

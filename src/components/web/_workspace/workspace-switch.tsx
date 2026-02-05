@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -80,7 +80,7 @@ const WorkspaceMenuItem = memo<{
       <div
         className={cn(
           "flex size-6 items-center justify-center overflow-hidden rounded-full border",
-          isActive && "border-accent-foreground/20"
+          isActive && "border-accent-foreground/20",
         )}
       >
         <WorkspaceAvatar
@@ -89,7 +89,12 @@ const WorkspaceMenuItem = memo<{
           className="size-full object-cover"
         />
       </div>
-      {workspace.name}
+      <span className="flex items-center gap-1">
+        {workspace.name}
+        {workspace.userRole && workspace.userRole !== "owner" && (
+          <Users className="h-3 w-3 text-muted-foreground" />
+        )}
+      </span>
       <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
     </DropdownMenuItem>
 ));
@@ -104,8 +109,9 @@ const WorkspaceSwitch = ({
   const { isMobile } = useSidebar();
 
   const activeWorkspace = useMemo(() => {
-    const found = workspaces.find((ws) => ws.slug === workspaceslug);
-    return found ?? workspaces[0];
+    const found = workspaces.find((ws) => ws?.slug === workspaceslug);
+    const fallback = workspaces.find((ws) => ws?.id != null);
+    return found ?? fallback ?? null;
   }, [workspaces, workspaceslug]);
 
   const handleWorkspaceSwitch = useCallback(
@@ -122,19 +128,24 @@ const WorkspaceSwitch = ({
 
   const workspaceMenuItems = useMemo(
     () =>
-      workspaces.map((workspace, index) => (
-        <WorkspaceMenuItem
-          key={workspace.id}
-          workspace={workspace}
-          isActive={activeWorkspace.id === workspace.id}
-          index={index}
-          onSelect={handleWorkspaceSwitch}
-        />
-      )),
-    [workspaces, activeWorkspace.id, handleWorkspaceSwitch]
+      activeWorkspace
+        ? workspaces
+            .filter((ws): ws is WorkspaceArr => ws?.id != null)
+            .map((workspace, index) => (
+              <WorkspaceMenuItem
+                key={workspace.id}
+                workspace={workspace}
+                isActive={activeWorkspace.id === workspace.id}
+                index={index}
+                onSelect={handleWorkspaceSwitch}
+              />
+            ))
+        : [],
+    [workspaces, activeWorkspace, handleWorkspaceSwitch]
   );
 
-  if (!workspaces.length) {
+  const hasValidWorkspaces = workspaces.some((ws) => ws?.id != null);
+  if (!hasValidWorkspaces || !activeWorkspace) {
     return (
       <SidebarMenu>
         <SidebarMenuItem>
@@ -162,8 +173,12 @@ const WorkspaceSwitch = ({
                 />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">
+                <span className="truncate font-medium flex items-center gap-1">
                   {activeWorkspace.name ?? "Select Workspace"}
+                  {activeWorkspace.userRole &&
+                    activeWorkspace.userRole !== "owner" && (
+                      <Users className="h-3 w-3 text-muted-foreground" />
+                    )}
                 </span>
                 <span className="truncate text-xs">
                   {activeWorkspace.slug ?? ""}
