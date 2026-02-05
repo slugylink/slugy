@@ -41,7 +41,6 @@ export async function GET(
 
       db.usage.findFirst({
         where: {
-          userId,
           workspace: {
             slug: workspaceslug,
             OR: [

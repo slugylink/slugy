@@ -166,7 +166,7 @@ const MemberRow = memo(
                   </span>
                 )}
                 {isCurrentUser && (
-                  <span className="rounded bg-blue-100 px-2 py-1 text-xs text-blue-700">You</span>
+                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">You</span>
                 )}
               </div>
             </div>
@@ -366,10 +366,10 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
-              <Button size="sm">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Invite member
-              </Button>
+              {/* <Button>
+                <UserPlus className=" h-4 w-4" />
+                Invite
+              </Button> */}
             </DialogTrigger>
           <DialogContent>
             <DialogHeader>

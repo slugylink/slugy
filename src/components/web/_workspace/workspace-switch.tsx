@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { ChevronsUpDown, Users } from "lucide-react";
+import { ChevronsUpDown, Waypoints } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,34 +69,34 @@ const WorkspaceMenuItem = memo<{
   index: number;
   onSelect: (workspace: WorkspaceArr) => void;
 }>(({ workspace, isActive, index, onSelect }) => (
-    <DropdownMenuItem
-      onClick={() => onSelect(workspace)}
+  <DropdownMenuItem
+    onClick={() => onSelect(workspace)}
+    className={cn(
+      "cursor-pointer gap-2 p-2",
+      isActive && "bg-accent text-accent-foreground",
+    )}
+    aria-current={isActive ? "page" : undefined}
+  >
+    <div
       className={cn(
-        "cursor-pointer gap-2 p-2",
-        isActive && "bg-accent text-accent-foreground"
+        "flex size-6 items-center justify-center overflow-hidden rounded-full border",
+        isActive && "border-accent-foreground/20",
       )}
-      aria-current={isActive ? "page" : undefined}
     >
-      <div
-        className={cn(
-          "flex size-6 items-center justify-center overflow-hidden rounded-full border",
-          isActive && "border-accent-foreground/20",
-        )}
-      >
-        <WorkspaceAvatar
-          workspace={workspace}
-          size={24}
-          className="size-full object-cover"
-        />
-      </div>
-      <span className="flex items-center gap-1">
-        {workspace.name}
-        {workspace.userRole && workspace.userRole !== "owner" && (
-          <Users className="h-3 w-3 text-muted-foreground" />
-        )}
-      </span>
-      <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
-    </DropdownMenuItem>
+      <WorkspaceAvatar
+        workspace={workspace}
+        size={24}
+        className="size-full object-cover"
+      />
+    </div>
+    <span className="flex items-center gap-1">
+      <span className="truncate line-clamp-1">{workspace.name}</span>
+      {workspace.userRole && workspace.userRole !== "owner" && (
+        <Waypoints strokeWidth={1.5} size={14} className="ml-1"/>
+      )}
+    </span>
+    <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
+  </DropdownMenuItem>
 ));
 WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
 
@@ -123,7 +123,7 @@ const WorkspaceSwitch = ({
       router.refresh();
       router.push(newPath);
     },
-    [pathname, router, workspaceslug]
+    [pathname, router, workspaceslug],
   );
 
   const workspaceMenuItems = useMemo(
@@ -141,7 +141,7 @@ const WorkspaceSwitch = ({
               />
             ))
         : [],
-    [workspaces, activeWorkspace, handleWorkspaceSwitch]
+    [workspaces, activeWorkspace, handleWorkspaceSwitch],
   );
 
   const hasValidWorkspaces = workspaces.some((ws) => ws?.id != null);
@@ -173,11 +173,11 @@ const WorkspaceSwitch = ({
                 />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium flex items-center gap-1">
-                  {activeWorkspace.name ?? "Select Workspace"}
+                <span className="flex items-center gap-1 truncate font-medium">
+                  <span className="truncate line-clamp-1">{activeWorkspace.name ?? "Select Workspace"}</span>
                   {activeWorkspace.userRole &&
                     activeWorkspace.userRole !== "owner" && (
-                      <Users className="h-3 w-3 text-muted-foreground" />
+                      <Waypoints strokeWidth={1.5} size={13} className="ml-1" />
                     )}
                 </span>
                 <span className="truncate text-xs">

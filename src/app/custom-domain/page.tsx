@@ -3,7 +3,6 @@
 import dynamic from "next/dynamic";
 import { memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import Sponsors from "@/app/(root)/_components/sponsors";
 
 // Constants moved outside component for better performance
 const LOADING_HEIGHT = {

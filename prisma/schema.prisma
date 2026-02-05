@@ -119,7 +119,7 @@ model Plan {
 model Subscription {
   id                  String                @id @default(cuid())
   planId              String
-  priceId             String?               @unique
+  priceId             String?
   referenceId         String                @unique // userId
   customerId          String?
   subscriptionId      String?               @unique

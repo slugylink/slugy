@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { motion } from "motion/react";
 import { Bricolage_Grotesque } from "next/font/google";
 import { memo } from "react";
 import AppLogo from "@/components/web/app-logo";
@@ -19,58 +18,6 @@ const bricolage = Bricolage_Grotesque({
   display: "swap",
 });
 
-// Memoized data object for better performance
-const heroData = {
-  backgroundImage: "https://assets.sandipsarkar.dev/background.jpg",
-  backgroundAlt: "Background texture",
-  announcement: {
-    text: (
-      <>
-        Not Backed by{" "}
-        <span className="mx-2 aspect-square size-5 bg-orange-500 p-[1px] text-center text-white">
-          Y
-        </span>{" "}
-        Combinator
-      </>
-    ),
-    href: null,
-  },
-  heading1: "Simplify Links Like",
-  heading2: (
-    <div className="flex items-center gap-2">
-      <span className="text-[#ffaa40]">
-        <Image
-          src={"/icons/star.svg"}
-          width={50}
-          height={50}
-          alt="Magic"
-          priority
-          sizes="50px"
-        />
-      </span>
-      Magic
-    </div>
-  ),
-  heading2Gradient:
-    "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text-[text-fill-color:transparent]",
-  fontFamily: "var(--font-bricolage)",
-  subheading1: (
-    <>
-      A modern link platform where creators, entrepreneurs{" "}
-      <br className="hidden sm:block" /> and teams turn clicks into growth.
-    </>
-  ),
-  subheading2: "",
-  badge: {
-    imageUrl:
-      "https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1001891&theme=dark&t=1754509383464",
-    alt: "Slugy - Simplify links like magic | Product Hunt",
-    href: "https://www.producthunt.com/products/slugy?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-slugy",
-    width: 180,
-    height: 50,
-  },
-} as const;
-
 const Hero = memo(function Hero() {
   const domain = typeof window !== "undefined" ? window.location.hostname : "";
 
@@ -86,16 +33,7 @@ const Hero = memo(function Hero() {
           </div>
           <div className="relative z-10 flex flex-col items-center">
             {/* Mock Browser Window */}
-            <motion.div
-              className="mb-12 w-full max-w-lg"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.35,
-                ease: [0.25, 0.46, 0.45, 0.94],
-                delay: 0.1,
-              }}
-            >
+              <div className="mb-12 w-full max-w-lg">
               <div className="rounded-md border bg-white">
                 {/* Browser Header */}
                 <div className="flex items-center gap-2 px-4 py-2.5">
@@ -116,52 +54,27 @@ const Hero = memo(function Hero() {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
           </div>
           {/* Main Heading */}
-          <motion.h1
+          <h1
             className={cn(
               bricolage.className,
               "mb-6 text-center text-4xl font-medium text-zinc-900 sm:text-2xl md:text-4xl lg:text-5xl",
             )}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.35,
-              ease: [0.25, 0.46, 0.45, 0.94],
-              delay: 0.15,
-            }}
           >
             Welcome to Slugy
-          </motion.h1>
+          </h1>
 
           {/* Descriptive Paragraph */}
-          <motion.p
-            className="mx-auto max-w-2xl text-center text-base text-zinc-600 sm:text-lg md:text-xl"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: 0.3,
-              ease: [0.25, 0.46, 0.45, 0.94],
-              delay: 0.2,
-            }}
-          >
+          <p className="mx-auto max-w-2xl text-center text-base text-zinc-600 sm:text-lg md:text-xl">
             This custom domain is powered by Slugy - the link management
             platform designed for modern marketing teams.
-          </motion.p>
+          </p>
         </div>
 
         {/* Buttons */}
-        <motion.div
-          className="mt-12 flex items-center justify-center gap-4"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: 0.3,
-            ease: [0.25, 0.46, 0.45, 0.94],
-            delay: 0.25,
-          }}
-        >
+        <div className="mt-12 flex items-center justify-center gap-4">
           <Link href="https://slugy.co"><Button rel="noopener noreferrer" size="lg">
             <span>Try Slugy</span>
             <svg
@@ -177,7 +90,7 @@ const Hero = memo(function Hero() {
               />
             </svg>
           </Button></Link>
-        </motion.div>
+        </div>
       </div>
     </section>
   );
