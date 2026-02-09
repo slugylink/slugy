@@ -112,6 +112,7 @@ const RANDOM_SLUG_DELAY_MS = 300;
 const DEFAULT_DOMAIN = "slugy.co";
 const URL_DEBOUNCE_MS = 500;
 const SAFETY_CHECK_DEBOUNCE_MS = 1000;
+const PREVIEW_DEBOUNCE_MS = 1500; // Debounce preview/metadata fetch to avoid spam
 
 // Memoized components
 const SafetyIndicator = ({ status }: { status: UrlSafetyStatus }) => {
@@ -185,6 +186,19 @@ const LinkFormFields = ({
     void fetchSubscription();
   }, [fetchSubscription]);
 
+  // Define normalizeUrl early so it can be used in handlers and effects
+  const normalizeUrl = (rawUrl: string): string => {
+    if (!rawUrl) return rawUrl;
+    if (/^https?:\/\//.test(rawUrl)) return rawUrl;
+    if (
+      /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(rawUrl) ||
+      rawUrl.startsWith("www.")
+    ) {
+      return `https://${rawUrl}`;
+    }
+    return rawUrl;
+  };
+
   // State management
   const [currentCode, setCurrentCode] = useState(code);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -202,11 +216,13 @@ const LinkFormFields = ({
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
   const [qrCodeKey, setQrCodeKey] = useState(0); // Force re-render after save
+  const [previewUrl, setPreviewUrl] = useState(""); // Debounced preview URL
   const slugInputRef = useRef<HTMLInputElement | null>(null);
 
   // Debounce refs
   const urlValidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const safetyCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Form values
   const domain = watch("domain");
@@ -306,18 +322,6 @@ const LinkFormFields = ({
       }
       return { isValid: false, message: "Invalid URL format" };
     }
-  };
-
-  const normalizeUrl = (rawUrl: string): string => {
-    if (!rawUrl) return rawUrl;
-    if (/^https?:\/\//.test(rawUrl)) return rawUrl;
-    if (
-      /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(rawUrl) ||
-      rawUrl.startsWith("www.")
-    ) {
-      return `https://${rawUrl}`;
-    }
-    return rawUrl;
   };
 
   const enableSlugEditing = () => {
@@ -491,6 +495,18 @@ const LinkFormFields = ({
     debouncedCheckUrlSafety(instantUrl);
   }, [instantUrl]);
 
+  // Debounce preview/metadata URL to avoid excessive API calls
+  useEffect(() => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    previewTimeoutRef.current = setTimeout(() => {
+      const normalized = normalizeUrl(url);
+      setPreviewUrl(normalized);
+    }, PREVIEW_DEBOUNCE_MS);
+  }, [url]);
+
   useEffect(() => {
     if (currentTags.length && tags) {
       const tagIds = tags
@@ -518,6 +534,9 @@ const LinkFormFields = ({
       if (safetyCheckTimeoutRef.current) {
         clearTimeout(safetyCheckTimeoutRef.current);
       }
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -526,8 +545,8 @@ const LinkFormFields = ({
     return !!obj && typeof obj === "object" && "qrCode" in obj;
   };
 
-  // Form values
-  const normalizedUrl = normalizeUrl(url);
+  // Form values (use debounced preview URL for metadata/preview only)
+  const normalizedUrl = previewUrl;
   const qrCodeCustomization = (() => {
     if (isLinkData(form.formState.defaultValues)) {
       return form.formState.defaultValues.qrCode?.customization;

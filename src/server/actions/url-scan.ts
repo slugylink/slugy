@@ -2,7 +2,10 @@
 
 import { unstable_cache } from "next/cache";
 
+// ============================================================================
 // Types
+// ============================================================================
+
 interface SafeBrowsingClient {
   clientId: string;
   clientVersion: string;
@@ -44,14 +47,18 @@ interface ValidationResult {
   threats?: string[];
 }
 
-// Constants - Optimized for speed
+// ============================================================================
+// Constants
+// ============================================================================
+
 const SAFE_BROWSING_API_BASE = "https://safebrowsing.googleapis.com/v4/threatMatches:find";
 const CLIENT_VERSION = "1.0";
-const CACHE_REVALIDATE_SECONDS = 3600; // 1 hour - much longer cache for speed
+const CACHE_REVALIDATE_SECONDS = 3600;
 const CACHE_TAG = "scan-url-safety";
-const REQUEST_TIMEOUT_MS = 5000; // 5 second timeout for faster failure
+const REQUEST_TIMEOUT_MS = 5000;
+const ENV_CACHE_TTL = 300000;
+const CONTENT_SNIFF_LIMIT = 200000;
 
-// Threat types for comprehensive scanning
 const THREAT_TYPES = [
   "MALWARE",
   "SOCIAL_ENGINEERING", 
@@ -62,15 +69,13 @@ const THREAT_TYPES = [
 const PLATFORM_TYPES = ["ANY_PLATFORM"] as const;
 const THREAT_ENTRY_TYPES = ["URL"] as const;
 
-// Threat type mapping for user-friendly messages
 const THREAT_TYPE_MESSAGES: Record<string, string> = {
   MALWARE: "malware",
   SOCIAL_ENGINEERING: "phishing",
   UNWANTED_SOFTWARE: "unwanted software",
   POTENTIALLY_HARMFUL_APPLICATION: "potentially harmful application",
-} as const;
+};
 
-// Error messages
 const ERROR_MESSAGES = {
   URL_REQUIRED: "URL is required",
   API_KEY_MISSING: "Google Safe Browsing API key not configured",
@@ -80,35 +85,26 @@ const ERROR_MESSAGES = {
   TIMEOUT: "Request timeout - URL assumed safe",
 } as const;
 
-// Fast URL normalization utility
-function normalizeUrl(url: string): string {
-  if (!url) return url;
-  
-  const trimmedUrl = url.trim();
-  if (!trimmedUrl) return trimmedUrl;
-  
-  // Fast path for already normalized URLs
-  if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
-    return trimmedUrl;
-  }
-  
-  // Fast path for common patterns
-  if (trimmedUrl.startsWith("www.") || /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmedUrl)) {
-    return `https://${trimmedUrl}`;
-  }
-  
-  return trimmedUrl;
-}
+const SUSPICIOUS_PATTERNS = [
+  /\b(porn|porno|xxx|sex|nude|nsfw)\b/i,
+  /\b(hentai|jav|milf|camgirl|escort)\b/i,
+  /\b(erotic|adult|webcam|livecam)\b/i,
+  /\bonly\s*fans?\b/i,
+  /\bchat\s*urbate\b/i,
+];
 
-// Validate environment variables - cached for speed
+const SAFE_BROWSING_ADULT_LABELS = new Set(["ADULT", "DANGEROUS_CONTENT", "DANGEROUS"]);
+
+// ============================================================================
+// Environment Validation (with caching)
+// ============================================================================
+
 let envCache: { apiKey: string; clientId: string } | null = null;
 let envCacheTime = 0;
-const ENV_CACHE_TTL = 300000; // 5 minutes
 
 function validateEnvironment(): { apiKey: string; clientId: string } | null {
   const now = Date.now();
   
-  // Return cached environment if still valid
   if (envCache && (now - envCacheTime) < ENV_CACHE_TTL) {
     return envCache;
   }
@@ -124,14 +120,73 @@ function validateEnvironment(): { apiKey: string; clientId: string } | null {
     return null;
   }
   
-  // Cache the environment
   envCache = { apiKey, clientId };
   envCacheTime = now;
   
   return envCache;
 }
 
-// Build Safe Browsing request payload - optimized for batch processing
+// ============================================================================
+// URL Utilities
+// ============================================================================
+
+function normalizeUrl(url: string): string {
+  if (!url) return url;
+  
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) return trimmedUrl;
+  
+  if (trimmedUrl.startsWith("http://") || trimmedUrl.startsWith("https://")) {
+    return trimmedUrl;
+  }
+  
+  if (trimmedUrl.startsWith("www.") || /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(trimmedUrl)) {
+    return `https://${trimmedUrl}`;
+  }
+  
+  return trimmedUrl;
+}
+
+function isLikelyAdultUrl(inputUrl: string): boolean {
+  try {
+    const u = new URL(inputUrl);
+    const combined = `${u.hostname} ${u.pathname} ${u.search} ${u.hash}`.toLowerCase();
+    
+    return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(combined));
+  } catch {
+    return false;
+  }
+}
+
+async function sniffPageForAdultContent(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": "Slugy-URL-Scanner/2.0-Fast" },
+      cache: "no-store",
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) return false;
+
+    const text = await res.text().catch(() => "");
+    const snippet = text.slice(0, CONTENT_SNIFF_LIMIT).toLowerCase();
+
+    return SUSPICIOUS_PATTERNS.some(pattern => pattern.test(snippet));
+  } catch {
+    return false;
+  }
+}
+
+// ============================================================================
+// Safe Browsing API
+// ============================================================================
+
 function buildSafeBrowsingRequest(urls: string[], clientId: string): SafeBrowsingRequest {
   return {
     client: {
@@ -147,14 +202,10 @@ function buildSafeBrowsingRequest(urls: string[], clientId: string): SafeBrowsin
   };
 }
 
-// Format threat types for user display
 function formatThreatTypes(threats: string[]): string[] {
-  return threats.map((threat) => 
-    THREAT_TYPE_MESSAGES[threat] || "security threat"
-  );
+  return threats.map(threat => THREAT_TYPE_MESSAGES[threat] || "security threat");
 }
 
-// Fast URL safety check with aggressive caching
 async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
   if (!url) {
     return { 
@@ -176,11 +227,9 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
 
   const { apiKey, clientId } = env;
   const normalizedUrl = normalizeUrl(url);
-
   const requestBody = buildSafeBrowsingRequest([normalizedUrl], clientId);
 
   try {
-    // Create abort controller for timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
@@ -214,7 +263,7 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
       return { isSafe: true, threats: [] };
     }
 
-    const threats = data.matches.map((m) => m.threatType);
+    const threats = data.matches.map(m => m.threatType);
     return { isSafe: false, threats };
     
   } catch (error) {
@@ -231,14 +280,17 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
     console.error("Error scanning URL:", error);
     
     return {
-      isSafe: true, // Default to "safe" if scan unavailable, but flag error
+      isSafe: true,
       threats: [],
       error: errorMessage,
     };
   }
 }
 
-// Ultra-fast caching wrapper with longer TTL for speed
+// ============================================================================
+// Cached Scanning
+// ============================================================================
+
 const cachedScanUrlSafety = unstable_cache(
   async (url: string) => fetchUrlSafety(url),
   [CACHE_TAG],
@@ -248,57 +300,95 @@ const cachedScanUrlSafety = unstable_cache(
   },
 );
 
-// Main scan function - optimized for speed
 export async function scanUrlSafety(url: string): Promise<UrlScanResult> {
   try {
-    // Try cache first for maximum speed
     return await cachedScanUrlSafety(url);
   } catch (error) {
     console.error("Cache error in scanUrlSafety:", error);
-    // Fast fallback to direct call
     return fetchUrlSafety(url);
   }
 }
 
-// Fast validation wrapper with aggressive caching
+// ============================================================================
+// URL Validation
+// ============================================================================
+
 export async function validateUrlSafety(url: string): Promise<ValidationResult> {
   try {
-    const result = await scanUrlSafety(url);
+    const normalizedUrl = normalizeUrl(url);
+    const env = validateEnvironment();
 
-    // Handle configuration errors gracefully - return safe immediately
-    if (result.error === ERROR_MESSAGES.API_KEY_MISSING) {
-      console.warn("Safe Browsing API not configured, defaulting to safe");
-      return { isValid: true };
+    // Step 1: Check Safe Browsing API if configured
+    if (env) {
+      const sbResult = await scanUrlSafety(normalizedUrl);
+
+      // Block if Safe Browsing reports adult/dangerous content
+      if (sbResult.threats?.some(t => SAFE_BROWSING_ADULT_LABELS.has(t))) {
+        return {
+          isValid: false,
+          message: "This URL is classified as unsafe by Google Safe Browsing and cannot be shortened.",
+          threats: sbResult.threats,
+        };
+      }
+
+      // Block if Safe Browsing reports other threats
+      if (!sbResult.isSafe) {
+        const prettyThreats = formatThreatTypes(sbResult.threats);
+        return {
+          isValid: false,
+          message: `This URL contains ${prettyThreats.join(", ")} and cannot be shortened for safety reasons.`,
+          threats: sbResult.threats,
+        };
+      }
     }
 
-    // Handle timeouts - return safe immediately
-    if (result.error === ERROR_MESSAGES.TIMEOUT) {
-      return { isValid: true };
-    }
-
-    // Handle other errors - return safe for speed
-    if (result.error && result.error !== ERROR_MESSAGES.API_KEY_MISSING) {
-      console.warn("URL safety check failed, defaulting to safe for speed:", result.error);
-      return { isValid: true };
-    }
-
-    // Handle unsafe URLs
-    if (!result.isSafe) {
-      const prettyThreats = formatThreatTypes(result.threats);
+    // Step 2: Quick heuristic check for adult content
+    if (normalizedUrl && isLikelyAdultUrl(normalizedUrl)) {
       return {
         isValid: false,
-        message: `This URL contains ${prettyThreats.join(", ")} and cannot be shortened for safety reasons.`,
-        threats: result.threats,
+        message: "This URL appears to contain adult content and cannot be shortened for safety reasons.",
+        threats: [],
       };
     }
 
-    // Safe URL
+    // Step 3: Optional content sniffing
+    const sniffDetected = await sniffPageForAdultContent(normalizedUrl).catch(() => false);
+    if (sniffDetected) {
+      return {
+        isValid: false,
+        message: "This URL appears to contain adult content (detected in page content) and cannot be shortened.",
+        threats: [],
+      };
+    }
+
+    // Step 4: Final scan if Safe Browsing wasn't configured earlier
+    if (!env) {
+      const result = await scanUrlSafety(normalizedUrl);
+
+      if (result.error === ERROR_MESSAGES.API_KEY_MISSING || 
+          result.error === ERROR_MESSAGES.TIMEOUT) {
+        return { isValid: true };
+      }
+
+      if (result.error) {
+        console.warn("URL safety check failed, defaulting to safe:", result.error);
+        return { isValid: true };
+      }
+
+      if (!result.isSafe) {
+        const prettyThreats = formatThreatTypes(result.threats);
+        return {
+          isValid: false,
+          message: `This URL contains ${prettyThreats.join(", ")} and cannot be shortened for safety reasons.`,
+          threats: result.threats,
+        };
+      }
+    }
+
     return { isValid: true };
     
   } catch (error) {
     console.error("Unexpected error in validateUrlSafety:", error);
-    
-    // Return safe by default for speed
     return { 
       isValid: true,
       message: "URL safety check temporarily unavailable",
@@ -306,7 +396,10 @@ export async function validateUrlSafety(url: string): Promise<ValidationResult> 
   }
 }
 
-// Utility function to check if URL scanning is available
+// ============================================================================
+// Utilities
+// ============================================================================
+
 export async function isUrlScanningAvailable(): Promise<boolean> {
   return !!(process.env.GOOGLE_SAFE_BROWSING_API_KEY && 
            process.env.GOOGLE_SAFE_BROWSING_CLIENT_ID);

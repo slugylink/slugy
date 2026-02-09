@@ -139,7 +139,7 @@ const CreateLinkForm = React.memo(
       () =>
         isValid &&
         !urlSafetyStatus.isChecking &&
-        urlSafetyStatus.isValid !== false,
+        urlSafetyStatus.isValid === true,
       [isValid, urlSafetyStatus.isChecking, urlSafetyStatus.isValid],
     );
 
@@ -343,7 +343,7 @@ const CreateLinkForm = React.memo(
       }
 
       if (urlSafetyStatus.isValid === false) {
-        return <>Unsafe URL <CornerDownLeft size={12} /></>;
+        return <>Create link <CornerDownLeft size={12} /></>;
       }
 
       return <>Create link <CornerDownLeft size={12} /></>;
