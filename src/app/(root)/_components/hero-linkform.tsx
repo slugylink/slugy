@@ -94,7 +94,6 @@ const HeroLinkForm = memo(function HeroLinkForm() {
         }
       },
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,
     },
   );
 

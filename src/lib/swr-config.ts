@@ -6,7 +6,7 @@ export const swrConfig: SWRConfiguration = {
   dedupingInterval: 7000, // 7 seconds
   errorRetryCount: 2,
   errorRetryInterval: 3000,
-  revalidateOnMount: true,
+  revalidateOnMount: false,
   revalidateOnFocus: true,
   revalidateOnReconnect: false,
   keepPreviousData: true,
