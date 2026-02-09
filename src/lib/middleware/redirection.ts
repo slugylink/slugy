@@ -19,6 +19,26 @@ const DEFAULT_DEVICE = "desktop";
 const DEFAULT_BROWSER = "chrome";
 const DEFAULT_OS = "windows";
 
+interface AnalyticsData {
+  ipAddress: string;
+  country: string;
+  city: string;
+  continent: string;
+  referer: string;
+  device: string;
+  browser: string;
+  os: string;
+  trigger: string;
+}
+
+interface UTMParams {
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+}
+
 /**
  * Safely decodes a URI component with error handling
  */
@@ -37,36 +57,21 @@ function safeDecodeURIComponent(value: string | null): string {
 function getGeoData(req: NextRequest) {
   const headers = req.headers;
 
-  // Try Cloudflare headers first (since you're using Cloudflare now)
-  const cfCountry = headers.get("cf-ipcountry");
-  const cfCity = headers.get("cf-ipcity");
-  const cfContinent = headers.get("cf-ipcontinent");
-  const cfRegion = headers.get("cf-region");
-
-  // Fallback to Vercel headers if Cloudflare headers are not available
-  const vercelCountry = headers.get("x-vercel-ip-country");
-  const vercelCity = headers.get("x-vercel-ip-city");
-  const vercelContinent = headers.get("x-vercel-ip-continent");
-  const vercelRegion = headers.get("x-vercel-ip-country-region");
+  // Try Cloudflare headers first, fallback to Vercel
+  const country =
+    headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country");
+  const city = headers.get("cf-ipcity") || headers.get("x-vercel-ip-city");
+  const continent =
+    headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent");
+  const region =
+    headers.get("cf-region") || headers.get("x-vercel-ip-country-region");
 
   return {
-    country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: safeDecodeURIComponent(cfCity || vercelCity),
-    continent: (cfContinent || vercelContinent)?.toLowerCase() ?? UNKNOWN_VALUE,
-    region: cfRegion || vercelRegion || UNKNOWN_VALUE,
+    country: country?.toLowerCase() ?? UNKNOWN_VALUE,
+    city: safeDecodeURIComponent(city),
+    continent: continent?.toLowerCase() ?? UNKNOWN_VALUE,
+    region: region || UNKNOWN_VALUE,
   };
-}
-
-interface AnalyticsData {
-  ipAddress: string;
-  country: string;
-  city: string;
-  continent: string;
-  referer: string;
-  device: string;
-  browser: string;
-  os: string;
-  trigger: string;
 }
 
 /**
@@ -87,19 +92,17 @@ function escapeHtml(text: string | null | undefined): string {
 /**
  * Extracts UTM parameters from a URL string
  */
-function extractUTMParams(urlString: string) {
+function extractUTMParams(urlString: string): UTMParams {
   try {
-    const urlObj = new URL(urlString);
-    const params = urlObj.searchParams;
+    const params = new URL(urlString).searchParams;
     return {
-      utm_source: params.get("utm_source") || null,
-      utm_medium: params.get("utm_medium") || null,
-      utm_campaign: params.get("utm_campaign") || null,
-      utm_term: params.get("utm_term") || null,
-      utm_content: params.get("utm_content") || null,
+      utm_source: params.get("utm_source"),
+      utm_medium: params.get("utm_medium"),
+      utm_campaign: params.get("utm_campaign"),
+      utm_term: params.get("utm_term"),
+      utm_content: params.get("utm_content"),
     };
   } catch {
-    // Invalid URL, return null values
     return {
       utm_source: null,
       utm_medium: null,
@@ -124,7 +127,6 @@ function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
 
 /**
  * Serves link preview page with OG tags for social media crawlers
- * Optimized cache headers for social crawlers while preventing browser caching
  */
 function serveLinkPreview(
   req: NextRequest,
@@ -160,17 +162,15 @@ function serveLinkPreview(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // Allow social crawlers to cache, but prevent browser caching
-      "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+      "Cache-Control":
+        "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
       "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }
 
 /**
- * Checks if the IP address has made a recent analytics request for a given slug within the rate limit window
- * @param ipAddress - The IP address to check
- * @param slug - The slug to scope the rate limiting to
+ * Checks if the IP address has made a recent analytics request for a given slug
  * @returns true if rate limited (should skip analytics), false if analytics should proceed
  */
 async function checkAnalyticsRateLimit(
@@ -178,16 +178,16 @@ async function checkAnalyticsRateLimit(
   slug: string,
 ): Promise<boolean> {
   if (!ipAddress || ipAddress === UNKNOWN_VALUE) {
-    return false; // Don't rate limit if we don't have a valid IP
+    return false;
   }
 
   try {
     const key = `${RATE_LIMIT_KEY_PREFIX}:${ipAddress}:${slug}`;
-    // Atomic set-if-not-exists with TTL. If it returns null, key exists => rate limited
     const result = await redis.set(key, "1", {
       nx: true,
       ex: RATE_LIMIT_WINDOW_SECONDS,
     });
+
     const limited = result === null;
     if (limited) {
       console.warn(
@@ -222,11 +222,10 @@ async function trackAnalytics(
 ): Promise<void> {
   try {
     const ua = userAgent(req);
-    const headers = req.headers;
     const timestamp = new Date().toISOString();
     const geoData = getGeoData(req);
-
     const ipAddress = getIpAddress(req);
+    const utmParams = extractUTMParams(url);
 
     const analytics: AnalyticsData = {
       ipAddress,
@@ -236,13 +235,10 @@ async function trackAnalytics(
       device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
       browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
       os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-      referer: headers.get("referer") ?? DIRECT_REFERER,
+      referer: req.headers.get("referer") ?? DIRECT_REFERER,
       trigger,
     };
 
-    const utmParams = extractUTMParams(url);
-
-    // Prepare analytics data for Redis caching
     const cachedData: CachedAnalyticsData = {
       linkId,
       slug,
@@ -250,15 +246,7 @@ async function trackAnalytics(
       url,
       domain,
       timestamp,
-      ipAddress: analytics.ipAddress,
-      country: analytics.country,
-      city: analytics.city,
-      continent: analytics.continent,
-      device: analytics.device,
-      browser: analytics.browser,
-      os: analytics.os,
-      referer: analytics.referer,
-      trigger: analytics.trigger,
+      ...analytics,
       utm_source: utmParams.utm_source ?? undefined,
       utm_medium: utmParams.utm_medium ?? undefined,
       utm_campaign: utmParams.utm_campaign ?? undefined,
@@ -268,7 +256,6 @@ async function trackAnalytics(
 
     waitUntil(
       Promise.allSettled([
-        // Send to Tinybird
         sendLinkClickEvent({
           timestamp,
           link_id: linkId,
@@ -293,7 +280,6 @@ async function trackAnalytics(
           utm_content: utmParams.utm_content ?? "",
         }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
-        // Send to internal usage analytics
         fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -308,7 +294,6 @@ async function trackAnalytics(
           }),
         }).catch((err) => console.error("[Internal Analytics Error]", err)),
 
-        //batch processing
         cacheAnalyticsEvent(cachedData),
       ]),
     );
@@ -349,12 +334,10 @@ export async function URLRedirects(
     }
 
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      // Detect trigger and check if this is a bot request
       const trigger = detectTrigger(req);
       const isBot = trigger === "bot";
 
-      // If this is a bot (e.g., social crawler) and we have metadata, serve preview immediately
-      // This happens BEFORE analytics to ensure bots don't trigger tracking
+      // Serve preview for bots before analytics tracking
       if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
         return serveLinkPreview(req, shortCode, linkData);
       }
@@ -362,10 +345,12 @@ export async function URLRedirects(
       // Only track analytics for non-bot users
       if (!isBot) {
         const ipAddress = getIpAddress(req);
-        const isRateLimited = await checkAnalyticsRateLimit(ipAddress, shortCode);
+        const isRateLimited = await checkAnalyticsRateLimit(
+          ipAddress,
+          shortCode,
+        );
 
         if (!isRateLimited) {
-          // Fire and forget analytics - don't await
           void trackAnalytics(
             req,
             linkData.linkId,
@@ -378,7 +363,6 @@ export async function URLRedirects(
         }
       }
 
-      // Redirect to destination URL with validation
       return createSafeRedirect(linkData.url, `${origin}/?status=error`);
     }
 

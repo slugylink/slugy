@@ -1,4 +1,5 @@
 "use server";
+
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
 import { checkWorkspaceLimit } from "@/server/actions/limit";
@@ -14,6 +15,16 @@ import {
   setWorkspaceValidationCache,
   invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
+
+// Revalidate all workspace-related cache tags
+async function revalidateWorkspaceTags() {
+  await Promise.all([
+    revalidateTag("workspaces", "max"),
+    revalidateTag("all-workspaces", "max"),
+    revalidateTag("workspace", "max"),
+    revalidateTag("workspace-validation", "max"),
+  ]);
+}
 
 export async function createWorkspace({
   name,
@@ -37,7 +48,7 @@ export async function createWorkspace({
     // Check if workspace slug already exists
     const existingWorkspace = await db.workspace.findUnique({
       where: { slug },
-      select: { id: true, name: true },
+      select: { id: true },
     });
 
     if (existingWorkspace) {
@@ -50,7 +61,6 @@ export async function createWorkspace({
 
     // Check workspace limits before creating
     const limitCheck = await checkWorkspaceLimit(userId);
-
     if (!limitCheck.canCreate) {
       return {
         success: false,
@@ -71,41 +81,24 @@ export async function createWorkspace({
         });
       }
 
-      const workspace = await tx.workspace.create({
-        data: {
-          userId,
-          name,
-          slug,
-          logo,
-          isDefault,
-        },
+      return await tx.workspace.create({
+        data: { userId, name, slug, logo, isDefault },
+        select: { id: true, name: true, slug: true },
       });
-
-      return {
-        id: workspace.id,
-        name: workspace.name,
-        slug: workspace.slug,
-      };
     });
 
+    // Revalidate caches
     await Promise.all([
       invalidateWorkspaceCache(userId),
-      revalidateTag("workspaces", "max"),
-      revalidateTag("all-workspaces", "max"),
-      revalidateTag("workspace", "max"),
-      revalidateTag("workspace-validation", "max"),
+      revalidateWorkspaceTags(),
     ]);
-    // Invalidate dashboard layout for new workspace so workspace switch shows after redirect
     revalidatePath(`/${workspace.slug}`);
 
+    // Background tasks
     waitUntil(
       Promise.all([
         db.member.create({
-          data: {
-            userId,
-            workspaceId: workspace.id,
-            role: "owner",
-          },
+          data: { userId, workspaceId: workspace.id, role: "owner" },
         }),
         (async () => {
           const { periodStart, periodEnd } = calculateUsagePeriod(
@@ -118,7 +111,7 @@ export async function createWorkspace({
               workspaceId: workspace.id,
               linksCreated: 0,
               clicksTracked: 0,
-              addedUsers: 1, // Start with 1 user (the creator)
+              addedUsers: 1,
               periodStart,
               periodEnd,
             },
@@ -149,29 +142,17 @@ export async function getDefaultWorkspace(userId: string) {
     }
 
     const workspace = await db.workspace.findFirst({
-      where: { 
-        userId, 
-        isDefault: true 
-      },
-      select: { 
-        id: true, 
-        name: true, 
-        slug: true, 
-        logo: true 
-      },
+      where: { userId, isDefault: true },
+      select: { id: true, name: true, slug: true, logo: true },
     });
 
-    const cachePromise = setDefaultWorkspaceCache(userId, workspace);
-    
-    const result = {
+    waitUntil(setDefaultWorkspaceCache(userId, workspace));
+
+    return {
       success: !!workspace,
       workspace,
       fromCache: false,
     };
-
-    waitUntil(cachePromise);
-
-    return result;
   } catch (error) {
     console.error("Error getting default workspace:", error);
     return {
@@ -186,10 +167,7 @@ export async function fetchAllWorkspaces(userId: string) {
   try {
     const cachedWorkspaces = await getAllWorkspacesCache(userId);
     if (cachedWorkspaces) {
-      return {
-        success: true,
-        workspaces: cachedWorkspaces,
-      };
+      return { success: true, workspaces: cachedWorkspaces };
     }
 
     const [ownedWorkspaces, memberWorkspaces] = await Promise.all([
@@ -202,21 +180,12 @@ export async function fetchAllWorkspaces(userId: string) {
           userId: true,
           logo: true,
           createdAt: true,
-          members: {
-            select: {
-              userId: true,
-              role: true,
-            },
-          },
+          members: { select: { userId: true, role: true } },
         },
         orderBy: { createdAt: "asc" },
       }),
       db.workspace.findMany({
-        where: {
-          members: {
-            some: { userId },
-          },
-        },
+        where: { members: { some: { userId } } },
         select: {
           id: true,
           name: true,
@@ -224,21 +193,14 @@ export async function fetchAllWorkspaces(userId: string) {
           userId: true,
           logo: true,
           createdAt: true,
-          members: {
-            select: {
-              userId: true,
-              role: true,
-            },
-          },
+          members: { select: { userId: true, role: true } },
         },
         orderBy: { createdAt: "asc" },
       }),
     ]);
 
-    const workspaceMap = new Map<string, (typeof ownedWorkspaces)[0]>();
-    
-    ownedWorkspaces.forEach((ws) => workspaceMap.set(ws.id, ws));
-    
+    // Merge and deduplicate workspaces
+    const workspaceMap = new Map(ownedWorkspaces.map((ws) => [ws.id, ws]));
     memberWorkspaces.forEach((ws) => {
       if (!workspaceMap.has(ws.id)) {
         workspaceMap.set(ws.id, ws);
@@ -246,7 +208,7 @@ export async function fetchAllWorkspaces(userId: string) {
     });
 
     const workspaces = Array.from(workspaceMap.values()).sort(
-      (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
     );
 
     const workspacesWithRoles = workspaces.map((workspace) => {
@@ -266,16 +228,10 @@ export async function fetchAllWorkspaces(userId: string) {
 
     await setAllWorkspacesCache(userId, workspacesWithRoles);
 
-    return {
-      success: true,
-      workspaces: workspacesWithRoles,
-    };
+    return { success: true, workspaces: workspacesWithRoles };
   } catch (error) {
     console.error("Error fetching workspaces:", error);
-    return {
-      success: false,
-      workspaces: [],
-    };
+    return { success: false, workspaces: [] };
   }
 }
 
@@ -289,44 +245,23 @@ export async function validateWorkspaceSlug(userId: string, slug: string) {
       };
     }
 
-    let workspace = await db.workspace.findFirst({
+    // Try to find workspace where user is owner or member
+    const workspace = await db.workspace.findFirst({
       where: {
         slug,
-        userId,
+        OR: [{ userId }, { members: { some: { userId } } }],
       },
       select: { id: true, name: true, slug: true, logo: true },
     });
 
-    if (!workspace) {
-      workspace = await db.workspace.findFirst({
-        where: {
-          slug,
-          members: {
-            some: {
-              userId,
-            },
-          },
-        },
-        select: { id: true, name: true, slug: true, logo: true },
-      });
-    }
-
-    if (!workspace) {
-      await setWorkspaceValidationCache(userId, slug, null);
-      return { success: false, workspace: null };
-    }
-
-    await setWorkspaceValidationCache(userId, slug, workspace);
+    await setWorkspaceValidationCache(userId, slug, workspace ?? null);
 
     return {
-      success: true,
-      workspace,
+      success: !!workspace,
+      workspace: workspace ?? null,
     };
   } catch (error) {
     console.error("Error validating workspace slug:", error);
-    return {
-      success: false,
-      workspace: null,
-    };
+    return { success: false, workspace: null };
   }
 }

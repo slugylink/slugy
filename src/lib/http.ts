@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 
 /**
- * Creates a JSON response with ETag support for HTTP caching
- * Returns 304 Not Modified if the client's If-None-Match header matches the ETag
+ * Creates a JSON response with ETag support for HTTP caching.
+ * Returns 304 Not Modified if the client's cached version is still valid.
  *
- * @param request - The incoming request (can be null for server-side rendering)
+ * @param request - The incoming request (null for SSR)
  * @param payload - The JSON payload to send
  * @param init - Optional status code or ResponseInit object
  * @returns NextResponse with ETag headers and conditional 304 response
@@ -15,73 +15,93 @@ export function jsonWithETag(
   payload: unknown,
   init?: number | ResponseInit,
 ): NextResponse {
-  // Generate ETag from JSON payload using SHA-256
+  const etag = generateETag(payload);
+  const headers = buildHeaders(init, etag);
+
+  // Return 304 if client has valid cached version
+  if (isCacheValid(request, etag)) {
+    return new NextResponse(null, { status: 304, headers });
+  }
+
+  // Return full response with ETag
+  const responseInit: ResponseInit =
+    typeof init === "number" ? { status: init, headers } : { ...init, headers };
+
+  return NextResponse.json(payload, responseInit);
+}
+
+// ─────────── Helpers ───────────
+
+/**
+ * Generates a weak ETag from JSON payload using SHA-256
+ */
+function generateETag(payload: unknown): string {
   const jsonString = JSON.stringify(payload);
-  const etag = `W/"${createHash("sha256").update(jsonString).digest("base64url")}"`;
+  const hash = createHash("sha256").update(jsonString).digest("base64url");
+  return `W/"${hash}"`;
+}
 
-  // Get If-None-Match header (case-insensitive)
-  const ifNoneMatch = request?.headers.get("if-none-match");
-
-  // Merge existing headers from init
-  const baseHeaders = new Headers(
+/**
+ * Builds response headers with ETag, Cache-Control, and Vary
+ */
+function buildHeaders(
+  init: number | ResponseInit | undefined,
+  etag: string,
+): Headers {
+  const headers = new Headers(
     typeof init === "number" ? undefined : init?.headers,
   );
 
-  // Set ETag header (only if not already set)
-  if (!baseHeaders.has("ETag")) {
-    baseHeaders.set("ETag", etag);
+  // Set ETag (if not already set)
+  if (!headers.has("ETag")) {
+    headers.set("ETag", etag);
   }
 
-  // Set Cache-Control header (only if not already set)
-  if (!baseHeaders.has("Cache-Control")) {
-    baseHeaders.set("Cache-Control", "private, max-age=0, must-revalidate");
+  // Set Cache-Control (if not already set)
+  if (!headers.has("Cache-Control")) {
+    headers.set("Cache-Control", "private, max-age=0, must-revalidate");
   }
 
-  // Update Vary header to ensure user-specific data isn't shared by intermediaries
-  const existingVary = baseHeaders.get("Vary");
-  const varyValues = new Set<string>();
+  // Add Vary headers for user-specific data
+  setVaryHeader(headers);
 
-  // Parse existing Vary header
+  return headers;
+}
+
+/**
+ * Updates Vary header to prevent sharing user-specific data
+ */
+function setVaryHeader(headers: Headers): void {
+  const existingVary = headers.get("Vary");
+  const varyValues = new Set<string>(["Authorization", "Cookie"]);
+
+  // Parse and merge existing Vary values
   if (existingVary) {
-    existingVary.split(",").forEach((v) => {
-      const trimmed = v.trim();
+    existingVary.split(",").forEach((value) => {
+      const trimmed = value.trim();
       if (trimmed) varyValues.add(trimmed);
     });
   }
 
-  // Add required vary values
-  varyValues.add("Authorization");
-  varyValues.add("Cookie");
+  headers.set("Vary", Array.from(varyValues).join(", "));
+}
 
-  baseHeaders.set("Vary", Array.from(varyValues).join(", "));
+/**
+ * Checks if client's cached version matches server ETag
+ */
+function isCacheValid(request: Request | null, etag: string): boolean {
+  const ifNoneMatch = request?.headers.get("if-none-match");
+  if (!ifNoneMatch) return false;
 
-  // Check if client has cached version (weak ETag comparison)
-  if (ifNoneMatch) {
-    // Normalize weak ETag comparison (strip quotes and compare values)
-    const normalizeETag = (tag: string): string => {
-      return tag
-        .trim()
-        .replace(/^W\//i, "")
-        .replace(/^"/, "")
-        .replace(/"$/, "");
-    };
+  const clientETag = normalizeETag(ifNoneMatch);
+  const serverETag = normalizeETag(etag);
 
-    const clientETag = normalizeETag(ifNoneMatch);
-    const serverETag = normalizeETag(etag);
+  return clientETag === serverETag;
+}
 
-    if (clientETag === serverETag) {
-      return new NextResponse(null, {
-        status: 304,
-        headers: baseHeaders,
-      });
-    }
-  }
-
-  // Build response init with merged headers
-  const responseInit: ResponseInit =
-    typeof init === "number"
-      ? { status: init, headers: baseHeaders }
-      : { ...init, headers: baseHeaders };
-
-  return NextResponse.json(payload, responseInit);
+/**
+ * Normalizes ETag for comparison (strips W/ prefix and quotes)
+ */
+function normalizeETag(tag: string): string {
+  return tag.trim().replace(/^W\//i, "").replace(/^"|"$/g, "");
 }

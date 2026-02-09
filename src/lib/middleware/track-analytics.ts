@@ -33,6 +33,14 @@ interface AnalyticsData {
   trigger: string;
 }
 
+interface UTMParams {
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_term: string | null;
+  utm_content: string | null;
+}
+
 export interface TrackLinkAnalyticsParams {
   linkId: string;
   slug: string;
@@ -54,34 +62,32 @@ function safeDecodeURIComponent(value: string | null): string {
 function getGeoData(req: NextRequest) {
   const headers = req.headers;
 
-  const cfCountry = headers.get("cf-ipcountry");
-  const cfCity = headers.get("cf-ipcity");
-  const cfContinent = headers.get("cf-ipcontinent");
-  const cfRegion = headers.get("cf-region");
-
-  const vercelCountry = headers.get("x-vercel-ip-country");
-  const vercelCity = headers.get("x-vercel-ip-city");
-  const vercelContinent = headers.get("x-vercel-ip-continent");
-  const vercelRegion = headers.get("x-vercel-ip-country-region");
+  // Try Cloudflare headers first, fallback to Vercel
+  const country =
+    headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country");
+  const city = headers.get("cf-ipcity") || headers.get("x-vercel-ip-city");
+  const continent =
+    headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent");
+  const region =
+    headers.get("cf-region") || headers.get("x-vercel-ip-country-region");
 
   return {
-    country: (cfCountry || vercelCountry)?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: safeDecodeURIComponent(cfCity || vercelCity),
-    continent: (cfContinent || vercelContinent)?.toLowerCase() ?? UNKNOWN_VALUE,
-    region: cfRegion || vercelRegion || UNKNOWN_VALUE,
+    country: country?.toLowerCase() ?? UNKNOWN_VALUE,
+    city: safeDecodeURIComponent(city),
+    continent: continent?.toLowerCase() ?? UNKNOWN_VALUE,
+    region: region || UNKNOWN_VALUE,
   };
 }
 
-function extractUTMParams(urlString: string) {
+function extractUTMParams(urlString: string): UTMParams {
   try {
-    const urlObj = new URL(urlString);
-    const params = urlObj.searchParams;
+    const params = new URL(urlString).searchParams;
     return {
-      utm_source: params.get("utm_source") || null,
-      utm_medium: params.get("utm_medium") || null,
-      utm_campaign: params.get("utm_campaign") || null,
-      utm_term: params.get("utm_term") || null,
-      utm_content: params.get("utm_content") || null,
+      utm_source: params.get("utm_source"),
+      utm_medium: params.get("utm_medium"),
+      utm_campaign: params.get("utm_campaign"),
+      utm_term: params.get("utm_term"),
+      utm_content: params.get("utm_content"),
     };
   } catch {
     return {
@@ -108,6 +114,7 @@ async function checkAnalyticsRateLimit(
       nx: true,
       ex: RATE_LIMIT_WINDOW_SECONDS,
     });
+
     const limited = result === null;
     if (limited) {
       console.warn(
@@ -172,10 +179,10 @@ async function dispatchAnalytics(
   const { linkId, slug, url, workspaceId, domain, trigger } = params;
 
   const ua = userAgent(req);
-  const headers = req.headers;
   const timestamp = new Date().toISOString();
   const geoData = getGeoData(req);
   const ipAddress = getIpAddress(req);
+  const utmParams = extractUTMParams(url);
 
   const analytics: AnalyticsData = {
     ipAddress,
@@ -185,11 +192,9 @@ async function dispatchAnalytics(
     device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
     browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
     os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-    referer: headers.get("referer") ?? DIRECT_REFERER,
+    referer: req.headers.get("referer") ?? DIRECT_REFERER,
     trigger,
   };
-
-  const utmParams = extractUTMParams(url);
 
   const cachedData: CachedAnalyticsData = {
     linkId,
@@ -198,15 +203,7 @@ async function dispatchAnalytics(
     url,
     domain,
     timestamp,
-    ipAddress: analytics.ipAddress,
-    country: analytics.country,
-    city: analytics.city,
-    continent: analytics.continent,
-    device: analytics.device,
-    browser: analytics.browser,
-    os: analytics.os,
-    referer: analytics.referer,
-    trigger: analytics.trigger,
+    ...analytics,
     utm_source: utmParams.utm_source ?? undefined,
     utm_medium: utmParams.utm_medium ?? undefined,
     utm_campaign: utmParams.utm_campaign ?? undefined,
@@ -275,10 +272,7 @@ export async function trackLinkAnalytics(
     }
 
     const ipAddress = getIpAddress(req);
-    const isRateLimited = await checkAnalyticsRateLimit(
-      ipAddress,
-      params.slug,
-    );
+    const isRateLimited = await checkAnalyticsRateLimit(ipAddress, params.slug);
     if (isRateLimited) return;
 
     await dispatchAnalytics(req, params);
@@ -286,4 +280,3 @@ export async function trackLinkAnalytics(
     console.error("[Analytics Error]", error);
   }
 }
-
