@@ -23,7 +23,7 @@ export async function POST(
     }
 
     const context = await params;
-    
+
     // Validate workspace access
     const workspace = await validateWorkspaceSlug(
       session.user.id,
@@ -59,7 +59,11 @@ export async function POST(
     });
 
     if (links.length !== linkIds.length) {
-      return jsonWithETag(req, { error: "Some links not found or access denied" }, { status: 404 });
+      return jsonWithETag(
+        req,
+        { error: "Some links not found or access denied" },
+        { status: 404 },
+      );
     }
 
     // Delete all links
@@ -71,24 +75,30 @@ export async function POST(
     });
 
     // Invalidate cache for all deleted links
-    const slugs = links.map(link => link.slug);
+    const slugs = links.map((link) => link.slug);
     await invalidateLinkCacheBatch(slugs);
 
     // Mark links as deleted in Tinybird (non-blocking)
     links.forEach((link) => {
-      const linkData = {
-        id: link.id,
-        domain: "slugy.co",
-        slug: link.slug,
-        url: link.url,
-        workspaceId: workspace.workspace.id,
-        createdAt: link.createdAt,
-        tags: link.tags.map(t => ({ tagId: t.tag.id })),
-      };
-      waitUntil(deleteLink(linkData));
+      if (workspace.workspace) {
+        const linkData = {
+          id: link.id,
+          domain: "slugy.co",
+          slug: link.slug,
+          url: link.url,
+          workspaceId: workspace.workspace.id,
+          createdAt: link.createdAt,
+          tags: link.tags.map((t) => ({ tagId: t.tag.id })),
+        };
+        waitUntil(deleteLink(linkData));
+      }
     });
 
-    return jsonWithETag(req, { message: `Successfully deleted ${linkIds.length} links` }, { status: 200 });
+    return jsonWithETag(
+      req,
+      { message: `Successfully deleted ${linkIds.length} links` },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error bulk deleting links:", error);
     if (error instanceof z.ZodError) {
@@ -99,11 +109,7 @@ export async function POST(
       );
     }
     if (error instanceof Error) {
-      return jsonWithETag(
-        req,
-        { message: error.message },
-        { status: 400 },
-      );
+      return jsonWithETag(req, { message: error.message }, { status: 400 });
     }
     return jsonWithETag(
       req,
@@ -111,4 +117,4 @@ export async function POST(
       { status: 500 },
     );
   }
-} 
+}
