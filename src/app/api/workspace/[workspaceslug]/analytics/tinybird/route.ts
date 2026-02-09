@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
+import { jsonWithETag } from "@/lib/http";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";

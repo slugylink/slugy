@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Globe, Plus } from "lucide-react";
 import { AddDomainDialog } from "@/components/web/_settings/add-domain-dialog";
 import { DomainCard } from "@/components/web/_settings/domain-card";
-import { Badge } from "@/components/ui/badge";
 
 interface CustomDomain {
   id: string;
@@ -54,8 +53,6 @@ export default function DomainsClient({
   const [domains, setDomains] = useState<CustomDomain[]>(initialDomains);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   // No dialog state needed; configuration is inline within each DomainCard
-
-  const canAddDomain = maxDomains > 0 && domains.length < maxDomains;
 
   const handleDomainAdded = (newDomain: CustomDomain) => {
     setDomains((prev) => [newDomain, ...prev]);

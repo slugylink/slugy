@@ -125,7 +125,7 @@ const LinkQrCode = ({
       {code ? (
         <div>
           <QRCode
-            value={`https://${domain}/${code}`}
+            value={`https://${domain}/${code}?via=qr`}
             size={90}
             fgColor={mergedOptions.dotsOptions?.color}
             bgColor={mergedOptions.backgroundOptions?.color}

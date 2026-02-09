@@ -42,6 +42,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 type WorkspaceRole = "owner" | "admin" | "member";
 
 interface TeamMember {
@@ -68,7 +72,7 @@ interface TeamResponse {
   invitations: PendingInvitation[];
   isOwner?: boolean;
   canManageTeam?: boolean;
-  role?: "owner" | "admin" | "member";
+  role?: WorkspaceRole;
 }
 
 interface TeamClientProps {
@@ -76,9 +80,13 @@ interface TeamClientProps {
   currentUserId: string;
 }
 
+// ============================================================================
+// API Utilities
+// ============================================================================
+
 async function apiCall<T>(
   url: string,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<{ ok: boolean; data?: T; error?: string }> {
   try {
     const res = await fetch(url, options);
@@ -91,11 +99,20 @@ async function apiCall<T>(
   }
 }
 
+async function fetchTeamData(url: string): Promise<TeamResponse> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Failed to fetch team data");
+  return response.json();
+}
+
+// ============================================================================
+// Table State Components
+// ============================================================================
+
 const EmptyState = memo(({ colSpan }: { colSpan: number }) => (
   <TableRow>
     <TableCell colSpan={colSpan} className="h-32 text-center">
       <div className="flex flex-col items-center justify-center">
-        <User className="text-muted-foreground mb-2 h-8 w-8" />
         <p className="text-muted-foreground">No team members found</p>
       </div>
     </TableCell>
@@ -107,7 +124,7 @@ const LoadingState = memo(({ colSpan }: { colSpan: number }) => (
   <TableRow>
     <TableCell colSpan={colSpan} className="h-32 text-center">
       <div className="flex items-center justify-center">
-        <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
+        <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
       </div>
     </TableCell>
   </TableRow>
@@ -125,6 +142,10 @@ const ErrorState = memo(({ colSpan }: { colSpan: number }) => (
 ));
 ErrorState.displayName = "ErrorState";
 
+// ============================================================================
+// Member Row Component
+// ============================================================================
+
 interface MemberRowProps {
   member: TeamMember;
   canManageTeam: boolean;
@@ -135,7 +156,14 @@ interface MemberRowProps {
 }
 
 const MemberRow = memo(
-  ({ member, canManageTeam, currentUserId, onRoleChange, onRemoveClick, isSubmitting }: MemberRowProps) => {
+  ({
+    member,
+    canManageTeam,
+    currentUserId,
+    onRoleChange,
+    onRemoveClick,
+    isSubmitting,
+  }: MemberRowProps) => {
     const isCurrentUser = member.user.id === currentUserId;
     const isMemberOwner = member.role === "owner";
     const canManage = canManageTeam && !isCurrentUser && !isMemberOwner;
@@ -159,21 +187,27 @@ const MemberRow = memo(
             )}
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
-                <span className="font-medium">{member.user.name || "Unnamed User"}</span>
+                <span className="font-medium">
+                  {member.user.name || "Unnamed User"}
+                </span>
                 {isMemberOwner && (
                   <span title="Owner">
                     <Crown className="h-4 w-4 text-amber-500" />
                   </span>
                 )}
                 {isCurrentUser && (
-                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">You</span>
+                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs text-blue-700">
+                    You
+                  </span>
                 )}
               </div>
             </div>
           </div>
         </TableCell>
         <TableCell>
-          <span className="text-muted-foreground text-sm">{member.user.email}</span>
+          <span className="text-muted-foreground text-sm">
+            {member.user.email}
+          </span>
         </TableCell>
         <TableCell>
           <span className="text-sm font-medium capitalize">{member.role}</span>
@@ -219,63 +253,154 @@ const MemberRow = memo(
         )}
       </TableRow>
     );
-  },
+  }
 );
 MemberRow.displayName = "MemberRow";
 
-interface InvitationRowProps {
-  invitation: PendingInvitation;
-  canManageTeam: boolean;
-}
+// ============================================================================
+// Invitation Row Component
+// ============================================================================
 
-const InvitationRow = memo(({ invitation, canManageTeam }: InvitationRowProps) => (
-  <TableRow className="bg-muted/30">
-    <TableCell>
-      <div className="flex items-center gap-3">
-        <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
-          <Mail className="text-muted-foreground h-4 w-4" />
+const InvitationRow = memo(
+  ({
+    invitation,
+    canManageTeam,
+  }: {
+    invitation: PendingInvitation;
+    canManageTeam: boolean;
+  }) => (
+    <TableRow className="bg-muted/30">
+      <TableCell>
+        <div className="flex items-center gap-3">
+          <div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
+            <Mail className="text-muted-foreground h-4 w-4" />
+          </div>
+          <span className="text-muted-foreground text-sm">—</span>
         </div>
-        <span className="text-muted-foreground text-sm">—</span>
-      </div>
-    </TableCell>
-    <TableCell>
-      <span className="text-muted-foreground text-sm">{invitation.email}</span>
-    </TableCell>
-    <TableCell>
-      <span className="text-sm font-medium capitalize">{invitation.role}</span>
-    </TableCell>
-    <TableCell>
-      <Badge variant="outline">Pending</Badge>
-    </TableCell>
-    {canManageTeam && <TableCell />}
-  </TableRow>
-));
+      </TableCell>
+      <TableCell>
+        <span className="text-muted-foreground text-sm">
+          {invitation.email}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="text-sm font-medium capitalize">
+          {invitation.role}
+        </span>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">Pending</Badge>
+      </TableCell>
+      {canManageTeam && <TableCell />}
+    </TableRow>
+  )
+);
 InvitationRow.displayName = "InvitationRow";
 
+// ============================================================================
+// Remove Member Dialog
+// ============================================================================
+
+interface RemoveMemberDialogProps {
+  open: boolean;
+  member: TeamMember | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onConfirm: (memberId: string) => void;
+}
+
+const RemoveMemberDialog = memo(
+  ({
+    open,
+    member,
+    isSubmitting,
+    onClose,
+    onConfirm,
+  }: RemoveMemberDialogProps) => {
+    if (!open || !member) return null;
+
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-150"
+        onClick={() => !isSubmitting && onClose()}
+      >
+        <div
+          className="w-full max-w-md rounded-xl border bg-background p-6 shadow-lg animate-in fade-in-0 zoom-in-95 duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mb-4 space-y-2">
+            <h2 className="text-lg font-semibold">Remove member</h2>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to remove{" "}
+              <strong>{member.user.name || member.user.email}</strong> from this
+              workspace? This action cannot be undone.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => onConfirm(member.user.id)}
+              disabled={isSubmitting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSubmitting && (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Remove
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+);
+RemoveMemberDialog.displayName = "RemoveMemberDialog";
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
+  // Invite dialog state
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"member" | "admin">("member");
   const [inviteSubmitting, setInviteSubmitting] = useState(false);
+
+  // Remove dialog state
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
   const [actionSubmitting, setActionSubmitting] = useState(false);
 
-  const { data: teamData, error, isLoading, mutate } = useSWR<TeamResponse>(
+  // Fetch team data
+  const {
+    data: teamData,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<TeamResponse>(
     `/api/workspace/${workspaceslug}/team`,
-    async (url: string) => {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch team data");
-      return response.json();
-    },
+    fetchTeamData
   );
 
+  // Derived state
   const members = teamData?.members ?? [];
   const invitations = teamData?.invitations ?? [];
-  const isOwner = teamData?.isOwner ?? false;
   const canManageTeam = teamData?.canManageTeam ?? false;
   const hasAny = members.length > 0 || invitations.length > 0;
   const colSpan = useMemo(() => (canManageTeam ? 5 : 4), [canManageTeam]);
+
+  // ============================================================================
+  // Handlers
+  // ============================================================================
 
   const handleRoleChange = useCallback(
     async (memberId: string, newRole: "admin" | "member") => {
@@ -287,7 +412,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ role: newRole }),
-          },
+          }
         );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to update role");
@@ -299,16 +424,19 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setActionSubmitting(false);
       }
     },
-    [workspaceslug, mutate],
+    [workspaceslug, mutate]
   );
 
   const handleRemove = useCallback(
     async (memberId: string) => {
       setActionSubmitting(true);
       try {
-        const result = await apiCall(`/api/workspace/${workspaceslug}/team/${memberId}`, {
-          method: "DELETE",
-        });
+        const result = await apiCall(
+          `/api/workspace/${workspaceslug}/team/${memberId}`,
+          {
+            method: "DELETE",
+          }
+        );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to remove member");
           return;
@@ -321,7 +449,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setActionSubmitting(false);
       }
     },
-    [workspaceslug, mutate],
+    [workspaceslug, mutate]
   );
 
   const handleInviteSubmit = useCallback(
@@ -334,11 +462,14 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
       }
       setInviteSubmitting(true);
       try {
-        const result = await apiCall(`/api/workspace/${workspaceslug}/team/invite`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, role: inviteRole }),
-        });
+        const result = await apiCall(
+          `/api/workspace/${workspaceslug}/team/invite`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, role: inviteRole }),
+          }
+        );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to send invitation");
           return;
@@ -352,11 +483,25 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setInviteSubmitting(false);
       }
     },
-    [workspaceslug, inviteEmail, inviteRole, mutate],
+    [workspaceslug, inviteEmail, inviteRole, mutate]
   );
 
+  const handleRemoveClick = useCallback((member: TeamMember) => {
+    setSelectedMember(member);
+    setRemoveDialogOpen(true);
+  }, []);
+
+  const handleRemoveDialogClose = useCallback(() => {
+    setRemoveDialogOpen(false);
+  }, []);
+
+  // ============================================================================
+  // Render
+  // ============================================================================
+
   return (
-    <div className="space-y-4 mt-8">
+    <div className="mt-8 space-y-4">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-muted-foreground text-sm">
@@ -366,70 +511,70 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
-              {/* <Button>
-                <UserPlus className=" h-4 w-4" />
+              <Button>
+                <UserPlus className="h-4 w-4" />
                 Invite
-              </Button> */}
+              </Button>
             </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Invite by email</DialogTitle>
-              <DialogDescription>
-                Send an invitation to join this workspace. They will receive an email with a link
-                to accept.
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleInviteSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="invite-email">Email address</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="colleague@example.com"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  disabled={inviteSubmitting}
-                  autoComplete="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="invite-role">Role</Label>
-                <Select
-                  value={inviteRole}
-                  onValueChange={(v) => setInviteRole(v as "member" | "admin")}
-                  disabled={inviteSubmitting}
-                >
-                  <SelectTrigger id="invite-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="member">Member</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setInviteOpen(false)}
-                  disabled={inviteSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={inviteSubmitting}>
-                  {inviteSubmitting && (
-                    <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Send invitation
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invite by email</DialogTitle>
+                <DialogDescription>
+                  Send an invitation to join this workspace. They will receive
+                  an email with a link to accept.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleInviteSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="invite-email">Email address</Label>
+                  <Input
+                    id="invite-email"
+                    type="email"
+                    placeholder="colleague@example.com"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    disabled={inviteSubmitting}
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invite-role">Role</Label>
+                  <Select
+                    value={inviteRole}
+                    onValueChange={(v) => setInviteRole(v as "member" | "admin")}
+                    disabled={inviteSubmitting}
+                  >
+                    <SelectTrigger id="invite-role">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="member">Member</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setInviteOpen(false)}
+                    disabled={inviteSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={inviteSubmitting}>
+                    {inviteSubmitting && (
+                      <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                    )}
+                    Send invitation
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
+      {/* Team Table */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -456,62 +601,30 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
                   canManageTeam={canManageTeam}
                   currentUserId={currentUserId}
                   onRoleChange={handleRoleChange}
-                  onRemoveClick={(m) => {
-                    setSelectedMember(m);
-                    setRemoveDialogOpen(true);
-                  }}
+                  onRemoveClick={handleRemoveClick}
                   isSubmitting={actionSubmitting}
                 />
               ))}
               {invitations.map((inv) => (
-                <InvitationRow key={inv.id} invitation={inv} canManageTeam={canManageTeam} />
+                <InvitationRow
+                  key={inv.id}
+                  invitation={inv}
+                  canManageTeam={canManageTeam}
+                />
               ))}
             </>
           )}
         </TableBody>
       </Table>
 
-      {removeDialogOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-150"
-          onClick={() => !actionSubmitting && setRemoveDialogOpen(false)}
-        >
-          <div
-            className="w-full max-w-md rounded-xl border bg-background p-6 shadow-lg animate-in fade-in-0 zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 space-y-2">
-              <h2 className="text-lg font-semibold">Remove member</h2>
-              <p className="text-sm text-muted-foreground">
-                Are you sure you want to remove{" "}
-                <strong>{selectedMember?.user.name || selectedMember?.user.email}</strong> from this
-                workspace? This action cannot be undone.
-              </p>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setRemoveDialogOpen(false)}
-                disabled={actionSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => selectedMember && handleRemove(selectedMember.user.id)}
-                disabled={actionSubmitting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {actionSubmitting && (
-                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Remove
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Remove Member Dialog */}
+      <RemoveMemberDialog
+        open={removeDialogOpen}
+        member={selectedMember}
+        isSubmitting={actionSubmitting}
+        onClose={handleRemoveDialogClose}
+        onConfirm={handleRemove}
+      />
     </div>
   );
 });

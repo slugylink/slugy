@@ -33,6 +33,29 @@ export const config = {
   ],
 };
 
+//─────────── Constants ───────────
+
+const STATIC_ASSETS_EXTENSIONS = /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/;
+const STATIC_ASSET_PATHS = [
+  "_next",
+  "static",
+  "images",
+  "icons",
+] as const;
+
+const isStaticAsset = (pathname: string): boolean => {
+  if (STATIC_ASSETS_EXTENSIONS.test(pathname)) return true;
+  return (
+    pathname === "/favicon.ico" ||
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml" ||
+    pathname === "/manifest.webmanifest" ||
+    STATIC_ASSET_PATHS.some((p) => pathname.startsWith(`/${p}`))
+  );
+};
+const getRetryAfterSeconds = (resetTime: number): number =>
+  Math.ceil((resetTime - Date.now()) / 1000);
+
 //─────────── Helpers ───────────
 
 const addSecurityHeaders = (res: NextResponse): NextResponse => {
@@ -65,6 +88,12 @@ const isPublicPath = (path: string): boolean =>
 const isFastApiRoute = (pathname: string): boolean =>
   FAST_API_PATTERNS.some((pattern) => pattern.test(pathname));
 
+const isKnownDomain = (hostname: string): boolean =>
+  hostname === ROOT_DOMAIN ||
+  hostname === SUBDOMAINS.bio ||
+  hostname === SUBDOMAINS.app ||
+  hostname === SUBDOMAINS.admin;
+
 const normalizeHostname = (host: string | null): string =>
   host
     ?.toLowerCase()
@@ -78,13 +107,13 @@ type RateLimitResult = {
   reset: number;
 };
 
-const rateLimitExceededResponse = (result: RateLimitResult) =>
-  addSecurityHeaders(
-    // FIXED: Added security headers
+const rateLimitExceededResponse = (result: RateLimitResult) => {
+  const retryAfter = getRetryAfterSeconds(result.reset);
+  return addSecurityHeaders(
     new NextResponse(
       JSON.stringify({
         error: "Rate limit exceeded",
-        retryAfter: Math.ceil((result.reset - Date.now()) / 1000),
+        retryAfter,
       }),
       {
         status: 429,
@@ -93,11 +122,12 @@ const rateLimitExceededResponse = (result: RateLimitResult) =>
           "X-RateLimit-Limit": result.limit.toString(),
           "X-RateLimit-Remaining": result.remaining.toString(),
           "X-RateLimit-Reset": new Date(result.reset).toISOString(),
-          "Retry-After": `${Math.ceil((result.reset - Date.now()) / 1000)}`,
+          "Retry-After": retryAfter.toString(),
         },
       },
     ),
   );
+};
 
 //─────────── Main Middleware ───────────
 
@@ -106,20 +136,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
 
-    // Early return for static assets and common files
-    if (
-      pathname.startsWith("/_next") ||
-      pathname.startsWith("/static") ||
-      pathname === "/favicon.ico" ||
-      pathname === "/robots.txt" ||
-      pathname === "/sitemap.xml" ||
-      pathname === "/manifest.webmanifest" ||
-      pathname.startsWith("/images/") ||
-      pathname.startsWith("/icons/") ||
-      /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/.test(
-        pathname,
-      )
-    ) {
+    if (isStaticAsset(pathname)) {
       return NextResponse.next();
     }
 
@@ -134,14 +151,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       const clientIP = getClientIP(req);
       const isFastUser = isFastApiRoute(pathname);
 
-      // Only apply rate limiting for known domains, not custom domains
-      const isKnownDomain =
-        hostname === ROOT_DOMAIN ||
-        hostname === SUBDOMAINS.bio ||
-        hostname === SUBDOMAINS.app ||
-        hostname === SUBDOMAINS.admin;
-
-      if (process.env.NODE_ENV !== "development" && isKnownDomain) {
+      if (process.env.NODE_ENV !== "development" && isKnownDomain(hostname)) {
         const limitResult = isFastUser
           ? checkFastRateLimit(clientIP)
           : await checkRateLimit(clientIP);
@@ -189,7 +199,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 }
 
-//─────────── Subdomain Handlers ───────────
+//─────────── App Subdomain Handlers ───────────
 
 async function handleAppSubdomain(
   url: URL,
@@ -197,34 +207,24 @@ async function handleAppSubdomain(
   baseUrl: string,
 ): Promise<NextResponse> {
   const { pathname, search } = url;
-
   const prefixedPath = `/app${pathname}${search}`;
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
 
-  // Lazily resolve session only when required
-  let sessionToken: unknown | null = null;
-  const ensureSession = async () => {
-    if (sessionToken !== null) return sessionToken;
-    const { token } = await getCachedSession(req);
-    sessionToken = token;
-    return sessionToken;
-  };
+  // Fetch session once
+  const { token } = await getCachedSession(req);
 
-  // Handle root path - only fetch session when needed
+  // Handle root path
   if (pathname === "/") {
-    const isAuthenticated = Boolean(await ensureSession());
-    const redirectPath = isAuthenticated ? "/app" : "/login";
+    const redirectPath = token ? "/app" : "/login";
     return addSecurityHeaders(
       NextResponse.redirect(new URL(redirectPath, baseUrl)),
     );
   }
 
-  // Auth-related paths
+  // Handle auth pages
   if (isAuthPage) {
-    const isAuthenticated = Boolean(await ensureSession());
-
-    if (isAuthenticated && (pathname === "/login" || pathname === "/signup")) {
+    if (token && (pathname === "/login" || pathname === "/signup")) {
       return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
     }
 
@@ -237,17 +237,14 @@ async function handleAppSubdomain(
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Non-public paths require auth; lazily check session
-  if (!isPublicPath(pathname)) {
-    const isAuthenticated = Boolean(await ensureSession());
-
-    if (!isAuthenticated) {
-      return addSecurityHeaders(
-        NextResponse.redirect(new URL("/app/login", baseUrl)),
-      );
-      }
+  // Check authentication for non-public paths
+  if (!isPublicPath(pathname) && !token) {
+    return addSecurityHeaders(
+      NextResponse.redirect(new URL("/app/login", baseUrl)),
+    );
   }
 
+  // Rewrite to app subdirectory if needed
   if (!isAlreadyInApp) {
     return addSecurityHeaders(
       NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
@@ -274,15 +271,7 @@ async function handleRootDomain(
     }
   }
 
-  // Skip assets/static - FIXED: Better asset detection
-  if (
-    pathname.startsWith("/api/") ||
-    pathname.startsWith("/_next/") ||
-    pathname.startsWith("/static/") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/manifest.webmanifest") ||
-    /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/.test(pathname)
-  ) {
+  if (pathname.startsWith("/api/") || isStaticAsset(pathname)) {
     return addSecurityHeaders(NextResponse.next());
   }
 

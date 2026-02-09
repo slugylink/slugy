@@ -23,7 +23,7 @@ interface UseAnalyticsParams {
   timePeriod: TimePeriod;
   searchParams?: Record<string, string>;
   enabled?: boolean;
-  metrics?: Array<keyof AnalyticsData>;
+  metrics?: readonly (keyof AnalyticsData)[];
   useTinybird?: boolean;
 }
 
@@ -49,7 +49,10 @@ const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
 ];
 
 // Metric fallback values
-const METRIC_FALLBACKS: Record<keyof AnalyticsData, AnalyticsData[keyof AnalyticsData]> = {
+const METRIC_FALLBACKS: Record<
+  keyof AnalyticsData,
+  AnalyticsData[keyof AnalyticsData]
+> = {
   totalClicks: 0,
   clicksOverTime: [],
   links: [],
@@ -106,7 +109,7 @@ const fetchAnalyticsData = async (
   Object.entries(params).forEach(([key, value]) => {
     // Skip time_period if it's the default "24h"
     if (key === "time_period" && value === "24h") return;
-    
+
     // Skip empty/null values
     if (value && value.trim()) {
       searchParams.set(key, value);
@@ -217,7 +220,7 @@ export function useAnalytics({
       fetchAnalyticsData(
         workspaceslug,
         debouncedSearchParams,
-        metrics,
+        [...metrics],
         useTinybird,
       ),
     {
@@ -228,9 +231,14 @@ export function useAnalytics({
   );
 
   const sortedData = useMemo(() => {
-    if (!data) return {} as Partial<Pick<AnalyticsData, typeof SORTABLE_METRICS[number]>>;
+    if (!data)
+      return {} as Partial<
+        Pick<AnalyticsData, (typeof SORTABLE_METRICS)[number]>
+      >;
 
-    const result: Partial<Pick<AnalyticsData, typeof SORTABLE_METRICS[number]>> = {};
+    const result: Partial<
+      Pick<AnalyticsData, (typeof SORTABLE_METRICS)[number]>
+    > = {};
 
     for (const metric of SORTABLE_METRICS) {
       const value = data[metric];

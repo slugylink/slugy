@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo, useCallback } from "react";
-import { ChevronsUpDown, Waypoints } from "lucide-react";
+import { ChevronsUpDown, UserRoundPlus } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +23,10 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import CreateWorkspaceDialog from "./create-workspace-dialog";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 interface WorkspaceArr {
   id: string;
   name: string;
@@ -36,32 +40,82 @@ interface WorkspaceSwitcherProps {
   workspaceslug: string;
 }
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+const AVATAR_SIZES = {
+  small: 24,
+  medium: 30,
+} as const;
+
+const FALLBACK_AVATAR_BASE = "https://avatar.vercel.sh";
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+function getFallbackAvatarUrl(slug: string): string {
+  return `${FALLBACK_AVATAR_BASE}/${slug}.png`;
+}
+
+function isNonOwner(userRole: WorkspaceArr["userRole"]): boolean {
+  return Boolean(userRole && userRole !== "owner");
+}
+
+function buildNewWorkspacePath(
+  pathname: string,
+  currentSlug: string,
+  newSlug: string,
+): string {
+  const workspaceSlugPattern = `/${currentSlug}`;
+  
+  if (pathname.startsWith(workspaceSlugPattern)) {
+    return pathname.replace(workspaceSlugPattern, `/${newSlug}`);
+  }
+  
+  return `/${newSlug}${pathname}`;
+}
+
+// ============================================================================
+// Sub-Components
+// ============================================================================
+
 const WorkspaceAvatar = memo<{
   workspace: WorkspaceArr;
   size: number;
   className?: string;
-}>(({ workspace, size, className }) => (
-  <div className={className}>
-    {workspace.logo ? (
+}>(({ workspace, size, className }) => {
+  const avatarSrc = workspace.logo || getFallbackAvatarUrl(workspace.slug);
+
+  return (
+    <div className={className}>
       <Image
-        src={workspace.logo}
+        src={avatarSrc}
         alt={workspace.name}
         width={size}
         height={size}
         className="size-full object-cover"
       />
-    ) : (
-      <Image
-        src={`https://avatar.vercel.sh/${workspace.slug}.png`}
-        alt={workspace.name}
-        width={size}
-        height={size}
-        className="size-full object-cover"
-      />
-    )}
-  </div>
-));
+    </div>
+  );
+});
 WorkspaceAvatar.displayName = "WorkspaceAvatar";
+
+const RoleIndicator = memo<{ userRole: WorkspaceArr["userRole"] }>(
+  ({ userRole }) => {
+    if (!isNonOwner(userRole)) return null;
+
+    return (
+      <UserRoundPlus 
+        strokeWidth={1.5} 
+        size={13} 
+        className="ml-1 p-[1.5px]"
+      />
+    );
+  }
+);
+RoleIndicator.displayName = "RoleIndicator";
 
 const WorkspaceMenuItem = memo<{
   workspace: WorkspaceArr;
@@ -85,47 +139,46 @@ const WorkspaceMenuItem = memo<{
     >
       <WorkspaceAvatar
         workspace={workspace}
-        size={24}
+        size={AVATAR_SIZES.small}
         className="size-full object-cover"
       />
     </div>
     <span className="flex items-center gap-1">
       <span className="truncate line-clamp-1">{workspace.name}</span>
-      {workspace.userRole && workspace.userRole !== "owner" && (
-        <Waypoints strokeWidth={1.5} size={14} className="ml-1"/>
-      )}
+      <RoleIndicator userRole={workspace.userRole} />
     </span>
     <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
   </DropdownMenuItem>
 ));
 WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
 
-const WorkspaceSwitch = ({
-  workspaces,
-  workspaceslug,
-}: WorkspaceSwitcherProps) => {
+// ============================================================================
+// Main Component
+// ============================================================================
+
+function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { isMobile } = useSidebar();
 
+  // Find active workspace with fallback
   const activeWorkspace = useMemo(() => {
     const found = workspaces.find((ws) => ws?.slug === workspaceslug);
     const fallback = workspaces.find((ws) => ws?.id != null);
     return found ?? fallback ?? null;
   }, [workspaces, workspaceslug]);
 
+  // Handle workspace switching
   const handleWorkspaceSwitch = useCallback(
     (workspace: WorkspaceArr) => {
-      const workspaceSlugPattern = `/${workspaceslug}`;
-      const newPath = pathname.startsWith(workspaceSlugPattern)
-        ? pathname.replace(workspaceSlugPattern, `/${workspace.slug}`)
-        : `/${workspace.slug}${pathname}`;
+      const newPath = buildNewWorkspacePath(pathname, workspaceslug, workspace.slug);
       router.refresh();
       router.push(newPath);
     },
-    [pathname, router, workspaceslug],
+    [pathname, router, workspaceslug]
   );
 
+  // Render workspace menu items
   const workspaceMenuItems = useMemo(
     () =>
       activeWorkspace
@@ -141,9 +194,10 @@ const WorkspaceSwitch = ({
               />
             ))
         : [],
-    [workspaces, activeWorkspace, handleWorkspaceSwitch],
+    [workspaces, activeWorkspace, handleWorkspaceSwitch]
   );
 
+  // Show skeleton if no valid workspaces
   const hasValidWorkspaces = workspaces.some((ws) => ws?.id != null);
   if (!hasValidWorkspaces || !activeWorkspace) {
     return (
@@ -168,17 +222,16 @@ const WorkspaceSwitch = ({
               <div className="bg-sidebar-border flex aspect-square size-8 items-center justify-center overflow-hidden rounded-full">
                 <WorkspaceAvatar
                   workspace={activeWorkspace}
-                  size={30}
+                  size={AVATAR_SIZES.medium}
                   className="size-full object-cover"
                 />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="flex items-center gap-1 truncate font-medium">
-                  <span className="truncate line-clamp-1">{activeWorkspace.name ?? "Select Workspace"}</span>
-                  {activeWorkspace.userRole &&
-                    activeWorkspace.userRole !== "owner" && (
-                      <Waypoints strokeWidth={1.5} size={13} className="ml-1" />
-                    )}
+                  <span className="truncate line-clamp-1">
+                    {activeWorkspace.name ?? "Select Workspace"}
+                  </span>
+                  <RoleIndicator userRole={activeWorkspace.userRole} />
                 </span>
                 <span className="truncate text-xs">
                   {activeWorkspace.slug ?? ""}
@@ -204,6 +257,6 @@ const WorkspaceSwitch = ({
       </SidebarMenuItem>
     </SidebarMenu>
   );
-};
+}
 
-export default WorkspaceSwitch;
+export default memo(WorkspaceSwitch);

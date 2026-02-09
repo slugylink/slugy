@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import DomainsClient from "./page-client";
+import useSWR from "swr";
 
 export default async function DomainsSettings({
   params,

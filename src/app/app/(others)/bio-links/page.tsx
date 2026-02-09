@@ -8,7 +8,9 @@ import {
   setDefaultBioCache,
 } from "@/lib/cache-utils/bio-cache";
 
-const REDIRECT_DELAY = 100; // ms delay for redirects
+// ============================================================================
+// Types
+// ============================================================================
 
 interface BioData {
   username: string;
@@ -20,18 +22,45 @@ interface CacheResult {
   userId: string;
 }
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+const REDIRECT_DELAY_MS = 100;
+
+const ERROR_MESSAGES = {
+  AUTH_SKIPPED: "Authentication skipped during static generation",
+  AUTH_FAILED: "Authentication failed",
+  NO_USER: "No authenticated user found",
+  FETCH_FAILED: "Failed to fetch bio data from database",
+} as const;
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
 async function isStaticGeneration(): Promise<boolean> {
   try {
     const headersList = await headers();
-    return !headersList.has('host');
+    return !headersList.has("host");
   } catch {
     return true;
   }
 }
 
+async function delay(ms: number): Promise<void> {
+  if (ms > 0) {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}
+
+// ============================================================================
+// Data Fetching
+// ============================================================================
+
 async function getUserSession() {
   if (await isStaticGeneration()) {
-    throw new Error("Authentication skipped during static generation");
+    throw new Error(ERROR_MESSAGES.AUTH_SKIPPED);
   }
 
   try {
@@ -40,12 +69,12 @@ async function getUserSession() {
     });
 
     if (!session?.user?.id) {
-      throw new Error("No authenticated user found");
+      throw new Error(ERROR_MESSAGES.NO_USER);
     }
 
     return session;
   } catch {
-    throw new Error("Authentication failed");
+    throw new Error(ERROR_MESSAGES.AUTH_FAILED);
   }
 }
 
@@ -70,102 +99,150 @@ async function fetchBioData(userId: string): Promise<BioData | null> {
       userId,
     };
   } catch {
-    throw new Error("Failed to fetch bio data from database");
+    throw new Error(ERROR_MESSAGES.FETCH_FAILED);
   }
 }
 
-async function handleRedirect(
-  username: string,
-  delay: number = REDIRECT_DELAY,
-) {
-  if (delay > 0) {
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  }
+// ============================================================================
+// Cache Operations
+// ============================================================================
 
+async function getCachedBio(userId: string): Promise<CacheResult | null> {
+  try {
+    return await getDefaultBioCache(userId);
+  } catch {
+    // Silently handle cache read failures
+    return null;
+  }
+}
+
+async function updateBioCache(
+  userId: string,
+  bioData: BioData | null,
+): Promise<void> {
+  try {
+    await setDefaultBioCache(userId, bioData);
+  } catch {
+    // Silently handle cache write failures
+  }
+}
+
+// ============================================================================
+// Redirect Helpers
+// ============================================================================
+
+async function redirectToBio(
+  username: string,
+  delayMs: number = REDIRECT_DELAY_MS,
+) {
+  await delay(delayMs);
   return redirect(`/bio-links/${username}`);
 }
 
-async function handleCacheOperations(userId: string, bioData: BioData | null) {
-  try {
-    if (bioData) {
-      await setDefaultBioCache(userId, bioData);
-    } else {
-      await setDefaultBioCache(userId, null);
-    }
-  } catch {
-    // Silently handle cache errors
-  }
+function redirectToLogin() {
+  return redirect("/login");
 }
 
-export default async function BioLinks() {
-  if (await isStaticGeneration()) {
-    return (
-      <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-muted-foreground text-lg font-semibold">
-            Loading Bio Links
-          </h2>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Please wait while we load your content...
-          </p>
-        </div>
+// ============================================================================
+// UI Components
+// ============================================================================
+
+function LoadingState() {
+  return (
+    <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-muted-foreground text-lg font-semibold">
+          Loading Bio Links
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm">
+          Please wait while we load your content...
+        </p>
       </div>
-    );
+    </div>
+  );
+}
+
+function ErrorState() {
+  return (
+    <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
+      <div className="text-center">
+        <h2 className="text-destructive text-lg font-semibold">
+          Failed to load bio links
+        </h2>
+        <p className="text-muted-foreground mt-2 text-sm">
+          There was an error loading your bio links. Please try again.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 rounded-md px-4 py-2 text-sm"
+        >
+          Retry
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// Error Handling
+// ============================================================================
+
+function isAuthError(error: Error): boolean {
+  return (
+    error.message.includes("Authentication failed") ||
+    error.message.includes("Authentication skipped")
+  );
+}
+
+function isFetchError(error: Error): boolean {
+  return error.message.includes("Failed to fetch bio data");
+}
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
+export default async function BioLinks() {
+  // Handle static generation
+  if (await isStaticGeneration()) {
+    return <LoadingState />;
   }
 
   try {
+    // Get authenticated user
     const session = await getUserSession();
     const userId = session.user.id;
 
-    let cachedBio: CacheResult | null = null;
-    try {
-      cachedBio = await getDefaultBioCache(userId);
-    } catch {
-      // Silently handle cache failures
-    }
-
+    // Check cache first
+    const cachedBio = await getCachedBio(userId);
     if (cachedBio?.username) {
-      return handleRedirect(cachedBio.username, 0);
+      return redirectToBio(cachedBio.username, 0);
     }
 
+    // Fetch from database
     const bioData = await fetchBioData(userId);
 
-    handleCacheOperations(userId, bioData).catch(() => {
+    // Update cache (fire and forget)
+    updateBioCache(userId, bioData).catch(() => {
       // Silently handle cache failures
     });
 
+    // Handle result
     if (!bioData) {
       return <CreateBioGallery />;
     }
 
-    return handleRedirect(bioData.username);
+    return redirectToBio(bioData.username);
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message.includes("Authentication failed") || error.message.includes("Authentication skipped")) {
-        return redirect("/login");
+      if (isAuthError(error)) {
+        return redirectToLogin();
       }
-      if (error.message.includes("Failed to fetch bio data")) {
-        return (
-          <div className="flex min-h-[60vh] w-full flex-col items-center justify-center">
-            <div className="text-center">
-              <h2 className="text-destructive text-lg font-semibold">
-                Failed to load bio links
-              </h2>
-              <p className="text-muted-foreground mt-2 text-sm">
-                There was an error loading your bio links. Please try again.
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 rounded-md px-4 py-2 text-sm"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
-        );
+      if (isFetchError(error)) {
+        return <ErrorState />;
       }
     }
 
-    return redirect("/login");
+    return redirectToLogin();
   }
 }

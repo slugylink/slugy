@@ -5,43 +5,127 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
-// In-memory cache for rate limiting to reduce Redis calls
-const rateLimitCache = new Map<
-  string,
-  { count: number; reset: number; ttl: number; lastAccess: number }
->();
+// ─────────── Constants ───────────
 
-// Sliding window rate limiter with burst handling
-export async function checkRateLimit(ip: string) {
-  const key = `rate-limit:${ip}`;
-  const limit = 80; // Requests per window
-  const window = 60; // 1 minute in seconds
-  const burstMultiplier = 2; // Allow 2x burst for 10 seconds
-  const burstWindow = 10; // 10 seconds burst window
+const RATE_LIMITS = {
+  STANDARD: { limit: 80, window: 60, burstMultiplier: 2, burstWindow: 10 },
+  FAST: { limit: 1000, window: 60, burstMultiplier: 1.5, burstWindow: 10 },
+  TEMP_LINK: { limit: 1, window: 20 * 60 },
+} as const;
 
+const CACHE_CONFIG = {
+  MAX_SIZE: 1000,
+  CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
+  MAX_AGE: 5 * 60 * 1000, // 5 minutes
+} as const;
+
+// ─────────── Types ───────────
+
+type CacheEntry = {
+  count: number;
+  reset: number;
+  ttl: number;
+  lastAccess: number;
+};
+
+type RateLimitResult = {
+  success: boolean;
+  limit: number;
+  reset: number;
+  remaining: number;
+  burstMode?: boolean;
+};
+
+// ─────────── Cache ───────────
+
+const rateLimitCache = new Map<string, CacheEntry>();
+
+const cleanupCache = (): void => {
   const now = Date.now();
-  // const windowStart = now - (window * 1000);
-  // const burstStart = now - (burstWindow * 1000);
 
-  // Check cache first
+  for (const [key, value] of rateLimitCache.entries()) {
+    if (now > value.reset || now - value.lastAccess > CACHE_CONFIG.MAX_AGE) {
+      rateLimitCache.delete(key);
+    }
+  }
+};
+
+const shouldCleanupCache = (): boolean =>
+  rateLimitCache.size > CACHE_CONFIG.MAX_SIZE;
+
+// ─────────── Helpers ───────────
+
+export const normalizeIp = (ip: string): string => {
+  // IPv6 - use first 4 segments for rate limiting
+  if (ip.includes(":")) {
+    return ip.split(":").slice(0, 4).join(":");
+  }
+  return ip;
+};
+
+const isBurstMode = (lastAccess: number, burstWindow: number): boolean =>
+  Date.now() - lastAccess < burstWindow * 1000;
+
+const calculateEffectiveLimit = (
+  baseLimit: number,
+  burst: boolean,
+  multiplier: number,
+): number => (burst ? Math.floor(baseLimit * multiplier) : baseLimit);
+
+const createResult = (
+  success: boolean,
+  limit: number,
+  reset: number,
+  count: number,
+  burst = false,
+): RateLimitResult => ({
+  success,
+  limit,
+  reset,
+  remaining: Math.max(0, limit - count),
+  burstMode: burst,
+});
+
+// ─────────── Cached Rate Limit Check ───────────
+
+const checkCachedLimit = (
+  key: string,
+  baseLimit: number,
+  burstMultiplier: number,
+  burstWindow: number,
+): RateLimitResult | null => {
   const cached = rateLimitCache.get(key);
+  const now = Date.now();
 
-  if (cached && now < cached.reset) {
-    // Check if we're in burst mode
-    const isBurstMode = now - cached.lastAccess < burstWindow * 1000;
-    const effectiveLimit = isBurstMode ? limit * burstMultiplier : limit;
-
-    const remaining = Math.max(0, effectiveLimit - cached.count);
-    return {
-      success: cached.count <= effectiveLimit,
-      limit: effectiveLimit,
-      reset: cached.reset,
-      remaining,
-      burstMode: isBurstMode,
-    };
+  if (!cached || now >= cached.reset) {
+    return null;
   }
 
-  // Fallback to Redis with sliding window
+  const burst = isBurstMode(cached.lastAccess, burstWindow);
+  const effectiveLimit = calculateEffectiveLimit(
+    baseLimit,
+    burst,
+    burstMultiplier,
+  );
+
+  return createResult(
+    cached.count <= effectiveLimit,
+    effectiveLimit,
+    cached.reset,
+    cached.count,
+    burst,
+  );
+};
+
+// ─────────── Redis Rate Limit ───────────
+
+const checkRedisLimit = async (
+  key: string,
+  limit: number,
+  window: number,
+): Promise<RateLimitResult> => {
+  const now = Date.now();
+
   const current = await redis.incr(key);
   if (current === 1) {
     await redis.expire(key, window);
@@ -49,9 +133,8 @@ export async function checkRateLimit(ip: string) {
 
   const ttl = await redis.ttl(key);
   const reset = now + ttl * 1000;
-  const remaining = Math.max(0, limit - current);
 
-  // Update cache with last access time
+  // Update cache
   rateLimitCache.set(key, {
     count: current,
     reset,
@@ -59,51 +142,55 @@ export async function checkRateLimit(ip: string) {
     lastAccess: now,
   });
 
-  // Cleanup old entries to prevent memory leaks
-  if (rateLimitCache.size > 1000) {
+  if (shouldCleanupCache()) {
     cleanupCache();
   }
 
-  return {
-    success: current <= limit,
-    limit,
-    reset,
-    remaining,
-    burstMode: false,
-  };
-}
+  return createResult(current <= limit, limit, reset, current);
+};
 
-// Fast rate limit for high-traffic endpoints (no Redis call)
-export function checkFastRateLimit(ip: string) {
+// ─────────── Public API ───────────
+
+export const checkRateLimit = async (ip: string): Promise<RateLimitResult> => {
+  const key = `rate-limit:${ip}`;
+  const { limit, window, burstMultiplier, burstWindow } = RATE_LIMITS.STANDARD;
+
+  // Check cache first
+  const cached = checkCachedLimit(key, limit, burstMultiplier, burstWindow);
+  if (cached) return cached;
+
+  // Fallback to Redis
+  return checkRedisLimit(key, limit, window);
+};
+
+export const checkFastRateLimit = (ip: string): RateLimitResult => {
   const key = `fast-rate-limit:${ip}`;
-  const limit = 1000; // Higher limit for fast endpoints
-  const window = 60; // 1 minute
-  const burstMultiplier = 1.5; // Allow 1.5x burst
-
+  const { limit, window, burstMultiplier, burstWindow } = RATE_LIMITS.FAST;
   const now = Date.now();
+
   const cached = rateLimitCache.get(key);
 
+  // Check existing cache
   if (cached && now < cached.reset) {
-    // Check if we're in burst mode
-    const isBurstMode = now - cached.lastAccess < 10000; // 10 second burst
-    const effectiveLimit = isBurstMode
-      ? Math.floor(limit * burstMultiplier)
-      : limit;
+    const burst = isBurstMode(cached.lastAccess, burstWindow);
+    const effectiveLimit = calculateEffectiveLimit(
+      limit,
+      burst,
+      burstMultiplier,
+    );
 
-    const remaining = Math.max(0, effectiveLimit - cached.count);
-    return {
-      success: cached.count <= effectiveLimit,
-      limit: effectiveLimit,
-      reset: cached.reset,
-      remaining,
-      burstMode: isBurstMode,
-    };
+    return createResult(
+      cached.count <= effectiveLimit,
+      effectiveLimit,
+      cached.reset,
+      cached.count,
+      burst,
+    );
   }
 
-  // Simple in-memory counter with burst handling
+  // Create new entry
   const current = (cached?.count || 0) + 1;
   const reset = now + window * 1000;
-  const remaining = Math.max(0, limit - current);
 
   rateLimitCache.set(key, {
     count: current,
@@ -112,25 +199,19 @@ export function checkFastRateLimit(ip: string) {
     lastAccess: now,
   });
 
-  // Cleanup if cache gets too large
-  if (rateLimitCache.size > 1000) {
+  if (shouldCleanupCache()) {
     cleanupCache();
   }
 
-  return {
-    success: current <= limit,
-    limit,
-    reset,
-    remaining,
-    burstMode: false,
-  };
-}
+  return createResult(current <= limit, limit, reset, current);
+};
 
-// Temporary link creation rate limiting
-export async function checkTempLinkRateLimit(ip: string) {
+export const checkTempLinkRateLimit = async (
+  ip: string,
+): Promise<RateLimitResult> => {
   const key = `temp-link-limit:${ip}`;
-  const limit = 1; // Only 1 temporary link at a time
-  const window = 20 * 60; // 20 minutes in seconds
+  const { limit, window } = RATE_LIMITS.TEMP_LINK;
+  const now = Date.now();
 
   const current = await redis.incr(key);
   if (current === 1) {
@@ -138,42 +219,13 @@ export async function checkTempLinkRateLimit(ip: string) {
   }
 
   const ttl = await redis.ttl(key);
-  const reset = Date.now() + ttl * 1000;
-  const remaining = Math.max(0, limit - current);
+  const reset = now + ttl * 1000;
 
-  return {
-    success: current <= limit,
-    limit,
-    reset,
-    remaining,
-  };
-}
+  return createResult(current <= limit, limit, reset, current);
+};
 
-// Normalize IP address to handle IPv4 and IPv6
-export function normalizeIp(ip: string): string {
-  if (ip.includes(":")) {
-    // IPv6 - use first 4 segments for rate limiting
-    return ip.split(":").slice(0, 4).join(":");
-  }
-  return ip;
-}
+// ─────────── Periodic Cleanup ───────────
 
-// Efficient cache cleanup
-function cleanupCache() {
-  const now = Date.now();
-  const maxAge = 5 * 60 * 1000; // 5 minutes
-
-  for (const [key, value] of rateLimitCache.entries()) {
-    if (now > value.reset || now - value.lastAccess > maxAge) {
-      rateLimitCache.delete(key);
-    }
-  }
-}
-
-// Cleanup cache periodically (less frequent to reduce overhead)
-const CACHE_CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
-
-// Only set interval if not in serverless environment
 if (typeof window === "undefined" && process.env.NODE_ENV !== "test") {
-  setInterval(cleanupCache, CACHE_CLEANUP_INTERVAL);
+  setInterval(cleanupCache, CACHE_CONFIG.CLEANUP_INTERVAL);
 }
