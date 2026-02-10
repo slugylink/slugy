@@ -125,7 +125,7 @@ const EmptyState = () => (
 
 const SuccessState = ({ metadata }: { metadata: DisplayMetadata }) => (
   <>
-    <div className="flex aspect-video items-center justify-center overflow-hidden rounded-t-lg">
+    <div className="flex !aspect-video items-center justify-center overflow-hidden rounded-t-lg">
       <PreviewImage image={metadata.image} title={metadata.title} />
     </div>
     <PreviewContent title={metadata.title} description={metadata.description} />
@@ -171,7 +171,7 @@ export default function LinkPreview({
 
   return (
     <div className={cn("space-y-5", className)}>
-      <div className="relative overflow-hidden rounded-lg border">
+      <div className="relative overflow-hidden rounded-lg border md:max-w-xs md:min-w-xs">
         {renderContent()}
       </div>
     </div>

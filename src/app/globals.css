@@ -273,6 +273,17 @@
   transform: rotateX(180deg);
 }
 
+/* Hide scrollbar but keep scrolling */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE & Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+
 /* Shiny text animation */
 @keyframes shiny-text {
   0% {

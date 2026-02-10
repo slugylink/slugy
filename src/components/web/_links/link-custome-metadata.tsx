@@ -290,7 +290,7 @@ export default function LinkCustomMetadata({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="p-4 sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle>Link Preview</DialogTitle>

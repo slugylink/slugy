@@ -209,10 +209,16 @@ const EditLinkForm = memo(
         (draftMetadata.title ?? null) !== (initialData.title ?? null) ||
         (draftMetadata.metadesc ?? null) !== (initialData.metadesc ?? null)
       );
-    }, [draftMetadata, initialData.image, initialData.title, initialData.metadesc]);
+    }, [
+      draftMetadata,
+      initialData.image,
+      initialData.title,
+      initialData.metadesc,
+    ]);
 
     const isAnythingDirty = useMemo(
-      () => isDirty || isParamsDirty || isLinkSettingsDirty || isDraftMetadataDirty,
+      () =>
+        isDirty || isParamsDirty || isLinkSettingsDirty || isDraftMetadataDirty,
       [isDirty, isParamsDirty, isLinkSettingsDirty, isDraftMetadataDirty],
     );
 
@@ -237,7 +243,8 @@ const EditLinkForm = memo(
     );
 
     const shouldDisableSubmit = useMemo(
-      () => !isSafeToSubmit || isSubmitting || (isFreePlan && hasPremiumFeatures),
+      () =>
+        !isSafeToSubmit || isSubmitting || (isFreePlan && hasPremiumFeatures),
       [isSafeToSubmit, isSubmitting, isFreePlan, hasPremiumFeatures],
     );
 
@@ -252,7 +259,7 @@ const EditLinkForm = memo(
           setCurrentUrl(value.url || "");
         }, 100);
       });
-      
+
       return () => {
         clearTimeout(timeoutId);
         subscription.unsubscribe();
@@ -263,7 +270,8 @@ const EditLinkForm = memo(
       async (data: LinkFormValues) => {
         try {
           // If a file is selected as preview image, upload first to get URL
-          let finalImage: string | null | undefined = draftMetadata.image ?? initialData.image ?? null;
+          let finalImage: string | null | undefined =
+            draftMetadata.image ?? initialData.image ?? null;
           if (draftMetadata.selectedFile) {
             const formData = new FormData();
             formData.append("file", draftMetadata.selectedFile);
@@ -368,10 +376,18 @@ const EditLinkForm = memo(
       }
 
       if (urlSafetyStatus.isValid === false) {
-        return <>Unsafe URL <CornerDownLeft size={12} /></>;
+        return (
+          <>
+            Unsafe URL <CornerDownLeft size={12} />
+          </>
+        );
       }
 
-      return <>Update link <CornerDownLeft size={12} /></>;
+      return (
+        <>
+          Update link <CornerDownLeft size={12} />
+        </>
+      );
     }, [isSubmitting, urlSafetyStatus.isValid]);
 
     const creatorInfo = useMemo(() => {
@@ -403,7 +419,7 @@ const EditLinkForm = memo(
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
+        <DialogContent className="scrollbar-hide max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
           <Form {...form}>
             <form
               onSubmit={handleSubmit(onSubmit)}
