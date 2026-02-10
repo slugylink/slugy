@@ -82,6 +82,7 @@ const SIDEBAR_DATA = {
       icon: SettingsIcon,
       items: [
         { title: "General", url: "/settings" },
+        { title: "Billing", url: "/settings/billing" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
       ],
@@ -123,7 +124,7 @@ function getLastSegment(url: string): string {
 }
 
 function shouldPrefetch(url: string): boolean {
-  return PREFETCH_ROUTES.some(route => url === route || url.includes(route));
+  return PREFETCH_ROUTES.some((route) => url === route || url.includes(route));
 }
 
 // ============================================================================
@@ -141,13 +142,11 @@ const SubItemComponent = memo<{
         asChild
         className={cn(
           "group-hover/menu-item transition-colors duration-200",
-          isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
+          isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
         )}
       >
         <Link href={subItem.url} prefetch={false} onClick={onClick}>
-          <span className={cn("font-normal")}>
-            {subItem.title}
-          </span>
+          <span className={cn("font-normal")}>{subItem.title}</span>
         </Link>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
@@ -189,9 +188,7 @@ const NavItemComponent = memo<{
           <CollapsibleTrigger asChild>
             <SidebarMenuButton tooltip={item.title} className={buttonClasses}>
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}
-              <span className={cn("font-normal")}>
-                {item.title}
-              </span>
+              <span className={cn("font-normal")}>{item.title}</span>
               {item.items && (
                 <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
               )}
@@ -234,7 +231,9 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
     return SIDEBAR_DATA.navMain.map((item) => {
       const isBioLinks = item.title === "Bio Links";
       const itemUrl = item.url
-        ? isBioLinks ? item.url : buildUrl(baseUrl, item.url)
+        ? isBioLinks
+          ? item.url
+          : buildUrl(baseUrl, item.url)
         : undefined;
 
       const filteredSubItems = item.items
@@ -266,15 +265,18 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
       if (item.url && getLastSegment(item.url) === lastSegment) {
         return true;
       }
-      return item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ?? false;
+      return (
+        item.items?.some((sub) => getLastSegment(sub.url) === lastSegment) ??
+        false
+      );
     },
-    [pathname, lastSegment]
+    [pathname, lastSegment],
   );
 
   // Check if sub-item is active
   const isSubItemActive = useCallback(
     (subUrl: string): boolean => getLastSegment(subUrl) === lastSegment,
-    [lastSegment]
+    [lastSegment],
   );
 
   // Handle navigation click (close mobile sidebar)
@@ -295,7 +297,7 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
           onClick={handleNavItemClick}
         />
       )),
-    [isSubItemActive, handleNavItemClick]
+    [isSubItemActive, handleNavItemClick],
   );
 
   return (

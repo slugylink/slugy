@@ -123,17 +123,20 @@ export const NavUser = () => {
                   Account
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
+              {/* <DropdownMenuItem asChild>
                 <Link href="/billing">
                   <CreditCard className="mr-2 inline-block" />
                   Billing
                 </Link>
-              </DropdownMenuItem>
+              </DropdownMenuItem> */}
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
+            <DropdownMenuItem
+              onClick={handleSignOut}
+              className="cursor-pointer"
+            >
               <LogOut className="mr-2 inline-block" />
               Log out
             </DropdownMenuItem>
@@ -176,7 +179,7 @@ const LoadingSkeleton = () => (
               <Skeleton className="h-4 w-24" />
               <Skeleton className="h-3 w-32" />
             </div>
-            <ChevronsUpDown className="ml-auto size-4 text-sidebar-foreground/70" />
+            <ChevronsUpDown className="text-sidebar-foreground/70 ml-auto size-4" />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
       </DropdownMenu>

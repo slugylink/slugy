@@ -1,12 +1,11 @@
 "use client";
+
 import { useState } from "react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { usePathname, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import axios from "axios";
+import { mutate } from "swr";
+import { toast } from "sonner";
 import {
   EllipsisVertical,
   QrCode,
@@ -15,17 +14,16 @@ import {
   Archive,
   Pencil,
 } from "lucide-react";
-import { toast } from "sonner";
+
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
-import { usePathname, useRouter } from "next/navigation";
 import {
-  TooltipProvider,
-  // Tooltip,
-  // TooltipContent,
-  // TooltipTrigger,
-} from "@/components/ui/tooltip";
-import QRCodeDesign from "@/components/web/qr-code-design";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -33,10 +31,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { mutate } from "swr";
-import dynamic from "next/dynamic";
-import { cn } from "@/lib/utils";
-
+import { TooltipProvider } from "@/components/ui/tooltip";
+import QRCodeDesign from "@/components/web/qr-code-design";
 import {
   LinkPreviewComponent,
   CopyButton,
@@ -54,6 +50,11 @@ const EditLinkForm = dynamic(
   { ssr: false },
 );
 
+// Constants
+const COPY_TIMEOUT = 2000;
+const DEFAULT_DOMAIN = "slugy.co";
+
+// Types
 type DialogType = "dropdown" | "edit" | "qrCode" | "delete" | "shareAnalytics";
 
 interface Creator {
@@ -75,11 +76,7 @@ interface LinkData {
   domain?: string | null;
   expiresAt?: Date | null;
   tags?: Array<{
-    tag: {
-      id: string;
-      name: string;
-      color: string | null;
-    };
+    tag: { id: string; name: string; color: string | null };
   }> | null;
   expirationUrl?: string | null;
   utm_source?: string | null;
@@ -104,11 +101,18 @@ interface LinkCardProps {
   onSelect?: () => void;
 }
 
-const COPY_TIMEOUT = 2000;
+interface DropdownItem {
+  type?: "separator";
+  icon?: React.ComponentType<{ className?: string; size?: number }>;
+  label?: string;
+  color?: string;
+  onClick?: () => void | Promise<void>;
+}
 
-// Dialog state hook (only opens/close specific dialogs)
+// Hooks
 const useDialogState = () => {
   const [openDialogs, setOpenDialogs] = useState<Set<DialogType>>(new Set());
+
   const toggleDialog = (dialog: DialogType, isOpen?: boolean) => {
     setOpenDialogs((prev) => {
       const newSet = new Set(prev);
@@ -120,13 +124,16 @@ const useDialogState = () => {
       return newSet;
     });
   };
+
   const isDialogOpen = (dialog: DialogType) => openDialogs.has(dialog);
+
   return { toggleDialog, isDialogOpen };
 };
 
 const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
+
   const mutateLinks = () => {
     return mutate(
       (key) => typeof key === "string" && key.includes("/link/get"),
@@ -134,13 +141,16 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
       { revalidate: true },
     );
   };
+
   const handleArchive = async (isArchived: boolean) => {
     if (!workspaceslug || !linkId) return;
+
     try {
       const response = await axios.patch(
         `/api/workspace/${workspaceslug}/link/${linkId}/archive`,
         { isArchived: !isArchived },
       );
+
       if (response.status === 200) {
         toast.success(
           isArchived
@@ -157,11 +167,13 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
 
   const handleDelete = async () => {
     if (!workspaceslug || !linkId) return;
+
     try {
       setIsDeleting(true);
       const response = await axios.delete(
         `/api/workspace/${workspaceslug}/link/${linkId}/delete`,
       );
+
       if (response.status === 200) {
         toast.success("Link deleted successfully!");
         void mutateLinks();
@@ -174,13 +186,14 @@ const useLinkActions = (workspaceslug: string | undefined, linkId: string) => {
       setIsDeleting(false);
     }
   };
+
   return { handleArchive, handleDelete, isDeleting };
 };
 
-// EditLinkForm data creation
+// Utility functions
 const createEditFormData = (link: LinkData) => ({
   id: link.id,
-  domain: link.domain ?? "slugy.co",
+  domain: link.domain ?? DEFAULT_DOMAIN,
   url: link.url,
   slug: link.slug,
   description: link.description ?? "",
@@ -203,6 +216,7 @@ const createEditFormData = (link: LinkData) => ({
   qrCode: link.qrCode,
 });
 
+// Main component
 export default function LinkCard({
   link,
   isPublic,
@@ -219,7 +233,7 @@ export default function LinkCard({
   );
   const [isCopied, setIsCopied] = useState(false);
 
-  const shortUrl = `https://${link.domain || "slugy.co"}/${link.slug}`;
+  const shortUrl = `https://${link.domain || DEFAULT_DOMAIN}/${link.slug}`;
   const editFormData = createEditFormData(link);
 
   const handleCopy = async () => {
@@ -234,7 +248,7 @@ export default function LinkCard({
     }
   };
 
-  // Action handlers mapping
+  // Action handlers
   const actionHandlers = {
     edit: () => {
       toggleDialog("edit", true);
@@ -259,11 +273,11 @@ export default function LinkCard({
   };
 
   // Dropdown menu items
-  const dropdownItems = [
+  const dropdownItems: DropdownItem[] = [
     { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
     { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
     { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
-    { type: "separator" as const },
+    { type: "separator" },
     {
       icon: Archive,
       label: link.isArchived ? "Unarchive" : "Archive",
@@ -278,7 +292,9 @@ export default function LinkCard({
   ];
 
   const handleCardClick = () => {
-    if (isSelectModeOn && onSelect) onSelect();
+    if (isSelectModeOn && onSelect) {
+      onSelect();
+    }
   };
 
   const handleDeleteConfirm = async () => {
@@ -286,21 +302,23 @@ export default function LinkCard({
     toggleDialog("delete", false);
   };
 
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleDialog("dropdown", true);
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <div
         className={cn(
-          "flex w-full flex-row space-y-0 rounded-xl border p-4 transition-shadow hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] items-center sm:space-x-3",
+          "flex w-full flex-row items-center space-y-0 rounded-xl border p-4 transition-shadow hover:shadow-[0_0_16px_rgba(0,0,0,0.08)] sm:space-x-3",
           isSelectModeOn &&
             "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900",
           isSelected && "bg-zinc-50 dark:bg-zinc-900",
         )}
         onClick={handleCardClick}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleDialog("dropdown", true);
-        }}
+        onContextMenu={handleContextMenu}
       >
         {/* Avatar/Checkbox */}
         {isSelectModeOn ? (
@@ -318,7 +336,7 @@ export default function LinkCard({
                 link.isArchived && "text-muted-foreground",
               )}
             >
-              {link.domain || "slugy.co"}/{link.slug}
+              {link.domain || DEFAULT_DOMAIN}/{link.slug}
             </p>
             <div className="flex items-center gap-2">
               <CopyButton isCopied={isCopied} onClick={handleCopy} />
@@ -338,21 +356,6 @@ export default function LinkCard({
 
         {/* Actions */}
         <div className="flex h-full w-auto items-center justify-end">
-          {/* <div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="mr-3 hidden aspect-square size-[25px] rounded-full border bg-zinc-100/50 p-0 md:flex"
-                  onClick={actionHandlers.qrCode}
-                >
-                  <QrCode className="max-h-[12.5px] max-w-[13px] text-black dark:text-white" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>QR Code</TooltipContent>
-            </Tooltip>
-          </div> */}
           <AnalyticsBadge
             clicks={link.clicks}
             isPublic={isPublic}
@@ -423,13 +426,14 @@ export default function LinkCard({
             </DialogHeader>
             <QRCodeDesign
               linkId={link.id}
-              domain={link.domain || "slugy.co"}
+              domain={link.domain || DEFAULT_DOMAIN}
               code={link.slug}
               onOpenChange={(open: boolean) => toggleDialog("qrCode", open)}
             />
           </DialogContent>
         </Dialog>
       )}
+
       {isDialogOpen("edit") && (
         <EditLinkForm
           initialData={editFormData}
@@ -440,6 +444,7 @@ export default function LinkCard({
           creator={link.creator!}
         />
       )}
+
       <DeleteConfirmationDialog
         isOpen={isDialogOpen("delete")}
         onOpenChange={(open) => toggleDialog("delete", open)}

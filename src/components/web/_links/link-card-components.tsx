@@ -1,10 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Check,
   Copy,
@@ -13,6 +7,14 @@ import {
   ForwardIcon,
   CornerDownRight,
 } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
@@ -22,19 +24,60 @@ import {
 } from "@/components/ui/dialog";
 import { formatNumber } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import UrlAvatar from "@/components/web/url-avatar";
 
 // Constants
-const SHORT_URL_BASE = "https://slugy.co/";
+export const SHORT_URL_BASE = "https://slugy.co/";
 
 // Utility functions
-const cleanUrl = (url: string): string =>
+export const cleanUrl = (url: string): string =>
   url.replace(/^https?:\/\//, "").replace(/^www\./, "");
 
+// Component interfaces
+interface CopyButtonProps {
+  isCopied: boolean;
+  onClick: () => void;
+}
+
+interface DescriptionTooltipProps {
+  description: string;
+}
+
+interface AnalyticsBadgeProps {
+  clicks: number;
+  isPublic: boolean;
+  pathname: string;
+  slug: string;
+  onShareAnalytics: () => void;
+}
+
+interface SelectionCheckboxProps {
+  isSelected: boolean;
+}
+
+interface LinkAvatarProps {
+  isArchived?: boolean;
+  url: string;
+}
+
+interface DeleteConfirmationDialogProps {
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: () => void;
+  isDeleting: boolean;
+}
+
+interface AnalyticsIconProps {
+  className?: string;
+}
+
+interface LinkPreviewComponentProps {
+  url: string;
+}
+
 // Analytics Icon Component
-export const AnalyticsIcon = ({ className }: { className?: string }) => (
+export const AnalyticsIcon = ({ className }: AnalyticsIconProps) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     width={24}
@@ -53,8 +96,8 @@ export const AnalyticsIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-// Link Preview Component (simplified - no preview to improve LCP)
-export const LinkPreviewComponent = ({ url }: { url: string }) => (
+// Link Preview Component
+export const LinkPreviewComponent = ({ url }: LinkPreviewComponentProps) => (
   <div className="flex w-full items-center">
     <div className="text-muted-foreground flex w-full items-start gap-1 text-sm">
       <CornerDownRight strokeWidth={1.5} size={15} className="mt-0.5" />
@@ -71,7 +114,7 @@ export const LinkPreviewComponent = ({ url }: { url: string }) => (
 );
 
 // Copy Button Component
-export const CopyButton = ({ isCopied, onClick }: { isCopied: boolean; onClick: () => void }) => (
+export const CopyButton = ({ isCopied, onClick }: CopyButtonProps) => (
   <Button
     variant="ghost"
     size="sm"
@@ -91,7 +134,9 @@ export const CopyButton = ({ isCopied, onClick }: { isCopied: boolean; onClick: 
 );
 
 // Description Tooltip Component
-export const DescriptionTooltip = ({ description }: { description: string }) => (
+export const DescriptionTooltip = ({
+  description,
+}: DescriptionTooltipProps) => (
   <Tooltip>
     <TooltipTrigger asChild>
       <BookText
@@ -112,13 +157,7 @@ export const AnalyticsBadge = ({
   pathname,
   slug,
   onShareAnalytics,
-}: {
-  clicks: number;
-  isPublic: boolean;
-  pathname: string;
-  slug: string;
-  onShareAnalytics: () => void;
-}) => (
+}: AnalyticsBadgeProps) => (
   <Badge
     variant="outline"
     className="flex cursor-pointer items-center justify-center gap-x-1 rounded-sm bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
@@ -155,7 +194,7 @@ export const AnalyticsBadge = ({
 );
 
 // Selection Checkbox Component
-export const SelectionCheckbox = ({ isSelected }: { isSelected: boolean }) => (
+export const SelectionCheckbox = ({ isSelected }: SelectionCheckboxProps) => (
   <div className="mt-1 mr-2 flex h-9 w-9 items-center justify-center rounded-full border bg-gradient-to-b from-zinc-50/60 to-zinc-100 sm:mt-0 sm:mr-3 dark:bg-gradient-to-b dark:from-zinc-900/60 dark:to-zinc-800">
     <div
       className={cn(
@@ -176,17 +215,15 @@ export const SelectionCheckbox = ({ isSelected }: { isSelected: boolean }) => (
 );
 
 // Link Avatar Component
-export const LinkAvatar = ({ isArchived, url }: { isArchived?: boolean; url: string }) => {
+export const LinkAvatar = ({ isArchived, url }: LinkAvatarProps) => {
   if (isArchived) {
     return (
       <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full border bg-gradient-to-b from-zinc-50/60 to-zinc-100 sm:mt-0 sm:mr-3 dark:bg-gradient-to-b dark:from-zinc-900/60 dark:to-zinc-800">
-        <Archive
-          size={15}
-          className="block text-zinc-500 dark:text-zinc-300"
-        />
+        <Archive size={15} className="block text-zinc-500 dark:text-zinc-300" />
       </div>
     );
   }
+
   return (
     <div className="hidden rounded-full sm:block">
       <UrlAvatar url={url} />
@@ -200,12 +237,7 @@ export const DeleteConfirmationDialog = ({
   onOpenChange,
   onConfirm,
   isDeleting,
-}: {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  isDeleting: boolean;
-}) => (
+}: DeleteConfirmationDialogProps) => (
   <Dialog open={isOpen} onOpenChange={onOpenChange}>
     <DialogContent className="bg-white sm:max-w-[425px] dark:bg-black">
       <DialogHeader>
@@ -225,20 +257,11 @@ export const DeleteConfirmationDialog = ({
         >
           Cancel
         </Button>
-        <Button
-          variant="destructive"
-          onClick={onConfirm}
-          disabled={isDeleting}
-        >
-          {isDeleting && (
-            <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
-          )}
+        <Button variant="destructive" onClick={onConfirm} disabled={isDeleting}>
+          {isDeleting && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
           Delete
         </Button>
       </div>
     </DialogContent>
   </Dialog>
 );
-
-// Export utility functions and constants
-export { cleanUrl, SHORT_URL_BASE };

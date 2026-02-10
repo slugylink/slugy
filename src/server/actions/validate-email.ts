@@ -2,52 +2,107 @@
 
 import { dymo } from "@/lib/dymo";
 
-// Improved regex aligned more closely with standard email validation
-const EMAIL_REGEX =
-  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+// ============================================================================
+// Types
+// ============================================================================
 
 type ValidationResult =
   | { isValid: boolean; isFraud: boolean }
   | { error: string };
 
-const emailValidationCache = new Map<
-  string,
-  { result: ValidationResult; timestamp: number }
->();
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+interface CacheEntry {
+  result: ValidationResult;
+  timestamp: number;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+// Email regex aligned with standard email validation (RFC 5322)
+const EMAIL_REGEX =
+  /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+
+const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+
+// ============================================================================
+// Cache
+// ============================================================================
+
+const emailValidationCache = new Map<string, CacheEntry>();
+
+function getCachedResult(email: string): ValidationResult | null {
+  const cached = emailValidationCache.get(email);
+
+  if (!cached) return null;
+
+  const now = Date.now();
+  const isExpired = now - cached.timestamp >= CACHE_DURATION_MS;
+
+  if (isExpired) {
+    emailValidationCache.delete(email);
+    return null;
+  }
+
+  return cached.result;
+}
+
+function setCachedResult(email: string, result: ValidationResult): void {
+  emailValidationCache.set(email, {
+    result,
+    timestamp: Date.now(),
+  });
+}
+
+// ============================================================================
+// Validation
+// ============================================================================
+
+function isValidEmailFormat(email: string): boolean {
+  return EMAIL_REGEX.test(email);
+}
+
+async function checkEmailWithDymo(email: string): Promise<ValidationResult> {
+  try {
+    const dymoResult = await dymo.isValidData({ email });
+
+    return {
+      isValid: !dymoResult.email.fraud,
+      isFraud: dymoResult.email.fraud,
+    };
+  } catch (error) {
+    console.error("Dymo validation error:", error);
+    // Fallback: treat as valid if service is unavailable
+    return { isValid: true, isFraud: false };
+  }
+}
+
+// ============================================================================
+// Main Function
+// ============================================================================
 
 export async function validateEmail(email: string): Promise<ValidationResult> {
   try {
-    console.log("validating");
+    // Validate input
     if (!email) {
       return { error: "Email is required" };
     }
 
-    if (!EMAIL_REGEX.test(email)) {
+    if (!isValidEmailFormat(email)) {
       return { error: "Invalid email format" };
     }
 
-    const now = Date.now();
-    const cached = emailValidationCache.get(email);
-    if (cached && now - cached.timestamp < CACHE_DURATION) {
-      return cached.result;
+    // Check cache
+    const cachedResult = getCachedResult(email);
+    if (cachedResult) {
+      return cachedResult;
     }
 
-    // Use dymo with fallback/error-handling
-    let dymoResult;
-    try {
-      dymoResult = await dymo.isValidData({ email });
-    } catch {
-      // fallback: treat as valid but warn client optionally
-      return { isValid: true, isFraud: false };
-    }
+    // Validate with Dymo
+    const result = await checkEmailWithDymo(email);
 
-    const result = {
-      isValid: !dymoResult.email.fraud,
-      isFraud: dymoResult.email.fraud,
-    };
-
-    emailValidationCache.set(email, { result, timestamp: now });
+    // Cache result
+    setCachedResult(email, result);
 
     return result;
   } catch (error) {

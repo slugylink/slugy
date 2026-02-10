@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
-import { jsonWithETag } from "@/lib/http";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -389,10 +388,13 @@ export async function GET(
       console.error(
         `Tinybird API error: ${tinybirdFetchResponse.status} ${tinybirdFetchResponse.statusText}`,
       );
-      return apiErrors.serviceUnavailable("Analytics service temporarily unavailable");
+      return apiErrors.serviceUnavailable(
+        "Analytics service temporarily unavailable",
+      );
     }
 
-    const tinybirdResponse: TinybirdResponse = await tinybirdFetchResponse.json();
+    const tinybirdResponse: TinybirdResponse =
+      await tinybirdFetchResponse.json();
     // Transform data to expected format
     const analyticsData = transformTinybirdData(
       tinybirdResponse.data,
@@ -411,7 +413,10 @@ export async function GET(
     };
 
     // Return analytics data directly (not wrapped) for frontend compatibility
-    const response = NextResponse.json(analyticsData, { status: 200, headers: cacheHeaders });
+    const response = NextResponse.json(analyticsData, {
+      status: 200,
+      headers: cacheHeaders,
+    });
     return response;
   } catch (err) {
     console.error("Tinybird Analytics API error:", err);

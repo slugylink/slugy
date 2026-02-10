@@ -1,4 +1,6 @@
 import type { ComponentProps } from "react";
+import Link from "next/link";
+import { MessagesSquare } from "lucide-react";
 import { NavMain } from "@/components/web/_sidebar/nav-main";
 import { NavUser } from "@/components/web/_sidebar/nav-user";
 import {
@@ -7,11 +9,13 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 import WorkspaceSwitch from "@/components/web/_workspace/workspace-switch";
 import UsageStats from "./usage-stats";
-import { MessagesSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+
+// ============================================================================
+// Types
+// ============================================================================
 
 export interface WorkspaceMinimal {
   id: string;
@@ -26,6 +30,17 @@ interface AppSidebarProps
   workspaceslug: string;
 }
 
+// ============================================================================
+// Constants
+// ============================================================================
+
+const FEEDBACK_URL =
+  "https://github.com/slugylink/slugy/discussions/categories/feedback";
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 export default function AppSidebar({
   workspaceslug,
   workspaces,
@@ -39,17 +54,16 @@ export default function AppSidebar({
           workspaceslug={workspaceslug}
         />
       </SidebarHeader>
+
       <SidebarContent>
         <NavMain workspaces={workspaces} workspaceslug={workspaceslug} />
       </SidebarContent>
+
       <SidebarFooter>
-        <Link
-          target="_blank"
-          href="https://github.com/slugylink/slugy/discussions/categories/feedback"
-          rel="noopener noreferrer"
-        >
+        <Link href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
           <Button size="sm" variant="secondary" className="w-full">
-            <MessagesSquare strokeWidth={1.5} /> Feedback
+            <MessagesSquare strokeWidth={1.5} />
+            Feedback
           </Button>
         </Link>
         <UsageStats workspaceslug={workspaceslug} />

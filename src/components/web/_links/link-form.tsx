@@ -1,9 +1,22 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type FormEvent } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
+import {
+  Loader2,
+  Shuffle,
+  Shield,
+  ShieldAlert,
+  Tag,
+  Check,
+  Plus,
+  Lock,
+  LoaderIcon,
+} from "lucide-react";
+import { BsStars } from "react-icons/bs";
+
 import { cn } from "@/lib/utils";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { Button } from "@/components/ui/button";
@@ -30,20 +43,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Loader2,
-  Shuffle,
-  Shield,
-  ShieldAlert,
-  Tag,
-  Check,
-  Plus,
-  Lock,
-  LoaderIcon,
-} from "lucide-react";
-import { BsStars } from "react-icons/bs";
-import LinkQrCode from "./link-qrcode";
-import LinkPreview from "./link-preview";
 import { Badge } from "@/components/ui/badge";
 import {
   Popover,
@@ -56,12 +55,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { LinkFormValues, LinkData } from "@/types/link-form";
-import { COLOR_OPTIONS } from "@/constants/tag-colors";
 import { EditIcon } from "@/utils/icons/edit";
+import { COLOR_OPTIONS } from "@/constants/tag-colors";
+import { useSubscriptionStore } from "@/store/subscription";
+
+import LinkQrCode from "./link-qrcode";
+import LinkPreview from "./link-preview";
 import QRCodeDesign from "@/components/web/qr-code-design";
 import LinkCustomMetadata from "./link-custome-metadata";
-import { useSubscriptionStore } from "@/store/subscription";
+
+import type { LinkFormValues, LinkData } from "@/types/link-form";
+
+// Constants
+const AI_SLUG_ENDPOINT = "/api/ai/link-slug";
+const RANDOM_SLUG_DELAY_MS = 300;
+const DEFAULT_DOMAIN = "slugy.co";
+const SAFETY_CHECK_DEBOUNCE_MS = 800;
+const PREVIEW_DEBOUNCE_MS = 1500;
 
 // Types
 interface LinkFormFieldsProps {
@@ -71,26 +81,9 @@ interface LinkFormFieldsProps {
   isEditMode?: boolean;
   workspaceslug?: string;
   linkId?: string;
-  onSafetyStatusChange?: (status: {
-    isChecking: boolean;
-    isValid: boolean | null;
-    message: string;
-  }) => void;
-  // For create flow: allow in-memory preview edits
-  draftMetadata?: {
-    image: string | null;
-    title: string | null;
-    metadesc: string | null;
-    imagePreview?: string | null;
-    selectedFile?: File | null;
-  };
-  onDraftMetadataSave?: (draft: {
-    image: string | null;
-    title: string | null;
-    metadesc: string | null;
-    imagePreview?: string | null;
-    selectedFile?: File | null;
-  }) => void;
+  onSafetyStatusChange?: (status: UrlSafetyStatus) => void;
+  draftMetadata?: DraftMetadata;
+  onDraftMetadataSave?: (draft: DraftMetadata) => void;
 }
 
 interface TagType {
@@ -106,13 +99,72 @@ interface UrlSafetyStatus {
   message: string;
 }
 
-// Constants
-const AI_SLUG_ENDPOINT = "/api/ai/link-slug";
-const RANDOM_SLUG_DELAY_MS = 300;
-const DEFAULT_DOMAIN = "slugy.co";
-const URL_DEBOUNCE_MS = 500;
-const SAFETY_CHECK_DEBOUNCE_MS = 1000;
-const PREVIEW_DEBOUNCE_MS = 1500; // Debounce preview/metadata fetch to avoid spam
+interface DraftMetadata {
+  image: string | null;
+  title: string | null;
+  metadesc: string | null;
+  imagePreview?: string | null;
+  selectedFile?: File | null;
+}
+
+interface DomainOption {
+  value: string;
+  label: string;
+  id: string | null;
+}
+
+interface CustomDomain {
+  id: string;
+  domain: string;
+  verified: boolean;
+  dnsConfigured: boolean;
+}
+
+// Utility functions
+const normalizeUrl = (rawUrl: string): string => {
+  if (!rawUrl) return rawUrl;
+  if (/^https?:\/\//.test(rawUrl)) return rawUrl;
+  if (
+    /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(rawUrl) ||
+    rawUrl.startsWith("www.")
+  ) {
+    return `https://${rawUrl}`;
+  }
+  return rawUrl;
+};
+
+const validateUrlFormat = (rawUrl: string) => {
+  if (!rawUrl.trim()) {
+    return { isValid: true, message: "" };
+  }
+
+  try {
+    const url = new URL(
+      rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`,
+    );
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return { isValid: false, message: "URL must use HTTP or HTTPS protocol" };
+    }
+    if (!url.hostname || url.hostname.length < 3) {
+      return { isValid: false, message: "Invalid domain name" };
+    }
+    return { isValid: true, message: "" };
+  } catch {
+    if (!rawUrl.startsWith("http") && rawUrl.includes(".")) {
+      try {
+        new URL(`https://${rawUrl}`);
+        return { isValid: true, message: "" };
+      } catch {
+        return { isValid: false, message: "Invalid URL format" };
+      }
+    }
+    return { isValid: false, message: "Invalid URL format" };
+  }
+};
+
+const isLinkData = (obj: unknown): obj is LinkData => {
+  return !!obj && typeof obj === "object" && "qrCode" in obj;
+};
 
 // Memoized components
 const SafetyIndicator = ({ status }: { status: UrlSafetyStatus }) => {
@@ -166,6 +218,7 @@ const TagBadge = ({ tag }: { tag: TagType }) => {
   );
 };
 
+// Main component
 const LinkFormFields = ({
   form,
   code,
@@ -178,28 +231,10 @@ const LinkFormFields = ({
   onDraftMetadataSave,
 }: LinkFormFieldsProps) => {
   const { control, getValues, watch, setValue } = form;
-
   const { isPro, fetchSubscription } = useSubscriptionStore();
   const isFreePlan = !isPro;
 
-  useEffect(() => {
-    void fetchSubscription();
-  }, [fetchSubscription]);
-
-  // Define normalizeUrl early so it can be used in handlers and effects
-  const normalizeUrl = (rawUrl: string): string => {
-    if (!rawUrl) return rawUrl;
-    if (/^https?:\/\//.test(rawUrl)) return rawUrl;
-    if (
-      /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(rawUrl) ||
-      rawUrl.startsWith("www.")
-    ) {
-      return `https://${rawUrl}`;
-    }
-    return rawUrl;
-  };
-
-  // State management
+  // State
   const [currentCode, setCurrentCode] = useState(code);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isRandomLoading, setIsRandomLoading] = useState(false);
@@ -215,30 +250,24 @@ const LinkFormFields = ({
   const [isSlugEditable, setIsSlugEditable] = useState(!isEditMode);
   const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
   const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
-  const [qrCodeKey, setQrCodeKey] = useState(0); // Force re-render after save
-  const [previewUrl, setPreviewUrl] = useState(""); // Debounced preview URL
-  const slugInputRef = useRef<HTMLInputElement | null>(null);
+  const [qrCodeKey, setQrCodeKey] = useState(0);
+  const [previewUrl, setPreviewUrl] = useState("");
+  const [urlValidation, setUrlValidation] = useState({
+    isValid: true,
+    message: "",
+  });
 
-  // Debounce refs
-  const urlValidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Refs
+  const slugInputRef = useRef<HTMLInputElement | null>(null);
   const safetyCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Form values
+  // Watch form values
   const domain = watch("domain");
   const slug = watch("slug");
   const url = watch("url");
 
-  // Instant URL for safety checking
-  const instantUrl = url;
-
-  // URL validation state
-  const [urlValidation, setUrlValidation] = useState<{
-    isValid: boolean;
-    message: string;
-  }>({ isValid: true, message: "" });
-
-  // Fetch tags for workspace
+  // Fetch data
   const {
     data: tags,
     error: tagsError,
@@ -247,14 +276,8 @@ const LinkFormFields = ({
     workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
   );
 
-  // Fetch custom domains for workspace
   const { data: domainsData, isLoading: domainsLoading } = useSWR<{
-    domains: Array<{
-      id: string;
-      domain: string;
-      verified: boolean;
-      dnsConfigured: boolean;
-    }>;
+    domains: CustomDomain[];
   }>(workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null);
 
   // Computed values
@@ -262,13 +285,10 @@ const LinkFormFields = ({
   const selectedTagObjects =
     tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
 
-  // Filter only verified and configured custom domains
-  const availableDomains = (() => {
-    const domains: Array<{
-      value: string;
-      label: string;
-      id: string | null;
-    }> = [{ value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null }];
+  const availableDomains: DomainOption[] = (() => {
+    const domains: DomainOption[] = [
+      { value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null },
+    ];
 
     if (domainsData?.domains) {
       const customDomains = domainsData.domains
@@ -291,50 +311,6 @@ const LinkFormFields = ({
     !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
 
   // Handlers
-  const validateUrlFormat = (rawUrl: string) => {
-    if (!rawUrl.trim()) {
-      return { isValid: true, message: "" };
-    }
-
-    try {
-      const url = new URL(
-        rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`,
-      );
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return {
-          isValid: false,
-          message: "URL must use HTTP or HTTPS protocol",
-        };
-      }
-      if (!url.hostname || url.hostname.length < 3) {
-        return { isValid: false, message: "Invalid domain name" };
-      }
-      return { isValid: true, message: "" };
-    } catch {
-      // Try with https prefix if it doesn't have protocol
-      if (!rawUrl.startsWith("http") && rawUrl.includes(".")) {
-        try {
-          new URL(`https://${rawUrl}`);
-          return { isValid: true, message: "" };
-        } catch {
-          return { isValid: false, message: "Invalid URL format" };
-        }
-      }
-      return { isValid: false, message: "Invalid URL format" };
-    }
-  };
-
-  const enableSlugEditing = () => {
-    if (!isSlugEditable) {
-      setIsSlugEditable(true);
-      // Focus after enabling to help the user edit immediately
-      setTimeout(() => slugInputRef.current?.focus(), 0);
-    } else {
-      // Already editable; focus it
-      slugInputRef.current?.focus();
-    }
-  };
-
   const checkUrlSafety = async (checkUrl: string) => {
     if (!checkUrl) {
       const status = { isChecking: false, isValid: null, message: "" };
@@ -365,31 +341,13 @@ const LinkFormFields = ({
     }
   };
 
-  // Debounced URL safety check
   const debouncedCheckUrlSafety = (checkUrl: string) => {
-    // Clear existing timeout
     if (safetyCheckTimeoutRef.current) {
       clearTimeout(safetyCheckTimeoutRef.current);
     }
-
-    // Set new timeout
     safetyCheckTimeoutRef.current = setTimeout(() => {
       checkUrlSafety(checkUrl);
     }, SAFETY_CHECK_DEBOUNCE_MS);
-  };
-
-  // Debounced URL validation
-  const debouncedValidateUrl = (rawUrl: string) => {
-    // Clear existing timeout
-    if (urlValidationTimeoutRef.current) {
-      clearTimeout(urlValidationTimeoutRef.current);
-    }
-
-    // Set new timeout
-    urlValidationTimeoutRef.current = setTimeout(() => {
-      const validation = validateUrlFormat(rawUrl);
-      setUrlValidation(validation);
-    }, URL_DEBOUNCE_MS);
   };
 
   const handleAiRandomize = async (rawUrl: string) => {
@@ -397,11 +355,11 @@ const LinkFormFields = ({
     setIsAiLoading(true);
     try {
       const normalizedUrl = normalizeUrl(rawUrl);
-      const res = await axios.post(AI_SLUG_ENDPOINT, {
-        url: normalizedUrl,
-      });
-      // API returns { success: true, data: { slug, urlExists, ... } }
-      const responseData = res.data as { success: true; data: { slug: string } };
+      const res = await axios.post(AI_SLUG_ENDPOINT, { url: normalizedUrl });
+      const responseData = res.data as {
+        success: true;
+        data: { slug: string };
+      };
       if (responseData.success && responseData.data?.slug) {
         setValue("slug", responseData.data.slug, { shouldDirty: true });
       } else {
@@ -445,7 +403,10 @@ const LinkFormFields = ({
       setIsAddTagLoading(true);
       const response = await axios.post(
         `/api/workspace/${workspaceslug}/tags`,
-        { name: searchValue.trim(), color: null },
+        {
+          name: searchValue.trim(),
+          color: null,
+        },
       );
       if (response.status === 201) {
         const newTag = response.data;
@@ -467,35 +428,41 @@ const LinkFormFields = ({
 
   const handleDomainChange = (selectedDomain: string) => {
     setValue("domain", selectedDomain, { shouldDirty: true });
-
-    // Find the domain object and set customDomainId
     const domainObj = availableDomains.find((d) => d.value === selectedDomain);
-    setValue("customDomainId", domainObj?.id || null, {
-      shouldDirty: true,
-    });
+    setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
+  };
+
+  const enableSlugEditing = () => {
+    if (!isSlugEditable) {
+      setIsSlugEditable(true);
+      setTimeout(() => slugInputRef.current?.focus(), 0);
+    } else {
+      slugInputRef.current?.focus();
+    }
   };
 
   // Effects
   useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
+
+  useEffect(() => {
     setCurrentCode(slug ? `${domain}/${slug}` : "");
   }, [domain, slug]);
 
-  // Instant URL validation
   useEffect(() => {
-    const validation = validateUrlFormat(instantUrl);
+    const validation = validateUrlFormat(url);
     setUrlValidation(validation);
-  }, [instantUrl]);
+  }, [url]);
 
-  // URL safety checking
   useEffect(() => {
-    if (!instantUrl) {
+    if (!url) {
       setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
       return;
     }
-    debouncedCheckUrlSafety(instantUrl);
-  }, [instantUrl]);
+    debouncedCheckUrlSafety(url);
+  }, [url]);
 
-  // Debounce preview/metadata URL to avoid excessive API calls
   useEffect(() => {
     if (previewTimeoutRef.current) {
       clearTimeout(previewTimeoutRef.current);
@@ -525,12 +492,8 @@ const LinkFormFields = ({
     }
   }, [tags, currentTags, selectedTags.length]);
 
-  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
-      if (urlValidationTimeoutRef.current) {
-        clearTimeout(urlValidationTimeoutRef.current);
-      }
       if (safetyCheckTimeoutRef.current) {
         clearTimeout(safetyCheckTimeoutRef.current);
       }
@@ -540,45 +503,35 @@ const LinkFormFields = ({
     };
   }, []);
 
-  // Type guard
-  const isLinkData = (obj: unknown): obj is LinkData => {
-    return !!obj && typeof obj === "object" && "qrCode" in obj;
-  };
-
-  // Form values (use debounced preview URL for metadata/preview only)
+  // Extract metadata
   const normalizedUrl = previewUrl;
-  const qrCodeCustomization = (() => {
-    if (isLinkData(form.formState.defaultValues)) {
-      return form.formState.defaultValues.qrCode?.customization;
-    }
-    return undefined;
-  })();
+  const qrCodeCustomization = isLinkData(form.formState.defaultValues)
+    ? form.formState.defaultValues.qrCode?.customization
+    : undefined;
 
-  // Extract custom metadata
-  const customMetadata = (() => {
-    if (isLinkData(form.formState.defaultValues)) {
-      return {
+  const customMetadata = isLinkData(form.formState.defaultValues)
+    ? {
         image: form.formState.defaultValues.image || null,
         title: form.formState.defaultValues.title || null,
         metadesc: form.formState.defaultValues.metadesc || null,
-      };
-    }
-    return { image: null, title: null, metadesc: null };
-  })();
+      }
+    : { image: null, title: null, metadesc: null };
 
-  // Choose which metadata to show in preview: draft first (create), otherwise server/defaults
   const previewImage = draftMetadata?.imagePreview
     ? draftMetadata.imagePreview || undefined
     : undefined;
-  const effectiveImage = (draftMetadata?.image ?? null) !== null
-    ? (draftMetadata?.image || undefined)
-    : (customMetadata.image || undefined);
-  const effectiveTitle = (draftMetadata?.title ?? null) !== null
-    ? (draftMetadata?.title || undefined)
-    : (customMetadata.title || undefined);
-  const effectiveMetadesc = (draftMetadata?.metadesc ?? null) !== null
-    ? (draftMetadata?.metadesc || undefined)
-    : (customMetadata.metadesc || undefined);
+  const effectiveImage =
+    (draftMetadata?.image ?? null) !== null
+      ? draftMetadata?.image || undefined
+      : customMetadata.image || undefined;
+  const effectiveTitle =
+    (draftMetadata?.title ?? null) !== null
+      ? draftMetadata?.title || undefined
+      : customMetadata.title || undefined;
+  const effectiveMetadesc =
+    (draftMetadata?.metadesc ?? null) !== null
+      ? draftMetadata?.metadesc || undefined
+      : customMetadata.metadesc || undefined;
 
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -609,11 +562,9 @@ const LinkFormFields = ({
                   onBlur={handleUrlBlur}
                   onChange={(e) => {
                     field.onChange(e);
-                    debouncedValidateUrl(e.target.value);
                   }}
                 />
               </FormControl>
-              {/* <FormMessage /> */}
               {!urlValidation.isValid && urlValidation.message && (
                 <div className="flex items-center gap-1 text-sm text-red-600">
                   <span>{urlValidation.message}</span>
@@ -623,7 +574,7 @@ const LinkFormFields = ({
           )}
         />
 
-        {/* Short link domain and slug inputs with buttons */}
+        {/* Short link domain and slug inputs */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex w-full items-center justify-between gap-2 space-y-1">
@@ -669,7 +620,7 @@ const LinkFormFields = ({
                           )}
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Suffle slug</TooltipContent>
+                      <TooltipContent>Shuffle slug</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 </div>
@@ -873,22 +824,6 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>QR Code</Label>
-            {/* {linkId && isEditMode && (
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setQrCodeDialogOpen(true)}
-                      className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-                    >
-                      <EditIcon className="h-4 w-4" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Customize QR Code</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )} */}
           </div>
           <LinkQrCode
             key={qrCodeKey}
@@ -900,7 +835,7 @@ const LinkFormFields = ({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Link Preview</Label>
-            {(isEditMode ? (linkId && isEditMode) : true) && (
+            {(isEditMode ? linkId && isEditMode : true) && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -913,15 +848,21 @@ const LinkFormFields = ({
                       }}
                       disabled={isFreePlan}
                       className={cn(
-                        "text-muted-foreground cursor-pointer transition-colors hover:text-foreground",
+                        "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
                         isFreePlan && "cursor-not-allowed opacity-60",
                       )}
                     >
-                      {isFreePlan ? <Lock className="h-4 w-4" /> : <EditIcon className="h-4 w-4" />}
+                      {isFreePlan ? (
+                        <Lock className="h-4 w-4" />
+                      ) : (
+                        <EditIcon className="h-4 w-4" />
+                      )}
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {isFreePlan ? "Upgrade to unlock custom preview" : "Edit Preview"}
+                    {isFreePlan
+                      ? "Upgrade to unlock custom preview"
+                      : "Edit Preview"}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -938,31 +879,36 @@ const LinkFormFields = ({
       </div>
 
       {/* Link Metadata Dialog */}
-      {(
-        (isEditMode && linkId) || !isEditMode
-      ) && (
+      {((isEditMode && linkId) || !isEditMode) && (
         <LinkCustomMetadata
           linkId={isEditMode ? linkId : undefined}
           linkUrl={normalizedUrl}
           currentImage={
             isEditMode
-              ? (draftMetadata?.image ?? (form.formState.defaultValues as LinkData | undefined)?.image ?? null)
-              : (draftMetadata?.image || null)
+              ? (draftMetadata?.image ??
+                (form.formState.defaultValues as LinkData | undefined)?.image ??
+                null)
+              : draftMetadata?.image || null
           }
           currentTitle={
             isEditMode
-              ? (draftMetadata?.title ?? (form.formState.defaultValues as LinkData | undefined)?.title ?? null)
-              : (draftMetadata?.title || null)
+              ? (draftMetadata?.title ??
+                (form.formState.defaultValues as LinkData | undefined)?.title ??
+                null)
+              : draftMetadata?.title || null
           }
           currentDescription={
             isEditMode
-              ? (draftMetadata?.metadesc ?? (form.formState.defaultValues as LinkData | undefined)?.metadesc ?? null)
-              : (draftMetadata?.metadesc || null)
+              ? (draftMetadata?.metadesc ??
+                (form.formState.defaultValues as LinkData | undefined)
+                  ?.metadesc ??
+                null)
+              : draftMetadata?.metadesc || null
           }
           workspaceslug={isEditMode ? workspaceslug! : undefined}
           open={metadataDialogOpen}
           onOpenChange={setMetadataDialogOpen}
-          persistMode={(!isEditMode || onDraftMetadataSave) ? "local" : "server"}
+          persistMode={!isEditMode || onDraftMetadataSave ? "local" : "server"}
           onSave={(payload) => {
             if (!isEditMode || onDraftMetadataSave) {
               if (onDraftMetadataSave && payload) {
@@ -976,7 +922,6 @@ const LinkFormFields = ({
               }
               return;
             }
-            // Edit flow: Force re-render and refetch
             setQrCodeKey((prev) => prev + 1);
             void mutate(
               (key) =>
@@ -1005,7 +950,6 @@ const LinkFormFields = ({
               onOpenChange={(open: boolean) => {
                 setQrCodeDialogOpen(open);
                 if (!open) {
-                  // Refresh QR code after closing
                   setQrCodeKey((prev) => prev + 1);
                   void mutate(
                     (key) =>

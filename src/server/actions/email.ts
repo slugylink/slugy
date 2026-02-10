@@ -1,5 +1,9 @@
 import { resend } from "@/lib/resend";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -15,38 +19,23 @@ interface SendOrganizationInvitationParams {
   inviteLink: string;
 }
 
-export async function sendEmail({ to, subject, text, html }: SendEmailParams) {
-  try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM!,
-      to,
-      subject,
-      text,
-      html: html || text,
-    });
+// ============================================================================
+// Constants
+// ============================================================================
 
-    if (error) {
-      console.error("Failed to send email:", error);
-      throw new Error("Failed to send email");
-    }
+const INVITATION_EXPIRY_DAYS = 7;
 
-    return data;
-  } catch (error) {
-    console.error("Error sending email:", error);
-    throw error;
-  }
-}
+// ============================================================================
+// Email Templates
+// ============================================================================
 
-export async function sendOrganizationInvitation({
-  email,
+function buildInvitationTextTemplate({
   invitedByUsername,
   invitedByEmail,
   teamName,
   inviteLink,
-}: SendOrganizationInvitationParams) {
-  const subject = `You've been invited to join ${teamName}`;
-  
-  const text = `
+}: SendOrganizationInvitationParams): string {
+  return `
 Hi there!
 
 ${invitedByUsername} (${invitedByEmail}) has invited you to join ${teamName} on Slugy.
@@ -54,15 +43,22 @@ ${invitedByUsername} (${invitedByEmail}) has invited you to join ${teamName} on 
 Click the following link to accept the invitation:
 ${inviteLink}
 
-This invitation will expire in 7 days.
+This invitation will expire in ${INVITATION_EXPIRY_DAYS} days.
 
 If you have any questions, please contact ${invitedByEmail}.
 
 Best regards,
 The Slugy Team
-  `;
+  `.trim();
+}
 
-  const html = `
+function buildInvitationHtmlTemplate({
+  invitedByUsername,
+  invitedByEmail,
+  teamName,
+  inviteLink,
+}: SendOrganizationInvitationParams): string {
+  return `
 <!DOCTYPE html>
 <html>
 <head>
@@ -143,7 +139,7 @@ The Slugy Team
     </div>
     
     <p style="font-size: 14px; color: #666;">
-      This invitation will expire in 7 days.
+      This invitation will expire in ${INVITATION_EXPIRY_DAYS} days.
     </p>
   </div>
   
@@ -153,7 +149,48 @@ The Slugy Team
   </div>
 </body>
 </html>
-  `;
+  `.trim();
+}
+
+// ============================================================================
+// Email Sending
+// ============================================================================
+
+export async function sendEmail({
+  to,
+  subject,
+  text,
+  html,
+}: SendEmailParams): Promise<unknown> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to,
+      subject,
+      text,
+      html: html || text,
+    });
+
+    if (error) {
+      console.error("Failed to send email:", error);
+      throw new Error("Failed to send email");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error;
+  }
+}
+
+export async function sendOrganizationInvitation(
+  params: SendOrganizationInvitationParams,
+): Promise<void> {
+  const { email, teamName } = params;
+
+  const subject = `You've been invited to join ${teamName}`;
+  const text = buildInvitationTextTemplate(params);
+  const html = buildInvitationHtmlTemplate(params);
 
   try {
     await sendEmail({

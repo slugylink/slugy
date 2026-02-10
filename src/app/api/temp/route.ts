@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
+import { jsonWithETag } from "@/lib/http";
 
 // Schema validation
 const createLinkSchema = z.object({
@@ -49,7 +50,7 @@ const isLinkExpired = (expiresAt: string): boolean => {
   return new Date(expiresAt) <= new Date();
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const headersList = await headers();
     const normalizedIp = getClientIP(headersList);
@@ -57,11 +58,14 @@ export async function GET() {
 
     // Get all link codes for this IP
     const linkCodes = await redis.smembers(ipKey);
-    
-    console.log(`[TEMP API] IP: ${normalizedIp}, Found ${linkCodes.length} link codes:`, linkCodes);
+
+    console.log(
+      `[TEMP API] IP: ${normalizedIp}, Found ${linkCodes.length} link codes:`,
+      linkCodes,
+    );
 
     if (!linkCodes.length) {
-      return apiSuccess({ links: [] });
+      return jsonWithETag(req, { success: true, data: { links: [] } });
     }
 
     // Fetch all link data in parallel
@@ -97,10 +101,12 @@ export async function GET() {
     );
 
     console.log(`[TEMP API] Returning ${validLinks.length} valid links`);
-    return apiSuccess({ links: validLinks });
+    return jsonWithETag(req, { success: true, data: { links: validLinks } });
   } catch (error) {
     console.error("GET /api/temp error:", error);
-    return Response.json(apiErrors.internalError("Failed to fetch temporary links"));
+    return Response.json(
+      apiErrors.internalError("Failed to fetch temporary links"),
+    );
   }
 }
 
@@ -117,9 +123,7 @@ export async function POST(req: Request) {
     // Check rate limit
     const existingLinks = await redis.smembers(ipKey);
     if (existingLinks.length >= MAX_LINKS_PER_IP) {
-      return Response.json(
-        apiErrors.rateLimitExceeded(),
-      );
+      return Response.json(apiErrors.rateLimitExceeded());
     }
 
     const nanoid = customAlphabet(
@@ -152,13 +156,16 @@ export async function POST(req: Request) {
     await pipeline.exec();
 
     const response = createLinkResponse(linkData);
-    return apiSuccess(response);
+    return jsonWithETag(req, { success: true, data: response }, 201);
   } catch (error) {
     console.error("POST /api/temp error:", error);
 
     if (error instanceof z.ZodError) {
       return Response.json(
-        apiErrors.validationError(error.errors, error.errors[0]?.message || "Invalid request data"),
+        apiErrors.validationError(
+          error.errors,
+          error.errors[0]?.message || "Invalid request data",
+        ),
       );
     }
 

@@ -1,34 +1,52 @@
 "use client";
 
 import { memo } from "react";
-import { UsageStatsClient } from "./usage-stats-client";
 import useSWR from "swr";
+import { UsageStatsClient } from "./usage-stats-client";
 
-type WorkspaceData = {
+// ============================================================================
+// Types
+// ============================================================================
+
+interface WorkspaceData {
   maxClicksLimit: number;
   maxLinksLimit: number;
   maxUsers: number;
-};
+}
 
-type UsageDetails = {
+interface UsageDetails {
   clicksTracked: number;
   linksCreated: number;
   addedUsers: number;
   periodStart: Date | string;
   periodEnd: Date | string;
-};
+}
 
-type UsageData = {
+interface UsageData {
   workspace: WorkspaceData | null;
   usage: UsageDetails | null;
+}
+
+interface UsageStatsProps {
+  workspaceslug: string;
+}
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+const EMPTY_DATA: UsageData = {
+  workspace: null,
+  usage: null,
 };
 
-const EMPTY_DATA: UsageData = { workspace: null, usage: null };
+// ============================================================================
+// Main Component
+// ============================================================================
+
 const UsageStats = memo(function UsageStats({
   workspaceslug,
-}: {
-  workspaceslug: string;
-}) {
+}: UsageStatsProps) {
   const { data = EMPTY_DATA, error } = useSWR<UsageData>(
     `/api/workspace/${workspaceslug}/usages`,
   );
