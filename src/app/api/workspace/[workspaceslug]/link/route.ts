@@ -306,7 +306,6 @@ export async function POST(
           tx.usage.updateMany({
             where: {
               workspaceId: workspaceCheck.workspace.id,
-              userId: session.user.id,
             },
             data: { linksCreated: { increment: 1 } },
           }),
