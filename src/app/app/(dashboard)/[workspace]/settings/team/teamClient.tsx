@@ -3,7 +3,14 @@
 import { memo, useState, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import Image from "next/image";
-import { Crown, Mail, MoreVertical, Trash2, User, UserPlus } from "lucide-react";
+import {
+  Crown,
+  Mail,
+  MoreVertical,
+  Trash2,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { Button } from "@/components/ui/button";
@@ -86,7 +93,7 @@ interface TeamClientProps {
 
 async function apiCall<T>(
   url: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<{ ok: boolean; data?: T; error?: string }> {
   try {
     const res = await fetch(url, options);
@@ -124,7 +131,7 @@ const LoadingState = memo(({ colSpan }: { colSpan: number }) => (
   <TableRow>
     <TableCell colSpan={colSpan} className="h-32 text-center">
       <div className="flex items-center justify-center">
-        <LoaderCircle className="h-4 w-4 animate-spin text-muted-foreground" />
+        <LoaderCircle className="text-muted-foreground h-4 w-4 animate-spin" />
       </div>
     </TableCell>
   </TableRow>
@@ -253,7 +260,7 @@ const MemberRow = memo(
         )}
       </TableRow>
     );
-  }
+  },
 );
 MemberRow.displayName = "MemberRow";
 
@@ -293,7 +300,7 @@ const InvitationRow = memo(
       </TableCell>
       {canManageTeam && <TableCell />}
     </TableRow>
-  )
+  ),
 );
 InvitationRow.displayName = "InvitationRow";
 
@@ -321,16 +328,16 @@ const RemoveMemberDialog = memo(
 
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-150"
+        className="animate-in fade-in-0 fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm duration-150"
         onClick={() => !isSubmitting && onClose()}
       >
         <div
-          className="w-full max-w-md rounded-xl border bg-background p-6 shadow-lg animate-in fade-in-0 zoom-in-95 duration-200"
+          className="bg-background animate-in fade-in-0 zoom-in-95 w-full max-w-md rounded-xl border p-6 shadow-lg duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 space-y-2">
             <h2 className="text-lg font-semibold">Remove member</h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               Are you sure you want to remove{" "}
               <strong>{member.user.name || member.user.email}</strong> from this
               workspace? This action cannot be undone.
@@ -360,7 +367,7 @@ const RemoveMemberDialog = memo(
         </div>
       </div>
     );
-  }
+  },
 );
 RemoveMemberDialog.displayName = "RemoveMemberDialog";
 
@@ -388,7 +395,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
     mutate,
   } = useSWR<TeamResponse>(
     `/api/workspace/${workspaceslug}/team`,
-    fetchTeamData
+    fetchTeamData,
   );
 
   // Derived state
@@ -412,7 +419,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ role: newRole }),
-          }
+          },
         );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to update role");
@@ -424,7 +431,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setActionSubmitting(false);
       }
     },
-    [workspaceslug, mutate]
+    [workspaceslug, mutate],
   );
 
   const handleRemove = useCallback(
@@ -435,7 +442,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
           `/api/workspace/${workspaceslug}/team/${memberId}`,
           {
             method: "DELETE",
-          }
+          },
         );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to remove member");
@@ -449,7 +456,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setActionSubmitting(false);
       }
     },
-    [workspaceslug, mutate]
+    [workspaceslug, mutate],
   );
 
   const handleInviteSubmit = useCallback(
@@ -468,7 +475,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, role: inviteRole }),
-          }
+          },
         );
         if (!result.ok) {
           toast.error(result.error ?? "Failed to send invitation");
@@ -483,7 +490,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
         setInviteSubmitting(false);
       }
     },
-    [workspaceslug, inviteEmail, inviteRole, mutate]
+    [workspaceslug, inviteEmail, inviteRole, mutate],
   );
 
   const handleRemoveClick = useCallback((member: TeamMember) => {
@@ -508,7 +515,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
             View your team members and their roles
           </p>
         </div>
-        {canManageTeam && (
+        {/* {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -571,7 +578,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
               </form>
             </DialogContent>
           </Dialog>
-        )}
+        )} */}
       </div>
 
       {/* Team Table */}
