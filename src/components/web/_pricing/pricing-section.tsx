@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { IoIosCheckmarkCircle } from "react-icons/io";
 import { MoveUpRight } from "lucide-react";
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NumberFlow from "@number-flow/react";
@@ -103,14 +104,14 @@ export default function PricingSection() {
                           )}
                       </div>
                       <Button
+                        asChild
                         size="lg"
                         className="w-full rounded-lg"
                         disabled={!isReady}
-                        onClick={() =>
-                          window.location.assign("https://app.slugy.co")
-                        }
                       >
-                        {buttonLabel}
+                        <Link href="https://app.slugy.co/login">
+                          {buttonLabel}
+                        </Link>
                       </Button>
                     </CardHeader>
 

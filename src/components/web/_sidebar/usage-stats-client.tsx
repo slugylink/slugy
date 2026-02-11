@@ -103,12 +103,8 @@ function UsageProgressRow({
   );
 }
 
-function PlanBadge({ isActivePro }: { isActivePro: boolean }) {
-  return (
-    <div className="bg-primary/10 rounded-sm px-1 text-xs">
-      {isActivePro ? "Pro" : "Free"}
-    </div>
-  );
+function PlanBadge() {
+  return <div className="bg-primary/10 rounded-sm px-1 text-xs">Pro</div>;
 }
 
 function EmptyUsageCard() {
@@ -166,7 +162,7 @@ export function UsageStatsClient({
         <div className="text-muted-foreground flex items-center text-sm">
           Usage <ChevronRight className="ml-1 h-3 w-3" />
         </div>
-        <PlanBadge isActivePro={isActivePro} />
+        {isActivePro && <PlanBadge />}
       </div>
 
       <div className="space-y-3">

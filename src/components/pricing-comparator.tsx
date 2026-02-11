@@ -119,7 +119,7 @@ function buildButtonUrl(
     return `/${workspace}/settings/billing/upgrade`;
   }
 
-  return "/settings/billing/upgrade";
+  return "https://app.slugy.co/login";
 }
 
 // Get price based on billing period

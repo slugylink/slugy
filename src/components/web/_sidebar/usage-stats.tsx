@@ -52,9 +52,11 @@ const EMPTY_DATA: UsageData = {
 const UsageStats = memo(function UsageStats({
   workspaceslug,
 }: UsageStatsProps) {
-  const { data = EMPTY_DATA, error } = useSWR<UsageData>(
-    `/api/workspace/${workspaceslug}/usages`,
-  );
+  const {
+    data = EMPTY_DATA,
+    isLoading,
+    error,
+  } = useSWR<UsageData>(`/api/workspace/${workspaceslug}/usages`);
 
   if (error) {
     console.error("Failed to fetch usage data:", error);
@@ -64,14 +66,13 @@ const UsageStats = memo(function UsageStats({
 
   return (
     <>
-      {!isActivePro && (
+      {!isActivePro && !isLoading && (
         <Link
           href={`/${workspaceslug}/settings/billing`}
           target="_blank"
           rel="noopener noreferrer"
         >
-          <Button size="sm" variant="secondary" className="w-full rounded-lg">
-            <Sparkles className="mr-2" />
+          <Button size="sm" variant="default" className="w-full rounded-lg">
             Upgrade to Pro
           </Button>
         </Link>
