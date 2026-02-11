@@ -2,6 +2,7 @@ import PricingComparator from "@/components/pricing-comparator";
 import { polarClient } from "@/lib/polar";
 import { db } from "@/server/db";
 import { getBillingData } from "@/server/actions/subscription";
+import AppPricingComparator from "@/components/app-pricing-comparator";
 
 type PriceInterval = "month" | "year" | null;
 
@@ -103,9 +104,17 @@ export default async function Upgrade({
     }
   }
 
+  const productData: TransformedProduct[] = items.map((product) => ({
+    id: product.id ?? "",
+    name: product.name ?? "",
+    prices: (product.prices ?? []).map(transformPrice),
+  }));
+
   return (
-    <div>
-      <PricingComparator workspace={workspace} isPaidPlan={isPaidPlan} />
-    </div>
+    <AppPricingComparator
+      products={productData}
+      workspace={workspace}
+      isPaidPlan={isPaidPlan}
+    />
   );
 }

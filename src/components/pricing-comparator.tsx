@@ -106,13 +106,16 @@ function buildFeatures(): Feature[] {
   ];
 }
 
+const CHECKOUT_BASE_URL = "/api/subscription/checkout";
+const MANAGE_BASE_URL = "/api/subscription/manage";
+
 // Build button URL based on plan and workspace
 function buildButtonUrl(
   isPaidPlan: boolean | undefined,
   workspace: string | undefined,
 ): string {
   if (isPaidPlan && workspace) {
-    return `/api/subscription/manage?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
+    return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
   }
 
   if (workspace) {
