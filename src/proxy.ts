@@ -35,13 +35,9 @@ export const config = {
 
 //─────────── Constants ───────────
 
-const STATIC_ASSETS_EXTENSIONS = /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/;
-const STATIC_ASSET_PATHS = [
-  "_next",
-  "static",
-  "images",
-  "icons",
-] as const;
+const STATIC_ASSETS_EXTENSIONS =
+  /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/;
+const STATIC_ASSET_PATHS = ["_next", "static", "images", "icons"] as const;
 
 const isStaticAsset = (pathname: string): boolean => {
   if (STATIC_ASSETS_EXTENSIONS.test(pathname)) return true;
@@ -216,9 +212,13 @@ async function handleAppSubdomain(
 
   // Handle root path
   if (pathname === "/") {
-    const redirectPath = token ? "/app" : "/login";
+    if (token) {
+      return addSecurityHeaders(
+        NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
+      );
+    }
     return addSecurityHeaders(
-      NextResponse.redirect(new URL(redirectPath, baseUrl)),
+      NextResponse.redirect(new URL("/login", baseUrl)),
     );
   }
 
