@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import TeamClient from "./teamClient";
+import TeamClient from "./page-client";
 import { redirect } from "next/navigation";
 
 export default async function Team({
@@ -18,9 +18,9 @@ export default async function Team({
   }
 
   return (
-    <TeamClient 
-      workspaceslug={context.workspace} 
-      currentUserId={session.user.id} 
+    <TeamClient
+      workspaceslug={context.workspace}
+      currentUserId={session.user.id}
     />
   );
 }

@@ -43,7 +43,7 @@ export default async function Billing({
 
   // Check if user has a paid subscription (not free plan)
   const isPaidPlan = plan.planType && plan.planType.toLowerCase() !== "free";
-  
+
   // Check if subscription is canceled but still active (grace period)
   const isCanceledButActive = subscription?.cancelAtPeriodEnd === true;
 
@@ -79,12 +79,13 @@ export default async function Billing({
         <Alert variant="default" className="bg-yellow-300/10">
           <AlertDescription className="">
             Your subscription has been canceled and will end on{" "}
-            <span className="font-medium">{billingCycle.end}</span>. You'll continue to have access to{" "}
-            {plan.name} features until then, after which you'll be moved to the Free plan.
+            <span className="font-medium">{billingCycle.end}</span>. You'll
+            continue to have access to {plan.name} features until then, after
+            which you'll be moved to the Free plan.
           </AlertDescription>
         </Alert>
       )}
-      
+
       <Card className="border-border/60">
         <CardHeader className="flex flex-col gap-6 px-0 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1">
@@ -92,16 +93,14 @@ export default async function Billing({
               <CardTitle className="text-md">
                 {plan.name} Plan
                 {isCanceledButActive && (
-                  <span className="ml-2 text-sm font-normal text-destructive">
+                  <span className="text-destructive ml-2 text-sm font-normal">
                     [Canceling]
                   </span>
                 )}
               </CardTitle>
             </div>
             <p className="text-muted-foreground text-sm">
-              <span className=" font-medium">
-                Billing cycle:
-              </span>{" "}
+              <span className="font-medium">Billing cycle:</span>{" "}
               {billingCycle.start} - {billingCycle.end}
             </p>
           </div>
@@ -109,16 +108,16 @@ export default async function Billing({
             {isPaidPlan ? (
               <>
                 <Button variant={"outline"} asChild>
-                  <Link href="/api/subscription/manage">
+                  <Link
+                    href={`/api/subscription/manage?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`}
+                  >
                     Manage
                   </Link>
                 </Button>
               </>
             ) : (
               <Button asChild>
-                <Link href="billing/upgrade">
-                  Upgrade
-                </Link>
+                <Link href="billing/upgrade">Upgrade</Link>
               </Button>
             )}
           </div>

@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useMemo, useEffect } from "react";
 import NumberFlow from "@number-flow/react";
-import { getActiveSubscription, getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 import { createAuthClient } from "better-auth/react";
 
 const { useSession } = createAuthClient();
@@ -36,6 +36,15 @@ interface ProductData {
 
 interface PricingComparatorProps {
   products?: ProductData[];
+  workspace?: string;
+  isPaidPlan?: boolean;
+}
+
+interface PlanConfig {
+  name: string;
+  price: number;
+  subtitle: string;
+  savings?: string;
 }
 
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
@@ -64,30 +73,44 @@ const FEATURES: Feature[] = [
   { feature: "Password Protection", free: false, pro: true },
 ];
 
-/**
- * Generates checkout URL with product IDs from products or environment variables
- */
-function getCheckoutUrl(products?: ProductData[]): string {
+// Extract product IDs from products or environment variables
+function getProductIds(products?: ProductData[]): string[] {
   const productIds = products?.map((p) => p.id).filter(Boolean) ?? [];
 
-  if (productIds.length > 0) {
-    return `${CHECKOUT_BASE_URL}?products=${productIds.join(",")}`;
-  }
+  if (productIds.length > 0) return productIds;
 
-  // Fallback to environment variables (Polar product IDs for checkout URL)
-  const envIds = [
+  // Fallback to environment variables
+  return [
     process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID,
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,
   ].filter(Boolean) as string[];
-
-  return envIds.length > 0
-    ? `${CHECKOUT_BASE_URL}?products=${envIds.join(",")}`
-    : CHECKOUT_BASE_URL;
 }
 
-/**
- * Extracts monthly and yearly prices from products array
- */
+// Build checkout URL with products and optional success URL
+function buildCheckoutUrl(
+  products?: ProductData[],
+  workspace?: string,
+  isPaidPlan?: boolean,
+): string {
+  // If user already has Pro plan, return manage URL
+  if (isPaidPlan && workspace) {
+    return `/api/subscription/manage?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
+  }
+
+  const productIds = getProductIds(products);
+  if (productIds.length === 0) return CHECKOUT_BASE_URL;
+
+  const params = new URLSearchParams();
+  params.set("products", productIds.join(","));
+
+  if (workspace) {
+    params.set("successUrl", `/${workspace}/settings/billing`);
+  }
+
+  return `${CHECKOUT_BASE_URL}?${params.toString()}`;
+}
+
+// Extract prices from products with defaults
 function extractPrices(products?: ProductData[]) {
   if (!products?.length) {
     return {
@@ -106,45 +129,147 @@ function extractPrices(products?: ProductData[]) {
   };
 }
 
-/**
- * Renders feature value as checkmark, dash, or text
- */
-function renderFeatureValue(value: FeatureValue) {
+// Render feature value as checkmark, dash, or text
+function FeatureValue({ value }: { value: FeatureValue }) {
   if (value === true) return <Check className="size-4" />;
   if (value === false) return <span className="text-muted-foreground">—</span>;
-  return value;
+  return <>{value}</>;
 }
 
-export default function PricingComparator({ products }: PricingComparatorProps) {
+// Price header component
+function PriceHeader({
+  plan,
+  ctaUrl,
+  ctaLabel,
+  isPaidPlan,
+}: {
+  plan: PlanConfig;
+  ctaUrl: string;
+  ctaLabel: string;
+  variant?: "outline" | "default";
+  isPaidPlan?: boolean;
+}) {
+  const buttonText = isPaidPlan ? "Manage" : ctaLabel;
+  const buttonVariant = isPaidPlan ? "outline" : "default";
+
+  return (
+    <th className="space-y-3">
+      <span className="block">{plan.name}</span>
+      <span className="block text-2xl font-medium">
+        <NumberFlow value={plan.price} format={CURRENCY_FORMAT} />
+      </span>
+      <span className="text-muted-foreground block text-xs">
+        {plan.subtitle}
+      </span>
+      <Button asChild variant={buttonVariant} size="sm">
+        <Link href={ctaUrl}>{buttonText}</Link>
+      </Button>
+    </th>
+  );
+}
+
+// Pro plan price header with highlighted background
+function ProPriceHeader({
+  plan,
+  ctaUrl,
+  isPaidPlan,
+}: {
+  plan: PlanConfig;
+  ctaUrl: string;
+  isPaidPlan?: boolean;
+}) {
+  if (isPaidPlan) {
+    // Show manage button for existing Pro users
+    return (
+      <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
+        <span className="block">{plan.name}</span>
+        <span className="block text-2xl font-medium">
+          <NumberFlow value={plan.price} format={CURRENCY_FORMAT} />
+        </span>
+        <span className="text-muted-foreground block text-sm">
+          {plan.subtitle}
+        </span>
+        <Button asChild variant="outline" size="sm">
+          <Link href={ctaUrl}>Manage</Link>
+        </Button>
+      </th>
+    );
+  }
+
+  // Show upgrade button for free users
+  return (
+    <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
+      <span className="block">{plan.name}</span>
+      <span className="block text-2xl font-medium">
+        <NumberFlow value={plan.price} format={CURRENCY_FORMAT} />
+      </span>
+      <span className="text-muted-foreground block text-sm">
+        {plan.subtitle}
+      </span>
+      <Button asChild variant="default" size="sm">
+        <Link href={ctaUrl}>Upgrade to Pro</Link>
+      </Button>
+    </th>
+  );
+}
+
+// Feature row component
+function FeatureRow({ feature }: { feature: Feature }) {
+  return (
+    <tr key={feature.feature} className="*:border-b *:py-3">
+      <td className="text-muted-foreground">{feature.feature}</td>
+      <td>
+        <FeatureValue value={feature.free} />
+      </td>
+      <td className="bg-muted border-none px-4">
+        <div className="-mb-3 border-b py-3">
+          <FeatureValue value={feature.pro} />
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+export default function PricingComparator({
+  products,
+  workspace,
+  isPaidPlan,
+}: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const { data: session } = useSession();
 
   const { monthlyPrice, yearlyPrice } = useMemo(
     () => extractPrices(products),
-    [products]
+    [products],
   );
 
-  const pricingPlans = useMemo(
+  const plans = useMemo(
     () => ({
       free: {
         name: "Free",
         price: 0,
         subtitle: "Forever free",
-        variant: "outline" as const,
       },
-      pro: {
+      monthly: {
         name: "Pro",
-        monthly: { price: monthlyPrice, subtitle: "per month" },
-        yearly: { price: yearlyPrice, subtitle: "per year", savings: "2 Months Free" },
-        variant: "default" as const,
+        price: monthlyPrice,
+        subtitle: "per month",
+      },
+      yearly: {
+        name: "Pro",
+        price: yearlyPrice,
+        subtitle: "per year",
+        savings: "2 Months Free",
       },
     }),
-    [monthlyPrice, yearlyPrice]
+    [monthlyPrice, yearlyPrice],
   );
 
-  const proPlan = pricingPlans.pro[billingPeriod];
-  const checkoutUrl = useMemo(() => getCheckoutUrl(products), [products]);
-
-  const { data: session } = useSession();
+  const proPlan = plans[billingPeriod];
+  const checkoutUrl = useMemo(
+    () => buildCheckoutUrl(products, workspace, isPaidPlan),
+    [products, workspace, isPaidPlan],
+  );
 
   useEffect(() => {
     if (session?.user?.id) {
@@ -172,53 +297,34 @@ export default function PricingComparator({ products }: PricingComparatorProps) 
             </TabsList>
           </Tabs>
         </div>
+
         <div className="w-full overflow-auto lg:overflow-visible">
           <table className="w-[200vw] border-separate border-spacing-x-3 md:w-full dark:[--color-muted:var(--color-zinc-900)]">
             <thead className="bg-background sticky top-0">
               <tr className="*:py-4 *:text-left *:font-medium">
                 <th className="lg:w-2/5" />
-                <th className="space-y-3">
-                  <span className="block">{pricingPlans.free.name}</span>
-                  <span className="block text-2xl font-medium">
-                    <NumberFlow value={pricingPlans.free.price} format={CURRENCY_FORMAT} />
-                  </span>
-                  <span className="text-muted-foreground block text-xs">
-                    {pricingPlans.free.subtitle}
-                  </span>
-                  <Button asChild variant={pricingPlans.free.variant} size="sm">
-                    <Link href="/dashboard">Get Started</Link>
-                  </Button>
-                </th>
-                <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
-                  <span className="block">{pricingPlans.pro.name}</span>
-                  <span className="block text-2xl font-medium">
-                    <NumberFlow value={proPlan.price} format={CURRENCY_FORMAT} />
-                  </span>
-                  <span className="text-muted-foreground block text-sm">
-                    {proPlan.subtitle}
-                  </span>
-                  <Button asChild variant={pricingPlans.pro.variant} size="sm">
-                    <Link href={checkoutUrl}>Upgrade to Pro</Link>
-                  </Button>
-                </th>
+                <PriceHeader
+                  plan={plans.free}
+                  ctaUrl="/dashboard"
+                  ctaLabel="Get Started"
+                  isPaidPlan={isPaidPlan}
+                />
+                <ProPriceHeader
+                  plan={proPlan}
+                  ctaUrl={checkoutUrl}
+                  isPaidPlan={isPaidPlan}
+                />
               </tr>
             </thead>
+
             <tbody className="text-caption text-sm">
               <tr className="*:py-3">
                 <td className="font-medium">Features</td>
                 <td />
                 <td className="bg-muted border-none px-4" />
               </tr>
-              {FEATURES.map((row) => (
-                <tr key={row.feature} className="*:border-b *:py-3">
-                  <td className="text-muted-foreground">{row.feature}</td>
-                  <td>{renderFeatureValue(row.free)}</td>
-                  <td className="bg-muted border-none px-4">
-                    <div className="-mb-3 border-b py-3">
-                      {renderFeatureValue(row.pro)}
-                    </div>
-                  </td>
-                </tr>
+              {FEATURES.map((feature) => (
+                <FeatureRow key={feature.feature} feature={feature} />
               ))}
               <tr className="*:py-6">
                 <td />

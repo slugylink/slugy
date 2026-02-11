@@ -39,9 +39,14 @@ interface UTMParams {
   utm_content: string | null;
 }
 
-/**
- * Safely decodes a URI component with error handling
- */
+interface GeoData {
+  country: string;
+  city: string;
+  continent: string;
+  region: string;
+}
+
+// Safely decode URI component
 function safeDecodeURIComponent(value: string | null): string {
   if (!value) return UNKNOWN_VALUE;
   try {
@@ -51,34 +56,33 @@ function safeDecodeURIComponent(value: string | null): string {
   }
 }
 
-/**
- * Extracts geolocation data from request headers, supporting both Vercel and Cloudflare
- */
-function getGeoData(req: NextRequest) {
+// Extract geolocation data from headers (Cloudflare/Vercel)
+function getGeoData(req: NextRequest): GeoData {
   const headers = req.headers;
 
-  // Try Cloudflare headers first, fallback to Vercel
-  const country =
-    headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country");
-  const city = headers.get("cf-ipcity") || headers.get("x-vercel-ip-city");
-  const continent =
-    headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent");
-  const region =
-    headers.get("cf-region") || headers.get("x-vercel-ip-country-region");
-
   return {
-    country: country?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: safeDecodeURIComponent(city),
-    continent: continent?.toLowerCase() ?? UNKNOWN_VALUE,
-    region: region || UNKNOWN_VALUE,
+    country:
+      (
+        headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country")
+      )?.toLowerCase() ?? UNKNOWN_VALUE,
+    city: safeDecodeURIComponent(
+      headers.get("cf-ipcity") || headers.get("x-vercel-ip-city"),
+    ),
+    continent:
+      (
+        headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent")
+      )?.toLowerCase() ?? UNKNOWN_VALUE,
+    region:
+      headers.get("cf-region") ||
+      headers.get("x-vercel-ip-country-region") ||
+      UNKNOWN_VALUE,
   };
 }
 
-/**
- * Escapes HTML special characters to prevent XSS
- */
+// Escape HTML to prevent XSS
 function escapeHtml(text: string | null | undefined): string {
   if (!text) return "";
+
   const htmlEscapes: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
@@ -86,12 +90,11 @@ function escapeHtml(text: string | null | undefined): string {
     '"': "&quot;",
     "'": "&#039;",
   };
+
   return String(text).replace(/[&<>"']/g, (char) => htmlEscapes[char] ?? char);
 }
 
-/**
- * Extracts UTM parameters from a URL string
- */
+// Extract UTM parameters from URL
 function extractUTMParams(urlString: string): UTMParams {
   try {
     const params = new URL(urlString).searchParams;
@@ -113,9 +116,7 @@ function extractUTMParams(urlString: string): UTMParams {
   }
 }
 
-/**
- * Creates a safe redirect, falling back to a fallback URL if the primary URL is invalid
- */
+// Create safe redirect with fallback
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   try {
     return NextResponse.redirect(new URL(url), REDIRECT_STATUS);
@@ -125,9 +126,7 @@ function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   }
 }
 
-/**
- * Serves link preview page with OG tags for social media crawlers
- */
+// Generate HTML preview page for bots/social media crawlers
 function serveLinkPreview(
   req: NextRequest,
   slug: string,
@@ -169,17 +168,12 @@ function serveLinkPreview(
   });
 }
 
-/**
- * Checks if the IP address has made a recent analytics request for a given slug
- * @returns true if rate limited (should skip analytics), false if analytics should proceed
- */
+// Check if analytics request should be rate limited
 async function checkAnalyticsRateLimit(
   ipAddress: string,
   slug: string,
 ): Promise<boolean> {
-  if (!ipAddress || ipAddress === UNKNOWN_VALUE) {
-    return false;
-  }
+  if (!ipAddress || ipAddress === UNKNOWN_VALUE) return false;
 
   try {
     const key = `${RATE_LIMIT_KEY_PREFIX}:${ipAddress}:${slug}`;
@@ -196,21 +190,37 @@ async function checkAnalyticsRateLimit(
     }
     return limited;
   } catch (error) {
-    // If Redis fails, allow analytics to proceed (fail open)
     console.error("[Rate Limit Error]", error);
-    return false;
+    return false; // Fail open if Redis fails
   }
 }
 
-/**
- * Extracts IP address from request headers
- */
+// Extract IP address from headers
 function getIpAddress(req: NextRequest): string {
   const xri = req.headers.get("x-real-ip");
   const xff = req.headers.get("x-forwarded-for");
   return xri || xff?.split(",")[0]?.trim() || UNKNOWN_VALUE;
 }
 
+// Build analytics data from request
+function buildAnalyticsData(req: NextRequest, trigger: string): AnalyticsData {
+  const ua = userAgent(req);
+  const geoData = getGeoData(req);
+
+  return {
+    ipAddress: getIpAddress(req),
+    country: geoData.country,
+    city: geoData.city,
+    continent: geoData.continent,
+    device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
+    browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
+    os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
+    referer: req.headers.get("referer") ?? DIRECT_REFERER,
+    trigger,
+  };
+}
+
+// Track analytics asynchronously
 async function trackAnalytics(
   req: NextRequest,
   linkId: string,
@@ -221,23 +231,10 @@ async function trackAnalytics(
   trigger: string,
 ): Promise<void> {
   try {
-    const ua = userAgent(req);
     const timestamp = new Date().toISOString();
-    const geoData = getGeoData(req);
-    const ipAddress = getIpAddress(req);
+    const analytics = buildAnalyticsData(req, trigger);
     const utmParams = extractUTMParams(url);
-
-    const analytics: AnalyticsData = {
-      ipAddress,
-      country: geoData.country,
-      city: geoData.city,
-      continent: geoData.continent,
-      device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
-      browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
-      os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-      referer: req.headers.get("referer") ?? DIRECT_REFERER,
-      trigger,
-    };
+    const finalDomain = domain || DEFAULT_DOMAIN;
 
     const cachedData: CachedAnalyticsData = {
       linkId,
@@ -256,13 +253,14 @@ async function trackAnalytics(
 
     waitUntil(
       Promise.allSettled([
+        // Send to Tinybird
         sendLinkClickEvent({
           timestamp,
           link_id: linkId,
           workspace_id: workspaceId,
           slug,
           url,
-          domain: domain || DEFAULT_DOMAIN,
+          domain: finalDomain,
           ip: analytics.ipAddress,
           country: analytics.country,
           city: analytics.city,
@@ -280,13 +278,14 @@ async function trackAnalytics(
           utm_content: utmParams.utm_content ?? "",
         }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
+        // Send to internal analytics API
         fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             linkId,
             slug,
-            domain: domain || DEFAULT_DOMAIN,
+            domain: finalDomain,
             workspaceId,
             analyticsData: analytics,
             trigger,
@@ -294,6 +293,7 @@ async function trackAnalytics(
           }),
         }).catch((err) => console.error("[Internal Analytics Error]", err)),
 
+        // Cache analytics event
         cacheAnalyticsEvent(cachedData),
       ]),
     );
@@ -308,13 +308,15 @@ export async function URLRedirects(
   domain?: string,
 ): Promise<NextResponse | null> {
   try {
+    // Validate input
     if (!shortCode?.trim()) {
       console.warn("Empty shortCode provided to URLRedirects");
       return null;
     }
 
-    const cookieHeader = req.headers.get("cookie") ?? "";
+    // Get link data
     const origin = req.nextUrl.origin;
+    const cookieHeader = req.headers.get("cookie") ?? "";
     const linkData = await getLink(shortCode, cookieHeader, origin, domain);
 
     if (!linkData.success) {
@@ -325,24 +327,27 @@ export async function URLRedirects(
       return null;
     }
 
+    // Handle password protection
     if (linkData.requiresPassword) {
       return null;
     }
 
+    // Handle expired links
     if (linkData.expired && linkData.url) {
       return createSafeRedirect(linkData.url, `${origin}/?status=expired`);
     }
 
+    // Handle valid links
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
       const trigger = detectTrigger(req);
       const isBot = trigger === "bot";
 
-      // Serve preview for bots before analytics tracking
+      // Serve preview for bots with metadata
       if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
         return serveLinkPreview(req, shortCode, linkData);
       }
 
-      // Only track analytics for non-bot users
+      // Track analytics for non-bot users
       if (!isBot) {
         const ipAddress = getIpAddress(req);
         const isRateLimited = await checkAnalyticsRateLimit(
@@ -366,6 +371,7 @@ export async function URLRedirects(
       return createSafeRedirect(linkData.url, `${origin}/?status=error`);
     }
 
+    // Handle not found
     if (linkData.url?.includes("status=not-found")) {
       return createSafeRedirect(linkData.url, `${origin}/?status=not-found`);
     }

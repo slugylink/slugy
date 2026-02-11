@@ -1,7 +1,39 @@
 import { sql } from "@/server/neon";
 import { getLinkCache, setLinkCache } from "@/lib/cache-utils/link-cache";
 
-// Cookie parser utility - optimized with better parsing
+const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
+const MAX_SLUG_LENGTH = 50;
+const DEFAULT_DOMAIN = "slugy.co";
+
+export interface GetLinkResult {
+  success: boolean;
+  url?: string | null;
+  linkId?: string;
+  workspaceId?: string;
+  requiresPassword?: boolean;
+  expired?: boolean;
+  error?: string;
+  title?: string | null;
+  image?: string | null;
+  metadesc?: string | null;
+  description?: string | null;
+}
+
+interface LinkCache {
+  id: string;
+  url: string;
+  expiresAt: string | null;
+  expirationUrl: string | null;
+  password: string | null;
+  workspaceId: string;
+  domain: string;
+  title: string | null;
+  image: string | null;
+  metadesc?: string | null;
+  description: string | null;
+}
+
+// Parse cookies from header string
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
 
@@ -19,145 +51,141 @@ const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   }
 };
 
-// Validation utility - more robust validation
-const isValidSlug = (slug: string): boolean =>
-  Boolean(
+// Validate slug format
+const isValidSlug = (slug: string): boolean => {
+  return Boolean(
     slug &&
-      slug.length <= 50 &&
       slug.length > 0 &&
-      /^[a-zA-Z0-9_-]+$/.test(slug),
+      slug.length <= MAX_SLUG_LENGTH &&
+      SLUG_REGEX.test(slug),
   );
+};
 
-export interface GetLinkResult {
-  success: boolean;
-  url?: string | null;
-  linkId?: string;
-  workspaceId?: string;
-  requiresPassword?: boolean;
-  expired?: boolean;
-  error?: string;
-  title?: string | null;
-  image?: string | null;
-  metadesc?: string | null;
-  description?: string | null;
-}
+// Fetch link from database
+const fetchLinkFromDatabase = async (
+  slug: string,
+  domain: string,
+): Promise<LinkCache | null> => {
+  const result = await sql`
+    SELECT 
+      l.id, 
+      l.url, 
+      l."expiresAt", 
+      l."expirationUrl", 
+      l.password, 
+      l."workspaceId",
+      l.domain,
+      l.title,
+      l.image,
+      l.metadesc,
+      l.description,
+      cd.domain as custom_domain
+    FROM "links" l
+    LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
+    WHERE l.slug = ${slug} 
+      AND (l.domain = ${domain} OR cd.domain = ${domain})
+      AND l."isArchived" = false
+    LIMIT 1
+  `;
 
-type LinkCacheType = {
-  id: string;
-  url: string;
-  expiresAt: string | null;
-  expirationUrl: string | null;
-  password: string | null;
-  workspaceId: string;
-  domain: string;
-  title: string | null;
-  image: string | null;
-  metadesc?: string | null;
-  description: string | null;
-} | null;
+  if (!result?.[0]) return null;
+
+  const row = result[0];
+  return {
+    id: row.id,
+    url: row.url,
+    expiresAt: row.expiresAt ?? null,
+    expirationUrl: row.expirationUrl ?? null,
+    password: row.password ?? null,
+    workspaceId: row.workspaceId,
+    domain: row.custom_domain || row.domain,
+    title: row.title ?? null,
+    image: row.image ?? null,
+    metadesc: row.metadesc ?? null,
+    description: row.description ?? null,
+  };
+};
+
+// Check if link has expired
+const isLinkExpired = (expiresAt: string | null): boolean => {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) < new Date();
+};
+
+// Verify password from cookies
+const isPasswordVerified = (
+  cookies: Record<string, string>,
+  domain: string,
+  slug: string,
+): boolean => {
+  return Boolean(cookies[`password_verified_${domain}_${slug}`]);
+};
+
+// Build error response
+const errorResponse = (
+  url: string | undefined,
+  error: string,
+  success = false,
+): GetLinkResult => ({
+  success,
+  url,
+  error,
+});
 
 export async function getLink(
   slug: string,
   cookieHeader?: string | null,
   origin?: string,
-  domain?: string,
+  domain: string = DEFAULT_DOMAIN,
 ): Promise<GetLinkResult> {
-  // Early validation
+  // Validate slug
   if (!isValidSlug(slug)) {
-    return {
-      success: false,
-      url: origin ? `${origin}/?status=invalid` : undefined,
-      error: "Invalid slug format",
-    };
+    return errorResponse(
+      origin ? `${origin}/?status=invalid` : undefined,
+      "Invalid slug format",
+    );
   }
 
-  let link: LinkCacheType = null;
-
   try {
-    // Cache read with error handling
-    link = await getLinkCache(slug, domain || "slugy.co").catch(() => null);
+    // Try to get link from cache
+    let link = await getLinkCache(slug, domain).catch(() => null);
 
-    // Cache miss: fetch from SQL and set cache
+    // Cache miss - fetch from database
     if (!link) {
-      const result = await sql`
-        SELECT 
-          l.id, 
-          l.url, 
-          l."expiresAt", 
-          l."expirationUrl", 
-          l.password, 
-          l."workspaceId",
-          l.domain,
-          l.title,
-          l.image,
-          l.metadesc,
-          l.description,
-          cd.domain as custom_domain
-        FROM "links" l
-        LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
-        WHERE l.slug = ${slug} 
-          AND (
-            l.domain = ${domain || "slugy.co"}
-            OR cd.domain = ${domain || "slugy.co"}
-          )
-          AND l."isArchived" = false
-        LIMIT 1
-      `;
+      link = await fetchLinkFromDatabase(slug, domain);
 
-      if (result && result.length > 0) {
-        const row = result[0];
-        link = {
-          id: row.id,
-          url: row.url,
-          expiresAt: row.expiresAt ?? null,
-          expirationUrl: row.expirationUrl ?? null,
-          password: row.password ?? null,
-          workspaceId: row.workspaceId,
-          domain: row.custom_domain || row.domain,
-          title: row.title ?? null,
-          image: row.image ?? null,
-          metadesc: row.metadesc ?? null,
-          description: row.description ?? null,
-        };
-
-        // Set cache asynchronously (don't block the response)
-        setLinkCache(slug, link, domain || "slugy.co").catch(console.error);
+      if (link) {
+        // Set cache asynchronously (non-blocking)
+        setLinkCache(slug, link, domain).catch(console.error);
       }
     }
 
+    // Link not found
     if (!link) {
+      return errorResponse(
+        origin ? `${origin}/?status=not-found` : undefined,
+        "Link not found",
+        true,
+      );
+    }
+
+    // Check expiration
+    if (isLinkExpired(link.expiresAt)) {
       return {
         success: true,
-        url: origin ? `${origin}/?status=not-found` : undefined,
-        error: "Link not found",
+        url:
+          link.expirationUrl ||
+          (origin ? `${origin}/?status=expired` : undefined),
+        expired: true,
+        error: "Link expired",
       };
     }
 
-    // Check expiration with better date handling
-    if (link.expiresAt) {
-      const expirationDate = new Date(link.expiresAt);
-      const now = new Date();
-
-      if (expirationDate < now) {
-        const expirationUrl =
-          link.expirationUrl ||
-          (origin ? `${origin}/?status=expired` : undefined);
-
-        return {
-          success: true,
-          url: expirationUrl,
-          expired: true,
-          error: "Link expired",
-        };
-      }
-    }
-
-    // Password protection with better cookie handling
+    // Check password protection
     if (link.password) {
       const cookies = parseCookies(cookieHeader ?? null);
-      const passwordVerified = cookies[`password_verified_${link.domain}_${slug}`];
 
-      if (!passwordVerified) {
+      if (!isPasswordVerified(cookies, link.domain, slug)) {
         return {
           success: true,
           url: null,
@@ -167,7 +195,7 @@ export async function getLink(
       }
     }
 
-    // Success response
+    // Return successful link
     return {
       success: true,
       url: link.url,
@@ -181,10 +209,9 @@ export async function getLink(
   } catch (error) {
     console.error(`Error fetching link for slug "${slug}":`, error);
 
-    return {
-      success: false,
-      url: origin ? `${origin}/?status=error` : undefined,
-      error: "Database error",
-    };
+    return errorResponse(
+      origin ? `${origin}/?status=error` : undefined,
+      "Database error",
+    );
   }
 }

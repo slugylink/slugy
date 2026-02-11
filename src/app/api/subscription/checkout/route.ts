@@ -1,95 +1,147 @@
-import { auth } from '@/lib/auth';
-import { Checkout } from '@polar-sh/nextjs'
-import { headers } from 'next/headers';
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/server/db'
+import { auth } from "@/lib/auth";
+import { Checkout } from "@polar-sh/nextjs";
+import { headers } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/server/db";
+
+const POLAR_MODE =
+  (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const DEFAULT_SUCCESS_URL = IS_PRODUCTION
+  ? "https://app.slugy.co/"
+  : "http://app.localhost:3000/";
+const RETURN_URL = IS_PRODUCTION
+  ? "https://app.slugy.co"
+  : "http://app.localhost:3000";
+
+interface UserData {
+  id: string;
+  email: string | null;
+  name: string | null;
+  customerId: string | null;
+}
+
+// Split comma-separated product IDs into array
+function parseProductIds(productsParam: string | null): string[] {
+  if (!productsParam) return [];
+  return productsParam
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+// Add customer information to URL params
+function addCustomerParams(url: URL, user: UserData): void {
+  if (!url.searchParams.has("customerExternalId")) {
+    url.searchParams.set("customerExternalId", user.id);
+  }
+
+  if (user.email && !url.searchParams.has("customerEmail")) {
+    url.searchParams.set("customerEmail", user.email);
+  }
+
+  if (user.name && !url.searchParams.has("customerName")) {
+    url.searchParams.set("customerName", user.name);
+  }
+}
+
+// Add metadata with userId for webhook processing
+function addMetadata(url: URL, userId: string): void {
+  if (!url.searchParams.has("metadata")) {
+    url.searchParams.set("metadata", JSON.stringify({ userId }));
+  }
+}
+
+// Convert comma-separated products param to multiple query params
+function handleProductsParam(url: URL): void {
+  const productsParam = url.searchParams.get("products");
+  if (!productsParam) return;
+
+  // Remove original parameter
+  url.searchParams.delete("products");
+
+  // Add each product ID as separate parameter (Polar SDK expects array)
+  const productIds = parseProductIds(productsParam);
+  productIds.forEach((productId) => {
+    url.searchParams.append("products", productId);
+  });
+}
+
+// Build updated URL with all necessary parameters
+function buildCheckoutUrl(req: NextRequest, user: UserData): URL {
+  const url = new URL(req.url);
+
+  // Store the successUrl parameter before modifying the URL
+  const successUrlParam = url.searchParams.get("successUrl");
+
+  handleProductsParam(url);
+  addCustomerParams(url, user);
+  addMetadata(url, user.id);
+
+  // Restore the successUrl parameter if it was removed
+  if (successUrlParam && !url.searchParams.has("successUrl")) {
+    url.searchParams.set("successUrl", successUrlParam);
+  }
+
+  return url;
+}
+
+// Get success URL from query params or use default
+function getSuccessUrl(req: NextRequest): string {
+  const { searchParams } = new URL(req.url);
+  const successUrlParam = searchParams.get("successUrl");
+
+  if (successUrlParam) {
+    const baseUrl = IS_PRODUCTION
+      ? "https://app.slugy.co"
+      : "http://app.localhost:3000";
+    return `${baseUrl}${successUrlParam}`;
+  }
+
+  return DEFAULT_SUCCESS_URL;
+}
+
+// Fetch user from database
+async function getUser(userId: string): Promise<UserData | null> {
+  return db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      customerId: true,
+    },
+  });
+}
 
 export async function GET(req: NextRequest) {
   // Authenticate user
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Get user info from database
-  const user = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: { 
-      customerId: true,
-      email: true,
-      name: true,
-      id: true,
-    },
-  });
-
+  // Get user from database
+  const user = await getUser(session.user.id);
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  // Build URL with customer info query params
-  // Polar Checkout handler automatically reads query params from the request URL:
-  // - products (required): ?products=123 or ?products=123&products=456 (multiple params)
-  // - customerId (optional): ?customerId=xxx
-  // - customerExternalId (optional): ?customerExternalId=xxx
-  // - customerEmail (optional): ?customerEmail=user@example.com
-  // - customerName (optional): ?customerName=Jane
-  // - metadata (optional): URL-Encoded JSON string
-  
-  const url = new URL(req.url);
-  
-  // Handle products parameter - split comma-separated values into multiple params
-  // Polar SDK expects products as an array, so we need separate query params
-  const productsParam = url.searchParams.get('products');
-  if (productsParam) {
-    // Remove the original products parameter
-    url.searchParams.delete('products');
-    
-    // Split by comma and add each product ID as a separate 'products' parameter
-    // This allows Polar SDK to properly parse it as an array
-    const productIds = productsParam.split(',').map(id => id.trim()).filter(Boolean);
-    productIds.forEach(productId => {
-      url.searchParams.append('products', productId);
-    });
-  }
-  
-  // Set customer info if not already provided in query params
-  // Note: We don't pass customerId to avoid errors if it's invalid or from wrong environment
-  // Instead, rely on customerExternalId (user.id) + customerEmail to let Polar create/lookup customer
-  // The webhook will update user.customerId once the order/subscription is created
-  
-  if (!url.searchParams.has('customerExternalId')) {
-    url.searchParams.set('customerExternalId', user.id);
-  }
-  if (user.email && !url.searchParams.has('customerEmail')) {
-    url.searchParams.set('customerEmail', user.email);
-  }
-  if (user.name && !url.searchParams.has('customerName')) {
-    url.searchParams.set('customerName', user.name);
-  }
+  // Build checkout URL with customer info and products
+  const checkoutUrl = buildCheckoutUrl(req, user);
 
-  // Add metadata with userId for webhook processing
-  if (!url.searchParams.has('metadata')) {
-    const metadata = { userId: user.id };
-    url.searchParams.set('metadata', JSON.stringify(metadata));
-  }
-
-  // Create new request with updated URL
-  const updatedReq = new NextRequest(url, {
+  // Create updated request
+  const updatedReq = new NextRequest(checkoutUrl, {
     method: req.method,
     headers: req.headers,
     body: req.body,
   });
 
+  // Call Polar checkout handler
   return await Checkout({
     accessToken: process.env.POLAR_ACCESS_TOKEN!,
-    server: (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox",
-    successUrl: process.env.POLAR_SUCCESS_URL || (process.env.NODE_ENV === "production" 
-      ? "https://app.slugy.co/" 
-      : "http://app.localhost:3000/"),
-    returnUrl: process.env.NODE_ENV === "production" 
-      ? "https://app.slugy.co" 
-      : "http://app.localhost:3000",
-  })(updatedReq)
+    server: POLAR_MODE,
+    successUrl: getSuccessUrl(req),
+    returnUrl: RETURN_URL,
+  })(updatedReq);
 }

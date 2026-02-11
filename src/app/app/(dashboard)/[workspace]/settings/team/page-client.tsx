@@ -515,7 +515,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
             View your team members and their roles
           </p>
         </div>
-        {/* {canManageTeam && (
+        {canManageTeam && (
           <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -548,7 +548,9 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
                   <Label htmlFor="invite-role">Role</Label>
                   <Select
                     value={inviteRole}
-                    onValueChange={(v) => setInviteRole(v as "member" | "admin")}
+                    onValueChange={(v) =>
+                      setInviteRole(v as "member" | "admin")
+                    }
                     disabled={inviteSubmitting}
                   >
                     <SelectTrigger id="invite-role">
@@ -578,7 +580,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
               </form>
             </DialogContent>
           </Dialog>
-        )} */}
+        )}
       </div>
 
       {/* Team Table */}
