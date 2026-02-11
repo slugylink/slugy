@@ -1,6 +1,6 @@
 <div align="center">
 
-![Slugy Banner](https://opengraph.b-cdn.net/production/images/28751e40-32c9-4141-a560-f8f6d64ce48f.png?token=RhO23rFP1rWLpGoo_LT0lZzEA7hT_he8l60oDB6bCV0&height=630&width=1200&expires=33289007293)
+![Slugy Banner](https://res.cloudinary.com/dcsouj6ix/image/upload/v1770805910/slugy_npzdqi.png)
 
 # Slugy
 
