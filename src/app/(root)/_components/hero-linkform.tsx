@@ -21,7 +21,7 @@ const MAX_LINKS_DISPLAY = 2;
 const DEFAULT_LINK = {
   short: "slugy.co/git",
   original: "https://github.com/slugylink/slugy",
-  clicks: 1232,
+  clicks: 3232,
   expires: null,
 } as const;
 
@@ -31,7 +31,7 @@ const createLinkSchema = (() => {
   return z.object({
     url: z
       .string()
-      .min(1, "Destination URL is required")
+      .min(3, "Destination URL is required")
       .refine(
         (url) => {
           if (urlPattern.test(url)) {
@@ -111,7 +111,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
   useEffect(() => {
     // Handle both wrapped (data.data.links) and unwrapped (data.links) response formats
     const linksArray = data?.data?.links || data?.links || [];
-    
+
     if (!linksArray.length) return;
 
     setLinks((prevLinks) => {
@@ -135,19 +135,28 @@ const HeroLinkForm = memo(function HeroLinkForm() {
           body: JSON.stringify(formData),
         });
 
-        const result = (await response.json()) as ApiResponse | { success: boolean; data?: ApiResponse; error?: string };
+        const result = (await response.json()) as
+          | ApiResponse
+          | { success: boolean; data?: ApiResponse; error?: string };
 
         if (!response.ok) {
           throw new Error(
             response.status === 429
               ? "You can only create 1 temporary link at a time. Please wait for it to expire or create an account for unlimited links."
-              : ("error" in result ? result.error : "Failed to create link"),
+              : "error" in result
+                ? result.error
+                : "Failed to create link",
           );
         }
 
         // Handle both wrapped (result.data) and unwrapped (result) response formats
-        const linkData = ("data" in result && result.data) ? result.data : ("success" in result && result.success) ? result : null;
-        
+        const linkData =
+          "data" in result && result.data
+            ? result.data
+            : "success" in result && result.success
+              ? result
+              : null;
+
         if (linkData && "short" in linkData) {
           setLinks((prev) => [linkData as Link, ...prev]);
         }
@@ -174,7 +183,11 @@ const HeroLinkForm = memo(function HeroLinkForm() {
         initial={{ opacity: 0, y: 10 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
-        transition={{ duration: 0.4, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{
+          duration: 0.4,
+          delay: 0.1,
+          ease: [0.25, 0.46, 0.45, 0.94],
+        }}
       >
         <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
           <Input

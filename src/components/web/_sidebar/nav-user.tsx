@@ -7,9 +7,8 @@ import { createAuthClient } from "better-auth/react";
 import {
   BadgeCheck,
   ChevronsUpDown,
-  CreditCard,
   LogOut,
-  Sparkles,
+  MessagesSquare,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth-client";
+import { Button } from "@/components/ui/button";
 
 // ─────────── Types ───────────
 
@@ -44,6 +44,9 @@ interface User {
 const { useSession } = createAuthClient();
 
 // ─────────── Component ───────────
+
+const FEEDBACK_URL =
+  "https://github.com/slugylink/slugy/discussions/categories/feedback";
 
 export const NavUser = () => {
   const { isMobile } = useSidebar();
@@ -106,18 +109,22 @@ export const NavUser = () => {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <span>
-                  <Sparkles className="mr-2 inline-block" />
-                  Upgrade to Pro
-                </span>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <Link
+                  href={FEEDBACK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessagesSquare strokeWidth={1.5} />
+                  Feedback
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="cursor-pointer">
                 <Link href="/account">
                   <BadgeCheck className="mr-2 inline-block" />
                   Account

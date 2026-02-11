@@ -111,11 +111,7 @@ export default async function Upgrade({
 
   return (
     <div>
-      <PricingComparator
-        products={productData}
-        workspace={workspace}
-        isPaidPlan={isPaidPlan}
-      />
+      <PricingComparator workspace={workspace} isPaidPlan={isPaidPlan} />
     </div>
   );
 }

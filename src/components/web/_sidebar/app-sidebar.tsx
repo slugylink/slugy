@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import Link from "next/link";
-import { MessagesSquare } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { NavMain } from "@/components/web/_sidebar/nav-main";
 import { NavUser } from "@/components/web/_sidebar/nav-user";
 import {
@@ -31,13 +31,6 @@ interface AppSidebarProps
 }
 
 // ============================================================================
-// Constants
-// ============================================================================
-
-const FEEDBACK_URL =
-  "https://github.com/slugylink/slugy/discussions/categories/feedback";
-
-// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -60,12 +53,6 @@ export default function AppSidebar({
       </SidebarContent>
 
       <SidebarFooter>
-        <Link href={FEEDBACK_URL} target="_blank" rel="noopener noreferrer">
-          <Button size="sm" variant="secondary" className="w-full">
-            <MessagesSquare strokeWidth={1.5} />
-            Feedback
-          </Button>
-        </Link>
         <UsageStats workspaceslug={workspaceslug} />
         <NavUser />
       </SidebarFooter>

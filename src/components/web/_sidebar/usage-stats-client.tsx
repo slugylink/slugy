@@ -23,6 +23,7 @@ type Usage = {
 };
 
 interface UsageStatsClientProps {
+  isActivePro: boolean;
   workspace: Workspace | null;
   usage: Usage | null;
 }
@@ -102,6 +103,14 @@ function UsageProgressRow({
   );
 }
 
+function PlanBadge({ isActivePro }: { isActivePro: boolean }) {
+  return (
+    <div className="bg-primary/10 rounded-sm px-1 text-xs">
+      {isActivePro ? "Pro" : "Free"}
+    </div>
+  );
+}
+
 function EmptyUsageCard() {
   return (
     <Card className="w-full max-w-xs p-3.5 shadow-sm">
@@ -135,7 +144,11 @@ function EmptyUsageCard() {
 // Main Component
 // ============================================================================
 
-export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
+export function UsageStatsClient({
+  isActivePro,
+  workspace,
+  usage,
+}: UsageStatsClientProps) {
   if (!workspace || !usage) {
     return <EmptyUsageCard />;
   }
@@ -148,9 +161,12 @@ export function UsageStatsClient({ workspace, usage }: UsageStatsClientProps) {
   const resetDate = formatResetDate(periodEnd);
 
   return (
-    <Card className="w-full max-w-xs p-3.5 shadow-sm">
-      <div className="text-muted-foreground flex items-center text-sm">
-        Usage <ChevronRight className="ml-1 h-3 w-3" />
+    <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="text-muted-foreground flex items-center text-sm">
+          Usage <ChevronRight className="ml-1 h-3 w-3" />
+        </div>
+        <PlanBadge isActivePro={isActivePro} />
       </div>
 
       <div className="space-y-3">
