@@ -57,6 +57,15 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
             },
           },
         });
+      } else {
+        await authClient.signOut({
+          fetchOptions: {
+            onSuccess: () => {
+              router.refresh();
+              router.push("/login");
+            },
+          },
+        });
       }
     } catch (error) {
       console.error("Error deleting account:", error);
