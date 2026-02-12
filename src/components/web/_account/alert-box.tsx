@@ -1,8 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   AlertDialog,
-  // AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -20,26 +19,41 @@ import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
-export function AlertDialogBox({ accountId }: { accountId: string }) {
+const CONFIRMATION_TEXT = "DELETE";
+
+interface AlertDialogBoxProps {
+  accountId: string;
+}
+
+export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
 
-  const handleDelete = async () => {
-    if (confirmationText !== "DELETE") {
-      toast.error("Please type 'DELETE' correctly to confirm deletion.");
+  const resetState = useCallback(() => {
+    setConfirmationText("");
+    setIsLoading(false);
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    if (confirmationText !== CONFIRMATION_TEXT) {
+      toast.error(
+        `Please type '${CONFIRMATION_TEXT}' correctly to confirm deletion.`,
+      );
       return;
     }
 
     setIsLoading(true);
     try {
       const response = await axios.delete(`/api/account/${accountId}`);
+
       if (response.status === 200) {
         await authClient.signOut({
           fetchOptions: {
             onSuccess: () => {
-              router.push("/login"); // redirect to login page
               router.refresh();
+              router.push("/login");
             },
           },
         });
@@ -47,48 +61,60 @@ export function AlertDialogBox({ accountId }: { accountId: string }) {
     } catch (error) {
       console.error("Error deleting account:", error);
       toast.error("Failed to delete account. Please try again.");
-    } finally {
       setIsLoading(false);
     }
-  };
+  }, [confirmationText, accountId, router]);
 
-  const isConfirmationValid = confirmationText === "DELETE";
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open);
+      if (!open) {
+        resetState();
+      }
+    },
+    [resetState],
+  );
+
+  const isConfirmationValid = confirmationText === CONFIRMATION_TEXT;
 
   return (
-    <AlertDialog>
+    <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
         <Button variant="destructive">Delete Account</Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="bg-background sm:max-w-md p-4">
+      <AlertDialogContent className="bg-background p-4 sm:max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-xl font-medium">Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogTitle className="text-xl font-medium">
+            Are you absolutely sure?
+          </AlertDialogTitle>
           <AlertDialogDescription>
             This action cannot be undone. This will permanently delete your
             account and remove your data from our servers.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="confirmation" className="font-normal">
-              To verify, type <span className="font-mono text-sm bg-muted px-1 py-0.5 rounded font-medium">DELETE</span> below:
-            </Label>
-            <Input
-              id="confirmation"
-              value={confirmationText}
-              onChange={(e) => setConfirmationText(e.target.value)}
-              autoComplete="off"
-            />
-          </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmation" className="font-normal">
+            To verify, type{" "}
+            <span className="bg-muted rounded px-1 py-0.5 font-mono text-sm font-medium">
+              {CONFIRMATION_TEXT}
+            </span>{" "}
+            below:
+          </Label>
+          <Input
+            id="confirmation"
+            value={confirmationText}
+            onChange={(e) => setConfirmationText(e.target.value)}
+            autoComplete="off"
+            disabled={isLoading}
+          />
         </div>
 
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => setConfirmationText("")}>
-            Cancel
-          </AlertDialogCancel>
+          <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
           <Button
-            variant={"destructive"}
-            onClick={() => handleDelete()}
+            variant="destructive"
+            onClick={handleDelete}
             disabled={isLoading || !isConfirmationValid}
           >
             {isLoading && (
@@ -99,5 +125,5 @@ export function AlertDialogBox({ accountId }: { accountId: string }) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  );  
+  );
 }

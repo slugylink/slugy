@@ -18,17 +18,37 @@ import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
 
+type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+
+interface ChartDataPoint {
+  time: string;
+  clicks: number;
+}
+
+interface ProcessedDataPoint {
+  time: string;
+  timestamp: number;
+  clicks: number;
+}
+
 interface ChartProps {
-  data?: {
-    time: string;
-    clicks: number;
-  }[];
+  data?: ChartDataPoint[];
   totalClicks?: number;
-  timePeriod?: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+  timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
   isLoading?: boolean;
   error?: Error;
+}
+
+interface CustomTooltipProps extends TooltipProps<number, string> {
+  active?: boolean;
+  payload?: Array<{
+    value: number;
+    name: string;
+    dataKey: string;
+  }>;
+  label?: string;
 }
 
 const CHART_THEME = {
@@ -37,7 +57,7 @@ const CHART_THEME = {
   border: "hsl(var(--border))",
   foreground: "hsl(var(--foreground))",
   muted: "hsl(var(--muted-foreground))",
-};
+} as const;
 
 const CHART_CONFIG = {
   MAX_DATA_POINTS: 500,
@@ -52,6 +72,20 @@ const CHART_CONFIG = {
   ANIMATION_THRESHOLD: 1000,
 } as const;
 
+const getDateKey = (date: Date, timePeriod: TimePeriod): string => {
+  if (timePeriod === "24h") {
+    const hourDate = new Date(date);
+    hourDate.setMinutes(0, 0, 0);
+    return hourDate.toISOString().substring(0, 13);
+  }
+
+  if (timePeriod === "7d" || timePeriod === "30d") {
+    return date.toDateString();
+  }
+
+  return date.toISOString().substring(0, 7);
+};
+
 const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
@@ -62,8 +96,7 @@ const AnalyticsChart = ({
   const processedData = useMemo(() => {
     if (!propData) return [];
 
-
-    const formattedData = propData.map((item) => {
+    const formattedData: ProcessedDataPoint[] = propData.map((item) => {
       const date = new Date(item.time);
       if (isNaN(date.getTime())) {
         return {
@@ -79,25 +112,12 @@ const AnalyticsChart = ({
       };
     });
 
-    // Deduplicate based on time period granularity
-    const deduplicatedMap = new Map<string, { time: string; timestamp: number; clicks: number }>();
+    const deduplicatedMap = new Map<string, ProcessedDataPoint>();
+
     formattedData.forEach((item) => {
       const date = new Date(item.timestamp);
-      let dateKey: string;
-      
-      if (timePeriod === "24h") {
-        // For 24h period, group by hour (normalize to start of hour)
-        const hourDate = new Date(date);
-        hourDate.setMinutes(0, 0, 0); // Set to start of hour
-        dateKey = hourDate.toISOString().substring(0, 13); // YYYY-MM-DDTHH
-      } else if (timePeriod === "7d" || timePeriod === "30d") {
-        // For 7d, 30d periods, group by day
-        dateKey = date.toDateString(); // e.g., "Mon Sep 02 2024"
-      } else {
-        // For 3m, 12m, all periods, group by month
-        dateKey = date.toISOString().substring(0, 7); // YYYY-MM
-      }
-      
+      const dateKey = getDateKey(date, timePeriod);
+
       const existing = deduplicatedMap.get(dateKey);
       if (existing) {
         existing.clicks += item.clicks;
@@ -110,60 +130,36 @@ const AnalyticsChart = ({
       (a, b) => a.timestamp - b.timestamp,
     );
 
+    if (sortedData.length <= CHART_CONFIG.MAX_DATA_POINTS) {
+      return sortedData;
+    }
 
-    return sortedData.length > CHART_CONFIG.MAX_DATA_POINTS
-      ? sortedData.filter(
-          (_, index) =>
-            index %
-              Math.ceil(sortedData.length / CHART_CONFIG.MAX_DATA_POINTS) ===
-            0,
-        )
-      : sortedData;
+    const step = Math.ceil(sortedData.length / CHART_CONFIG.MAX_DATA_POINTS);
+    return sortedData.filter((_, index) => index % step === 0);
   }, [propData, timePeriod]);
 
   const formatTime = useCallback(
     (timeStr: string): string => {
       if (!timeStr) return "";
+
       try {
         const date = new Date(timeStr);
         if (isNaN(date.getTime())) return "";
 
-        if (timePeriod === "24h") {
-          // For 24h period, show hour format
-          return date.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
-        }
-        if (timePeriod === "7d" || timePeriod === "30d") {
-          // For 7d, 30d periods, show day format
-          return date.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          });
-        }
-        // For 3m, 12m, all periods, show month format
-        return date.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-        });
+        const formatOptions: Intl.DateTimeFormatOptions =
+          timePeriod === "24h"
+            ? { hour: "numeric", minute: "2-digit", hour12: true }
+            : timePeriod === "7d" || timePeriod === "30d"
+              ? { month: "short", day: "numeric" }
+              : { month: "short", year: "numeric" };
+
+        return date.toLocaleTimeString("en-US", formatOptions);
       } catch {
         return "";
       }
     },
     [timePeriod],
   );
-
-  interface CustomTooltipProps extends TooltipProps<number, string> {
-    active?: boolean;
-    payload?: Array<{
-      value: number;
-      name: string;
-      dataKey: string;
-    }>;
-    label?: string;
-  }
 
   const CustomTooltip = useCallback<FC<CustomTooltipProps>>(
     ({ active, payload, label }) => {
@@ -179,21 +175,14 @@ const AnalyticsChart = ({
         return (
           <div
             className="rounded-md border bg-white py-2 shadow-xs"
-            style={{ backgroundColor: "#fff" }}
             role="tooltip"
           >
-            <p
-              className="m-0 px-3 text-sm font-normal"
-              style={{ color: CHART_THEME.foreground }}
-            >
+            <p className="text-foreground m-0 px-3 text-sm font-normal">
               {formattedDate}
             </p>
             <Separator className="my-1 px-0" />
-            <div
-              className="m-0 px-3 text-sm flex items-center gap-2"
-              style={{ color: CHART_THEME.foreground }}
-            >
-              <div className="h-[8px] w-[8px] bg-[#EA877E]" />{" "}
+            <div className="text-foreground m-0 flex items-center gap-2 px-3 text-sm">
+              <div className="h-2 w-2 bg-[#EA877E]" />
               <span>Clicks:</span>
               {formatNumber(clicks!)}
             </div>
@@ -206,16 +195,14 @@ const AnalyticsChart = ({
     [formatTime],
   );
 
-  const getTickCount = useCallback((): number => {
-    return CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
-  }, [timePeriod]);
+  const tickCount = CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
 
   return (
     <Card className="w-full border p-0 shadow-none">
-      <CardHeader className="grid grid-cols-2 md:grid-cols-3 gap-0 px-0">
+      <CardHeader className="grid grid-cols-2 gap-0 px-0 md:grid-cols-3">
         <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
-          <div className="text-muted-foreground flex items-center gap-2 text-xs sm:text-sm font-normal">
-            <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />{" "}
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+            <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />
             <span>Clicks</span>
           </div>
           <NumberFlow
@@ -224,18 +211,18 @@ const AnalyticsChart = ({
             className="text-2xl sm:text-3xl"
           />
         </CardTitle>
-        <div className="hidden h-full border-r border-b p-5 sm:block"></div>
-        <div className="hidden h-full border-b p-5 sm:block"></div>
+        <div className="hidden h-full border-r border-b p-5 sm:block" />
+        <div className="hidden h-full border-b p-5 sm:block" />
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-4">
         <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (
-            <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
+            <div className="bg-background/10 absolute inset-0 z-10 flex items-center justify-center">
               <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           )}
           {error && (
-            <div className="bg-background/10 absolute top-0 left-0 z-10 flex h-full w-full items-center justify-center">
+            <div className="bg-background/10 absolute inset-0 z-10 flex items-center justify-center">
               <div className="text-center">
                 <TriangleAlert className="text-muted-foreground mx-auto mb-2 h-8 w-8" />
                 <p className="text-muted-foreground text-sm">
@@ -277,7 +264,7 @@ const AnalyticsChart = ({
                   style={{ fontSize: "12px", fill: CHART_THEME.muted }}
                   minTickGap={20}
                   tick={{ dy: 10 }}
-                  tickCount={getTickCount()}
+                  tickCount={tickCount}
                   interval="preserveStartEnd"
                 />
                 <YAxis

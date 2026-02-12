@@ -40,7 +40,12 @@ interface UserAccountProps {
     name: string | null;
     email: string;
     id: string;
-    ownedWorkspaces: { id: string; slug: string; name: string; isDefault?: boolean }[];
+    ownedWorkspaces: {
+      id: string;
+      slug: string;
+      name: string;
+      isDefault?: boolean;
+    }[];
   };
 }
 
@@ -68,15 +73,6 @@ export default function UserAccountForms({ account }: UserAccountProps) {
         account.ownedWorkspaces.find((ws) => ws.isDefault)?.id ?? "",
     },
   });
-
-  // Copy User ID to Clipboard
-  const handleCopyId = () => {
-    void navigator.clipboard.writeText(account.id).then(() => {
-      setIsCopied(true);
-      toast.success("User ID copied to clipboard");
-      setTimeout(() => setIsCopied(false), 2000);
-    });
-  };
 
   // Submit Handler for Name
   const onSubmitName = async (data: z.infer<typeof UserAccountSchema>) => {
@@ -183,7 +179,10 @@ export default function UserAccountForms({ account }: UserAccountProps) {
         </form>
 
         {/* Default Workspace */}
-        <form onSubmit={workspaceForm.handleSubmit(onSubmitWorkspace)} className="mt-6">
+        <form
+          onSubmit={workspaceForm.handleSubmit(onSubmitWorkspace)}
+          className="mt-6"
+        >
           <Card className="bg-background border">
             <CardHeader>
               <CardTitle>Your Default Workspace</CardTitle>
@@ -196,10 +195,7 @@ export default function UserAccountForms({ account }: UserAccountProps) {
                 name="defaultWorkspaceId"
                 control={workspaceForm.control}
                 render={({ field }) => (
-                  <Select
-                    onValueChange={field.onChange}
-                    value={field.value}
-                  >
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select workspace" />
                     </SelectTrigger>
@@ -218,7 +214,9 @@ export default function UserAccountForms({ account }: UserAccountProps) {
               <Button
                 type="submit"
                 variant="outline"
-                disabled={isWorkspaceSubmitting || !workspaceForm.formState.isDirty}
+                disabled={
+                  isWorkspaceSubmitting || !workspaceForm.formState.isDirty
+                }
               >
                 {isWorkspaceSubmitting && (
                   <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
