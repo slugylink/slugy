@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your Monthly Report</title>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .wrapper {
+      background-color: #ffffff;
+    }
+
+    .outer-td {
+      padding: 40px 24px;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      display: block;
+      margin: 0;
+      border-radius: 10px;
+    }
+
+    .text-primary {
+      font-size: 15px;
+      color: #404040;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .text-primary-space {
+      font-size: 15px;
+      color: #404040;
+      line-height: 1.7;
+      margin: 0 0 28px;
+    }
+
+    .text-small {
+      font-size: 13px;
+      color: #a3a3a3;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .text-muted {
+      font-size: 15px;
+      color: #a3a3a3;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .strong-dark {
+      color: #0a0a0a;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 10px 24px;
+      background-color: #0a0a0a;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e5e5e5;
+      margin: 0;
+    }
+
+    .stats-box {
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .stat-cell {
+      padding: 20px;
+    }
+
+    .stat-label {
+      margin: 0 0 4px;
+      font-size: 12px;
+      color: #a3a3a3;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .stat-value {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0a0a0a;
+    }
+
+    .stat-positive {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: #22c55e;
+      font-weight: 500;
+    }
+
+    .stat-negative {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: #ef4444;
+      font-weight: 500;
+    }
+
+    .top-link {
+      font-size: 14px;
+      color: #0a0a0a;
+      font-weight: 500;
+    }
+
+    .top-link-clicks {
+      font-size: 14px;
+      color: #737373;
+    }
+
+    .footer-link {
+      color: #a3a3a3;
+      text-decoration: underline;
+    }
+
+    .mb-20 { margin: 0 0 20px; }
+    .mb-12 { margin: 0 0 12px; }
+    .mb-6 { margin: 0 0 6px; }
+    .pb-28 { padding-bottom: 28px; }
+    .py-32 { padding: 32px 0; }
+  </style>
+</head>
+
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="wrapper">
+    <tr>
+      <td align="center" class="outer-td">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="container">
+
+          <!-- Logo -->
+          <tr>
+            <td align="start" style="padding-bottom:32px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 768" width="38" height="38" role="img" aria-label="Slugy logo" class="logo">
+                <defs><style>.cls-1{fill:#fff;}</style></defs>
+                <title>Slugy Logo</title>
+                <g>
+                  <rect width="768" height="768"/>
+                  <path class="cls-1" d="M522.61,289.8h0S616.35,439.89,544.89,513L428,628.05h0s-11.63,9.68-35.51,12.15c-26.67,2.76-175.82,0-175.82,0h0a21.46,21.46,0,0,1-17-14.74c-3.12-9.83,0-20.59,7.39-27.79Z"/>
+                  <path class="cls-1" d="M246.34,480h0s-94.65-149.52-23.63-223L338.89,141.21h0s11.57-9.74,35.44-12.36c26.65-2.92,175.81-1.06,175.81-1.06h0a21.49,21.49,0,0,1,17.69,17,27.36,27.36,0,0,1-7.68,25.34Z"/>
+                </g>
+              </svg>
+            </td>
+          </tr>
+
+          <!-- Greeting -->
+          <tr>
+            <td>
+              <p class="text-primary mb-20">Hi {{name}},</p>
+              <p class="text-primary-space">
+                Here's your monthly summary for
+                <strong class="strong-dark">January 2026</strong>.
+                You had a great month!
+              </p>
+            </td>
+          </tr>
+
+          <!-- Stats -->
+          <tr>
+            <td class="pb-28">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="stats-box">
+                <tr>
+                  <td width="50%" class="stat-cell" style="border-bottom:1px solid #e5e5e5;border-right:1px solid #e5e5e5;">
+                    <p class="stat-label">Clicks</p>
+                    <p class="stat-value">12,847</p>
+                    <p class="stat-positive">+23.5%</p>
+                  </td>
+                  <td width="50%" class="stat-cell" style="border-bottom:1px solid #e5e5e5;">
+                    <p class="stat-label">Links</p>
+                    <p class="stat-value">342</p>
+                    <p class="stat-positive">+12.1%</p>
+                  </td>
+                </tr>
+                <tr>
+                  <td width="50%" class="stat-cell" style="border-right:1px solid #e5e5e5;">
+                    <p class="stat-label">Visitors</p>
+                    <p class="stat-value">8,291</p>
+                    <p class="stat-positive">+18.7%</p>
+                  </td>
+                  <td width="50%" class="stat-cell">
+                    <p class="stat-label">Conversions</p>
+                    <p class="stat-value">4.2%</p>
+                    <p class="stat-negative">-1.3%</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td class="pb-28">
+              <a href="https://app.slugy.com/analytics" class="button">
+                View full report
+              </a>
+            </td>
+          </tr>
+
+          <!-- Sign off -->
+          <tr>
+            <td>
+              <p class="text-primary mb-6">Keep up the great work!</p>
+              <p class="text-muted">The slugy Team</p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td class="py-32">
+              <hr class="divider" />
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td>
+              <p class="text-small mb-6">
+                We send out monthly reports – no spam, no nonsense.
+              </p>
+              <p class="text-small">
+                Don't want to get these emails?
+                <a href="#" class="footer-link">Unsubscribe here.</a>
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

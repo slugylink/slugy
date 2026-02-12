@@ -1,0 +1,210 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>You've Been Invited to a Workspace</title>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .wrapper {
+      background-color: #ffffff;
+    }
+
+    .outer-td {
+      padding: 40px 24px;
+    }
+
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .logo {
+      display: block;
+      margin: 0;
+      border-radius: 10px;
+    }
+
+    .text-primary {
+      font-size: 15px;
+      color: #404040;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .text-primary-space {
+      font-size: 15px;
+      color: #404040;
+      line-height: 1.7;
+      margin: 0 0 28px;
+    }
+
+    .text-small {
+      font-size: 13px;
+      color: #a3a3a3;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .text-small-space {
+      font-size: 13px;
+      color: #a3a3a3;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+
+    .text-small-muted {
+      font-size: 13px;
+      color: #737373;
+      line-height: 1.6;
+      margin: 0 0 28px;
+      word-break: break-all;
+    }
+
+    .strong-dark {
+      color: #0a0a0a;
+      font-weight: 600;
+    }
+
+    .strong-muted {
+      color: #737373;
+    }
+
+    .button {
+      display: inline-block;
+      padding: 10px 24px;
+      background-color: #0a0a0a;
+      color: #ffffff;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #e5e5e5;
+      margin: 0;
+    }
+
+    .footer-link {
+      color: #a3a3a3;
+      text-decoration: underline;
+    }
+
+    .pb-28 { padding-bottom: 28px; }
+    .py-32 { padding: 32px 0; }
+    .mb-20 { margin: 0 0 20px; }
+    .mb-12 { margin: 0 0 12px; }
+  </style>
+</head>
+
+<body>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="wrapper">
+    <tr>
+      <td align="center" class="outer-td">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="container">
+
+          <!-- Logo -->
+          <tr>
+            <td align="start" style="padding-bottom:32px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 768 768" width="38" height="38" role="img" aria-label="Slugy logo" class="logo">
+                <defs><style>.cls-1{fill:#fff;}</style></defs>
+                <title>Slugy Logo</title>
+                <g>
+                  <rect width="768" height="768"/>
+                  <path class="cls-1" d="M522.61,289.8h0S616.35,439.89,544.89,513L428,628.05h0s-11.63,9.68-35.51,12.15c-26.67,2.76-175.82,0-175.82,0h0a21.46,21.46,0,0,1-17-14.74c-3.12-9.83,0-20.59,7.39-27.79Z"/>
+                  <path class="cls-1" d="M246.34,480h0s-94.65-149.52-23.63-223L338.89,141.21h0s11.57-9.74,35.44-12.36c26.65-2.92,175.81-1.06,175.81-1.06h0a21.49,21.49,0,0,1,17.69,17,27.36,27.36,0,0,1-7.68,25.34Z"/>
+                </g>
+              </svg>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td>
+              <p class="text-primary mb-20">Hi there,</p>
+
+              <p class="text-primary mb-20">
+                <strong class="strong-dark">{{inviter_name}}</strong>
+                has invited you to join the
+                <strong class="strong-dark">{{workspace_name}}</strong>
+                workspace on slugy.
+              </p>
+
+              <p class="text-primary-space">
+                Accept the invitation to collaborate with your team
+                and manage links, analytics, and campaigns together.
+              </p>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td class="pb-28">
+              <a href="https://app.slugy.com/invite/accept?token=xxx" class="button">
+                Accept invitation
+              </a>
+            </td>
+          </tr>
+
+          <!-- Info -->
+          <tr>
+            <td>
+              <p class="text-small-space">
+                This invite expires in
+                <strong class="strong-muted">7 days</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Fallback -->
+          <tr>
+            <td>
+              <p class="text-small mb-12">
+                Or copy and paste this URL into your browser:
+              </p>
+
+              <p class="text-small-muted">
+                https://app.slugy.com/invite/accept?token=eyJhbGciOiJIUzI1NiJ9
+              </p>
+
+              <p class="text-primary">
+                If you were not expecting this invitation,
+                you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td class="py-32">
+              <hr class="divider" />
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td>
+              <p class="text-small">
+                This is an automated message from
+                <a href="#" class="footer-link">slugy</a>.
+                If you need help, reply to this email.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

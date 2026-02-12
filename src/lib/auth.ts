@@ -10,6 +10,7 @@ import { sendEmail, sendOrganizationInvitation } from "@/server/actions/email";
 import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { origins } from "@/constants/origins";
+import { templates } from "@/constants/email-templates";
 
 let _polarClientAuth: Polar | null = null;
 
@@ -44,10 +45,17 @@ export const auth = betterAuth({
       }
 
       const resetUrl = `${process.env.BETTER_AUTH_URL}/reset-password?token=${token}`;
+      const htmlTemplate = templates["reset-password"]({
+        email: user.email,
+        resetUrl,
+        token,
+      });
+
       await sendEmail({
         to: user.email,
-        subject: "Reset your password",
+        subject: "Reset Your Password",
         text: `Please click the following link to reset your password: ${resetUrl}`,
+        html: htmlTemplate,
       });
     },
   },
@@ -56,11 +64,48 @@ export const auth = betterAuth({
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, token }) => {
       const verificationUrl = `${process.env.NEXT_BASE_URL}/api/auth/verify-email?token=${token}&callbackURL=${process.env.EMAIL_VERIFICATION_CALLBACK}`;
+      const htmlTemplate = templates["verification"]({
+        verificationUrl,
+        token,
+      });
+
       await sendEmail({
         to: user.email,
-        subject: "Verify your email",
+        subject: "Verify Your Email",
         text: `Please click the following link to verify your email: ${verificationUrl}`,
+        html: htmlTemplate,
       });
+    },
+    afterEmailVerification: async (userData: { id: string; email: string }) => {
+      // Check if this is the first time verification (user was just created)
+      const userWithCreatedAt = await db.user.findUnique({
+        where: { id: userData.id },
+        select: {
+          createdAt: true,
+          emailVerified: true,
+          name: true,
+        },
+      });
+
+      if (!userWithCreatedAt) return;
+
+      // Only send welcome email if user was created recently (within last hour)
+      // This prevents sending welcome emails on re-verification
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (userWithCreatedAt.createdAt > oneHourAgo) {
+        const dashboardUrl = `${process.env.NEXT_APP_URL || process.env.NEXT_BASE_URL}/login`;
+        const welcomeTemplate = templates["welcome"]({
+          name: userWithCreatedAt.name || "there",
+          dashboardUrl,
+        });
+
+        await sendEmail({
+          to: userData.email,
+          subject: "Welcome to slugy!",
+          text: `Welcome to slugy! You can now start creating short links, track analytics, and explore bio links. Visit your dashboard at ${dashboardUrl}`,
+          html: welcomeTemplate,
+        });
+      }
     },
   },
   socialProviders: {
@@ -87,7 +132,14 @@ export const auth = betterAuth({
   plugins: [
     magicLink({
       sendMagicLink: async ({ email, url }) => {
-        await sendMagicLinkEmail({ email, url });
+        const htmlTemplate = templates["login-link"]({ url });
+
+        await sendEmail({
+          to: email,
+          subject: "Sign in to slugy",
+          text: `You requested a magic link to sign in to your slugy account. Click the following link to log in: ${url}`,
+          html: htmlTemplate,
+        });
       },
       expiresIn: 300, // 5 minutes
     }),
@@ -172,8 +224,7 @@ export async function getCachedRootSession(): Promise<Session | null> {
 // Uses React's cache() to prevent duplicate fetches within the same request
 // Returns a discriminated union for type-safe handling
 export async function getAuthSession(): Promise<
-  | { success: true; session: Session }
-  | { success: false; redirectTo: "/login" }
+  { success: true; session: Session } | { success: false; redirectTo: "/login" }
 > {
   const session = await getCachedSession();
 
