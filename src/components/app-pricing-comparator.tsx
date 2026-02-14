@@ -1,19 +1,16 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import NumberFlow from "@number-flow/react";
 import { Check } from "lucide-react";
-import { createAuthClient } from "better-auth/react";
 
+import { plans } from "@/constants/data/price";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 
-// Constants
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
-const DEFAULT_MONTHLY_PRICE = 15;
-const DEFAULT_YEARLY_PRICE = 150;
+const MANAGE_BASE_URL = "/api/subscription/manage";
 const YEARLY_SAVINGS = "2 Months Free";
 
 const CURRENCY_FORMAT = {
@@ -22,32 +19,10 @@ const CURRENCY_FORMAT = {
   maximumFractionDigits: 0,
 };
 
-const FEATURES = [
-  { feature: "Workspaces", free: "2", pro: "5" },
-  { feature: "Links", free: "25 / workspace", pro: "100 / workspace" },
-  { feature: "Analytics", free: "1,000 clicks", pro: "15,000 clicks" },
-  { feature: "Analytics Retention", free: "30 days", pro: "12 months" },
-  { feature: "Advanced Analytics", free: true, pro: true },
-  { feature: "Bio Links", free: "5", pro: "15" },
-  { feature: "Link Tags", free: "5", pro: "15" },
-  { feature: "Custom Domains", free: "2", pro: "10" },
-  { feature: "Users", free: "1", pro: "3" },
-  { feature: "UTM Templates", free: "5", pro: "15" },
-  { feature: "Custom Link Preview", free: false, pro: true },
-  { feature: "Link Expiration", free: false, pro: true },
-  { feature: "Password Protection", free: false, pro: true },
-] as const;
-
-// Types
-type FeatureValue = string | boolean;
-type PriceInterval = "month" | "year" | null;
 type BillingPeriod = "monthly" | "yearly";
-
-interface Feature {
-  feature: string;
-  free: FeatureValue;
-  pro: FeatureValue;
-}
+type FeatureValue = string | boolean | number;
+type PriceInterval = "month" | "year" | null;
+type Plan = (typeof plans)[number];
 
 interface ProductPrice {
   id: string;
@@ -68,43 +43,107 @@ interface PricingComparatorProps {
   isPaidPlan?: boolean;
 }
 
-interface PlanConfig {
-  name: string;
-  price: number;
-  subtitle: string;
-  savings?: string;
+interface Feature {
+  feature: string;
+  free: FeatureValue;
+  pro: FeatureValue;
 }
 
-interface PlanConfigs {
-  free: PlanConfig;
-  monthly: PlanConfig;
-  yearly: PlanConfig;
+const [FREE_PLAN, PRO_PLAN] = (() => {
+  const free = plans.find((plan) => plan.planType === "free");
+  const pro = plans.find((plan) => plan.planType === "pro");
+
+  if (!free || !pro) {
+    throw new Error("Pricing plans are not configured correctly.");
+  }
+
+  return [free, pro] as const;
+})();
+
+function formatClicks(clicks: number): string {
+  if (clicks < 1000) return `${clicks} clicks`;
+  const value = clicks / 1000;
+  const formatted = Number.isInteger(value)
+    ? value.toFixed(0)
+    : value.toFixed(1);
+  return `${formatted}k clicks`;
 }
 
-// Auth client
-const { useSession } = createAuthClient();
+function buildFeatures(): Feature[] {
+  return [
+    {
+      feature: "Workspaces",
+      free: FREE_PLAN.maxWorkspaces,
+      pro: PRO_PLAN.maxWorkspaces,
+    },
+    {
+      feature: "Links",
+      free: `${FREE_PLAN.maxLinksPerWorkspace} / workspace`,
+      pro: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
+    },
+    {
+      feature: "Analytics",
+      free: formatClicks(FREE_PLAN.maxClicksPerWorkspace),
+      pro: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
+    },
+    {
+      feature: "Analytics Retention",
+      free: FREE_PLAN.analyticsRetention,
+      pro: PRO_PLAN.analyticsRetention,
+    },
+    { feature: "Advanced Analytics", free: false, pro: true },
+    {
+      feature: "Bio Links",
+      free: FREE_PLAN.maxBioLinks,
+      pro: PRO_PLAN.maxBioLinks,
+    },
+    {
+      feature: "Link Tags",
+      free: FREE_PLAN.maxLinkTags,
+      pro: PRO_PLAN.maxLinkTags,
+    },
+    {
+      feature: "Custom Domains",
+      free: FREE_PLAN.maxCustomDomains,
+      pro: PRO_PLAN.maxCustomDomains,
+    },
+    { feature: "Users", free: FREE_PLAN.maxUsers, pro: PRO_PLAN.maxUsers },
+    { feature: "UTM Templates", free: FREE_PLAN.maxUTM, pro: PRO_PLAN.maxUTM },
+    {
+      feature: "Custom Link Preview",
+      free: FREE_PLAN.customizeLinkPreview,
+      pro: PRO_PLAN.customizeLinkPreview,
+    },
+    {
+      feature: "Link Expiration",
+      free: FREE_PLAN.linkExp,
+      pro: PRO_PLAN.linkExp,
+    },
+    {
+      feature: "Password Protection",
+      free: FREE_PLAN.linkPassword,
+      pro: PRO_PLAN.linkPassword,
+    },
+  ];
+}
 
-// Utility functions
-const getProductIds = (products?: ProductData[]): string[] => {
+function getProductIds(products?: ProductData[]): string[] {
   const productIds = products?.map((p) => p.id).filter(Boolean) ?? [];
-
   if (productIds.length > 0) return productIds;
 
-  // Fallback to environment variables
   return [
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,
-    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID,
+    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID,
   ].filter(Boolean) as string[];
-};
+}
 
-const buildCheckoutUrl = (
+function buildProCtaUrl(
   products?: ProductData[],
   workspace?: string,
   isPaidPlan?: boolean,
-): string => {
-  // If user already has Pro plan, return manage URL
+): string {
   if (isPaidPlan && workspace) {
-    return `/api/subscription/manage?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
+    return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
   }
 
   const productIds = getProductIds(products);
@@ -118,159 +157,57 @@ const buildCheckoutUrl = (
   }
 
   return `${CHECKOUT_BASE_URL}?${params.toString()}`;
-};
+}
 
-const extractPrices = (products?: ProductData[]) => {
+function getProPrices(products?: ProductData[]): {
+  monthly: number;
+  yearly: number;
+} {
   if (!products?.length) {
-    return {
-      monthlyPrice: DEFAULT_MONTHLY_PRICE,
-      yearlyPrice: DEFAULT_YEARLY_PRICE,
-    };
+    return { monthly: PRO_PLAN.monthlyPrice, yearly: PRO_PLAN.yearlyPrice };
   }
 
   const allPrices = products.flatMap((p) => p.prices);
-  const monthly = allPrices.find((p) => p.interval === "month");
-  const yearly = allPrices.find((p) => p.interval === "year");
+  const monthly = allPrices.find((p) => p.interval === "month")?.amount;
+  const yearly = allPrices.find((p) => p.interval === "year")?.amount;
 
   return {
-    yearlyPrice: yearly?.amount ?? DEFAULT_YEARLY_PRICE,
-    monthlyPrice: monthly?.amount ?? DEFAULT_MONTHLY_PRICE,
+    monthly: typeof monthly === "number" ? monthly : PRO_PLAN.monthlyPrice,
+    yearly: typeof yearly === "number" ? yearly : PRO_PLAN.yearlyPrice,
   };
-};
+}
 
-const createPlanConfigs = (
-  monthlyPrice: number,
-  yearlyPrice: number,
-): PlanConfigs => ({
-  free: {
-    name: "Free",
-    price: 0,
-    subtitle: "Forever free",
-  },
-  monthly: {
-    name: "Pro",
-    price: monthlyPrice,
-    subtitle: "per month",
-  },
-  yearly: {
-    name: "Pro",
-    price: yearlyPrice,
-    subtitle: "per year",
-    savings: YEARLY_SAVINGS,
-  },
-});
-
-// Sub-components
-const FeatureValue = ({ value }: { value: FeatureValue }) => {
-  if (value === true) return <Check className="size-4" />;
-  if (value === false) return <span className="text-muted-foreground">—</span>;
+function FeatureCell({ value }: { value: FeatureValue }) {
+  if (typeof value === "boolean") {
+    return value ? (
+      <Check className="size-4" />
+    ) : (
+      <span className="text-muted-foreground">-</span>
+    );
+  }
   return <>{value}</>;
-};
+}
 
-const PriceHeader = ({
-  plan,
-  ctaUrl,
-  ctaLabel,
-  isPaidPlan,
-}: {
-  plan: PlanConfig;
-  ctaUrl: string;
-  ctaLabel: string;
-  isPaidPlan?: boolean;
-}) => {
-  const buttonText = isPaidPlan ? "Manage" : ctaLabel;
-  const buttonVariant = isPaidPlan ? "outline" : "default";
-
-  return (
-    <th className="space-y-3">
-      <span className="block">{plan.name}</span>
-      <span className="block text-2xl font-medium">
-        <NumberFlow value={plan.price} format={CURRENCY_FORMAT} />
-      </span>
-      <span className="text-muted-foreground block text-xs">
-        {plan.subtitle}
-      </span>
-      <Button asChild variant={buttonVariant} size="sm">
-        <Link href={ctaUrl}>{buttonText}</Link>
-      </Button>
-    </th>
-  );
-};
-
-const ProPriceHeader = ({
-  plan,
-  ctaUrl,
-  isPaidPlan,
-}: {
-  plan: PlanConfig;
-  ctaUrl: string;
-  isPaidPlan?: boolean;
-}) => {
-  const buttonText = isPaidPlan ? "Manage" : "Upgrade to Pro";
-  const buttonVariant = isPaidPlan ? "outline" : "default";
-
-  return (
-    <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
-      <span className="block">{plan.name}</span>
-      <span className="block text-2xl font-medium">
-        <NumberFlow value={plan.price} format={CURRENCY_FORMAT} />
-      </span>
-      <span className="text-muted-foreground block text-sm">
-        {plan.subtitle}
-      </span>
-      <Button asChild variant={buttonVariant} size="sm">
-        <Link href={ctaUrl}>{buttonText}</Link>
-      </Button>
-    </th>
-  );
-};
-
-const FeatureRow = ({ feature }: { feature: Feature }) => (
-  <tr key={feature.feature} className="*:border-b *:py-3">
-    <td className="text-muted-foreground">{feature.feature}</td>
-    <td>
-      <FeatureValue value={feature.free} />
-    </td>
-    <td className="bg-muted border-none px-4">
-      <div className="-mb-3 border-b py-3">
-        <FeatureValue value={feature.pro} />
-      </div>
-    </td>
-  </tr>
-);
-
-// Main component
 export default function AppPricingComparator({
   products,
   workspace,
   isPaidPlan,
 }: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
-  const { data: session } = useSession();
 
-  const { monthlyPrice, yearlyPrice } = useMemo(
-    () => extractPrices(products),
-    [products],
-  );
-
-  const plans = useMemo(
-    () => createPlanConfigs(monthlyPrice, yearlyPrice),
-    [monthlyPrice, yearlyPrice],
-  );
-
-  const proPlan = plans[billingPeriod];
-  const checkoutUrl = useMemo(
-    () => buildCheckoutUrl(products, workspace, isPaidPlan),
+  const features = useMemo(() => buildFeatures(), []);
+  const proPrices = useMemo(() => getProPrices(products), [products]);
+  const proPrice =
+    billingPeriod === "yearly" ? proPrices.yearly : proPrices.monthly;
+  const proSubtitle = billingPeriod === "yearly" ? "/year" : "/month";
+  const proCtaUrl = useMemo(
+    () => buildProCtaUrl(products, workspace, isPaidPlan),
     [products, workspace, isPaidPlan],
   );
 
-  useEffect(() => {
-    if (session?.user?.id) {
-      getSubscriptionWithPlan(session.user.id).then((result) => {
-        console.log("Subscription:", result);
-      });
-    }
-  }, [session?.user?.id]);
+  const freeCtaUrl = workspace
+    ? `/${workspace}/settings/billing`
+    : "https://app.slugy.co/login";
 
   return (
     <section>
@@ -296,17 +233,40 @@ export default function AppPricingComparator({
             <thead className="bg-background sticky top-0">
               <tr className="*:py-4 *:text-left *:font-medium">
                 <th className="lg:w-2/5" />
-                <PriceHeader
-                  plan={plans.free}
-                  ctaUrl=""
-                  ctaLabel="Get Started"
-                  isPaidPlan={isPaidPlan}
-                />
-                <ProPriceHeader
-                  plan={proPlan}
-                  ctaUrl={checkoutUrl}
-                  isPaidPlan={isPaidPlan}
-                />
+                <th className="space-y-3">
+                  <span className="block">{FREE_PLAN.name}</span>
+                  <span className="block text-2xl font-medium">
+                    <NumberFlow
+                      value={FREE_PLAN.monthlyPrice}
+                      format={CURRENCY_FORMAT}
+                    />
+                  </span>
+                  <span className="text-muted-foreground block text-xs">
+                    Forever free
+                  </span>
+                  <Button asChild variant="outline" size="sm">
+                    <Link href={freeCtaUrl}>Get Started</Link>
+                  </Button>
+                </th>
+
+                <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
+                  <span className="block">{PRO_PLAN.name}</span>
+                  <span className="block text-2xl font-medium">
+                    <NumberFlow value={proPrice} format={CURRENCY_FORMAT} />
+                  </span>
+                  <span className="text-muted-foreground block text-sm">
+                    {proSubtitle}
+                  </span>
+                  <Button
+                    asChild
+                    variant={isPaidPlan ? "outline" : "default"}
+                    size="sm"
+                  >
+                    <Link href={proCtaUrl}>
+                      {isPaidPlan ? "Manage" : PRO_PLAN.buttonLabel}
+                    </Link>
+                  </Button>
+                </th>
               </tr>
             </thead>
 
@@ -316,9 +276,21 @@ export default function AppPricingComparator({
                 <td />
                 <td className="bg-muted border-none px-4" />
               </tr>
-              {FEATURES.map((feature) => (
-                <FeatureRow key={feature.feature} feature={feature} />
+
+              {features.map((feature) => (
+                <tr key={feature.feature} className="*:border-b *:py-3">
+                  <td className="text-muted-foreground">{feature.feature}</td>
+                  <td>
+                    <FeatureCell value={feature.free} />
+                  </td>
+                  <td className="bg-muted border-none px-4">
+                    <div className="-mb-3 border-b py-3">
+                      <FeatureCell value={feature.pro} />
+                    </div>
+                  </td>
+                </tr>
               ))}
+
               <tr className="*:py-6">
                 <td />
                 <td />

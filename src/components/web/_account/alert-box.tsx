@@ -16,7 +16,6 @@ import { Label } from "@/components/ui/label";
 import axios from "axios";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 
 const CONFIRMATION_TEXT = "DELETE";
@@ -36,6 +35,24 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
     setIsLoading(false);
   }, []);
 
+  const clearClientState = useCallback(() => {
+    try {
+      const cookies = document.cookie ? document.cookie.split(";") : [];
+      for (const cookie of cookies) {
+        const name = cookie.split("=")[0]?.trim();
+        if (!name) continue;
+        document.cookie = `${name}=; Max-Age=0; Path=/`;
+      }
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (error) {
+      console.error(
+        "Failed to clear client state after account deletion:",
+        error,
+      );
+    }
+  }, []);
+
   const handleDelete = useCallback(async () => {
     if (confirmationText !== CONFIRMATION_TEXT) {
       toast.error(
@@ -47,32 +64,20 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
     setIsLoading(true);
     try {
       const response = await axios.delete(`/api/account/${accountId}`);
-
       if (response.status === 200) {
-        await authClient.signOut({
-          fetchOptions: {
-            onSuccess: () => {
-              router.refresh();
-              router.push("/login");
-            },
-          },
-        });
-      } else {
-        await authClient.signOut({
-          fetchOptions: {
-            onSuccess: () => {
-              router.refresh();
-              router.push("/login");
-            },
-          },
-        });
+        clearClientState();
+        router.replace("/login");
+        router.refresh();
+        return;
       }
+      toast.error("Failed to delete account. Please try again.");
+      setIsLoading(false);
     } catch (error) {
       console.error("Error deleting account:", error);
       toast.error("Failed to delete account. Please try again.");
       setIsLoading(false);
     }
-  }, [confirmationText, accountId, router]);
+  }, [confirmationText, accountId, clearClientState, router]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -89,7 +94,9 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
   return (
     <AlertDialog open={isOpen} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
-        <Button variant="destructive">Delete Account</Button>
+        <Button type="button" variant="destructive">
+          Delete Account
+        </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="bg-background p-4 sm:max-w-md">
         <AlertDialogHeader>
@@ -122,6 +129,7 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isLoading}>Cancel</AlertDialogCancel>
           <Button
+            type="button"
             variant="destructive"
             onClick={handleDelete}
             disabled={isLoading || !isConfirmationValid}

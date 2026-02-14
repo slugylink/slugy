@@ -160,8 +160,8 @@ model Plan {
   
   // Limits
   maxWorkspaces         Int @default(2)
-  maxLinksPerWorkspace  Int @default(25)
-  maxClicksPerWorkspace Int @default(1000)
+  maxLinksPerWorkspace  Int @default(20)
+  maxClicksPerWorkspace Int @default(500)
   maxGalleries          Int @default(1)
   maxLinksPerBio        Int @default(5)
   maxUsers              Int @default(1)
@@ -240,8 +240,8 @@ model Workspace {
   isDefault      Boolean  @default(true)
   linksUsage     Int      @default(0)
   clicksUsage    Int      @default(0)
-  maxLinksLimit  Int      @default(25)
-  maxClicksLimit Int      @default(1000)
+  maxLinksLimit  Int      @default(20)
+  maxClicksLimit Int      @default(500)
   maxUsers       Int      @default(1)
   maxLinkTags    Int      @default(5)
   addedUsers     Int      @default(1)

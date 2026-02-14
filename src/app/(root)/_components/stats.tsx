@@ -18,10 +18,12 @@ interface AnimatedNumberProps {
   suffix?: string;
 }
 
+const formatStatNumber = new Intl.NumberFormat("en-US");
+
 const statsData = [
   {
     title: "Active Users",
-    count: 40,
+    count: 100,
     suffix: "+",
     icon: Users,
     iconColor: "text-blue-500",
@@ -29,7 +31,7 @@ const statsData = [
   },
   {
     title: "Links Created",
-    count: 60,
+    count: 1000,
     suffix: "+",
     icon: Link,
     iconColor: "text-purple-500",
@@ -37,7 +39,7 @@ const statsData = [
   },
   {
     title: "Clicks Tracked",
-    count: 3000,
+    count: 15000,
     suffix: "+",
     icon: BarChart3,
     iconColor: "text-green-500",
@@ -52,10 +54,16 @@ const generateGrowthData = (() => {
     if (cache.has(length)) {
       return cache.get(length)!;
     }
-    const data = Array.from({ length }, (_, i) => ({
-      x: i,
-      y: Math.pow(1.045, i) * 10,
-    }));
+    const data = Array.from({ length }, (_, i) => {
+      const baseTrend = 20 + i * 1.2;
+      const waveA = Math.sin(i / 6) * 14;
+      const waveB = Math.cos(i / 13) * 8;
+      // Deterministic tiny jitter so the line doesn't look perfectly synthetic.
+      const jitter = ((i * 17) % 9) - 4;
+      const y = Math.max(8, baseTrend + waveA + waveB + jitter);
+
+      return { x: i, y };
+    });
     cache.set(length, data);
     return data;
   };
@@ -96,9 +104,9 @@ CustomTooltip.displayName = "CustomTooltip";
 const StatCard = memo(({ stat }: { stat: (typeof statsData)[number] }) => (
   <motion.div
     variants={animations.item}
-    className="rounded-2xl border border-zinc-200/40 p-1 "
+    className="rounded-2xl border border-zinc-200/40 p-1"
   >
-    <Card className="flex aspect-square items-center border border-zinc-200/70 justify-center overflow-hidden bg-zinc-50  shadow-none backdrop-blur-sm transition-all">
+    <Card className="flex aspect-square items-center justify-center overflow-hidden border border-zinc-200/70 bg-zinc-50 shadow-none backdrop-blur-sm transition-all">
       <div className="p-4">
         <div className="mb-2 flex justify-center">
           <div className={`rounded-full p-2 ${stat.iconBg}`} />
@@ -134,7 +142,8 @@ function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
     if (!ref.current) return;
 
     return spring.onChange((latest) => {
-      ref.current!.textContent = `${Math.round(latest)}${suffix}`;
+      const formatted = formatStatNumber.format(Math.round(latest));
+      ref.current!.textContent = `${formatted}${suffix}`;
     });
   }, [spring, suffix]);
 
@@ -158,11 +167,11 @@ export default function Stats() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h2 className="text-2xl tracking-tight font-medium sm:text-4xl">
+        <h2 className="text-2xl font-medium tracking-tight sm:text-4xl">
           Our Growth
         </h2>
         <p className="text-muted-foreground mt-3 text-sm md:text-base">
-          Witness our exponential progress
+          Steady growth with natural ups and downs
         </p>
       </motion.div>
 

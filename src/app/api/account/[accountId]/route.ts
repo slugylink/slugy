@@ -33,11 +33,68 @@ interface RouteParams {
   params: Promise<{ accountId: string }>;
 }
 
+const KNOWN_AUTH_COOKIES = [
+  "better-auth.session_token",
+  "__Secure-better-auth.session_token",
+  "__Host-better-auth.session_token",
+];
+
 // Utility functions
 const isNotFoundError = (error: Error): boolean => {
   return NOT_FOUND_ERROR_PATTERNS.some((pattern) =>
     error.message.includes(pattern),
   );
+};
+
+const getRequestCookieNames = (req: Request): string[] => {
+  const cookieHeader = req.headers.get("cookie");
+  if (!cookieHeader) return [];
+
+  const names = cookieHeader
+    .split(";")
+    .map((chunk) => chunk.trim().split("=")[0])
+    .filter(Boolean);
+
+  return [...new Set(names)];
+};
+
+const getRootDomain = (hostHeader: string | null): string | null => {
+  if (!hostHeader) return null;
+  const host = hostHeader.split(":")[0].toLowerCase();
+  if (host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return null;
+
+  const parts = host.split(".");
+  if (parts.length < 2) return null;
+  return `.${parts.slice(-2).join(".")}`;
+};
+
+const buildCookieClearHeaders = (req: Request): Headers => {
+  const responseHeaders = new Headers();
+  const secure = new URL(req.url).protocol === "https:";
+  const requestCookieNames = getRequestCookieNames(req);
+  const cookieNames = new Set([...requestCookieNames, ...KNOWN_AUTH_COOKIES]);
+  const rootDomain = getRootDomain(req.headers.get("host"));
+  const commonAttrs = [
+    "Path=/",
+    "Max-Age=0",
+    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+    "SameSite=Lax",
+    secure ? "Secure" : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  for (const cookieName of cookieNames) {
+    responseHeaders.append("Set-Cookie", `${cookieName}=; ${commonAttrs}`);
+    if (rootDomain) {
+      responseHeaders.append(
+        "Set-Cookie",
+        `${cookieName}=; ${commonAttrs}; Domain=${rootDomain}`,
+      );
+    }
+  }
+
+  return responseHeaders;
 };
 
 const verifyUserDeleted = async (accountId: string): Promise<boolean> => {
@@ -147,11 +204,13 @@ export async function DELETE(req: Request, { params }: RouteParams) {
     // Invalidate caches
     await invalidateAccountCaches(accountId);
 
-    // Clear session cookie
-    return apiSuccess(null, "Account deleted successfully", 200, {
-      "Set-Cookie":
-        "better-auth.session_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax",
-    });
+    // Clear all cookies for this request host + root domain fallback.
+    return apiSuccess(
+      null,
+      "Account deleted successfully",
+      200,
+      buildCookieClearHeaders(req),
+    );
   } catch (error) {
     console.error("Account deletion error:", error);
 
@@ -163,7 +222,12 @@ export async function DELETE(req: Request, { params }: RouteParams) {
           console.log(
             "[Account Delete] User successfully deleted despite cascade errors",
           );
-          return apiSuccess(null, "Account deleted successfully");
+          return apiSuccess(
+            null,
+            "Account deleted successfully",
+            200,
+            buildCookieClearHeaders(req),
+          );
         }
         return apiErrors.notFound(
           "Account deletion failed - user still exists",

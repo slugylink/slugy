@@ -1,4 +1,5 @@
 export const PUBLIC_ROUTES = new Set([
+  "/monitoring",
   "/app/login",
   "/login",
   "/test",
@@ -19,7 +20,7 @@ export const PUBLIC_ROUTES = new Set([
   "/contact",
   "/blog",
   "/sponsors",
-  "/sentry-example-page"
+  "/sentry-example-page",
 ]);
 
 export const PUBLIC_PREFIXES = [

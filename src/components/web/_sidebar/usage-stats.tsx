@@ -68,7 +68,7 @@ const UsageStats = memo(function UsageStats({
     <>
       {!isActivePro && !isLoading && (
         <Link
-          href={`/${workspaceslug}/settings/billing`}
+          href={`/${workspaceslug}/settings/billing/upgrade`}
           rel="noopener noreferrer"
         >
           <Button size="sm" variant="default" className="w-full rounded-lg">

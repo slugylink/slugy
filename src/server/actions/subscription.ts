@@ -170,12 +170,17 @@ export async function getBillingData(workspaceSlug: string) {
     });
 
     // If user has a plan and workspace/bio limits don't match plan, sync (fixes Pro limits after seed update)
-    if (plan?.planType && (workspace.maxLinkTags !== plan.maxTagsPerWorkspace || (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)) {
+    if (
+      plan?.planType &&
+      (workspace.maxLinkTags !== plan.maxTagsPerWorkspace ||
+        (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)
+    ) {
       await syncUserLimits(userId, plan.planType);
     }
 
     // Format billing cycle dates
-    const periodStart = subscriptionResult.subscription?.periodStart || new Date();
+    const periodStart =
+      subscriptionResult.subscription?.periodStart || new Date();
     const periodEnd = subscriptionResult.subscription?.periodEnd || new Date();
 
     return {
@@ -186,8 +191,8 @@ export async function getBillingData(workspaceSlug: string) {
           name: "Free",
           planType: "free",
           maxWorkspaces: 2,
-          maxLinksPerWorkspace: 25,
-          maxClicksPerWorkspace: 1000,
+          maxLinksPerWorkspace: 20,
+          maxClicksPerWorkspace: 500,
           maxUsers: 1,
           maxCustomDomains: 2,
           maxGalleries: 1,
@@ -207,7 +212,8 @@ export async function getBillingData(workspaceSlug: string) {
           }),
         },
         subscription: {
-          cancelAtPeriodEnd: subscriptionResult.subscription?.cancelAtPeriodEnd || false,
+          cancelAtPeriodEnd:
+            subscriptionResult.subscription?.cancelAtPeriodEnd || false,
           canceledAt: subscriptionResult.subscription?.canceledAt,
         },
         usage: {
@@ -220,13 +226,26 @@ export async function getBillingData(workspaceSlug: string) {
           bioLinksPerGallery: bioWithMostLinks?._count.links || 0,
         },
         limits: {
-          customDomains: subscriptionResult.subscription?.plan?.maxCustomDomains ?? 2,
-          bioGalleries: subscriptionResult.subscription?.plan?.maxGalleries ?? 1,
-          tags: subscriptionResult.subscription?.plan?.maxTagsPerWorkspace ?? workspace.maxLinkTags,
-          teammates: subscriptionResult.subscription?.plan?.maxUsers ?? workspace.maxUsers,
-          links: subscriptionResult.subscription?.plan?.maxLinksPerWorkspace ?? workspace.maxLinksLimit,
-          clicks: subscriptionResult.subscription?.plan?.maxClicksPerWorkspace ?? workspace.maxClicksLimit,
-          bioLinksPerGallery: subscriptionResult.subscription?.plan?.maxLinksPerBio ?? bioWithMostLinks?.maxLinksLimit ?? 5,
+          customDomains:
+            subscriptionResult.subscription?.plan?.maxCustomDomains ?? 2,
+          bioGalleries:
+            subscriptionResult.subscription?.plan?.maxGalleries ?? 1,
+          tags:
+            subscriptionResult.subscription?.plan?.maxTagsPerWorkspace ??
+            workspace.maxLinkTags,
+          teammates:
+            subscriptionResult.subscription?.plan?.maxUsers ??
+            workspace.maxUsers,
+          links:
+            subscriptionResult.subscription?.plan?.maxLinksPerWorkspace ??
+            workspace.maxLinksLimit,
+          clicks:
+            subscriptionResult.subscription?.plan?.maxClicksPerWorkspace ??
+            workspace.maxClicksLimit,
+          bioLinksPerGallery:
+            subscriptionResult.subscription?.plan?.maxLinksPerBio ??
+            bioWithMostLinks?.maxLinksLimit ??
+            5,
         },
       },
     };
@@ -256,9 +275,10 @@ export async function getCheckoutUrl(productId?: string, priceId?: string) {
     }
 
     // Build checkout URL with optional product/price parameters
-    const baseUrl = process.env.NODE_ENV === "production"
-      ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
-      : "http://app.localhost:3000";
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co"
+        : "http://app.localhost:3000";
 
     const checkoutUrl = new URL(`${baseUrl}/api/subscription/checkout`);
 
@@ -299,9 +319,10 @@ export async function getCustomerPortalUrl() {
       };
     }
 
-    const baseUrl = process.env.NODE_ENV === "production"
-      ? (process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co")
-      : "http://app.localhost:3000";
+    const baseUrl =
+      process.env.NODE_ENV === "production"
+        ? process.env.NEXT_PUBLIC_APP_URL || "https://app.slugy.co"
+        : "http://app.localhost:3000";
 
     const portalUrl = `${baseUrl}/api/subscription/manage`;
 

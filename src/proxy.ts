@@ -206,6 +206,14 @@ async function handleAppSubdomain(
   const prefixedPath = `/app${pathname}${search}`;
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);
+  const shouldPreserveMethod = req.method === "GET" || req.method === "HEAD";
+  const authRedirectStatus = shouldPreserveMethod ? 307 : 303;
+  const appAuthRouteMap: Record<string, string> = {
+    "/app/login": "/login",
+    "/app/signup": "/signup",
+    "/app/forgot-password": "/forgot-password",
+    "/app/reset-password": "/reset-password",
+  };
 
   // Fetch session once
   const { token } = await getCachedSession(req);
@@ -218,12 +226,23 @@ async function handleAppSubdomain(
       );
     }
     return addSecurityHeaders(
-      NextResponse.redirect(new URL("/login", baseUrl)),
+      NextResponse.redirect(new URL("/login", baseUrl), authRedirectStatus),
     );
   }
 
   // Handle auth pages
   if (isAuthPage) {
+    // Keep auth routes canonical on app subdomain (e.g. /login, /signup).
+    if (pathname in appAuthRouteMap) {
+      const canonicalPath = appAuthRouteMap[pathname];
+      return addSecurityHeaders(
+        NextResponse.redirect(
+          new URL(`${canonicalPath}${search}`, baseUrl),
+          authRedirectStatus,
+        ),
+      );
+    }
+
     if (token && (pathname === "/login" || pathname === "/signup")) {
       return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
     }
@@ -240,7 +259,7 @@ async function handleAppSubdomain(
   // Check authentication for non-public paths
   if (!isPublicPath(pathname) && !token) {
     return addSecurityHeaders(
-      NextResponse.redirect(new URL("/app/login", baseUrl)),
+      NextResponse.redirect(new URL("/login", baseUrl), authRedirectStatus),
     );
   }
 
@@ -261,13 +280,15 @@ async function handleRootDomain(
   const { pathname } = url;
   const shortCode = pathname.slice(1);
   const hostname = normalizeHostname(req.headers.get("host"));
+  const shouldPreserveMethod = req.method === "GET" || req.method === "HEAD";
+  const redirectStatus = shouldPreserveMethod ? 307 : 303;
 
   if (pathname === "/") {
     const { token } = await getCachedSession(req);
     if (token) {
       const appUrl = new URL(req.url);
       appUrl.hostname = SUBDOMAINS.app;
-      return redirectTo(appUrl.toString());
+      return redirectTo(appUrl.toString(), redirectStatus);
     }
   }
 

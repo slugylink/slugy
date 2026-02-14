@@ -5,12 +5,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import NumberFlow from "@number-flow/react";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
-import { createAuthClient } from "better-auth/react";
-
-const { useSession } = createAuthClient();
 
 type BillingPeriod = "monthly" | "yearly";
 type Plan = (typeof plans)[number];
@@ -32,14 +28,26 @@ const CURRENCY_FORMAT = {
   maximumFractionDigits: 0,
 };
 
-const [FREE_PLAN, PRO_PLAN] = plans;
+const [FREE_PLAN, PRO_PLAN] = (() => {
+  const free = plans.find((plan) => plan.planType === "free");
+  const pro = plans.find((plan) => plan.planType === "pro");
 
-// Format clicks for display (e.g., 1000 -> "1k clicks")
+  if (!free || !pro) {
+    throw new Error("Pricing plans are not configured correctly.");
+  }
+
+  return [free, pro] as const;
+})();
+
 function formatClicks(clicks: number): string {
-  return `${(clicks / 1000).toFixed(0)}k clicks`;
+  if (clicks < 1000) return `${clicks} clicks`;
+  const value = clicks / 1000;
+  const formatted = Number.isInteger(value)
+    ? value.toFixed(0)
+    : value.toFixed(1);
+  return `${formatted}k clicks`;
 }
 
-// Build features list from plan data
 function buildFeatures(): Feature[] {
   return [
     {
@@ -62,7 +70,11 @@ function buildFeatures(): Feature[] {
       freeValue: FREE_PLAN.analyticsRetention,
       proValue: PRO_PLAN.analyticsRetention,
     },
-    { feature: "Advanced Analytics", freeValue: true, proValue: true },
+    {
+      feature: "Advanced Analytics",
+      freeValue: false,
+      proValue: true,
+    },
     {
       feature: "Bio Links",
       freeValue: FREE_PLAN.maxBioLinks,
@@ -106,15 +118,14 @@ function buildFeatures(): Feature[] {
   ];
 }
 
-const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
 
-// Build button URL based on plan and workspace
 function buildButtonUrl(
+  planType: Plan["planType"],
   isPaidPlan: boolean | undefined,
   workspace: string | undefined,
 ): string {
-  if (isPaidPlan && workspace) {
+  if (planType === "pro" && isPaidPlan && workspace) {
     return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
   }
 
@@ -125,30 +136,26 @@ function buildButtonUrl(
   return "https://app.slugy.co/login";
 }
 
-// Get price based on billing period
 function getPrice(plan: Plan, billing: BillingPeriod): number {
   return billing === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 }
 
-// Get price subtitle
 function getPriceSubtitle(plan: Plan, billing: BillingPeriod): string {
   if (plan.planType === "free") return "Forever free";
   return billing === "yearly" ? "/year" : "/month";
 }
 
-// Feature value component
 function FeatureValue({ value }: { value: string | boolean | number }) {
   if (typeof value === "boolean") {
     return value ? (
       <Check className="size-4" />
     ) : (
-      <span className="text-muted-foreground">—</span>
+      <span className="text-muted-foreground">-</span>
     );
   }
   return <>{value}</>;
 }
 
-// Price header component
 function PriceHeader({
   plan,
   billing,
@@ -164,13 +171,14 @@ function PriceHeader({
 }) {
   const price = getPrice(plan, billing);
   const subtitle = getPriceSubtitle(plan, billing);
-  const buttonText = isPaidPlan ? "Manage" : plan.buttonLabel;
-  const buttonVariant = isPaidPlan
+  const shouldManage = plan.planType === "pro" && Boolean(isPaidPlan);
+  const buttonText = shouldManage ? "Manage" : plan.buttonLabel;
+  const buttonVariant = shouldManage
     ? "outline"
     : plan.planType === "pro"
       ? "default"
       : "outline";
-  const buttonUrl = buildButtonUrl(isPaidPlan, workspace);
+  const buttonUrl = buildButtonUrl(plan.planType, isPaidPlan, workspace);
 
   const headerClass = highlighted
     ? "bg-muted space-y-2 rounded-t-(--radius) px-4"
@@ -190,7 +198,6 @@ function PriceHeader({
   );
 }
 
-// Feature row component
 function FeatureRow({ feature, freeValue, proValue }: Feature) {
   return (
     <tr className="*:border-b *:py-3">
@@ -212,17 +219,8 @@ export default function PricingComparator({
   isPaidPlan,
 }: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
-  const { data: session } = useSession();
 
   const features = useMemo(() => buildFeatures(), []);
-
-  useEffect(() => {
-    if (session?.user?.id) {
-      getSubscriptionWithPlan(session.user.id).then((result) => {
-        console.log("Subscription:", result);
-      });
-    }
-  }, [session?.user?.id]);
 
   return (
     <section>

@@ -51,7 +51,10 @@ export async function syncUserLimits(userId: string, planType: PlanType) {
 
     return { success: true, message: "Limits synced successfully" };
   } catch (error) {
-    console.error(`[Limits Sync] Error syncing limits for user ${userId}:`, error);
+    console.error(
+      `[Limits Sync] Error syncing limits for user ${userId}:`,
+      error,
+    );
     return { success: false, message: "Failed to sync limits" };
   }
 }
@@ -96,8 +99,8 @@ export async function getFreePlanLimits() {
   return (
     freePlan || {
       maxWorkspaces: 2,
-      maxLinksPerWorkspace: 25,
-      maxClicksPerWorkspace: 1000,
+      maxLinksPerWorkspace: 20,
+      maxClicksPerWorkspace: 500,
       maxUsers: 1,
       maxCustomDomains: 2,
       maxGalleries: 1,
