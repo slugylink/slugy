@@ -3,6 +3,17 @@ import type { SocialLinksProps, SocialPlatform } from "@/types/bio-links";
 import { SOCIAL_PLATFORMS } from "@/constants/bio-links";
 import { getSocialIcon } from "./social-icons";
 import { formatEmailUrl } from "@/utils/bio-links";
+import Link from "next/link";
+
+const SOCIAL_ICON_COLORS: Record<SocialPlatform, string> = {
+  facebook: "text-[#1877F2]",
+  instagram: "text-[#E4405F]",
+  twitter: "text-black",
+  linkedin: "text-[#0A66C2]",
+  youtube: "text-[#FF0000]",
+  mail: "text-[#2563EB]",
+  snapchat: "text-[#FFFC00]",
+};
 
 export default function SocialLinks({ socials, theme }: SocialLinksProps) {
   const validSocials = socials.filter(
@@ -14,7 +25,7 @@ export default function SocialLinks({ socials, theme }: SocialLinksProps) {
 
   return (
     <div
-      className={`flex items-center justify-center space-x-4 ${theme.textColor}`}
+      className={`flex flex-wrap items-center justify-center gap-1.5 ${theme.textColor}`}
     >
       {validSocials.map(({ platform, url }) => {
         const platformConfig = SOCIAL_PLATFORMS[platform];
@@ -24,15 +35,16 @@ export default function SocialLinks({ socials, theme }: SocialLinksProps) {
         const href = platformConfig.isMail ? formatEmailUrl(url) : url;
 
         return (
-          <a
+          <Link
             key={platform}
             href={href}
             target={platformConfig.isMail ? "_self" : "_blank"}
             rel={platformConfig.isMail ? undefined : "noopener noreferrer"}
             aria-label={`${platform} profile`}
+            className={`flex size-9 items-center justify-center rounded-full bg-white transition-transform hover:scale-105 ${SOCIAL_ICON_COLORS[platform]}`}
           >
-            {getSocialIcon(platform, 20)}
-          </a>
+            {getSocialIcon(platform, 18)}
+          </Link>
         );
       })}
     </div>

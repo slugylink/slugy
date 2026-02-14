@@ -37,6 +37,7 @@ interface Link {
   id: string;
   title: string;
   url: string;
+  style?: string | null;
   galleryId: string;
   position: number;
   clicks: number;
@@ -104,6 +105,7 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
     id: string;
     title: string;
     url: string;
+    style?: string | null;
   } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPublic, setIsPublic] = useState(link.isPublic);
@@ -183,7 +185,12 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
         icon: Edit,
         label: "Edit",
         onClick: () => {
-          setEditData({ id: link.id, title: link.title, url: link.url });
+          setEditData({
+            id: link.id,
+            title: link.title,
+            url: link.url,
+            style: link.style,
+          });
           updateDialog("edit", true);
           updateDialog("dropdown", false);
         },

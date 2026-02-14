@@ -14,6 +14,7 @@ const nextConfig: import("next").NextConfig = {
       { hostname: "peerlist.io" },
       { hostname: "github.com" },
       { hostname: "direct" },
+      { hostname: "images.unsplash.com" },
 
       // Social media platforms
       { hostname: "abs.twimg.com" },

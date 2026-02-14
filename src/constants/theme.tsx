@@ -1,11 +1,20 @@
 export const themes = [
+  // {
+  //   id: "default",
+  //   name: "Default",
+  //   background: "bg-black",
+  //   buttonStyle: "bg-white hover:bg-white/90 rounded-sm text-black",
+  //   textColor: "text-white",
+  //   accentColor: "text-zinc-300",
+  // },
   {
     id: "default",
     name: "Default",
-    background: "bg-black",
-    buttonStyle: "bg-white hover:bg-white/90 rounded-sm text-black",
+    background: "bg-gradient-to-tr from-zinc-900 via-purple-900 to-blue-900",
+    buttonStyle:
+      "bg-white/10 hover:bg-white/20 text-white font-medium text-start flex justify-start items-center rounded-xl",
     textColor: "text-white",
-    accentColor: "text-zinc-300",
+    accentColor: "text-blue-300",
   },
   {
     id: "dotted-grid",
@@ -111,11 +120,11 @@ export const themes = [
     name: "Midnight",
     background: "bg-gradient-to-tr from-zinc-900 via-purple-900 to-blue-900",
     buttonStyle:
-      "bg-white/10 hover:bg-white/20 text-white font-medium text-center flex justify-center items-center rounded-xl",
+      "bg-white/10 hover:bg-white/20 text-white font-medium text-start flex justify-start items-center rounded-xl",
     textColor: "text-white",
     accentColor: "text-blue-300",
   },
- 
+
   {
     id: "zigzag",
     name: "Zigzag",
@@ -129,8 +138,9 @@ export const themes = [
     id: "prism",
     name: "Prism",
     background: "bg-animated-rainbow",
-    buttonStyle: "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-lg transition-all duration-300",
+    buttonStyle:
+      "bg-white/20 backdrop-blur-md hover:bg-white/30 text-white border border-white/30 rounded-lg transition-all duration-300",
     textColor: "text-white",
     accentColor: "text-white",
-  }
+  },
 ] as const;

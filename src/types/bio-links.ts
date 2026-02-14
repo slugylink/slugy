@@ -1,4 +1,5 @@
 import type { BioLinks, BioSocials } from "@prisma/client";
+import type { ReactNode } from "react";
 
 // Enhanced Theme type with better type safety
 export type Theme = {
@@ -11,7 +12,14 @@ export type Theme = {
 };
 
 // Utility types for better type safety
-export type SocialPlatform = "facebook" | "instagram" | "twitter" | "linkedin" | "youtube" | "mail" | "snapchat";
+export type SocialPlatform =
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "linkedin"
+  | "youtube"
+  | "mail"
+  | "snapchat";
 
 export type SocialPlatformConfig = {
   readonly iconName: string;
@@ -33,6 +41,9 @@ export type CachedLink = {
   readonly id: string;
   readonly title: string;
   readonly url: string;
+  readonly style?: string | null;
+  readonly icon?: string | null;
+  readonly image?: string | null;
   readonly position: number;
   readonly isPublic: boolean;
 };
@@ -69,8 +80,8 @@ export type ProfileSectionProps = {
   readonly name: string | null;
   readonly username: string;
   readonly bio: string | null;
-  readonly logo: string | null;
   readonly theme: Theme;
+  readonly children?: ReactNode;
 };
 
 export type GalleryFooterProps = {

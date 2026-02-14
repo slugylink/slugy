@@ -49,7 +49,7 @@ export async function PATCH(
     }
 
     // Check file size (200KB)
-    if (file.size > 200 * 1024) {
+    if (file.size > 512 * 1024) {
       return NextResponse.json(
         { message: "File size should be less than 200KB" },
         { status: 400 },
@@ -97,7 +97,7 @@ export async function PATCH(
 
     // Invalidate both caches: public gallery + admin dashboard
     await Promise.all([
-      invalidateBioCache.profile(params.username),           // Public cache
+      invalidateBioCache.profile(params.username), // Public cache
       invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
     ]);
 

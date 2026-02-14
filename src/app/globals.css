@@ -297,3 +297,21 @@
 .animate-shiny-text {
   animation: shiny-text 1.8s ease-in-out infinite;
 }
+
+
+html::-webkit-scrollbar {
+  width: 4px !important;
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: #a1a1aa;
+  border-radius: 9999px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}

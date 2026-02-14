@@ -5,7 +5,7 @@ import MaxWidthContainer from "@/components/max-width-container";
 import PricingComparator from "@/components/pricing-comparator";
 export default function PricingSection() {
   return (
-    <section className="mt-20 pb-14 sm:pb-20">
+    <section className="!mt-[165px] pb-14 sm:pb-20">
       <MaxWidthContainer>
         <div className="mb-20 text-center">
           <h2 className="text-2xl font-medium text-balance sm:text-4xl">

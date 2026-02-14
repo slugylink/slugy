@@ -92,7 +92,7 @@ const OpenSource = dynamic(() => import("./_components/open-source"), {
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-x-hidden">
+    <main className="mt-[65px] min-h-screen overflow-x-hidden">
       {/* Hero Section */}
       <div className="relative mx-auto w-[99%] rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16">
         <div className="z-20 mx-auto max-w-6xl py-4">

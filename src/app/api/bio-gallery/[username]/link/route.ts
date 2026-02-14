@@ -10,6 +10,7 @@ import { validateUrlSafety } from "@/server/actions/url-scan";
 const createLinkSchema = z.object({
   title: z.string().max(100),
   url: z.string().url(),
+  style: z.enum(["link", "feature", "feature-grid-2"]).optional(),
 });
 
 // * add/create link to bio gallery [useranme]:
@@ -34,7 +35,7 @@ export async function POST(
       );
     }
 
-    const { title, url } = parseResult.data;
+    const { title, url, style } = parseResult.data;
 
     const gallery = await db.bio.findFirst({
       where: {
@@ -51,15 +52,22 @@ export async function POST(
     });
 
     if (!gallery) {
-      return NextResponse.json({ error: "Bio gallery not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Bio gallery not found" },
+        { status: 404 },
+      );
     }
 
     // Check gallery link limit
-    const limitResult = await checkBioGalleryLinkLimit(session.user.id, gallery.id);
+    const limitResult = await checkBioGalleryLinkLimit(
+      session.user.id,
+      gallery.id,
+    );
     if (!limitResult.canCreate) {
       return NextResponse.json(
         {
-          error: "You have reached the maximum number of links for this bio gallery.",
+          error:
+            "You have reached the maximum number of links for this bio gallery.",
           code: "limit_exceeded",
           limitInfo: {
             currentLinks: limitResult.currentCount,
@@ -78,15 +86,22 @@ export async function POST(
         const threats = safetyResult.threats || [];
         return NextResponse.json(
           {
-            error: `Unsafe URL detected - contains ${threats.map(t => {
-              switch (t) {
-                case "MALWARE": return "malware";
-                case "SOCIAL_ENGINEERING": return "phishing";
-                case "UNWANTED_SOFTWARE": return "unwanted software";
-                case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
-                default: return "security threat";
-              }
-            }).join(", ")}`,
+            error: `Unsafe URL detected - contains ${threats
+              .map((t) => {
+                switch (t) {
+                  case "MALWARE":
+                    return "malware";
+                  case "SOCIAL_ENGINEERING":
+                    return "phishing";
+                  case "UNWANTED_SOFTWARE":
+                    return "unwanted software";
+                  case "POTENTIALLY_HARMFUL_APPLICATION":
+                    return "potentially harmful application";
+                  default:
+                    return "security threat";
+                }
+              })
+              .join(", ")}`,
             code: "unsafe_url",
           },
           { status: 400 },
@@ -101,6 +116,7 @@ export async function POST(
       data: {
         title: title,
         url: url,
+        style: style ?? "link",
         bioId: gallery.id,
         position: 0,
       },
@@ -110,7 +126,9 @@ export async function POST(
   } catch (error) {
     console.error("Error creating link:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Internal server error" },
+      {
+        error: error instanceof Error ? error.message : "Internal server error",
+      },
       { status: 500 },
     );
   }

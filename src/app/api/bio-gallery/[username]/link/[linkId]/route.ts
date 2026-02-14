@@ -5,6 +5,13 @@ import { NextResponse } from "next/server";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
+import { z } from "zod";
+
+const updateLinkSchema = z.object({
+  title: z.string().min(1).max(100),
+  url: z.string().url(),
+  style: z.enum(["link", "feature", "feature-grid-2"]).optional(),
+});
 
 //* Update link
 export async function PUT(
@@ -40,16 +47,23 @@ export async function PUT(
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
 
-  const { title, url } = (await req.json()) as { title: string; url: string };
+  const body = (await req.json()) as unknown;
+  const parsedBody = updateLinkSchema.safeParse(body);
+
+  if (!parsedBody.success) {
+    return NextResponse.json(
+      { error: "Invalid input", errors: parsedBody.error.errors },
+      { status: 400 },
+    );
+  }
+
+  const { title, url, style } = parsedBody.data;
 
   // Validate URL format
   try {
     new URL(url);
   } catch {
-    return NextResponse.json(
-      { error: "Invalid URL format" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid URL format" }, { status: 400 });
   }
 
   // Check URL safety
@@ -59,15 +73,22 @@ export async function PUT(
       const threats = safetyResult.threats || [];
       return NextResponse.json(
         {
-          error: `Unsafe URL detected - contains ${threats.map(t => {
-            switch (t) {
-              case "MALWARE": return "malware";
-              case "SOCIAL_ENGINEERING": return "phishing";
-              case "UNWANTED_SOFTWARE": return "unwanted software";
-              case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
-              default: return "security threat";
-            }
-          }).join(", ")}`,
+          error: `Unsafe URL detected - contains ${threats
+            .map((t) => {
+              switch (t) {
+                case "MALWARE":
+                  return "malware";
+                case "SOCIAL_ENGINEERING":
+                  return "phishing";
+                case "UNWANTED_SOFTWARE":
+                  return "unwanted software";
+                case "POTENTIALLY_HARMFUL_APPLICATION":
+                  return "potentially harmful application";
+                default:
+                  return "security threat";
+              }
+            })
+            .join(", ")}`,
           code: "unsafe_url",
         },
         { status: 400 },
@@ -80,12 +101,12 @@ export async function PUT(
 
   await db.bioLinks.update({
     where: { id: params.linkId },
-    data: { title, url },
+    data: { title, url, style: style ?? "link" },
   });
 
   // Invalidate both caches: public gallery + admin dashboard
   await Promise.all([
-    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioCache.links(params.username), // Public cache
     invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
   ]);
 
@@ -124,7 +145,7 @@ export async function DELETE(
 
   // Invalidate both caches: public gallery + admin dashboard
   await Promise.all([
-    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioCache.links(params.username), // Public cache
     invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
   ]);
 
@@ -153,7 +174,7 @@ export async function PATCH(
 
   // Invalidate both caches: public gallery + admin dashboard
   await Promise.all([
-    invalidateBioCache.links(params.username),           // Public cache
+    invalidateBioCache.links(params.username), // Public cache
     invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
   ]);
 

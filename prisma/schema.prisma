@@ -569,7 +569,10 @@ model BioLinks {
   id        String    @id @default(cuid())
   bioId     String
   title     String
+  icon      String?
+  image     String?
   url       String
+  style     String? // [link card, single feature (aspect-video), grid-2 feature (aspect-video)]
   clicks    Int       @default(0)
   isPublic  Boolean   @default(true)
   position  Int

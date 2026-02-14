@@ -10,7 +10,7 @@ const HomeLayout = async ({ children }: { children: React.ReactNode }) => {
   return (
     <main className="h-full flex-col bg-white dark:bg-[#121212]">
       <Navbar session={session} />
-      <div className="pt-[65px]">{children}</div>
+      <div className="">{children}</div>
       <Footer />
     </main>
   );
