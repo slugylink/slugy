@@ -142,32 +142,29 @@ export async function getBillingData(workspaceSlug: string) {
       };
     }
 
-    // Get subscription with plan (fresh data, not cached)
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
-    const plan = subscriptionResult.subscription?.plan;
-
-    // Get bio galleries count
-    const bioCount = await db.bio.count({
-      where: { userId },
-    });
-
-    // Get bio links usage (max links in any single bio)
-    const bioWithMostLinks = await db.bio.findFirst({
-      where: { userId },
-      select: {
-        _count: {
-          select: {
-            links: true,
+    const [subscriptionResult, bioCount, bioWithMostLinks] = await Promise.all([
+      getSubscriptionWithPlan(userId),
+      db.bio.count({
+        where: { userId },
+      }),
+      db.bio.findFirst({
+        where: { userId },
+        select: {
+          _count: {
+            select: {
+              links: true,
+            },
+          },
+          maxLinksLimit: true,
+        },
+        orderBy: {
+          links: {
+            _count: "desc",
           },
         },
-        maxLinksLimit: true,
-      },
-      orderBy: {
-        links: {
-          _count: "desc",
-        },
-      },
-    });
+      }),
+    ]);
+    const plan = subscriptionResult.subscription?.plan;
 
     // If user has a plan and workspace/bio limits don't match plan, sync (fixes Pro limits after seed update)
     if (

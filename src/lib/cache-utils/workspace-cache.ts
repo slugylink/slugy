@@ -23,6 +23,11 @@ type WorkspaceLimitsCacheType = {
   clicksTracked: number;
 } | null;
 
+type WorkspaceValidationCacheResult = {
+  hasValue: boolean;
+  workspace: WorkspaceCacheType;
+};
+
 // Type guards
 function isWorkspaceCacheType(obj: unknown): obj is WorkspaceCacheType {
   if (!obj || typeof obj !== "object") return false;
@@ -45,7 +50,7 @@ function isWorkspaceWithRoleCacheType(
     typeof workspace.name === "string" &&
     typeof workspace.slug === "string" &&
     "logo" in workspace &&
-    typeof workspace.userRole === "string"
+    (typeof workspace.userRole === "string" || workspace.userRole === null)
   );
 }
 
@@ -143,12 +148,25 @@ export async function setAllWorkspacesCache(
 export async function getWorkspaceValidationCache(
   userId: string,
   slug: string,
-): Promise<WorkspaceCacheType> {
+): Promise<WorkspaceValidationCacheResult> {
   try {
     const cached = await redis.get(`workspace:validate:${userId}:${slug}`);
-    return parseCachedData(cached, isWorkspaceCacheType);
+    if (cached === null || cached === undefined) {
+      return { hasValue: false, workspace: null };
+    }
+
+    if (cached === "null") {
+      return { hasValue: true, workspace: null };
+    }
+
+    const parsed = parseCachedData(cached, isWorkspaceCacheType);
+    if (parsed !== null) {
+      return { hasValue: true, workspace: parsed };
+    }
+
+    return { hasValue: false, workspace: null };
   } catch {
-    return null;
+    return { hasValue: false, workspace: null };
   }
 }
 
