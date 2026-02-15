@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { Providers } from "./provider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
-import { Metadata } from "next";
+export { metadata } from "./metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,132 +21,6 @@ const geistMono = Geist_Mono({
   preload: true,
   display: "swap",
 });
-
-export const metadata: Metadata = {
-  // Primary metadata
-  title: {
-    default: "Slugy - Open Source URL Shortener with Advanced Analytics",
-    template: "%s | Slugy",
-  },
-  description:
-    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with avanced analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
-
-  // Enhanced keywords for better SEO
-  keywords: [
-    "URL shortener",
-    "short links",
-    "link management",
-    "link analytics",
-    "link-in-bio",
-    "custom domains",
-    "open source URL shortener",
-    "free URL shortener",
-    "bitly alternative",
-    "dub alternative",
-    "tinyurl alternative",
-    "link tracking",
-    "QR codes",
-    "QR code generator",
-    "branded links",
-    "team collaboration",
-    "link monitoring",
-    "click tracking",
-    "UTM builder",
-    "link shortener with analytics",
-    "custom short links",
-    "bio link tool",
-    "link management platform",
-  ].join(", "),
-
-  // Author and publication info
-  authors: [
-    { name: "Sandip Sarkar", url: "https://slugy.co/" },
-    { name: "Sandip Sarkar", url: "https://sandipsarkar.dev/" },
-  ],
-  creator: "Slugy Team",
-  publisher: "Slugy",
-  category: "Technology",
-  // Comprehensive icon configuration
-  icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
-      {
-        url: "/web-app-manifest-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/web-app-manifest-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
-    other: [
-      { rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#000000" },
-    ],
-  },
-
-  // Enhanced Open Graph
-  openGraph: {
-    type: "website",
-    siteName: "Slugy",
-    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
-    description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with advanced analytics, link-in-bio pages, custom domains, and team collaboration. Start shortening links for free today!",
-    url: "https://slugy.co/",
-    locale: "en_US",
-    alternateLocale: ["en_GB", "en_CA"],
-    images: [
-      {
-        url: "https://files.slugy.co/slugy.png",
-        width: 1139,
-        height: 712,
-        alt: "Slugy Dashboard - Create custom short links with analytics, QR codes, and link-in-bio pages. Get started for free!",
-        type: "image/png",
-      },
-    ],
-  },
-
-  // Enhanced Twitter Card
-  twitter: {
-    card: "summary_large_image",
-    site: "@slugy",
-    creator: "@sandip_dev_07",
-    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
-    description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with advanced analytics, link-in-bio pages, and custom domains. Start shortening links for free today!",
-    images: {
-      url: "https://files.slugy.co/slugy.png",
-      alt: "Slugy Dashboard - Create custom short links with analytics, QR codes, and link-in-bio pages. Get started for free!",
-      width: 1139,
-      height: 712,
-    },
-  },
-
-  // Canonical and alternate URLs
-  alternates: {
-    canonical: "https://slugy.co/",
-    languages: {
-      "en-US": "https://slugy.co/",
-      "en-GB": "https://slugy.co/en-gb",
-    },
-  },
-
-  // App-specific metadata
-  applicationName: "Slugy",
-
-  // Additional structured data hints
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Slugy",
-    "mobile-web-app-capable": "yes",
-    "msapplication-TileColor": "#000000",
-  },
-};
 
 export default function RootLayout({
   children,

@@ -1,9 +1,8 @@
 import { type MetadataRoute } from "next";
-import { headers } from "next/headers";
 
-export default async function robots(): Promise<MetadataRoute.Robots> {
-  const headersList = await headers();
-  const domain = headersList.get("host") ?? "slugy.co";
+export default function robots(): MetadataRoute.Robots {
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
+  const baseUrl = `https://${rootDomain}`;
 
   return {
     rules: [
@@ -12,10 +11,10 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         allow: "/",
         disallow: [
           "/api/",
+          "/app/",
           "/admin/",
           "/_next/",
           "/private/",
-          "/*.json", // note: this disallows any URL ending with ".json"
           "/temp/",
         ],
       },
@@ -40,7 +39,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
         disallow: "/",
       },
     ],
-    sitemap: `https://${domain}/sitemap.xml`,
-    host: `https://${domain}`,
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   };
 }
