@@ -11,6 +11,7 @@ import {
   Check,
   Smartphone,
   Copy,
+  User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -140,7 +141,7 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
         variant="secondary"
         className="flex h-8 items-center gap-2 text-sm font-normal"
       >
-        @{username}
+        slugy.co/b/{username}
         <button
           className="flex cursor-pointer items-center justify-center focus:outline-none"
           onClick={handleCopy}
@@ -158,16 +159,6 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
       <div className="flex items-center gap-2">
         <GLinkDialogBox username={username} />
 
-        <Button
-          onClick={() => setIsSheetOpen(true)}
-          variant="outline"
-          size="icon"
-          className="h-9 w-9"
-          aria-label="Change theme"
-        >
-          <Paintbrush strokeWidth={1.5} className="h-4 w-4" />
-        </Button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -181,7 +172,7 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
-              <Settings className="mr-2 h-4 w-4" />
+              <User className="mr-2 h-4 w-4" />
               <span>Edit Bio</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setSocialOpen(true)}>
@@ -214,66 +205,6 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
         username={username}
         initialData={gallery.socials}
       />
-
-      {/* Theme Selection Sheet */}
-      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <SheetContent
-          side="left"
-          className="min-h-full w-full max-w-md overflow-y-auto"
-        >
-          <SheetHeader>
-            <SheetTitle className="text-xl font-medium">
-              Choose a Theme
-            </SheetTitle>
-          </SheetHeader>
-          <div className="grid grid-cols-3 gap-2 p-4 py-4 pr-2">
-            {themes.map((t) => (
-              <button
-                key={t.id}
-                className={cn(
-                  "group hover:border-primary relative mb-3 aspect-[9/14] overflow-hidden rounded-lg border-2 transition-all",
-                  t.id === theme
-                    ? "border-primary ring-primary ring-2 ring-offset-2"
-                    : "border-muted-foreground/20",
-                )}
-                onClick={() => handleThemeClick(t.id, theme)}
-                aria-label={`Select ${t.name} theme`}
-                aria-pressed={t.id === theme}
-              >
-                {/* Theme Preview */}
-                <div className={cn("h-full w-full", t.background)}>
-                  {/* Mock Content */}
-                  <div className="flex flex-col items-center gap-0.5 p-1.5">
-                    <div className="h-4 w-4 rounded-full bg-zinc-300/20" />
-                    <div className="h-2 w-8 rounded-full bg-zinc-300/20" />
-                    <div className="mt-1 space-y-0.5">
-                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
-                      <div className="h-4 w-full rounded-full bg-zinc-300/20" />
-                    </div>
-                  </div>
-                </div>
-                {/* Theme Name */}
-                <div
-                  className={cn(
-                    "absolute bottom-0.5 left-0.5 rounded bg-black/80 px-1 py-0.5 text-xs text-white",
-                    t.id === theme && "bg-primary",
-                  )}
-                >
-                  {t.name}
-                </div>
-                {/* Selected Check */}
-                {t.id === theme && (
-                  <div className="bg-primary absolute top-0.5 right-0.5 rounded-full p-0.5">
-                    <Check className="text-primary-foreground h-2.5 w-2.5" />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* Delete Gallery AlertDialog */}
       <AlertDialog
         open={deleteDialogOpen}
