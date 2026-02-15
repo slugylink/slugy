@@ -6,6 +6,7 @@ import { checkWorkspaceLimit } from "@/server/actions/limit";
 import { waitUntil } from "@vercel/functions";
 import { calculateUsagePeriod } from "@/lib/usage-period";
 import { revalidateTag, revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import {
   getDefaultWorkspaceCache,
   setDefaultWorkspaceCache,
@@ -44,20 +45,6 @@ export async function createWorkspace({
     }
 
     const userId = authResult.session.user.id;
-
-    // Check if workspace slug already exists
-    const existingWorkspace = await db.workspace.findUnique({
-      where: { slug },
-      select: { id: true },
-    });
-
-    if (existingWorkspace) {
-      return {
-        success: false,
-        error: "Workspace slug already exists!",
-        slugExists: true,
-      };
-    }
 
     // Check workspace limits before creating
     const limitCheck = await checkWorkspaceLimit(userId);
@@ -122,6 +109,17 @@ export async function createWorkspace({
 
     return { success: true, slug: workspace.slug };
   } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      return {
+        success: false,
+        error: "Workspace slug already exists!",
+        slugExists: true,
+      };
+    }
+
     console.error("Error creating workspace:", error);
     return {
       success: false,
@@ -170,52 +168,28 @@ export async function fetchAllWorkspaces(userId: string) {
       return { success: true, workspaces: cachedWorkspaces };
     }
 
-    const [ownedWorkspaces, memberWorkspaces] = await Promise.all([
-      db.workspace.findMany({
-        where: { userId },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          userId: true,
-          logo: true,
-          createdAt: true,
-          members: { select: { userId: true, role: true } },
+    const workspaces = await db.workspace.findMany({
+      where: {
+        OR: [{ userId }, { members: { some: { userId } } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        userId: true,
+        logo: true,
+        members: {
+          where: { userId },
+          select: { role: true },
+          take: 1,
         },
-        orderBy: { createdAt: "asc" },
-      }),
-      db.workspace.findMany({
-        where: { members: { some: { userId } } },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          userId: true,
-          logo: true,
-          createdAt: true,
-          members: { select: { userId: true, role: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      }),
-    ]);
-
-    // Merge and deduplicate workspaces
-    const workspaceMap = new Map(ownedWorkspaces.map((ws) => [ws.id, ws]));
-    memberWorkspaces.forEach((ws) => {
-      if (!workspaceMap.has(ws.id)) {
-        workspaceMap.set(ws.id, ws);
-      }
+      },
+      orderBy: { createdAt: "asc" },
     });
-
-    const workspaces = Array.from(workspaceMap.values()).sort(
-      (a, b) => a.createdAt.getTime() - b.createdAt.getTime(),
-    );
 
     const workspacesWithRoles = workspaces.map((workspace) => {
       const isOwner = workspace.userId === userId;
-      const memberRole = workspace.members.find(
-        (m) => m.userId === userId,
-      )?.role;
+      const memberRole = workspace.members[0]?.role;
 
       return {
         id: workspace.id,
@@ -237,11 +211,14 @@ export async function fetchAllWorkspaces(userId: string) {
 
 export async function validateWorkspaceSlug(userId: string, slug: string) {
   try {
-    const cachedWorkspace = await getWorkspaceValidationCache(userId, slug);
-    if (cachedWorkspace !== null) {
+    const cachedWorkspaceResult = await getWorkspaceValidationCache(
+      userId,
+      slug,
+    );
+    if (cachedWorkspaceResult.hasValue) {
       return {
-        success: !!cachedWorkspace,
-        workspace: cachedWorkspace,
+        success: !!cachedWorkspaceResult.workspace,
+        workspace: cachedWorkspaceResult.workspace,
       };
     }
 

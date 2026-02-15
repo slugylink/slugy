@@ -18,6 +18,7 @@ interface HeadNodes {
   metaTags: MetaTag[];
   title: string | undefined;
   linkTags: LinkTag[];
+  bodyText?: string;
 }
 
 interface MetadataResult {
@@ -32,30 +33,26 @@ interface MetadataResult {
 
 const CACHE_MAX_SIZE = 1_000;
 const CACHE_EVICT_PCT = 0.2;
-const REQUEST_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 10_000; // Increased to 10s
 const CACHE_REVALIDATE_SECONDS = 3600;
 
-const USER_AGENT = "Mozilla/5.0 (compatible; SlugyBot/1.0; +https://slugy.co)";
-const ACCEPT_HEADER = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
+const USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const ACCEPT_HEADER =
+  "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8";
 
 // ============================================================================
 // In-Memory Caches
 // ============================================================================
 
-const headNodesCache = new Map<string, HeadNodes>();
 const metadataCache = new Map<string, MetadataResult>();
 
 function cleanupCache(): void {
   const evictCount = Math.floor(CACHE_MAX_SIZE * CACHE_EVICT_PCT);
 
-  if (headNodesCache.size > CACHE_MAX_SIZE) {
-    const keysToDelete = Array.from(headNodesCache.keys()).slice(0, evictCount);
-    keysToDelete.forEach(key => headNodesCache.delete(key));
-  }
-
   if (metadataCache.size > CACHE_MAX_SIZE) {
     const keysToDelete = Array.from(metadataCache.keys()).slice(0, evictCount);
-    keysToDelete.forEach(key => metadataCache.delete(key));
+    keysToDelete.forEach((key) => metadataCache.delete(key));
   }
 }
 
@@ -71,7 +68,6 @@ export function isValidUrl(str: string): boolean {
       new URL(str);
       return true;
     }
-    // Basic domain validation (with optional path)
     return /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(str);
   } catch {
     return false;
@@ -82,16 +78,18 @@ function getSafeHostname(url: string): string {
   try {
     return new URL(url).hostname;
   } catch {
-    // Fallback parsing for malformed URLs
     const match = url.match(/^https?:\/\/([^\/]+)/);
     if (match) return match[1];
-    
-    const cleaned = url.replace(/^https?:\/\//, '').split('/')[0];
-    return cleaned || 'unknown-host';
+
+    const cleaned = url.replace(/^https?:\/\//, "").split("/")[0];
+    return cleaned || "unknown-host";
   }
 }
 
-export function getRelativeUrl(baseUrl: string, imageUrl: string | null): string | null {
+export function getRelativeUrl(
+  baseUrl: string,
+  imageUrl: string | null,
+): string | null {
   if (!imageUrl?.trim()) return null;
   if (imageUrl.startsWith("data:")) return imageUrl;
   if (isValidUrl(imageUrl)) return imageUrl;
@@ -116,140 +114,221 @@ export async function getHtml(url: string): Promise<string | null> {
     const response = await fetch(url, {
       headers: {
         "User-Agent": USER_AGENT,
-        "Accept": ACCEPT_HEADER,
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate",
-        "DNT": "1",
-        "Connection": "keep-alive",
+        Accept: ACCEPT_HEADER,
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "Cache-Control": "no-cache",
+        DNT: "1",
+        Connection: "keep-alive",
         "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
       },
       signal: controller.signal,
       next: { revalidate: CACHE_REVALIDATE_SECONDS },
+      redirect: "follow",
     });
 
     clearTimeout(timeout);
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      console.warn(`HTTP ${response.status} for ${url}`);
+      // Don't throw on 4xx/5xx, return null instead
+      return null;
     }
 
     const contentType = response.headers.get("content-type") || "";
-    if (!/text\/html|application\/xhtml\+xml/.test(contentType)) {
-      throw new Error("Not an HTML document");
+    if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
+      console.warn(`Non-HTML content type for ${url}: ${contentType}`);
+      return null;
     }
 
-    return await response.text();
-    
+    const html = await response.text();
+
+    // Check if we got valid HTML
+    if (!html || html.length < 100) {
+      console.warn(`Empty or too short HTML for ${url}`);
+      return null;
+    }
+
+    return html;
   } catch (error) {
     if (error instanceof Error) {
-      switch (true) {
-        case error.name === 'AbortError':
-          console.warn(`Request timeout for ${url}`);
-          break;
-        case error.message.includes('ENOTFOUND') || error.message.includes('getaddrinfo'):
-          console.warn(`DNS resolution failed for ${url}`);
-          break;
-        case error.message.includes('ECONNREFUSED'):
-          console.warn(`Connection refused for ${url}`);
-          break;
-        default:
-          console.warn(`Failed to fetch ${url}: ${error.message}`);
+      if (error.name === "AbortError") {
+        console.warn(`Request timeout for ${url}`);
+      } else {
+        console.warn(`Failed to fetch ${url}: ${error.message}`);
       }
-    } else {
-      console.warn(`Unknown error fetching ${url}:`, error);
     }
     return null;
   }
 }
 
 // ============================================================================
-// HTML Parsing
+// HTML Parsing - Enhanced
 // ============================================================================
 
-export function getHeadChildNodes(html: string): HeadNodes {
-  if (headNodesCache.has(html)) {
-    return headNodesCache.get(html)!;
+function extractFromElement(
+  element: any,
+  selectors: string[],
+): string | undefined {
+  for (const selector of selectors) {
+    const el = element.querySelector(selector);
+    if (el) {
+      const content = el.getAttribute("content") || el.textContent || el.text;
+      const trimmed = content?.trim();
+      if (trimmed && trimmed.length > 0) {
+        return trimmed;
+      }
+    }
   }
+  return undefined;
+}
 
-  const ast = parse(html);
-  const head = ast.querySelector("head") || ast;
+export function parseMetadata(html: string, baseUrl: string): MetadataResult {
+  const hostname = getSafeHostname(baseUrl);
 
-  // Extract meta tags
-  const metaTags = head
-    .querySelectorAll("meta")
-    .map(m => {
-      const { property, name, content } = m.attributes;
-      return {
-        property: property ?? name ?? "",
-        content: content ?? "",
-      };
-    })
-    .filter(({ property, content }) => property && content);
+  try {
+    const root = parse(html, {
+      blockTextElements: {
+        script: false,
+        noscript: false,
+        style: false,
+      },
+    });
 
-  // Extract title (with fallbacks)
-  const title =
-    head.querySelector("title")?.text?.trim() ||
-    head.querySelector('meta[property="og:title"]')?.getAttribute("content")?.trim() ||
-    head.querySelector('meta[name="twitter:title"]')?.getAttribute("content")?.trim();
+    const head = root.querySelector("head");
+    const body = root.querySelector("body");
 
-  // Extract link tags
-  const linkTags = head
-    .querySelectorAll("link")
-    .map(l => {
-      const { rel, href } = l.attributes;
-      return { rel: rel ?? "", href: href ?? "" };
-    })
-    .filter(({ rel, href }) => rel && href);
+    // Extract all meta tags
+    const metaTags = new Map<string, string>();
 
-  const nodes = { metaTags, title, linkTags };
-  headNodesCache.set(html, nodes);
-  cleanupCache();
-  
-  return nodes;
+    // Get all meta tags
+    root.querySelectorAll("meta").forEach((meta) => {
+      const property = (
+        meta.getAttribute("property") ||
+        meta.getAttribute("name") ||
+        ""
+      ).toLowerCase();
+      const content = meta.getAttribute("content");
+
+      if (property && content) {
+        // Prioritize og: and twitter: tags
+        if (
+          !metaTags.has(property) ||
+          property.startsWith("og:") ||
+          property.startsWith("twitter:")
+        ) {
+          metaTags.set(property, content);
+        }
+      }
+    });
+
+    // Extract title with multiple fallbacks
+    let title: string | undefined;
+
+    // Try meta tags first
+    title =
+      metaTags.get("og:title") ||
+      metaTags.get("twitter:title") ||
+      metaTags.get("title");
+
+    // Try title tag
+    if (!title && head) {
+      const titleEl = head.querySelector("title");
+      if (titleEl) {
+        title = titleEl.textContent?.trim() || titleEl.text?.trim();
+      }
+    }
+
+    // Try title tag in root
+    if (!title) {
+      const titleEl = root.querySelector("title");
+      if (titleEl) {
+        title = titleEl.textContent?.trim() || titleEl.text?.trim();
+      }
+    }
+
+    // Try h1 as last resort
+    if (!title && body) {
+      const h1 = body.querySelector("h1");
+      if (h1) {
+        title = h1.textContent?.trim() || h1.text?.trim();
+      }
+    }
+
+    // Extract description
+    let description: string | undefined;
+
+    description =
+      metaTags.get("og:description") ||
+      metaTags.get("twitter:description") ||
+      metaTags.get("description");
+
+    // Extract image
+    let image: string | null = null;
+
+    const imageCandidates = [
+      metaTags.get("og:image"),
+      metaTags.get("og:image:url"),
+      metaTags.get("og:image:secure_url"),
+      metaTags.get("twitter:image"),
+      metaTags.get("twitter:image:src"),
+    ];
+
+    for (const candidate of imageCandidates) {
+      if (candidate) {
+        const resolvedImage = getRelativeUrl(baseUrl, candidate);
+        if (resolvedImage && resolvedImage.length > 0) {
+          image = resolvedImage;
+          break;
+        }
+      }
+    }
+
+    // Try link tags for favicon if no image
+    if (!image) {
+      const linkTags = root.querySelectorAll("link");
+      for (const link of linkTags) {
+        const rel = (link.getAttribute("rel") || "").toLowerCase();
+        const href = link.getAttribute("href");
+
+        if (
+          href &&
+          (rel.includes("icon") || rel.includes("apple-touch-icon"))
+        ) {
+          const resolvedImage = getRelativeUrl(baseUrl, href);
+          if (resolvedImage) {
+            image = resolvedImage;
+            break;
+          }
+        }
+      }
+    }
+
+    return {
+      title: title || hostname,
+      description: description || "No description available",
+      image,
+    };
+  } catch (error) {
+    console.warn(`Error parsing HTML for ${baseUrl}:`, error);
+    return {
+      title: hostname,
+      description: "No description available",
+      image: null,
+    };
+  }
 }
 
 // ============================================================================
-// Metadata Extraction
+// Metadata Fetching
 // ============================================================================
-
-function extractMetadata(
-  metaMap: Map<string, string>,
-  titleTag: string | undefined,
-  url: string,
-): MetadataResult {
-  const fallbackTitle = getSafeHostname(url);
-
-  const title =
-    metaMap.get("og:title") ||
-    metaMap.get("twitter:title") ||
-    metaMap.get("title") ||
-    titleTag ||
-    fallbackTitle;
-
-  const description =
-    metaMap.get("og:description") ||
-    metaMap.get("twitter:description") ||
-    metaMap.get("description") ||
-    "No description available";
-
-  const image =
-    metaMap.get("og:image") ||
-    metaMap.get("twitter:image") ||
-    metaMap.get("image") ||
-    metaMap.get("image_src") ||
-    metaMap.get("icon") ||
-    metaMap.get("shortcut icon");
-
-  return {
-    title: title.trim(),
-    description: description.trim(),
-    image: getRelativeUrl(url, image ?? null),
-  };
-}
 
 async function fetchMetadata(fetchUrl: string): Promise<MetadataResult> {
   const html = await getHtml(fetchUrl);
-  
+
   if (!html) {
     return {
       title: getSafeHostname(fetchUrl),
@@ -258,45 +337,22 @@ async function fetchMetadata(fetchUrl: string): Promise<MetadataResult> {
     };
   }
 
-  const { metaTags, title: titleTag, linkTags } = getHeadChildNodes(html);
-  const metaMap = new Map<string, string>();
-
-  // Populate meta map with priority to OG and Twitter tags
-  for (const { property, content } of metaTags) {
-    const key = property.toLowerCase();
-    const shouldOverride =
-      !metaMap.has(key) || 
-      key.includes("og:") || 
-      key.includes("twitter:");
-    
-    if (shouldOverride) {
-      metaMap.set(key, content);
-    }
-  }
-
-  // Add link tags to meta map
-  for (const { rel, href } of linkTags) {
-    if (!metaMap.has(rel)) {
-      metaMap.set(rel, href);
-    }
-  }
-
-  return extractMetadata(metaMap, titleTag, fetchUrl);
+  return parseMetadata(html, fetchUrl);
 }
 
-function createFallbackMetadata(url: string): MetadataResult {
-  return {
-    title: getSafeHostname(url),
-    description: "No description available",
-    image: null,
-  };
-}
-
-function isEmptyMetadata(metadata: MetadataResult, hostname: string): boolean {
+function hasMinimalMetadata(
+  metadata: MetadataResult,
+  hostname: string,
+): boolean {
+  // Consider metadata sufficient if we have:
+  // 1. A title that's different from hostname
+  // 2. OR we have a description that's not the default
+  // 3. OR we have an image
   return (
-    metadata.title === hostname &&
-    metadata.description === "No description available" &&
-    !metadata.image
+    (metadata.title !== hostname && metadata.title.length > 0) ||
+    (metadata.description !== "No description available" &&
+      metadata.description.length > 0) ||
+    metadata.image !== null
   );
 }
 
@@ -325,35 +381,55 @@ export async function getMetaTags(url: string): Promise<MetadataResult> {
     const metadata = await fetchMetadata(normalizedUrl);
     const hostname = getSafeHostname(normalizedUrl);
 
-    // If metadata is empty, try root domain as fallback
-    if (isEmptyMetadata(metadata, hostname)) {
+    // If metadata is minimal, try root domain as fallback
+    if (!hasMinimalMetadata(metadata, hostname)) {
       try {
-        const rootDomain = new URL(normalizedUrl).origin;
-        
-        if (rootDomain !== normalizedUrl) {
-          console.warn(`No metadata found for ${normalizedUrl}. Trying root domain.`);
+        const urlObj = new URL(normalizedUrl);
+        const rootDomain = urlObj.origin;
+
+        // Only try root domain if we're on a subpath
+        if (
+          rootDomain !== normalizedUrl &&
+          urlObj.pathname !== "/" &&
+          urlObj.pathname !== ""
+        ) {
+          console.log(
+            `Minimal metadata for ${normalizedUrl}. Trying root domain: ${rootDomain}`,
+          );
+
           const rootMeta = await fetchMetadata(rootDomain);
-          
-          // Cache both results
-          metadataCache.set(cacheKey, metadata);
-          metadataCache.set(rootDomain.toLowerCase(), rootMeta);
-          
-          return rootMeta;
+
+          // Use root metadata if it's better
+          if (hasMinimalMetadata(rootMeta, hostname)) {
+            metadataCache.set(cacheKey, rootMeta);
+            metadataCache.set(rootDomain.toLowerCase(), rootMeta);
+            cleanupCache();
+            return rootMeta;
+          }
         }
       } catch (urlError) {
-        console.warn(`Failed to parse root domain for ${normalizedUrl}:`, urlError);
+        console.warn(
+          `Failed to try root domain for ${normalizedUrl}:`,
+          urlError,
+        );
       }
     }
 
     metadataCache.set(cacheKey, metadata);
+    cleanupCache();
     return metadata;
-    
   } catch (error) {
-    console.warn(`Error in getMetaTags for ${normalizedUrl}:`, error);
-    
-    const fallback = createFallbackMetadata(normalizedUrl);
+    console.error(`Error in getMetaTags for ${normalizedUrl}:`, error);
+
+    const fallback = {
+      title: getSafeHostname(normalizedUrl),
+      description: "No description available",
+      image: null,
+    };
+
     metadataCache.set(cacheKey, fallback);
-    
+    cleanupCache();
+
     return fallback;
   }
 }
