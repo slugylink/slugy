@@ -1,24 +1,11 @@
 import { type MetadataRoute } from "next";
-import { headers } from "next/headers";
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const headersList = await headers();
-  let domain = headersList.get("host") ?? "slugy.co";
-
-  // Normalize domain for development and preview environments
-  if (
-    domain === "localhost:3000" ||
-    domain.endsWith(".vercel.app") ||
-    domain.includes("preview")
-  ) {
-    domain = "slugy.co";
-  }
-
-  const baseUrl = `https://${domain}`;
+export default function sitemap(): MetadataRoute.Sitemap {
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
+  const baseUrl = `https://${rootDomain}`;
   const currentDate = new Date();
   const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Static pages with their priorities and update frequencies
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: baseUrl,
@@ -39,13 +26,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/expired`,
-      lastModified: currentDate,
+      url: `${baseUrl}/sponsors`,
+      lastModified: lastWeek,
       changeFrequency: "monthly",
-      priority: 0.3,
+      priority: 0.5,
     },
   ];
 
-  // Combine all sitemaps
   return [...staticPages];
 }

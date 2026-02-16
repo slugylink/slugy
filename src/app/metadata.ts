@@ -1,15 +1,18 @@
 import { Metadata } from "next";
 
+const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
+const BASE_URL = `https://${ROOT_DOMAIN}`;
+const OG_IMAGE_URL =
+  "https://res.cloudinary.com/dcsouj6ix/image/upload/v1771156577/slugy-meta-img_pjaerq.png";
+
 export const metadata: Metadata = {
-  // Primary metadata
+  metadataBase: new URL(BASE_URL),
   title: {
-    default: "Slugy - Simplify Links Like Magic",
+    default: "Slugy - Open Source URL Shortener with Advanced Analytics",
     template: "%s | Slugy",
   },
   description:
-    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with analytics, link-in-bio pages, custom domains, and team collaboration. Better than Bitly.",
-
-  // Enhanced keywords for better SEO
+    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with advanced analytics, link-in-bio pages, custom domains, and team collaboration.",
   keywords: [
     "URL shortener",
     "short links",
@@ -17,131 +20,86 @@ export const metadata: Metadata = {
     "link analytics",
     "link-in-bio",
     "custom domains",
-    "open source",
+    "open source URL shortener",
     "bitly alternative",
     "dub alternative",
     "tinyurl alternative",
     "link tracking",
-    "QR codes",
+    "QR code generator",
     "branded links",
     "team collaboration",
-    "link monitoring",
-  ].join(", "),
-
-  // Author and publication info
+  ],
   authors: [
-    { name: "Slugy Team", url: "https://slugy.co/" },
+    { name: "Slugy Team", url: BASE_URL },
     { name: "Sandip Sarkar", url: "https://sandipsarkar.dev/" },
   ],
   creator: "Slugy Team",
   publisher: "Slugy",
+  applicationName: "Slugy",
   category: "Technology",
-
-  // Technical metadata
-  viewport: "width=device-width, initial-scale=1.0, viewport-fit=cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#000000" },
-  ],
-  colorScheme: "light dark",
-
-  // Enhanced robots configuration
+  referrer: "origin-when-cross-origin",
   robots: {
     index: true,
     follow: true,
-    nocache: false,
     googleBot: {
       index: true,
       follow: true,
-      noimageindex: false,
       "max-video-preview": -1,
       "max-image-preview": "large",
       "max-snippet": -1,
     },
   },
-
-  // Comprehensive icon configuration
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
-      { url: "/icon.png", sizes: "192x192", type: "image/png" },
-      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: "/web-app-manifest-192x192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/web-app-manifest-512x512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
-    other: [
-      { rel: "mask-icon", url: "/safari-pinned-tab.svg", color: "#000000" },
-    ],
   },
-
-  // Web app manifest
-  manifest: "/site.webmanifest",
-
-  // Enhanced Open Graph
+  manifest: "/manifest.webmanifest",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     type: "website",
+    url: BASE_URL,
     siteName: "Slugy",
-    title: "Slugy - Simplify Links Like Magic",
+    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
       "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, custom domains, and team collaboration.",
-    url: "https://slugy.co/",
     locale: "en_US",
-    alternateLocale: ["en_GB", "en_CA"],
     images: [
       {
-        url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
-        width: 1200,
-        height: 630,
-        alt: "Slugy - Open Source URL Shortener Platform",
-        type: "image/png",
-      },
-      {
-        url: "https://slugy.co/og-square.png",
-        width: 400,
-        height: 400,
-        alt: "Slugy Logo",
-        type: "image/png",
+        url: OG_IMAGE_URL,
+        alt: "Slugy - Open Source URL Shortener",
       },
     ],
   },
-
-  // Enhanced Twitter Card
   twitter: {
     card: "summary_large_image",
     site: "@slugy",
     creator: "@sandip_dev_07",
-    title: "Slugy – Simplify Links Like Magic",
+    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
       "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, and custom domains.",
-    images: {
-      url: "https://opengraph.b-cdn.net/production/images/0ce10001-2b82-4aa0-8ea0-dd81a5d4f3c9.png?token=QDDzSWuUwEWwkS7QJQowUAgJlPFSc7Bsxl4zOUPQ9Ao&height=630&width=1200&expires=33283747365",
-      alt: "Slugy - Open Source URL Shortener Platform",
-      width: 1200,
-      height: 630,
-    },
+    images: [OG_IMAGE_URL],
   },
-
-  // Canonical and alternate URLs
-  alternates: {
-    canonical: "https://slugy.co/",
-    languages: {
-      "en-US": "https://slugy.co/",
-      "en-GB": "https://slugy.co/en-gb",
-    },
-  },
-
-  // App-specific metadata
-  applicationName: "Slugy",
-  referrer: "origin-when-cross-origin",
-
-  // Additional structured data hints
   other: {
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
     "apple-mobile-web-app-title": "Slugy",
     "mobile-web-app-capable": "yes",
     "msapplication-TileColor": "#000000",
-    "msapplication-config": "/browserconfig.xml",
   },
 };

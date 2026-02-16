@@ -1,6 +1,9 @@
 import { type MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
+  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
+  const baseUrl = `https://${rootDomain}`;
+
   return {
     name: "Slugy - Link Management Platform",
     short_name: "Slugy",
@@ -49,7 +52,7 @@ export default function manifest(): MetadataRoute.Manifest {
     related_applications: [
       {
         platform: "web",
-        url: "https://slugy.co/",
+        url: baseUrl,
         id: "slugy-web-app",
       },
     ],
