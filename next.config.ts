@@ -1,6 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: import("next").NextConfig = {
+  reactCompiler: true,
+
   images: {
     remotePatterns: [
       // CDN and storage services
