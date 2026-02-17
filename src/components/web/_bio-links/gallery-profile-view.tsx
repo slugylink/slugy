@@ -121,18 +121,14 @@ export default function GalleryProfileView({
               priority={!isPreview}
               sizes={"(max-width: 768px) 100vw, 680px"}
             />
-            {isPreview && (
-              <>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={handleImageUpload}
-                  disabled={isUploadingImage}
-                />
-              </>
-            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleImageUpload}
+              disabled={isUploadingImage}
+            />
           </div>
 
           <div className={"relative z-[5] -mt-[360px] h-[360px]"}>
@@ -146,7 +142,7 @@ export default function GalleryProfileView({
             </ProfileSection>
           </div>
 
-          <div className="absolute top-[60%] left-1/2 z-10 -mt-[360px] flex h-[100px] -translate-x-1/2 items-center justify-center">
+          <div className="absolute bottom-[65%] left-1/2 z-20! -mt-[360px] flex h-[100px] -translate-x-1/2 items-center justify-center">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
