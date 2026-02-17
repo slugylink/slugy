@@ -106,7 +106,8 @@ function FeatureCard({ link }: { link: LinkItem }) {
         aria-hidden="true"
         loading="lazy"
         decoding="async"
-        className="h-full w-full object-cover"
+        fetchPriority="low"
+        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
       />
 
       {/* Gradient overlay */}

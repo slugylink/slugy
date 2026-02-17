@@ -9,6 +9,9 @@ import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
 import type { GalleryData, Theme } from "@/types/bio-links";
 
+const IMAGE_BLUR_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHdpZHRoPSc0MCcgaGVpZ2h0PSc2MCcgdmlld0JveD0nMCAwIDQwIDYwJz48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9J2cnIHgxPScwJScgeTE9JzAlJyB4Mj0nMTAwJScgeTI9JzEwMCUnPjxzdG9wIHN0b3AtY29sb3I9JyMxMTExMTEnIG9mZnNldD0nMCUnLz48c3RvcCBzdG9wLWNvbG9yPScjMWMxYzFjJyBvZmZzZXQ9JzEwMCUnLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0nNDAnIGhlaWdodD0nNjAnIGZpbGw9J3VybCgjZyknLz48L3N2Zz4=";
+
 // ─── Animation Helpers ────────────────────────────────────────────────────────
 
 export const fadeUp = (delay = 0) => ({
@@ -45,6 +48,9 @@ export default function GalleryLinksProfileClient({
           alt=""
           fill
           sizes="100vw"
+          quality={60}
+          placeholder="blur"
+          blurDataURL={IMAGE_BLUR_DATA_URL}
           className="scale-110 object-cover opacity-80 blur-2xl"
         />
       </div>
@@ -70,6 +76,9 @@ export default function GalleryLinksProfileClient({
               alt={`${gallery.name}'s profile`}
               fill
               priority
+              quality={75}
+              placeholder="blur"
+              blurDataURL={IMAGE_BLUR_DATA_URL}
               className="object-cover"
               sizes="(max-width: 768px) 100vw, 680px"
             />
