@@ -11,6 +11,7 @@ const updateLinkSchema = z.object({
   title: z.string().min(1).max(100),
   url: z.string().url(),
   style: z.enum(["link", "feature", "feature-grid-2"]).optional(),
+  image: z.string().url().nullable().optional(),
 });
 
 //* Update link
@@ -57,7 +58,7 @@ export async function PUT(
     );
   }
 
-  const { title, url, style } = parsedBody.data;
+  const { title, url, style, image } = parsedBody.data;
 
   // Validate URL format
   try {
@@ -101,7 +102,7 @@ export async function PUT(
 
   await db.bioLinks.update({
     where: { id: params.linkId },
-    data: { title, url, style: style ?? "link" },
+    data: { title, url, style: style ?? "link", image: image ?? null },
   });
 
   // Invalidate both caches: public gallery + admin dashboard

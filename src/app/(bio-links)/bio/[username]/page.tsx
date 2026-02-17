@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { db } from "@/server/db";
+import { cache } from "react";
 import { themes } from "@/constants/theme";
 import {
   DEFAULT_THEME_ID,
@@ -16,9 +16,10 @@ import type {
 import { getAvatarUrl, getDisplayName } from "@/utils/bio-links";
 import GalleryLinksProfileClient from "./page-client";
 
-const MAX_STATIC_PROFILES = 100;
 const MAX_BIO_LENGTH = 150;
 const SEO_BIO_TRUNCATE = 147;
+const GALLERY_FETCH_REVALIDATE_SECONDS = 60;
+const GALLERY_FETCH_TIMEOUT_MS = 8_000;
 
 function isGalleryData(data: unknown): data is GalleryData {
   if (!data || typeof data !== "object") {
@@ -54,48 +55,56 @@ async function getApiOrigin(): Promise<string> {
   return "";
 }
 
-async function getGallery(username: string): Promise<GalleryData | null> {
-  if (!username || typeof username !== "string") {
-    return null;
-  }
-
-  const normalizedUsername = username.toLowerCase().trim();
-  const path = `/api/public/bio-gallery/${encodeURIComponent(normalizedUsername)}`;
-
-  try {
-    let response: Response;
-
-    try {
-      response = await fetch(path);
-    } catch {
-      const apiOrigin = await getApiOrigin();
-      if (!apiOrigin) {
-        return null;
-      }
-      response = await fetch(`${apiOrigin}${path}`);
-    }
-
-    if (response.status === 404) {
+const getGallery = cache(
+  async (username: string): Promise<GalleryData | null> => {
+    if (!username || typeof username !== "string") {
       return null;
     }
 
-    if (!response.ok) {
+    const normalizedUsername = username.toLowerCase().trim();
+    const path = `/api/public/bio-gallery/${encodeURIComponent(normalizedUsername)}`;
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(
+        () => controller.abort(),
+        GALLERY_FETCH_TIMEOUT_MS,
+      );
+      let response: Response;
+      try {
+        const apiOrigin = await getApiOrigin();
+        const requestUrl = apiOrigin ? `${apiOrigin}${path}` : path;
+
+        response = await fetch(requestUrl, {
+          signal: controller.signal,
+          next: { revalidate: GALLERY_FETCH_REVALIDATE_SECONDS },
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        console.error(
+          `[Gallery] Public API error for ${normalizedUsername}: ${response.status}`,
+        );
+        return null;
+      }
+
+      const payload: unknown = await response.json();
+      return isGalleryData(payload) ? payload : null;
+    } catch (error) {
       console.error(
-        `[Gallery] Public API error for ${normalizedUsername}: ${response.status}`,
+        `[Gallery] Error fetching gallery via API for ${username}:`,
+        error,
       );
       return null;
     }
-
-    const payload: unknown = await response.json();
-    return isGalleryData(payload) ? payload : null;
-  } catch (error) {
-    console.error(
-      `[Gallery] Error fetching gallery via API for ${username}:`,
-      error,
-    );
-    return null;
-  }
-}
+  },
+);
 
 function getTheme(themeId: string | null | undefined): Theme {
   const theme =
@@ -141,33 +150,6 @@ export default async function GalleryLinksProfile({ params }: PageParams) {
   } catch (error) {
     console.error("Error rendering gallery profile:", error);
     notFound();
-  }
-}
-
-export async function generateStaticParams() {
-  try {
-    const popularProfiles = await db.bio.findMany({
-      where: {
-        links: {
-          some: {
-            isPublic: true,
-          },
-        },
-      },
-      select: {
-        username: true,
-      },
-      take: MAX_STATIC_PROFILES,
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
-
-    return popularProfiles.map((profile) => ({
-      username: profile.username,
-    }));
-  } catch {
-    return [];
   }
 }
 

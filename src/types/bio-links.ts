@@ -18,8 +18,32 @@ export type SocialPlatform =
   | "twitter"
   | "linkedin"
   | "youtube"
-  | "mail"
-  | "snapchat";
+  | "snapchat"
+  | "tiktok"
+  | "github"
+  | "discord"
+  | "telegram"
+  | "whatsapp"
+  | "reddit"
+  | "twitch"
+  | "spotify"
+  | "behance"
+  | "dribbble"
+  | "medium"
+  | "substack"
+  | "threads"
+  | "mastodon"
+  | "bluesky"
+  | "xing"
+  | "stackoverflow"
+  | "producthunt"
+  | "devto"
+  | "hashnode"
+  | "gitlab"
+  | "bitbucket"
+  | "tumblr"
+  | "vimeo"
+  | "website";
 
 export type SocialPlatformConfig = {
   readonly iconName: string;
@@ -54,25 +78,32 @@ export type CachedSocial = {
   readonly isPublic: boolean;
 };
 
-// Gallery data structure returned from database
+export type PublicBioLink = Pick<
+  BioLinks,
+  "id" | "title" | "url" | "style" | "icon" | "image" | "position" | "isPublic"
+>;
+
+export type PublicBioSocial = Pick<BioSocials, "platform" | "url" | "isPublic">;
+
+// Gallery data structure returned from public API
 export type GalleryData = {
   readonly username: string;
   readonly name: string | null;
   readonly bio: string | null;
   readonly logo: string | null;
   readonly theme: string | null;
-  readonly links: BioLinks[];
-  readonly socials: BioSocials[];
+  readonly links: PublicBioLink[];
+  readonly socials: PublicBioSocial[];
 };
 
 // Props for reusable components with strict typing
 export type SocialLinksProps = {
-  readonly socials: readonly BioSocials[];
+  readonly socials: readonly PublicBioSocial[];
   readonly theme: Theme;
 };
 
 export type BioLinksProps = {
-  readonly links: readonly BioLinks[];
+  readonly links: readonly PublicBioLink[];
   readonly theme: Theme;
 };
 

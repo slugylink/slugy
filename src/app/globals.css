@@ -315,3 +315,61 @@ html::-webkit-scrollbar-thumb {
 html::-webkit-scrollbar-thumb:hover {
   background: #71717a;
 }
+
+@keyframes social-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.social-marquee {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+}
+
+.social-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: social-marquee 22s linear infinite;
+  will-change: transform;
+}
+
+.social-marquee-group {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding-right: 0.375rem;
+}
+
+.social-marquee:hover .social-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .social-marquee {
+    overflow-x: auto;
+  }
+
+  .social-marquee-track {
+    animation: none;
+  }
+}

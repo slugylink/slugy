@@ -19,6 +19,9 @@ export interface BioPublicCache {
     id: string;
     title: string;
     url: string;
+    style?: string | null;
+    icon?: string | null;
+    image?: string | null;
     position: number;
     isPublic: boolean;
   }>;
@@ -38,13 +41,17 @@ export async function setBioPublicCache(
 ): Promise<void> {
   try {
     // Validate input data
-    if (!username || typeof username !== 'string') {
-      console.error(`[Cache] Invalid username provided for caching: ${username}`);
+    if (!username || typeof username !== "string") {
+      console.error(
+        `[Cache] Invalid username provided for caching: ${username}`,
+      );
       return;
     }
 
-    if (!data || typeof data !== 'object') {
-      console.error(`[Cache] Invalid data provided for caching username: ${username}`);
+    if (!data || typeof data !== "object") {
+      console.error(
+        `[Cache] Invalid data provided for caching username: ${username}`,
+      );
       return;
     }
 
@@ -62,11 +69,7 @@ export async function setBioPublicCache(
 
     // Set a longer TTL for stale-while-revalidate (48 hours)
     const staleKey = `${cacheKey}:stale`;
-    await redis.setex(
-      staleKey,
-      STALE_WHILE_REVALIDATE,
-      serializedData,
-    );
+    await redis.setex(staleKey, STALE_WHILE_REVALIDATE, serializedData);
 
     console.log(
       `[Cache] Bio public cache set for ${username} (24h fresh + 48h stale)`,
@@ -105,18 +108,24 @@ export async function getBioPublicCache(
     // Handle both parsed object and JSON string cases (Upstash Redis can return parsed objects)
     let parsedData: BioPublicCache;
 
-    if (typeof cachedData === 'string') {
+    if (typeof cachedData === "string") {
       try {
         parsedData = JSON.parse(cachedData);
       } catch (parseError) {
-        console.error(`[Cache] Failed to parse cached data for ${username}:`, parseError);
+        console.error(
+          `[Cache] Failed to parse cached data for ${username}:`,
+          parseError,
+        );
         return null;
       }
-    } else if (typeof cachedData === 'object' && cachedData !== null) {
+    } else if (typeof cachedData === "object" && cachedData !== null) {
       // Upstash Redis returns parsed object directly
       parsedData = cachedData as BioPublicCache;
     } else {
-      console.error(`[Cache] Invalid cached data type for ${username}:`, typeof cachedData);
+      console.error(
+        `[Cache] Invalid cached data type for ${username}:`,
+        typeof cachedData,
+      );
       return null;
     }
 
@@ -193,8 +202,8 @@ export async function clearAllBioPublicCache(): Promise<void> {
     const keys = await redis.keys(pattern);
 
     // Handle Upstash Redis keys format
-    const keyStrings = keys.map(key =>
-      typeof key === 'string' ? key : String(key)
+    const keyStrings = keys.map((key) =>
+      typeof key === "string" ? key : String(key),
     );
 
     if (keyStrings.length > 0) {
@@ -204,7 +213,9 @@ export async function clearAllBioPublicCache(): Promise<void> {
         const batch = keyStrings.slice(i, i + batchSize);
         await redis.del(...batch);
       }
-      console.log(`[Cache] Cleared ${keyStrings.length} bio public cache entries`);
+      console.log(
+        `[Cache] Cleared ${keyStrings.length} bio public cache entries`,
+      );
     }
   } catch (error) {
     console.error(`[Cache] Failed to clear all bio public cache:`, error);
@@ -221,11 +232,13 @@ export async function getBioPublicCacheStats(): Promise<{
     const keys = await redis.keys(pattern);
 
     // Handle Upstash Redis keys format (might return strings or objects)
-    const keyStrings = keys.map(key =>
-      typeof key === 'string' ? key : String(key)
+    const keyStrings = keys.map((key) =>
+      typeof key === "string" ? key : String(key),
     );
 
-    const freshKeys = keyStrings.filter((key) => !key.includes(":stale")).length;
+    const freshKeys = keyStrings.filter(
+      (key) => !key.includes(":stale"),
+    ).length;
     const staleKeys = keyStrings.filter((key) => key.includes(":stale")).length;
 
     return {
@@ -259,7 +272,7 @@ export async function cleanCorruptedCache(): Promise<void> {
 
     let cleanedCount = 0;
     for (const key of keys) {
-      const keyString = typeof key === 'string' ? key : String(key);
+      const keyString = typeof key === "string" ? key : String(key);
       try {
         const cachedData = await redis.get<BioPublicCache | string>(keyString);
 
@@ -267,9 +280,9 @@ export async function cleanCorruptedCache(): Promise<void> {
           // Try to validate the cache data
           let parsedData: BioPublicCache;
 
-          if (typeof cachedData === 'string') {
+          if (typeof cachedData === "string") {
             parsedData = JSON.parse(cachedData);
-          } else if (typeof cachedData === 'object' && cachedData !== null) {
+          } else if (typeof cachedData === "object" && cachedData !== null) {
             parsedData = cachedData as BioPublicCache;
           } else {
             // Invalid data type, delete the key
@@ -279,7 +292,11 @@ export async function cleanCorruptedCache(): Promise<void> {
           }
 
           // Validate required fields
-          if (!parsedData.username || !parsedData.cachedAt || !parsedData.expiresAt) {
+          if (
+            !parsedData.username ||
+            !parsedData.cachedAt ||
+            !parsedData.expiresAt
+          ) {
             await redis.del(keyString);
             cleanedCount++;
           }

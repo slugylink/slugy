@@ -6,24 +6,27 @@ import ShareActions from "@/components/web/_bio-links/bio-actions";
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import BioLinksList from "@/components/web/_bio-links/bio-links-list";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
-import FeatureCard from "@/components/web/_bio-links/feature-card";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
-import GridFeatureCard from "@/components/web/_bio-links/grid-feature-card";
-import Contact from "@/components/web/_bio-links/contact";
 import type { GalleryData, Theme } from "@/types/bio-links";
+
+// ─── Animation Helpers ────────────────────────────────────────────────────────
 
 export const fadeUp = (delay = 0) => ({
   initial: { opacity: 0, y: 18 },
   whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.45, delay },
+  viewport: { once: true, amount: 0.1 },
+  transition: { duration: 0.4, delay },
 });
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PageClientProps {
   gallery: GalleryData;
   theme: Theme;
   avatarUrl: string;
 }
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function GalleryLinksProfileClient({
   gallery,
@@ -35,37 +38,44 @@ export default function GalleryLinksProfileClient({
 
   return (
     <div className="relative min-h-screen w-full overscroll-x-none bg-transparent">
-      <div className="fixed inset-0 top-0 z-0 h-full">
+      {/* ── Blurred background image ── */}
+      <div className="fixed inset-0 z-0 h-full" aria-hidden="true">
         <Image
           src={avatarUrl}
           alt=""
           fill
-          priority
-          aria-hidden="true"
           sizes="100vw"
-          className="fixed top-0 left-0 z-0 h-screen w-screen scale-110 object-cover opacity-80 blur-2xl"
+          className="scale-110 object-cover opacity-80 blur-2xl"
         />
       </div>
 
-      <div className="fixed inset-0 top-0 z-0 h-full bg-black/40" />
+      {/* ── Dark overlay ── */}
+      <div
+        className="fixed inset-0 z-0 h-full bg-black/25"
+        aria-hidden="true"
+      />
 
+      {/* ── Main content ── */}
       <div className="relative z-10 mx-auto w-full bg-transparent md:max-w-lg md:rounded-3xl">
         <div className="relative md:rounded-3xl">
+          {/* ── Share button ── */}
           <div className="absolute top-4 right-4 z-20">
             <ShareActions color="text-white" />
           </div>
 
-          <div className="sticky top-0 z-0 h-[500px] overflow-hidden md:mt-8 md:h-[600px] md:rounded-3xl">
+          {/* ── Hero / cover image ── */}
+          <div className="sticky top-0 z-0 h-[480px] overflow-hidden md:mt-8 md:h-[590px] md:rounded-3xl">
             <Image
               src={avatarUrl}
-              alt={`${gallery.name}'s profile image`}
+              alt={`${gallery.name}'s profile`}
               fill
-              className="object-cover"
               priority
+              className="object-cover"
               sizes="(max-width: 768px) 100vw, 680px"
             />
           </div>
 
+          {/* ── Profile overlay (name, bio, socials) ── */}
           <div className="relative z-10 -mt-[80svh] h-[80svh]">
             <ProfileSection
               name={gallery.name}
@@ -77,24 +87,13 @@ export default function GalleryLinksProfileClient({
             </ProfileSection>
           </div>
 
+          {/* ── Links + footer ── */}
           <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7">
-            <motion.div {...fadeUp(0.15)}>
+            <motion.div {...fadeUp(0.08)}>
               <BioLinksList links={links} theme={theme} />
             </motion.div>
 
-            <motion.div {...fadeUp(0.15)}>
-              <GridFeatureCard />
-            </motion.div>
-
-            <motion.div {...fadeUp(0.2)}>
-              <FeatureCard />
-            </motion.div>
-
-            <motion.div {...fadeUp(0.25)}>
-              <Contact />
-            </motion.div>
-
-            <motion.div {...fadeUp(0.3)}>
+            <motion.div {...fadeUp(0.12)}>
               <GalleryFooter />
             </motion.div>
           </div>

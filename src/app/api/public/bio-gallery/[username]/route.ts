@@ -6,9 +6,6 @@ import {
   setBioPublicCache,
 } from "@/lib/cache-utils/bio-public-cache";
 import type { CachedBioData, GalleryData } from "@/types/bio-links";
-
-const CACHE_DURATION = 300;
-const STALE_WHILE_REVALIDATE = 600;
 const MAX_USERNAME_LENGTH = 50;
 const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
@@ -24,19 +21,9 @@ function transformCachedData(cachedData: CachedBioData): GalleryData {
       style: link.style ?? "link",
       icon: link.icon ?? null,
       image: link.image ?? null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-      bioId: cachedData.username,
-      clicks: 0,
     })),
-    socials: cachedData.socials.map((social, index) => ({
+    socials: cachedData.socials.map((social) => ({
       ...social,
-      id: `cached-${social.platform}-${index}`,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      deletedAt: null,
-      bioId: cachedData.username,
     })),
   };
 }
@@ -94,15 +81,17 @@ export async function GET(
     if (cachedData) {
       return jsonWithETag(request, transformCachedData(cachedData), {
         status: 200,
-        headers: {
-          "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-        },
       });
     }
 
-    const gallery = await db.bio.findUnique({
+    const gallery: GalleryData | null = await db.bio.findUnique({
       where: { username: normalizedUsername },
-      include: {
+      select: {
+        username: true,
+        name: true,
+        bio: true,
+        logo: true,
+        theme: true,
         links: {
           where: { isPublic: true },
           orderBy: { position: "asc" },
@@ -115,25 +104,15 @@ export async function GET(
             image: true,
             position: true,
             isPublic: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-            bioId: true,
-            clicks: true,
           },
         },
         socials: {
           where: { isPublic: true },
           orderBy: { platform: "asc" },
           select: {
-            id: true,
             platform: true,
             url: true,
             isPublic: true,
-            createdAt: true,
-            updatedAt: true,
-            deletedAt: true,
-            bioId: true,
           },
         },
       },
@@ -146,17 +125,14 @@ export async function GET(
     const cacheData = createCacheData(gallery);
     setBioPublicCache(normalizedUsername, {
       ...cacheData,
-      links: [...cacheData.links],
-      socials: [...cacheData.socials],
+      links: cacheData.links.map((link) => ({ ...link })),
+      socials: cacheData.socials.map((social) => ({ ...social })),
     }).catch(() => {
       // Cache write failures should not break API responses.
     });
 
     return jsonWithETag(request, gallery, {
       status: 200,
-      headers: {
-        "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-      },
     });
   } catch (error) {
     console.error(
@@ -169,9 +145,6 @@ export async function GET(
       if (staleData) {
         return jsonWithETag(request, transformCachedData(staleData), {
           status: 200,
-          headers: {
-            "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-          },
         });
       }
     } catch {

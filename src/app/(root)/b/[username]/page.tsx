@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { db } from "@/server/db";
+import { cache } from "react";
 import { themes } from "@/constants/theme";
 import {
   DEFAULT_THEME_ID,
@@ -16,176 +16,148 @@ import type {
 import { getAvatarUrl, getDisplayName } from "@/utils/bio-links";
 import GalleryLinksProfileClient from "./page-client";
 
-const MAX_STATIC_PROFILES = 100;
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const MAX_BIO_LENGTH = 150;
 const SEO_BIO_TRUNCATE = 147;
+const GALLERY_FETCH_REVALIDATE_SECONDS = 60;
+const GALLERY_FETCH_TIMEOUT_MS = 8_000;
 
-function isGalleryData(data: unknown): data is GalleryData {
-  if (!data || typeof data !== "object") {
-    return false;
-  }
-
-  const candidate = data as Partial<GalleryData>;
-  return (
-    typeof candidate.username === "string" &&
-    Array.isArray(candidate.links) &&
-    Array.isArray(candidate.socials)
-  );
-}
-
-async function getApiOrigin(): Promise<string> {
-  try {
-    const headersList = await headers();
-    const host =
-      headersList.get("x-forwarded-host") || headersList.get("host") || "";
-    const proto = headersList.get("x-forwarded-proto") || "https";
-
-    if (host) {
-      // Use loopback origin for local development with custom subdomains
-      if (host.includes(".localhost")) {
-        const port = host.split(":")[1] || "3000";
-        return `http://localhost:${port}`;
-      }
-      return `${proto}://${host}`;
-    }
-  } catch {
-    // Fallback to empty string
-  }
-  return "";
-}
-
-async function getGallery(username: string): Promise<GalleryData | null> {
-  if (!username || typeof username !== "string") {
-    return null;
-  }
-
-  const normalizedUsername = username.toLowerCase().trim();
-  const path = `/api/public/bio-gallery/${encodeURIComponent(normalizedUsername)}`;
-
-  try {
-    let response: Response;
-
-    try {
-      response = await fetch(path);
-    } catch {
-      const apiOrigin = await getApiOrigin();
-      if (!apiOrigin) {
-        return null;
-      }
-      response = await fetch(`${apiOrigin}${path}`);
-    }
-
-    if (response.status === 404) {
-      return null;
-    }
-
-    if (!response.ok) {
-      console.error(
-        `[Gallery] Public API error for ${normalizedUsername}: ${response.status}`,
-      );
-      return null;
-    }
-
-    const payload: unknown = await response.json();
-    return isGalleryData(payload) ? payload : null;
-  } catch (error) {
-    console.error(
-      `[Gallery] Error fetching gallery via API for ${username}:`,
-      error,
-    );
-    return null;
-  }
-}
-
-function getTheme(themeId: string | null | undefined): Theme {
-  const theme =
-    themes.find((t) => t.id === themeId) ||
-    themes.find((t) => t.id === DEFAULT_THEME_ID) ||
-    themes[0];
-
-  if (!theme?.background || !theme?.textColor || !theme?.buttonStyle) {
-    return themes.find((t) => t.id === DEFAULT_THEME_ID) || themes[0];
-  }
-
-  return theme;
-}
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface PageParams {
   params: Promise<{ username: string }>;
 }
 
+// ─── Type Guard ───────────────────────────────────────────────────────────────
+
+function isGalleryData(data: unknown): data is GalleryData {
+  if (!data || typeof data !== "object") return false;
+  const { username, links, socials } = data as Partial<GalleryData>;
+  return (
+    typeof username === "string" &&
+    Array.isArray(links) &&
+    Array.isArray(socials)
+  );
+}
+
+// ─── API Origin ───────────────────────────────────────────────────────────────
+
+async function getApiOrigin(): Promise<string> {
+  try {
+    const headersList = await headers();
+    const host =
+      headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+    const proto = headersList.get("x-forwarded-proto") ?? "https";
+
+    if (!host) return "";
+
+    // Handle subdomain localhost (e.g. tenant.localhost:3000)
+    if (host.includes(".localhost")) {
+      const port = host.split(":")[1] ?? "3000";
+      return `http://localhost:${port}`;
+    }
+
+    return `${proto}://${host}`;
+  } catch {
+    return "";
+  }
+}
+
+// ─── Data Fetching ────────────────────────────────────────────────────────────
+
+const getGallery = cache(
+  async (username: string): Promise<GalleryData | null> => {
+    if (!username || typeof username !== "string") return null;
+
+    const normalizedUsername = username.toLowerCase().trim();
+    const path = `/api/public/bio-gallery/${encodeURIComponent(normalizedUsername)}`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      GALLERY_FETCH_TIMEOUT_MS,
+    );
+
+    try {
+      const apiOrigin = await getApiOrigin();
+      const url = apiOrigin ? `${apiOrigin}${path}` : path;
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        next: { revalidate: GALLERY_FETCH_REVALIDATE_SECONDS },
+      });
+
+      if (response.status === 404) return null;
+
+      if (!response.ok) {
+        console.error(
+          `[Gallery] API error for "${normalizedUsername}": HTTP ${response.status}`,
+        );
+        return null;
+      }
+
+      const payload: unknown = await response.json();
+      return isGalleryData(payload) ? payload : null;
+    } catch (error) {
+      console.error(`[Gallery] Fetch failed for "${username}":`, error);
+      return null;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
+);
+
+// ─── Theme Resolution ─────────────────────────────────────────────────────────
+
+function getTheme(themeId: string | null | undefined): Theme {
+  const defaultTheme =
+    themes.find((t) => t.id === DEFAULT_THEME_ID) ?? themes[0];
+
+  const resolved = themes.find((t) => t.id === themeId) ?? defaultTheme;
+
+  // Fallback to default if resolved theme is structurally incomplete
+  if (!resolved?.background || !resolved?.textColor || !resolved?.buttonStyle) {
+    return defaultTheme;
+  }
+
+  return resolved;
+}
+
+// ─── Page Component ───────────────────────────────────────────────────────────
+
 export default async function GalleryLinksProfile({ params }: PageParams) {
   try {
     const { username } = await params;
-
-    if (!username) {
-      notFound();
-    }
+    if (!username) notFound();
 
     const gallery = await getGallery(username);
-
-    if (!gallery) {
-      notFound();
-    }
-
-    const theme = getTheme(gallery.theme);
-    const avatarUrl = getAvatarUrl(gallery.logo, username);
+    if (!gallery) notFound();
 
     return (
       <GalleryLinksProfileClient
         gallery={gallery}
-        theme={theme}
-        avatarUrl={avatarUrl}
+        theme={getTheme(gallery.theme)}
+        avatarUrl={getAvatarUrl(gallery.logo, username)}
       />
     );
   } catch (error) {
-    console.error("Error rendering gallery profile:", error);
+    console.error("[Gallery] Error rendering profile:", error);
     notFound();
   }
 }
 
-export async function generateStaticParams() {
-  try {
-    const popularProfiles = await db.bio.findMany({
-      where: {
-        links: {
-          some: {
-            isPublic: true,
-          },
-        },
-      },
-      select: {
-        username: true,
-      },
-      take: MAX_STATIC_PROFILES,
-      orderBy: {
-        updatedAt: "desc",
-      },
-    });
-
-    return popularProfiles.map((profile) => ({
-      username: profile.username,
-    }));
-  } catch {
-    return [];
-  }
-}
+// ─── Metadata ─────────────────────────────────────────────────────────────────
 
 export async function generateMetadata({
   params,
 }: PageParams): Promise<Metadata> {
   try {
     const { username } = await params;
-
-    if (!username) {
-      return createNotFoundMetadata();
-    }
+    if (!username) return createNotFoundMetadata();
 
     const gallery = await getGallery(username);
-
-    if (!gallery) {
-      return createNotFoundMetadata();
-    }
+    if (!gallery) return createNotFoundMetadata();
 
     return createGalleryMetadata({
       name: gallery.name,
@@ -197,14 +169,13 @@ export async function generateMetadata({
   }
 }
 
+// ─── Metadata Factories ───────────────────────────────────────────────────────
+
 function createNotFoundMetadata(): Metadata {
   return {
     title: "Bio Gallery Not Found | Slugy",
     description: "The requested bio gallery could not be found.",
-    robots: {
-      index: true,
-      follow: true,
-    },
+    robots: { index: true, follow: true },
   };
 }
 
@@ -249,20 +220,28 @@ function createDefaultMetadata(): Metadata {
   };
 }
 
-function createGalleryMetadata(gallery: GalleryMetadataInput): Metadata {
-  const displayName = getDisplayName(gallery.name, gallery.username);
+function createGalleryMetadata({
+  name,
+  bio,
+  username,
+}: GalleryMetadataInput): Metadata {
+  const displayName = getDisplayName(name, username);
   const title = `${displayName} - Links Gallery | Slugy`;
-
-  const truncatedBio = gallery.bio
-    ? gallery.bio.length > MAX_BIO_LENGTH
-      ? `${gallery.bio.substring(0, SEO_BIO_TRUNCATE)}...`
-      : gallery.bio
-    : null;
+  const canonicalUrl = `${CANONICAL_BASE}/${username}`;
 
   const description =
-    truncatedBio ||
-    `Discover and share curated links in ${displayName}'s gallery. Powered by Slugy.`;
-  const canonicalUrl = `${CANONICAL_BASE}/${gallery.username}`;
+    bio && bio.length > 0
+      ? bio.length > MAX_BIO_LENGTH
+        ? `${bio.substring(0, SEO_BIO_TRUNCATE)}...`
+        : bio
+      : `Discover and share curated links in ${displayName}'s gallery. Powered by Slugy.`;
+
+  const ogImage = {
+    url: OPENGRAPH_IMAGE_URL,
+    width: 1200,
+    height: 630,
+    alt: `${displayName}'s Links Gallery Preview`,
+  };
 
   return {
     title,
@@ -273,7 +252,7 @@ function createGalleryMetadata(gallery: GalleryMetadataInput): Metadata {
       "social media links",
       "curated links",
       displayName,
-      gallery.username,
+      username,
       "Slugy",
     ],
     authors: [{ name: displayName }],
@@ -284,14 +263,7 @@ function createGalleryMetadata(gallery: GalleryMetadataInput): Metadata {
       type: "profile",
       siteName: "Slugy",
       url: canonicalUrl,
-      images: [
-        {
-          url: OPENGRAPH_IMAGE_URL,
-          width: 1200,
-          height: 630,
-          alt: `${displayName}'s Links Gallery Preview`,
-        },
-      ],
+      images: [ogImage],
       locale: "en_US",
     },
     twitter: {
@@ -302,9 +274,7 @@ function createGalleryMetadata(gallery: GalleryMetadataInput): Metadata {
       creator: "@slugy",
       site: "@slugy",
     },
-    alternates: {
-      canonical: canonicalUrl,
-    },
+    alternates: { canonical: canonicalUrl },
     robots: {
       index: true,
       follow: true,
@@ -318,7 +288,7 @@ function createGalleryMetadata(gallery: GalleryMetadataInput): Metadata {
     },
     other: {
       "article:author": displayName,
-      "profile:username": gallery.username,
+      "profile:username": username,
     },
   };
 }

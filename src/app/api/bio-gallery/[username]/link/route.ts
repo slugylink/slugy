@@ -5,12 +5,15 @@ import { z } from "zod"; // Import zod for input validation
 import { checkBioGalleryLinkLimit } from "@/server/actions/limit";
 import { headers } from "next/headers";
 import { validateUrlSafety } from "@/server/actions/url-scan";
+import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
+import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
 // Updated input validation schema
 const createLinkSchema = z.object({
   title: z.string().max(100),
   url: z.string().url(),
   style: z.enum(["link", "feature", "feature-grid-2"]).optional(),
+  image: z.string().url().nullable().optional(),
 });
 
 // * add/create link to bio gallery [useranme]:
@@ -35,7 +38,7 @@ export async function POST(
       );
     }
 
-    const { title, url, style } = parseResult.data;
+    const { title, url, style, image } = parseResult.data;
 
     const gallery = await db.bio.findFirst({
       where: {
@@ -117,10 +120,17 @@ export async function POST(
         title: title,
         url: url,
         style: style ?? "link",
+        image: image ?? null,
         bioId: gallery.id,
         position: 0,
       },
     });
+
+    // Invalidate both caches: public gallery + admin dashboard
+    await Promise.all([
+      invalidateBioCache.links(params.username), // Public cache
+      invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
+    ]);
 
     return NextResponse.json(newLink);
   } catch (error) {

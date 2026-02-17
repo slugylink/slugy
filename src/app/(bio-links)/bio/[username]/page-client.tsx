@@ -40,7 +40,6 @@ export default function GalleryLinksProfileClient({
           src={avatarUrl}
           alt=""
           fill
-          priority
           aria-hidden="true"
           sizes="100vw"
           className="fixed top-0 left-0 z-0 h-screen w-screen scale-110 object-cover opacity-80 blur-2xl"
