@@ -15,18 +15,13 @@ import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { mutate } from "swr";
 import { BIO_SOCIAL_ICONS } from "@/constants/data/bio-icons";
-
-interface Social {
-  platform: string;
-  url?: string;
-  isPublic?: boolean;
-}
+import type { PublicBioSocial } from "@/types/bio-links";
 
 interface SocialSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   username: string;
-  initialData?: Social[];
+  initialData?: PublicBioSocial[];
 }
 
 type SocialValues = Record<string, string>;

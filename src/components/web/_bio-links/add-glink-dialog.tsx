@@ -402,7 +402,7 @@ export function GLinkDialogBox({
     <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
       {!isEditMode && (
         <DialogTrigger asChild>
-          <Button className="gap-2">
+          <Button className="w-full gap-2 rounded-sm border-y">
             <Plus className="h-4 w-4" />
             Add Link
           </Button>

@@ -4,14 +4,13 @@ import type React from "react";
 import { useState, useCallback } from "react";
 import {
   EllipsisVertical,
-  Settings,
   Trash2,
   Share2,
-  Paintbrush,
   Check,
   Smartphone,
   Copy,
   User,
+  PencilLine,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,10 +29,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { themes } from "@/constants/theme";
-import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useThemeUpdate } from "@/hooks/use-theme-update";
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -44,51 +40,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import GalleryLinkPreview from "./glink-preview";
+import GalleryProfileView, {
+  resolveGalleryTheme,
+} from "@/components/web/_bio-links/gallery-profile-view";
 import { type KeyedMutator } from "swr";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-
-interface Link {
-  id: string;
-  title: string;
-  url: string;
-  isPublic: boolean;
-  position: number;
-  clicks: number;
-  galleryId: string;
-}
-
-interface Gallery {
-  links: Link[];
-  username: string;
-  name?: string | null;
-  bio?: string | null;
-  logo?: string | null;
-  socials?: {
-    platform: string;
-    url?: string;
-    isPublic?: boolean;
-  }[];
-  theme?: string;
-}
+import { getAvatarUrl } from "@/utils/bio-links";
+import type { EditorGallery, GalleryData } from "@/types/bio-links";
 
 interface ActionsProps {
-  gallery: Gallery;
+  gallery: EditorGallery;
   username: string;
-  mutate: KeyedMutator<Gallery>;
+  mutate: KeyedMutator<EditorGallery>;
 }
 
 const Actions = ({ gallery, username, mutate }: ActionsProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
-  const { isSheetOpen, setIsSheetOpen, theme, handleThemeClick } =
-    useThemeUpdate(username, gallery.theme ?? "default", undefined, mutate);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const router = useRouter();
+  const previewThemeId =
+    typeof gallery.theme === "string"
+      ? gallery.theme
+      : (gallery.theme?.id ?? null);
 
   const shortUrl = `https://bio.slugy.co/${username}`;
 
@@ -157,8 +135,6 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
       </Badge>
 
       <div className="flex items-center gap-2">
-        <GLinkDialogBox username={username} />
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -167,7 +143,7 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
               className="h-9 w-9"
               aria-label="More options"
             >
-              <EllipsisVertical className="h-4 w-4" />
+              <PencilLine className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
@@ -233,51 +209,6 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Mobile Preview Button */}
-      <div className="fixed right-3 bottom-3 z-50 block sm:hidden">
-        <Button
-          className="size-12 rounded-full shadow-lg transition-all hover:shadow-xl"
-          onClick={() => setPreviewOpen(true)}
-          aria-label="Preview gallery"
-        >
-          <Smartphone className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* Mobile Preview Sheet */}
-      <Sheet open={previewOpen} onOpenChange={setPreviewOpen}>
-        <SheetContent side="right" className="w-full max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Gallery Preview</SheetTitle>
-          </SheetHeader>
-          <div className="mt-6 flex h-full flex-col">
-            <div className="flex-1 overflow-auto p-4">
-              <div className="flex justify-center">
-                <GalleryLinkPreview
-                  username={username}
-                  links={gallery.links.filter((link) => link.isPublic)}
-                  socials={gallery.socials?.filter((s) => s.isPublic) ?? []}
-                  name={gallery.name}
-                  bio={gallery.bio}
-                  logo={gallery.logo}
-                  initialTheme={gallery.theme ?? "default"}
-                  mutate={mutate}
-                  onThemeChange={(newTheme) => {
-                    mutate((currentData) => {
-                      if (!currentData) return currentData;
-                      return {
-                        ...currentData,
-                        theme: newTheme,
-                      };
-                    }, false);
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 };

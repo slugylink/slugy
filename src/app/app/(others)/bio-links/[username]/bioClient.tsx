@@ -4,8 +4,8 @@ import { useEffect } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { fetcher } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
+import type { EditorGallery } from "@/types/bio-links";
 
 const GalleryLinkTable = dynamic(
   () => import("@/components/web/_bio-links/glinks-table"),
@@ -33,32 +33,6 @@ function GalleryLinkTableSkeleton() {
   );
 }
 
-interface Link {
-  id: string;
-  title: string;
-  url: string;
-  isPublic: boolean;
-  position: number;
-  clicks: number;
-  galleryId: string;
-}
-
-interface Social {
-  platform: string;
-  url?: string;
-  isPublic?: boolean;
-}
-
-interface Gallery {
-  links: Link[];
-  username: string;
-  name?: string | null;
-  bio?: string | null;
-  logo?: string | null;
-  socials?: Social[];
-  theme?: string;
-}
-
 interface ApiError extends Error {
   info?: {
     error?: string;
@@ -77,7 +51,7 @@ export default function GalleryClient({ username }: GalleryClientProps) {
     isLoading,
     error,
     mutate,
-  } = useSWR<Gallery, ApiError>(`/api/bio-gallery/${username}`, fetcher);
+  } = useSWR<EditorGallery, ApiError>(`/api/bio-gallery/${username}`);
 
   useEffect(() => {
     if (error) {
@@ -124,7 +98,7 @@ export default function GalleryClient({ username }: GalleryClientProps) {
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto py-4">
       <GalleryLinkTable
         gallery={gallery}
         username={username}

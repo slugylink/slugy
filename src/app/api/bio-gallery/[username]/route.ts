@@ -1,15 +1,15 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { z } from "zod";
+import { jsonWithETag } from "@/lib/http";
 
-// Constants for better maintainability
-const CACHE_DURATION = 300; // 5 minutes
-const STALE_WHILE_REVALIDATE = 600; // 10 minutes
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const MAX_USERNAME_LENGTH = 50;
 
-// Input validation schema
+// ─── Validation ───────────────────────────────────────────────────────────────
+
 const usernameSchema = z.object({
   username: z
     .string()
@@ -18,114 +18,91 @@ const usernameSchema = z.object({
     .regex(/^[a-zA-Z0-9_-]+$/),
 });
 
-// Error response helper
-function createErrorResponse(
+// ─── Response Helpers ─────────────────────────────────────────────────────────
+
+function errorResponse(
+  req: Request,
   message: string,
   status: number,
   details?: string[],
 ) {
-  return NextResponse.json(
-    {
-      error: message,
-      status,
-      details,
-      timestamp: new Date().toISOString(),
-    },
+  return jsonWithETag(
+    req,
+    { error: message, status, details, timestamp: new Date().toISOString() },
     { status },
   );
 }
 
-// Success response helper with caching
-function createSuccessResponse(data: unknown, cacheControl?: string) {
-  const response = NextResponse.json(data);
-
-  // Set cache headers for better performance
-  if (cacheControl) {
-    response.headers.set("Cache-Control", cacheControl);
-  } else {
-    response.headers.set(
-      "Cache-Control",
-      `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-    );
-  }
-
-  // Additional performance headers
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Bio-Gallery-Cache", "enabled");
-
-  return response;
+function successResponse(req: Request, data: unknown) {
+  // Admin dashboard route — always return fresh data
+  return jsonWithETag(req, data, {
+    status: 200,
+  });
 }
+
+// ─── Route Handler ────────────────────────────────────────────────────────────
 
 export async function GET(
   req: Request,
   context: { params: Promise<{ username: string }> },
 ) {
   try {
-    // Parse and validate parameters
+    // Validate username
     const params = await context.params;
-    const validationResult = usernameSchema.safeParse(params);
+    const parsed = usernameSchema.safeParse(params);
 
-    if (!validationResult.success) {
-      return createErrorResponse(
+    if (!parsed.success) {
+      return errorResponse(
+        req,
         "Invalid username format",
         400,
-        validationResult.error.errors.map((e) => e.message),
+        parsed.error.errors.map((e) => e.message),
       );
     }
 
-    const { username } = validationResult.data;
+    const { username } = parsed.data;
 
-    // Get session with better error handling
+    // Authenticate
     let session;
     try {
-      session = await auth.api.getSession({
-        headers: await headers(),
-      });
-    } catch (authError) {
-      console.error("Authentication error:", authError);
-      return createErrorResponse("Authentication service unavailable", 503);
+      session = await auth.api.getSession({ headers: await headers() });
+    } catch (err) {
+      console.error("[Gallery API] Auth error:", err);
+      return errorResponse(req, "Authentication service unavailable", 503);
     }
 
     if (!session?.user?.id) {
-      return createErrorResponse("Unauthorized access", 401);
+      return errorResponse(req, "Unauthorized", 401);
     }
 
-    // Optimized database query with better error handling
+    // Fetch bio
     let bio;
     try {
       bio = await db.bio.findUnique({
-        where: {
-          userId: session.user.id,
-          username: username,
-        },
+        where: { userId: session.user.id, username },
         include: {
-          socials: {
-            orderBy: { platform: "asc" },
-          },
-          links: {
-            orderBy: { position: "asc" },
-          },
+          socials: { orderBy: { platform: "asc" } },
+          links: { orderBy: { position: "asc" } },
         },
       });
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      return createErrorResponse("Database service unavailable", 503);
+    } catch (err) {
+      console.error("[Gallery API] DB error:", err);
+      return errorResponse(req, "Database service unavailable", 503);
     }
 
     if (!bio) {
-      return createErrorResponse("Bio gallery not found", 404);
+      return errorResponse(req, "Bio gallery not found", 404);
     }
 
-    // Optimized data transformation
-    const safeGallery = {
+    // Shape response
+    const gallery = {
       username: bio.username,
       name: bio.name,
       bio: bio.bio,
       logo: bio.logo,
       theme: bio.theme ?? "default",
       socials: bio.socials
-        .filter((s) => s.platform && s.platform.trim()) // Remove empty/null platforms
+        .filter((s) => s.platform?.trim())
         .map((s) => ({
           platform: s.platform!.trim(),
           url: s.url?.trim() ?? "",
@@ -141,18 +118,13 @@ export async function GET(
         isPublic: Boolean(link.isPublic),
         position: link.position,
         clicks: link.clicks,
-        galleryId: link.bioId, // Use bioId from the schema
+        galleryId: link.bioId,
       })),
     };
 
-    // For admin dashboard, use no-cache to ensure fresh data after updates
-    const cacheControl = `private, no-cache, no-store, must-revalidate`;
-
-    return createSuccessResponse(safeGallery, cacheControl);
-  } catch (error) {
-    console.error("Unexpected error in bio gallery route:", error);
-
-    // Don't expose internal errors to client
-    return createErrorResponse("Internal server error", 500);
+    return successResponse(req, gallery);
+  } catch (err) {
+    console.error("[Gallery API] Unexpected error:", err);
+    return errorResponse(req, "Internal server error", 500);
   }
 }

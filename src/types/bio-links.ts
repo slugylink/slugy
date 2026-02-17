@@ -85,6 +85,29 @@ export type PublicBioLink = Pick<
 
 export type PublicBioSocial = Pick<BioSocials, "platform" | "url" | "isPublic">;
 
+export type EditorBioLink = {
+  id: string;
+  title: string;
+  url: string;
+  style?: string | null;
+  icon?: string | null;
+  image?: string | null;
+  isPublic: boolean;
+  position: number;
+  clicks: number;
+  galleryId: string;
+};
+
+export type EditorGallery = {
+  links: EditorBioLink[];
+  username: string;
+  name?: string | null;
+  bio?: string | null;
+  logo?: string | null;
+  socials?: PublicBioSocial[];
+  theme?: string | Theme | null;
+};
+
 // Gallery data structure returned from public API
 export type GalleryData = {
   readonly username: string;
@@ -98,8 +121,8 @@ export type GalleryData = {
 
 // Props for reusable components with strict typing
 export type SocialLinksProps = {
-  readonly socials: readonly PublicBioSocial[];
-  readonly theme: Theme;
+  socials: PublicBioSocial[];
+  theme: Theme;
 };
 
 export type BioLinksProps = {

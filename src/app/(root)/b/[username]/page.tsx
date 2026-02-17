@@ -126,25 +126,24 @@ function getTheme(themeId: string | null | undefined): Theme {
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
-export default async function GalleryLinksProfile({ params }: PageParams) {
-  try {
-    const { username } = await params;
-    if (!username) notFound();
+export default async function GalleryLinksProfile(context: {
+  params: Promise<{ username: string }>;
+}) {
+  const { username } = await context.params;
+  if (!username) notFound();
 
-    const gallery = await getGallery(username);
-    if (!gallery) notFound();
-
-    return (
-      <GalleryLinksProfileClient
-        gallery={gallery}
-        theme={getTheme(gallery.theme)}
-        avatarUrl={getAvatarUrl(gallery.logo, username)}
-      />
-    );
-  } catch (error) {
-    console.error("[Gallery] Error rendering profile:", error);
+  const gallery = await getGallery(username);
+  if (!gallery) {
     notFound();
   }
+
+  return (
+    <GalleryLinksProfileClient
+      gallery={gallery}
+      theme={getTheme(gallery.theme)}
+      avatarUrl={getAvatarUrl(gallery.logo, username)}
+    />
+  );
 }
 
 // ─── Metadata ─────────────────────────────────────────────────────────────────
