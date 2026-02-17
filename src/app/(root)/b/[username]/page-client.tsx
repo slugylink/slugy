@@ -51,7 +51,7 @@ export default function GalleryLinksProfileClient({
 
       {/* ── Dark overlay ── */}
       <div
-        className="fixed inset-0 z-0 h-full bg-black/25"
+        className="fixed inset-0 z-0 h-full bg-black/20"
         aria-hidden="true"
       />
 
@@ -88,7 +88,7 @@ export default function GalleryLinksProfileClient({
           </div>
 
           {/* ── Links + footer ── */}
-          <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7">
+          <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7 md:rounded-b-3xl">
             <motion.div {...fadeUp(0.08)}>
               <BioLinksList links={links} theme={theme} />
             </motion.div>

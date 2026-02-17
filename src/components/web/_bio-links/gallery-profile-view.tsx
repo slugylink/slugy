@@ -131,18 +131,7 @@ export default function GalleryProfileView({
             />
           </div>
 
-          <div className={"relative z-[5] -mt-[360px] h-[360px]"}>
-            <ProfileSection
-              name={gallery.name}
-              username={gallery.username}
-              bio={gallery.bio}
-              theme={theme}
-            >
-              <SocialLinks socials={socials} theme={theme} />
-            </ProfileSection>
-          </div>
-
-          <div className="absolute bottom-[65%] left-1/2 z-20! -mt-[360px] flex h-[100px] -translate-x-1/2 items-center justify-center">
+          <div className="relative top-[-220px] z-20! flex items-center justify-center">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -156,6 +145,18 @@ export default function GalleryProfileView({
                 <ImagePlus strokeWidth={1.5} size={40} className="p-2" />
               )}
             </button>
+          </div>
+
+          <div className={"relative z-[5] -mt-[360px] h-[360px]"}>
+            <ProfileSection
+              name={gallery.name}
+              username={gallery.username}
+              bio={gallery.bio}
+              theme={theme}
+              isPreview={isPreview}
+            >
+              <SocialLinks socials={socials} theme={theme} />
+            </ProfileSection>
           </div>
 
           <div>

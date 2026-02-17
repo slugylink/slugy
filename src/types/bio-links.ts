@@ -136,6 +136,7 @@ export type ProfileSectionProps = {
   readonly bio: string | null;
   readonly theme: Theme;
   readonly children?: ReactNode;
+  readonly isPreview?: boolean;
 };
 
 export type GalleryFooterProps = {

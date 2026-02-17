@@ -11,12 +11,13 @@ export default function ProfileSection({
   bio,
   theme,
   children,
+  isPreview = false,
 }: ProfileSectionProps) {
   const displayName = getDisplayName(name, username);
 
   return (
     <section className="relative z-10 h-full min-h-full bg-transparent">
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black via-black/70 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-[200px] bg-gradient-to-t from-black via-black/70 to-transparent md:h-[280px]" />
       <motion.div
         className="absolute inset-x-0 bottom-0 z-10 px-6 pt-28 pb-8 text-center"
         {...fadeUp(0.04)}
