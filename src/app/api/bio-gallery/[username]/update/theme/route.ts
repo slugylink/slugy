@@ -48,13 +48,11 @@ export async function PATCH(
       },
     });
 
-
     // Invalidate both caches: public gallery + admin dashboard
     await Promise.all([
-      invalidateBioCache.theme(params.username),           // Public cache
+      invalidateBioCache.theme(params.username), // Public cache
       invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
     ]);
-
 
     // Fetch the updated gallery data to return to frontend for immediate cache update
     const updatedGallery = await db.bio.findUnique({
@@ -73,7 +71,10 @@ export async function PATCH(
     });
 
     if (!updatedGallery) {
-      return NextResponse.json({ error: "Failed to fetch updated gallery" }, { status: 500 });
+      return NextResponse.json(
+        { error: "Failed to fetch updated gallery" },
+        { status: 500 },
+      );
     }
 
     // Transform the data to match the frontend expectations
@@ -94,6 +95,9 @@ export async function PATCH(
         id: link.id,
         title: link.title,
         url: link.url,
+        style: link.style,
+        icon: link.icon,
+        image: link.image,
         isPublic: Boolean(link.isPublic),
         position: link.position,
         clicks: link.clicks,
@@ -101,11 +105,13 @@ export async function PATCH(
       })),
     };
 
-
-    return NextResponse.json({
-      message: "Theme updated",
-      gallery: safeGallery
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        message: "Theme updated",
+        gallery: safeGallery,
+      },
+      { status: 200 },
+    );
   } catch (error) {
     console.error(error);
     return NextResponse.json(

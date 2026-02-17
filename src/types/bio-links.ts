@@ -1,4 +1,5 @@
 import type { BioLinks, BioSocials } from "@prisma/client";
+import type { ReactNode } from "react";
 
 // Enhanced Theme type with better type safety
 export type Theme = {
@@ -11,7 +12,38 @@ export type Theme = {
 };
 
 // Utility types for better type safety
-export type SocialPlatform = "facebook" | "instagram" | "twitter" | "linkedin" | "youtube" | "mail" | "snapchat";
+export type SocialPlatform =
+  | "facebook"
+  | "instagram"
+  | "twitter"
+  | "linkedin"
+  | "youtube"
+  | "snapchat"
+  | "tiktok"
+  | "github"
+  | "discord"
+  | "telegram"
+  | "whatsapp"
+  | "reddit"
+  | "twitch"
+  | "spotify"
+  | "behance"
+  | "dribbble"
+  | "medium"
+  | "substack"
+  | "threads"
+  | "mastodon"
+  | "bluesky"
+  | "xing"
+  | "stackoverflow"
+  | "producthunt"
+  | "devto"
+  | "hashnode"
+  | "gitlab"
+  | "bitbucket"
+  | "tumblr"
+  | "vimeo"
+  | "website";
 
 export type SocialPlatformConfig = {
   readonly iconName: string;
@@ -33,6 +65,9 @@ export type CachedLink = {
   readonly id: string;
   readonly title: string;
   readonly url: string;
+  readonly style?: string | null;
+  readonly icon?: string | null;
+  readonly image?: string | null;
   readonly position: number;
   readonly isPublic: boolean;
 };
@@ -43,25 +78,55 @@ export type CachedSocial = {
   readonly isPublic: boolean;
 };
 
-// Gallery data structure returned from database
+export type PublicBioLink = Pick<
+  BioLinks,
+  "id" | "title" | "url" | "style" | "icon" | "image" | "position" | "isPublic"
+>;
+
+export type PublicBioSocial = Pick<BioSocials, "platform" | "url" | "isPublic">;
+
+export type EditorBioLink = {
+  id: string;
+  title: string;
+  url: string;
+  style?: string | null;
+  icon?: string | null;
+  image?: string | null;
+  isPublic: boolean;
+  position: number;
+  clicks: number;
+  galleryId: string;
+};
+
+export type EditorGallery = {
+  links: EditorBioLink[];
+  username: string;
+  name?: string | null;
+  bio?: string | null;
+  logo?: string | null;
+  socials?: PublicBioSocial[];
+  theme?: string | Theme | null;
+};
+
+// Gallery data structure returned from public API
 export type GalleryData = {
   readonly username: string;
   readonly name: string | null;
   readonly bio: string | null;
   readonly logo: string | null;
   readonly theme: string | null;
-  readonly links: BioLinks[];
-  readonly socials: BioSocials[];
+  readonly links: PublicBioLink[];
+  readonly socials: PublicBioSocial[];
 };
 
 // Props for reusable components with strict typing
 export type SocialLinksProps = {
-  readonly socials: readonly BioSocials[];
-  readonly theme: Theme;
+  socials: PublicBioSocial[];
+  theme: Theme;
 };
 
 export type BioLinksProps = {
-  readonly links: readonly BioLinks[];
+  readonly links: readonly PublicBioLink[];
   readonly theme: Theme;
 };
 
@@ -69,8 +134,8 @@ export type ProfileSectionProps = {
   readonly name: string | null;
   readonly username: string;
   readonly bio: string | null;
-  readonly logo: string | null;
   readonly theme: Theme;
+  readonly children?: ReactNode;
 };
 
 export type GalleryFooterProps = {

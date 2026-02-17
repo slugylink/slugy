@@ -1,53 +1,28 @@
 "use client";
 
-import React from "react";
-import GalleryLinkPreview from "./glink-preview";
 import Actions from "./glink-actions";
 import DraggableLinks from "./draggable-links";
+import GalleryProfileView, {
+  resolveGalleryTheme,
+} from "@/components/web/_bio-links/gallery-profile-view";
 import { cn } from "@/lib/utils";
-import { KeyedMutator } from "swr";
+import { getAvatarUrl } from "@/utils/bio-links";
+import type { EditorGallery, GalleryData } from "@/types/bio-links";
+import { type KeyedMutator } from "swr";
 
-// Constants for better maintainability
 const CONTAINER_CLASSES =
   "relative flex flex-col items-start justify-between gap-6 lg:flex-row";
-const LINKS_CONTAINER_CLASSES =
-  "w-full overflow-y-auto max-w-[44rem] 3xl:max-w-[50rem]";
+const LINKS_CONTAINER_CLASSES = "w-full max-w-lg overflow-y-auto pb-8 lg:mx-0";
 const PREVIEW_CONTAINER_CLASSES =
-  "fixed right-4 top-1 h-full hidden w-[425px] lg:block border-l bg-transparent dark:bg-zinc-900";
-const PREVIEW_CONTENT_CLASSES = "flex h-full items-center justify-center py-8";
-
-// Types for better type safety
-interface Link {
-  id: string;
-  title: string;
-  url: string;
-  isPublic: boolean;
-  position: number;
-  clicks: number;
-  galleryId: string;
-}
-
-interface Social {
-  platform: string;
-  url?: string;
-  isPublic?: boolean;
-}
-
-interface Gallery {
-  links: Link[];
-  username: string;
-  name?: string | null;
-  bio?: string | null;
-  logo?: string | null;
-  socials?: Social[];
-  theme?: string;
-}
+  "sticky top-6 hidden w-full max-w-[425px] lg:block";
+const PREVIEW_CONTENT_CLASSES =
+  "flex h-full items-center justify-center py-8 lg:py-0 fixed";
 
 interface GalleryLinkTableProps {
   username: string;
-  gallery: Gallery;
+  gallery: EditorGallery;
   isLoading?: boolean;
-  mutate: KeyedMutator<Gallery>;
+  mutate: KeyedMutator<EditorGallery>;
 }
 
 const GalleryLinkTable = ({
@@ -56,67 +31,63 @@ const GalleryLinkTable = ({
   isLoading = false,
   mutate,
 }: GalleryLinkTableProps) => {
-  const { publicLinks, publicSocials } = (() => {
-    if (!gallery) return { publicLinks: [], publicSocials: [] };
+  if (!gallery) return null;
 
-    const publicLinks = gallery.links.filter((link) => link.isPublic);
-    const publicSocials = gallery.socials?.filter((s) => s.isPublic) ?? [];
+  const publicLinks = gallery.links.filter((link) => link.isPublic);
+  const publicSocials =
+    gallery.socials?.filter((social) => social.isPublic) ?? [];
+  const previewThemeId =
+    typeof gallery.theme === "string"
+      ? gallery.theme
+      : (gallery.theme?.id ?? null);
 
-    return { publicLinks, publicSocials };
-  })();
+  const previewGallery: GalleryData = {
+    username: gallery.username,
+    name: gallery.name ?? null,
+    bio: gallery.bio ?? null,
+    logo: gallery.logo ?? null,
+    theme: previewThemeId,
+    links: publicLinks.map((link) => ({
+      id: link.id,
+      title: link.title,
+      url: link.url,
+      style: link.style ?? "link",
+      icon: link.icon ?? null,
+      image: link.image ?? null,
+      position: link.position,
+      isPublic: link.isPublic,
+    })),
+    socials: publicSocials.map((social) => ({
+      platform: social.platform,
+      url: social.url ?? null,
+      isPublic: Boolean(social.isPublic),
+    })),
+  };
 
   const previewContainerClasses = cn(PREVIEW_CONTAINER_CLASSES);
-
   const previewContentClasses = cn(
     isLoading ? "animate-pulse backdrop-blur-sm" : PREVIEW_CONTENT_CLASSES,
   );
 
-  const actionsComponent = <Actions gallery={gallery!} username={username} mutate={mutate} />;
-
-  const draggableLinksComponent = (
-    <DraggableLinks
-      links={gallery?.links ?? []}
-      username={username}
-      mutate={mutate}
-    />
-  );
-
-  const previewComponent = (
-    <GalleryLinkPreview
-      username={username}
-      links={publicLinks}
-      socials={publicSocials}
-      name={gallery?.name}
-      bio={gallery?.bio}
-      logo={gallery?.logo}
-      initialTheme={gallery?.theme ?? "default"}
-      mutate={mutate}
-      onThemeChange={(newTheme) => {
-        mutate((currentData) => {
-          if (!currentData) return currentData;
-          return {
-            ...currentData,
-            theme: newTheme,
-          };
-        }, false);
-      }}
-    />
-  );
-
-  // Early return if no gallery data
-  if (!gallery) return null;
-
   return (
     <div className={CONTAINER_CLASSES}>
-      {/* Main content area */}
-      <div className={LINKS_CONTAINER_CLASSES}>
-        {actionsComponent}
-        {draggableLinksComponent}
-      </div>
-
-      {/* Preview sidebar */}
-      <div className={previewContainerClasses}>
-        <div className={previewContentClasses}>{previewComponent}</div>
+      <div className="mx-auto w-full">
+        <div className="mx-auto mb-5 max-w-lg">
+          <Actions gallery={gallery} username={username} mutate={mutate} />
+        </div>
+        <GalleryProfileView
+          gallery={previewGallery}
+          theme={resolveGalleryTheme(previewThemeId)}
+          avatarUrl={getAvatarUrl(gallery.logo ?? null, username)}
+          mode="preview"
+          showShareActions={false}
+        >
+          <DraggableLinks
+            links={gallery.links ?? []}
+            username={username}
+            mutate={mutate}
+          />
+        </GalleryProfileView>
       </div>
     </div>
   );

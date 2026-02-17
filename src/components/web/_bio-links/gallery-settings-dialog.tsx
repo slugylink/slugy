@@ -12,7 +12,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -24,7 +23,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Upload } from "lucide-react";
 import axios from "axios";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -52,11 +50,7 @@ const GallerySettingsDialog = ({
   username,
   initialData,
 }: GallerySettingsDialogProps) => {
-  const [isUploading, setIsUploading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [logoUrl, setLogoUrl] = useState<string | null | undefined>(
-    initialData?.logo,
-  );
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -73,38 +67,8 @@ const GallerySettingsDialog = ({
         name: initialData.name ?? "",
         bio: initialData.bio ?? "",
       });
-      setLogoUrl(initialData.logo);
     }
   }, [open, initialData, form]);
-
-  // Handle logo upload
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
-    try {
-      const res = await fetch(`/api/bio-gallery/${username}/update/logo`, {
-        method: "PATCH",
-        body: formData,
-      });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = (await res.json()) as { logo: string | null };
-
-      await mutate(`/api/bio-gallery/${username}`);
-
-      setLogoUrl(data.logo);
-      toast.success("Logo uploaded!");
-    } catch (err) {
-      toast.error("Failed to upload logo");
-      await mutate(`/api/bio-gallery/${username}`);
-    } finally {
-      setIsUploading(false);
-    }
-  };
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     if (isSubmitting) return;
@@ -171,49 +135,7 @@ const GallerySettingsDialog = ({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Profile Section */}
             <div className="space-y-4">
-              <div className="flex flex-col items-start gap-2">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage
-                      className="object-cover"
-                      src={logoUrl ?? "/placeholder-avatar.jpg"}
-                    />
-                    <AvatarFallback>
-                      {username.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="relative"
-                      disabled={isUploading || isSubmitting}
-                    >
-                      {isUploading ? (
-                        <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-                      ) : (
-                        <>
-                          <Upload className="mr-2 h-4 w-4" />
-                          Upload
-                        </>
-                      )}
-                      <input
-                        type="file"
-                        className="absolute inset-0 cursor-pointer opacity-0"
-                        onChange={handleImageUpload}
-                        accept="image/png,image/jpeg"
-                        disabled={isUploading || isSubmitting}
-                      />
-                    </Button>
-                  </div>
-                </div>
-                <div className="text-muted-foreground text-sm">
-                  Recommended: Square image (200KB max)
-                </div>
-              </div>
-
               <FormField
                 control={form.control}
                 name="name"

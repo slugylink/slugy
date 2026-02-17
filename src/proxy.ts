@@ -76,6 +76,28 @@ const redirectTo = (url: string, status = 307) =>
 const rewriteTo = (url: string, baseUrl: string) =>
   addSecurityHeaders(NextResponse.rewrite(new URL(url, baseUrl)));
 
+const resolveBioSubdomainPath = (pathname: string): string => {
+  if (pathname === "/") {
+    return "/bio";
+  }
+
+  // Backward compatibility for older bio paths.
+  if (pathname === "/bio" || pathname === "/bio/") {
+    return "/bio";
+  }
+
+  if (pathname.startsWith("/bio/")) {
+    const usernamePath = pathname.slice("/bio".length);
+    return `/b${usernamePath}`;
+  }
+
+  if (pathname.startsWith("/b/")) {
+    return pathname;
+  }
+
+  return `/b${pathname}`;
+};
+
 const isPublicPath = (path: string): boolean =>
   path.startsWith("/api/") ||
   PUBLIC_ROUTES.has(path) ||
@@ -169,7 +191,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
     switch (hostname) {
       case SUBDOMAINS.bio: {
-        const bioPath = pathname === "/" ? "/bio" : `/bio${pathname}`;
+        const bioPath = resolveBioSubdomainPath(pathname);
         return rewriteTo(`${bioPath}${url.search}`, req.url);
       }
 
@@ -293,6 +315,11 @@ async function handleRootDomain(
   }
 
   if (pathname.startsWith("/api/") || isStaticAsset(pathname)) {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // Allow root-domain bio route (/b/:username) to resolve directly.
+  if (pathname.startsWith("/b/") && pathname.length > 3) {
     return addSecurityHeaders(NextResponse.next());
   }
 
