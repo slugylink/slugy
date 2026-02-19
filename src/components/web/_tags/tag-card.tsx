@@ -98,10 +98,10 @@ const TagCard = ({ tag, workspaceslug }: TagCardProps) => {
         </div>
         <div className="right flex items-center gap-2">
           <Badge
-            className="flex cursor-pointer rounded-sm items-center justify-center gap-x-1 bg-zinc-100/50 text-xs font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+            className="flex cursor-pointer items-center justify-center gap-x-1 rounded-sm bg-zinc-100/50 text-xs font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
             variant={"outline"}
           >
-            {tag.linkCount} {tag.linkCount === 1 ? 'link' : 'links'}
+            {tag.linkCount} {tag.linkCount === 1 ? "link" : "links"}
           </Badge>
 
           <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
@@ -121,9 +121,9 @@ const TagCard = ({ tag, workspaceslug }: TagCardProps) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuGroup>
-                {dropdownItems.map((item, index) => (
+                {dropdownItems.map((item) => (
                   <DropdownMenuItem
-                    key={index}
+                    key={item.label}
                     className={cn(
                       "flex cursor-pointer items-center gap-2 px-3",
                       item.color,
@@ -131,8 +131,12 @@ const TagCard = ({ tag, workspaceslug }: TagCardProps) => {
                     onClick={item.onClick}
                     disabled={isDeleting}
                   >
-                    {item.icon && <item.icon className={cn("h-3 w-3", item.color)} />}
-                    <span className={cn("text-sm", item.color)}>{item.label}</span>
+                    {item.icon && (
+                      <item.icon className={cn("h-3 w-3", item.color)} />
+                    )}
+                    <span className={cn("text-sm", item.color)}>
+                      {item.label}
+                    </span>
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuGroup>

@@ -1,11 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Pricing() {
   return (
@@ -41,9 +37,9 @@ export default function Pricing() {
                     "Basic Analytics Dashboard",
                     "5GB Cloud Storage",
                     "Email and Chat Support",
-                  ].map((item, index) => (
+                  ].map((item) => (
                     <li
-                      key={index}
+                      key={item}
                       className="flex items-center gap-2 text-sm font-light"
                     >
                       <Check
@@ -81,9 +77,9 @@ export default function Pricing() {
                       "1 Custom Report Per Month",
                       "Monthly Product Updates",
                       "Standard Security Features",
-                    ].map((item, index) => (
+                    ].map((item) => (
                       <li
-                        key={index}
+                        key={item}
                         className="flex items-center gap-2 text-sm font-light"
                       >
                         <Check

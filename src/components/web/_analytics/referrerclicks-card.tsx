@@ -26,7 +26,7 @@ interface TabConfig {
   key: "referrers";
   label: string;
   singular: string;
-  renderName: (item: ReferrerData) => JSX.Element;
+  NameComponent: React.ComponentType<{ item: ProcessedReferrerData }>;
 }
 
 function TableHeader({ label }: { label: string }) {
@@ -43,7 +43,7 @@ const tabConfigs: TabConfig[] = [
     key: "referrers",
     label: "Referrers",
     singular: "Source",
-    renderName: (item) => (
+    NameComponent: ({ item }) => (
       <div className="flex items-center gap-x-2">
         <UrlAvatar
           className="flex-shrink-0 rounded-sm"
@@ -125,7 +125,7 @@ const ReferrerClicks = ({
                 getClicks={(item) => item.clicks}
                 getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
                 progressColor="bg-red-200/40"
-                renderName={(item) => currentTabConfig.renderName(item)}
+                NameComponent={currentTabConfig.NameComponent}
               />
             </div>
           </TabsContent>
@@ -142,7 +142,7 @@ const ReferrerClicks = ({
         getClicks={(item) => item.clicks}
         getKey={(item, index) => item.safeKey ?? `referrer-${index}`}
         progressColor="bg-red-200/40"
-        renderName={(item) => currentTabConfig.renderName(item)}
+        NameComponent={currentTabConfig.NameComponent}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
         showButton={!(isLoading ?? false) && processedData.length > 7}

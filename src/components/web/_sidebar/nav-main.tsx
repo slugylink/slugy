@@ -24,7 +24,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { memo, useMemo, useCallback, type ReactNode } from "react";
+import { memo, useMemo, useCallback } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { LinkIcon } from "@/utils/icons/link";
 import { PhoneIcon } from "@/utils/icons/phone";
@@ -154,12 +154,28 @@ const SubItemComponent = memo<{
 });
 SubItemComponent.displayName = "SubItemComponent";
 
+const SubItemsList = memo<{
+  items: NavSubItem[];
+  isSubItemActive: (subUrl: string) => boolean;
+  onClick?: () => void;
+}>(({ items, isSubItemActive, onClick }) => {
+  return items.map((subItem) => (
+    <SubItemComponent
+      key={subItem.title}
+      subItem={subItem}
+      isActive={isSubItemActive(subItem.url)}
+      onClick={onClick}
+    />
+  ));
+});
+SubItemsList.displayName = "SubItemsList";
+
 const NavItemComponent = memo<{
   item: NavItem;
   isActive: boolean;
-  renderSubItems: (items: NavSubItem[]) => ReactNode;
+  isSubItemActive: (subUrl: string) => boolean;
   onNavItemClick?: () => void;
-}>(({ item, isActive, renderSubItems, onNavItemClick }) => {
+}>(({ item, isActive, isSubItemActive, onNavItemClick }) => {
   const buttonClasses = cn(
     "group-hover/menu-item cursor-pointer transition-colors duration-200",
     isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
@@ -199,7 +215,11 @@ const NavItemComponent = memo<{
         {item.items && (
           <CollapsibleContent className="data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:slide-in-from-top-1 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:slide-out-to-top-1 overflow-hidden duration-200 ease-out">
             <SidebarMenuSub className="mt-1">
-              {renderSubItems(item.items)}
+              <SubItemsList
+                items={item.items}
+                isSubItemActive={isSubItemActive}
+                onClick={onNavItemClick}
+              />
             </SidebarMenuSub>
           </CollapsibleContent>
         )}
@@ -286,20 +306,6 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
     }
   }, [isMobile, setOpenMobile]);
 
-  // Render sub-items
-  const renderSubItems = useCallback(
-    (items: NavSubItem[]) =>
-      items.map((subItem) => (
-        <SubItemComponent
-          key={subItem.title}
-          subItem={subItem}
-          isActive={isSubItemActive(subItem.url)}
-          onClick={handleNavItemClick}
-        />
-      )),
-    [isSubItemActive, handleNavItemClick],
-  );
-
   return (
     <SidebarGroup className="px-2">
       <SidebarMenu className="gap-2">
@@ -308,7 +314,7 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
             key={item.title}
             item={item}
             isActive={isItemActive(item)}
-            renderSubItems={renderSubItems}
+            isSubItemActive={isSubItemActive}
             onNavItemClick={handleNavItemClick}
           />
         ))}

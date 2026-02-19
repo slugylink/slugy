@@ -138,15 +138,22 @@ const DeviceClicks = ({
     return (value as string) ?? "unknown";
   };
 
-  const renderName = (item: DeviceData) => {
-    const name = getTabValue(item);
-    return (
-      <div className={cn("flex items-center gap-x-2 capitalize")}>
-        <OptimizedImage src={currentTabConfig.getAssetSrc(name)} alt={name} />
-        <span>{name}</span>
-      </div>
-    );
-  };
+  const NameComponent = useMemo<React.ComponentType<{ item: DeviceData }>>(
+    () =>
+      function DeviceName({ item }) {
+        const name = getTabValue(item);
+        return (
+          <div className={cn("flex items-center gap-x-2 capitalize")}>
+            <OptimizedImage
+              src={currentTabConfig.getAssetSrc(name)}
+              alt={name}
+            />
+            <span>{name}</span>
+          </div>
+        );
+      },
+    [currentTabConfig],
+  );
 
   return (
     <Card className="relative overflow-hidden border shadow-none">
@@ -184,7 +191,7 @@ const DeviceClicks = ({
                     : `${currentTabConfig.key}-${index}`;
                 }}
                 progressColor="bg-blue-200/40"
-                renderName={renderName}
+                NameComponent={NameComponent}
               />
             </div>
           </TabsContent>
@@ -207,7 +214,7 @@ const DeviceClicks = ({
             : `${currentTabConfig.key}-${index}`;
         }}
         progressColor="bg-blue-200/40"
-        renderName={renderName}
+        NameComponent={NameComponent}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.label}
         showButton={!(isLoading ?? false) && sortedData.length > 7}

@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { useSearchParams } from "next/navigation";
 import useSWR from "swr";
 
@@ -80,7 +86,7 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
 
   // Set workspace slug on mount
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (workspaceslug) {
       setworkspaceslug(workspaceslug);
     }

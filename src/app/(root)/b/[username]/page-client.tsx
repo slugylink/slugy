@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion } from "motion/react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import ShareActions from "@/components/web/_bio-links/bio-actions";
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import BioLinksList from "@/components/web/_bio-links/bio-links-list";
@@ -97,15 +97,17 @@ export default function GalleryLinksProfileClient({
           </div>
 
           {/* ── Links + footer ── */}
-          <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7 md:rounded-b-3xl">
-            <motion.div {...fadeUp(0.08)}>
-              <BioLinksList links={links} theme={theme} />
-            </motion.div>
+          <LazyMotion features={domAnimation}>
+            <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7 md:rounded-b-3xl">
+              <m.div {...fadeUp(0.08)}>
+                <BioLinksList links={links} theme={theme} />
+              </m.div>
 
-            <motion.div {...fadeUp(0.12)}>
-              <GalleryFooter />
-            </motion.div>
-          </div>
+              <m.div {...fadeUp(0.12)}>
+                <GalleryFooter />
+              </m.div>
+            </div>
+          </LazyMotion>
         </div>
       </div>
     </div>

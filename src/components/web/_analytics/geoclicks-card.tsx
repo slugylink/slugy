@@ -36,10 +36,6 @@ interface TabConfig {
   label: string; // plural for tab labels
   singular: string; // singular for table header
   dataKey: GeoKey;
-  renderName: (
-    item: GeoData,
-    getCountryInfo: ReturnType<typeof useCountryTools>["getCountryInfo"],
-  ) => JSX.Element;
 }
 
 // ------------------------------
@@ -105,60 +101,18 @@ const tabConfigs: TabConfig[] = [
     label: "Countries",
     singular: "Country",
     dataKey: "country",
-    renderName: (item, getCountryInfo) => {
-      const { name, flag } = getCountryInfo(item.country);
-      return (
-        <div className="flex items-center gap-x-2">
-          <Image
-            src={flag}
-            alt={`${name} flag`}
-            width={20}
-            height={15}
-            style={{ borderRadius: 2 }}
-            loading="lazy"
-          />
-          <span className="capitalize">{name}</span>
-        </div>
-      );
-    },
   },
   {
     key: "cities",
     label: "Cities",
     singular: "City",
     dataKey: "city",
-    renderName: (item, getCountryInfo) => {
-      const { flag } = getCountryInfo(item.country);
-      return (
-        <div className="flex items-center gap-x-2 capitalize">
-          <Image
-            src={flag}
-            alt={`${item.country ?? "Unknown"} flag`}
-            width={20}
-            height={15}
-            style={{ borderRadius: 2 }}
-            loading="lazy"
-          />
-          <span>{item.city ?? "Unknown"}</span>
-        </div>
-      );
-    },
   },
   {
     key: "continents",
     label: "Continents",
     singular: "Continent",
     dataKey: "continent",
-    renderName: (item) => {
-      const code = (item.continent ?? "").toLowerCase();
-      const name = CONTINENT_NAMES[code] || code || "Unknown";
-      return (
-        <div className="flex items-center gap-x-2 capitalize">
-          <NotoGlobeShowingAmericas />
-          <span>{name}</span>
-        </div>
-      );
-    },
   },
 ];
 
@@ -204,6 +158,56 @@ const Geoclicks = ({
 
   const { getCountryInfo } = useCountryTools();
   const currentTabConfig = tabConfigs.find((tab) => tab.key === activeTab)!;
+  const NameComponent = useMemo<React.ComponentType<{ item: GeoData }>>(() => {
+    if (activeTab === "countries") {
+      return function CountryName({ item }) {
+        const { name, flag } = getCountryInfo(item.country);
+        return (
+          <div className="flex items-center gap-x-2">
+            <Image
+              src={flag}
+              alt={`${name} flag`}
+              width={20}
+              height={15}
+              style={{ borderRadius: 2 }}
+              loading="lazy"
+            />
+            <span className="capitalize">{name}</span>
+          </div>
+        );
+      };
+    }
+
+    if (activeTab === "cities") {
+      return function CityName({ item }) {
+        const { flag } = getCountryInfo(item.country);
+        return (
+          <div className="flex items-center gap-x-2 capitalize">
+            <Image
+              src={flag}
+              alt={`${item.country ?? "Unknown"} flag`}
+              width={20}
+              height={15}
+              style={{ borderRadius: 2 }}
+              loading="lazy"
+            />
+            <span>{item.city ?? "Unknown"}</span>
+          </div>
+        );
+      };
+    }
+
+    return function ContinentName({ item }) {
+      const code = (item.continent ?? "").toLowerCase();
+      const name = CONTINENT_NAMES[code] || code || "Unknown";
+      return (
+        <div className="flex items-center gap-x-2 capitalize">
+          <NotoGlobeShowingAmericas />
+          <span>{name}</span>
+        </div>
+      );
+    };
+  }, [activeTab, getCountryInfo]);
 
   return (
     <Card className="relative overflow-hidden border shadow-none">
@@ -252,9 +256,7 @@ const Geoclicks = ({
                   `${currentTabConfig.dataKey}-${index}`
                 }
                 progressColor="bg-green-200/40"
-                renderName={(item) =>
-                  currentTabConfig.renderName(item, getCountryInfo)
-                }
+                NameComponent={NameComponent}
               />
             </div>
           </TabsContent>
@@ -281,7 +283,7 @@ const Geoclicks = ({
           )[currentTabConfig.dataKey] ?? `${currentTabConfig.dataKey}-${index}`
         }
         progressColor="bg-green-200/40"
-        renderName={(item) => currentTabConfig.renderName(item, getCountryInfo)}
+        NameComponent={NameComponent}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.singular}
         showButton={!(isLoading ?? false) && sortedData.length > 7}

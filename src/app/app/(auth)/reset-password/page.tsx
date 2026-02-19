@@ -38,13 +38,17 @@ const resetPasswordSchema = z
 
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
-function ResetPasswordForm() {
+function ResetPasswordForm({
+  error,
+  token,
+}: {
+  error: string | null;
+  token: string | null;
+}) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const error = searchParams.get("error");
 
   const {
     register,
@@ -68,10 +72,11 @@ function ResetPasswordForm() {
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
       setIsLoading(true);
-      const token = searchParams.get("token");
-      
+
       if (!token) {
-        toast.error("Invalid reset token. Please request a new password reset link.");
+        toast.error(
+          "Invalid reset token. Please request a new password reset link.",
+        );
         router.push("/forgot-password");
         return;
       }
@@ -166,9 +171,7 @@ function ResetPasswordForm() {
                 <FaCircleCheck
                   className={cn(
                     "h-2.5 w-2.5",
-                    passwordChecks.length
-                      ? "text-green-500"
-                      : "text-zinc-400",
+                    passwordChecks.length ? "text-green-500" : "text-zinc-400",
                   )}
                 />
                 <span className="text-muted-foreground">8 characters</span>
@@ -182,9 +185,7 @@ function ResetPasswordForm() {
                       : "text-zinc-400",
                   )}
                 />
-                <span className="text-muted-foreground">
-                  Uppercase letter
-                </span>
+                <span className="text-muted-foreground">Uppercase letter</span>
               </div>
               <div className="flex items-center gap-1">
                 <FaCircleCheck
@@ -195,17 +196,13 @@ function ResetPasswordForm() {
                       : "text-zinc-400",
                   )}
                 />
-                <span className="text-muted-foreground">
-                  Lowercase letter
-                </span>
+                <span className="text-muted-foreground">Lowercase letter</span>
               </div>
               <div className="flex items-center gap-1">
                 <FaCircleCheck
                   className={cn(
                     "h-2.5 w-2.5",
-                    passwordChecks.number
-                      ? "text-green-500"
-                      : "text-zinc-400",
+                    passwordChecks.number ? "text-green-500" : "text-zinc-400",
                   )}
                 />
                 <span className="text-muted-foreground">Number</span>
@@ -214,14 +211,10 @@ function ResetPasswordForm() {
                 <FaCircleCheck
                   className={cn(
                     "h-2.5 w-2.5",
-                    passwordChecks.special
-                      ? "text-green-500"
-                      : "text-zinc-400",
+                    passwordChecks.special ? "text-green-500" : "text-zinc-400",
                   )}
                 />
-                <span className="text-muted-foreground">
-                  Special character
-                </span>
+                <span className="text-muted-foreground">Special character</span>
               </div>
             </div>
           </div>
@@ -285,16 +278,26 @@ function ResetPasswordForm() {
   );
 }
 
+function ResetPasswordFormWithSearchParams() {
+  const searchParams = useSearchParams();
+  return (
+    <ResetPasswordForm
+      error={searchParams.get("error")}
+      token={searchParams.get("token")}
+    />
+  );
+}
+
 export default function ResetPasswordPage() {
   return (
     <Suspense
       fallback={
         <div className="flex h-svh items-center justify-center">
-          <LoaderCircle className="h-8 w-8 animate-[spin_1.2s_linear_infinite]" />
+          <LoaderCircle className="h-5 w-5 animate-[spin_1.2s_linear_infinite]" />
         </div>
       }
     >
-      <ResetPasswordForm />
+      <ResetPasswordFormWithSearchParams />
     </Suspense>
   );
 }

@@ -8,16 +8,16 @@ export function FeaturesSection() {
         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
           Everything you need to manage your links
         </h2>
-        <p className="mt-4 text-lg text-muted-foreground">
+        <p className="text-muted-foreground mt-4 text-lg">
           Powerful features to help you create, manage, and track your links
           effectively.
         </p>
       </div>
       <div className="">
         {features.map((feature, index) => (
-          <FeatureCard key={index} {...feature} />
+          <FeatureCard key={feature.title} {...feature} />
         ))}
       </div>
     </section>
   );
-} 
+}

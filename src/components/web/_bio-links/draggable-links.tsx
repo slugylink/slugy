@@ -10,7 +10,6 @@ import {
   type DraggableProvided,
 } from "@hello-pangea/dnd";
 import { toast } from "sonner";
-import { Smartphone } from "lucide-react";
 import { type KeyedMutator } from "swr";
 import axios from "axios";
 import GalleryLinkCard from "./glink-card";
@@ -70,18 +69,13 @@ export default function DraggableLinks({
   username,
   mutate,
 }: DraggableLinksProps) {
-  const [links, setLinks] = useState<EditorBioLink[]>(initialLinks);
   const [pendingReorder, setPendingReorder] = useState<EditorBioLink[] | null>(
     null,
   );
 
   const isProcessingRef = useRef(false);
   const lastOrderKeyRef = useRef<string>("");
-
-  // Keep local state in sync when parent data changes
-  useEffect(() => {
-    setLinks(initialLinks);
-  }, [initialLinks]);
+  const displayedLinks = pendingReorder ?? initialLinks;
 
   const debouncedPendingReorder = useDebounce(pendingReorder, DEBOUNCE_DELAY);
 
@@ -133,7 +127,6 @@ export default function DraggableLinks({
         }
       } catch {
         toast.error("Failed to update link positions");
-        setLinks(initialLinks);
         void mutate();
       } finally {
         isProcessingRef.current = false;
@@ -156,11 +149,14 @@ export default function DraggableLinks({
       const { source, destination } = result;
       if (!destination || source.index === destination.index) return;
 
-      const updated = reorderLinks(links, source.index, destination.index);
-      setLinks(updated);
+      const updated = reorderLinks(
+        displayedLinks,
+        source.index,
+        destination.index,
+      );
       setPendingReorder(updated);
     },
-    [links],
+    [displayedLinks],
   );
 
   return (
@@ -172,10 +168,10 @@ export default function DraggableLinks({
             ref={provided.innerRef}
             className="space-y-4 pt-2"
           >
-            {links.length === 0 ? (
+            {displayedLinks.length === 0 ? (
               <EmptyState />
             ) : (
-              links.map((link, index) => (
+              displayedLinks.map((link, index) => (
                 <Draggable key={link.id} draggableId={link.id} index={index}>
                   {(provided: DraggableProvided) => (
                     <div

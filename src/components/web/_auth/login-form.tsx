@@ -1,8 +1,12 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useEffect, useReducer } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import {
+  useForm,
+  type FieldErrors,
+  type UseFormRegister,
+} from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
@@ -23,30 +27,141 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+type LoginUiState = {
+  showPassword: boolean;
+  isGithubLoading: boolean;
+  isGoogleLoading: boolean;
+  isPasswordLogin: boolean;
+  isLoading: boolean;
+  isRedirecting: boolean;
+  lastUsedProvider: string | null;
+};
+
+type LoginUiAction =
+  | { type: "SET_SHOW_PASSWORD"; payload: boolean }
+  | { type: "SET_GITHUB_LOADING"; payload: boolean }
+  | { type: "SET_GOOGLE_LOADING"; payload: boolean }
+  | { type: "SET_PASSWORD_LOGIN"; payload: boolean }
+  | { type: "SET_LOADING"; payload: boolean }
+  | { type: "SET_REDIRECTING"; payload: boolean }
+  | { type: "SET_LAST_PROVIDER"; payload: string | null }
+  | { type: "HYDRATE_LAST_PROVIDER"; payload: string | null };
+
+const initialUiState: LoginUiState = {
+  showPassword: false,
+  isGithubLoading: false,
+  isGoogleLoading: false,
+  isPasswordLogin: false,
+  isLoading: false,
+  isRedirecting: false,
+  lastUsedProvider: null,
+};
+
+function loginUiReducer(state: LoginUiState, action: LoginUiAction) {
+  switch (action.type) {
+    case "SET_SHOW_PASSWORD":
+      return { ...state, showPassword: action.payload };
+    case "SET_GITHUB_LOADING":
+      return { ...state, isGithubLoading: action.payload };
+    case "SET_GOOGLE_LOADING":
+      return { ...state, isGoogleLoading: action.payload };
+    case "SET_PASSWORD_LOGIN":
+      return { ...state, isPasswordLogin: action.payload };
+    case "SET_LOADING":
+      return { ...state, isLoading: action.payload };
+    case "SET_REDIRECTING":
+      return { ...state, isRedirecting: action.payload };
+    case "SET_LAST_PROVIDER":
+    case "HYDRATE_LAST_PROVIDER":
+      return { ...state, lastUsedProvider: action.payload };
+    default:
+      return state;
+  }
+}
+
+function PasswordField({
+  email,
+  isPasswordLogin,
+  showPassword,
+  register,
+  errors,
+  disabled,
+  onTogglePassword,
+}: {
+  email: string;
+  isPasswordLogin: boolean;
+  showPassword: boolean;
+  register: UseFormRegister<LoginFormData>;
+  errors: FieldErrors<LoginFormData>;
+  disabled: boolean;
+  onTogglePassword: () => void;
+}) {
+  if (!isPasswordLogin) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label htmlFor="password">Password</Label>
+        <Link
+          className="text-muted-foreground text-xs underline"
+          href={`/forgot-password?email=${email}`}
+        >
+          Forgot Password?
+        </Link>
+      </div>
+      <div className="relative">
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          placeholder="Enter your password"
+          {...register("password", {
+            required: isPasswordLogin ? "Password is required" : false,
+          })}
+          className={cn(
+            "w-full pr-10",
+            errors.password && "border-red-500 focus-visible:ring-red-500",
+          )}
+          required={isPasswordLogin}
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={disabled}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
-  const [isGithubLoading, setIsGithubLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isPasswordLogin, setIsPasswordLogin] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [lastUsedProvider, setLastUsedProvider] = useState<string | null>(null);
+  const [state, dispatch] = useReducer(loginUiReducer, initialUiState);
+  const {
+    showPassword,
+    isGithubLoading,
+    isGoogleLoading,
+    isPasswordLogin,
+    isLoading,
+    isRedirecting,
+    lastUsedProvider,
+  } = state;
 
   // Computed state: true if any authentication is in progress
   const isAnyAuthInProgress =
     isLoading || isGoogleLoading || isGithubLoading || isRedirecting;
 
   useEffect(() => {
-    // Reset loading states on mount
-    setIsGoogleLoading(false);
-    setIsGithubLoading(false);
-    setIsLoading(false);
-    setIsRedirecting(false);
-
     // Load last used provider from localStorage (client-side only)
     try {
       const savedProvider = localStorage.getItem("lastUsedProvider");
@@ -54,7 +169,7 @@ export function LoginForm({
         savedProvider &&
         ["google", "github", "credential"].includes(savedProvider)
       ) {
-        setLastUsedProvider(savedProvider);
+        dispatch({ type: "HYDRATE_LAST_PROVIDER", payload: savedProvider });
       }
     } catch (error) {
       // localStorage might not be available in some environments
@@ -74,8 +189,8 @@ export function LoginForm({
   });
 
   const handleGoogleLogin = async () => {
+    dispatch({ type: "SET_GOOGLE_LOADING", payload: true });
     try {
-      setIsGoogleLoading(true);
       await authClient.signIn.social(
         {
           provider: "google",
@@ -88,13 +203,13 @@ export function LoginForm({
             } catch (error) {
               // localStorage might not be available
             }
-            setLastUsedProvider("google");
-            setIsRedirecting(true);
+            dispatch({ type: "SET_LAST_PROVIDER", payload: "google" });
+            dispatch({ type: "SET_REDIRECTING", payload: true });
             router.push("/");
             router.refresh();
           },
           onError: (err) => {
-            setIsRedirecting(false);
+            dispatch({ type: "SET_REDIRECTING", payload: false });
             toast.error(
               err instanceof Error
                 ? err.message
@@ -104,17 +219,16 @@ export function LoginForm({
         },
       );
     } catch (err) {
-      setIsRedirecting(false);
+      dispatch({ type: "SET_REDIRECTING", payload: false });
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
-    } finally {
-      setIsGoogleLoading(false);
     }
+    dispatch({ type: "SET_GOOGLE_LOADING", payload: false });
   };
 
   const handleGithubLogin = async () => {
+    dispatch({ type: "SET_GITHUB_LOADING", payload: true });
     try {
-      setIsGithubLoading(true);
       await authClient.signIn.social(
         {
           provider: "github",
@@ -127,13 +241,13 @@ export function LoginForm({
             } catch (error) {
               // localStorage might not be available
             }
-            setLastUsedProvider("github");
-            setIsRedirecting(true);
+            dispatch({ type: "SET_LAST_PROVIDER", payload: "github" });
+            dispatch({ type: "SET_REDIRECTING", payload: true });
             router.push("/");
             router.refresh();
           },
           onError: (err) => {
-            setIsRedirecting(false);
+            dispatch({ type: "SET_REDIRECTING", payload: false });
             console.error("GitHub login error details:", err);
             toast.error(
               err instanceof Error
@@ -144,19 +258,18 @@ export function LoginForm({
         },
       );
     } catch (err) {
-      setIsRedirecting(false);
+      dispatch({ type: "SET_REDIRECTING", payload: false });
       console.error("GitHub login error:", err);
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
-    } finally {
-      setIsGithubLoading(false);
     }
+    dispatch({ type: "SET_GITHUB_LOADING", payload: false });
   };
 
   const handlePasswordLogin = async (email: string, password: string) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      setIsLoading(true);
       await authClient.signIn.email(
         {
           email,
@@ -170,13 +283,13 @@ export function LoginForm({
             } catch (error) {
               // localStorage might not be available
             }
-            setLastUsedProvider("credential");
-            setIsRedirecting(true);
+            dispatch({ type: "SET_LAST_PROVIDER", payload: "credential" });
+            dispatch({ type: "SET_REDIRECTING", payload: true });
             router.push("/");
             router.refresh();
           },
           onError: (err) => {
-            setIsRedirecting(false);
+            dispatch({ type: "SET_REDIRECTING", payload: false });
             toast.error(
               err instanceof Error ? err.message : "Invalid email or password",
             );
@@ -184,17 +297,16 @@ export function LoginForm({
         },
       );
     } catch (err) {
-      setIsRedirecting(false);
+      dispatch({ type: "SET_REDIRECTING", payload: false });
       toast.error("An unexpected error occurred during login");
       console.error("Login error:", err);
-    } finally {
-      setIsLoading(false);
     }
+    dispatch({ type: "SET_LOADING", payload: false });
   };
 
   const handleResendVerification = async (email: string) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      setIsLoading(true);
       await authClient.sendVerificationEmail({ email });
       toast.success("Verification email sent! Please check your inbox.");
     } catch (err) {
@@ -203,14 +315,13 @@ export function LoginForm({
           ? err.message
           : "Failed to send verification email",
       );
-    } finally {
-      setIsLoading(false);
     }
+    dispatch({ type: "SET_LOADING", payload: false });
   };
 
   const handleMagicLinkLogin = async (email: string) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      setIsLoading(true);
       await authClient.signIn.magicLink(
         {
           email,
@@ -230,97 +341,56 @@ export function LoginForm({
     } catch (err) {
       toast.error("An unexpected error occurred while sending magic link");
       console.error("Magic link error:", err);
-    } finally {
-      setIsLoading(false);
     }
+    dispatch({ type: "SET_LOADING", payload: false });
   };
 
   const onSubmit = async (data: LoginFormData) => {
+    dispatch({ type: "SET_LOADING", payload: true });
     try {
-      setIsLoading(true);
       if (!isPasswordLogin) {
         const userData = await checkUserExists(data.email);
 
         if (!userData.exists) {
           toast.error("No account found with this email. Please sign up.");
+          dispatch({ type: "SET_LOADING", payload: false });
           return;
         }
 
         if (!userData.emailVerified) {
           await handleResendVerification(data.email);
+          dispatch({ type: "SET_LOADING", payload: false });
           return;
         }
 
         // If user has a credential account, show password field
         if (userData.provider === "credential") {
-          setIsPasswordLogin(true);
+          dispatch({ type: "SET_PASSWORD_LOGIN", payload: true });
+          dispatch({ type: "SET_LOADING", payload: false });
           return;
         }
 
         // For social provider users, send magic link instead of trying password auth
         if (userData.provider && userData.provider !== "credential") {
           await handleMagicLinkLogin(data.email);
+          dispatch({ type: "SET_LOADING", payload: false });
           return;
         }
 
         // Fallback to magic link if no provider is found (user might have signed up with magic link)
         await handleMagicLinkLogin(data.email);
+        dispatch({ type: "SET_LOADING", payload: false });
       } else if (data.password && data.password.trim()) {
         await handlePasswordLogin(data.email, data.password);
+        dispatch({ type: "SET_LOADING", payload: false });
       } else {
         toast.error("Password is required");
+        dispatch({ type: "SET_LOADING", payload: false });
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to sign in");
-    } finally {
-      setIsLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
     }
-  };
-
-  const renderPasswordField = (email: string) => {
-    if (!isPasswordLogin) return null;
-
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <Link
-            className="text-muted-foreground text-xs underline"
-            href={`/forgot-password?email=${email}`}
-          >
-            Forgot Password?
-          </Link>
-        </div>
-        <div className="relative">
-            <Input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Enter your password"
-              {...register("password", {
-                required: isPasswordLogin ? "Password is required" : false,
-              })}
-              className={cn(
-                "w-full pr-10",
-                errors.password && "border-red-500 focus-visible:ring-red-500",
-              )}
-              required={isPasswordLogin}
-              disabled={isAnyAuthInProgress}
-            />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            disabled={isAnyAuthInProgress}
-          >
-            {showPassword ? (
-              <EyeOff className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-          </button>
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -349,7 +419,20 @@ export function LoginForm({
               />
             </div>
 
-            {renderPasswordField(watch("email"))}
+            <PasswordField
+              email={watch("email")}
+              isPasswordLogin={isPasswordLogin}
+              showPassword={showPassword}
+              register={register}
+              errors={errors}
+              disabled={isAnyAuthInProgress}
+              onTogglePassword={() =>
+                dispatch({
+                  type: "SET_SHOW_PASSWORD",
+                  payload: !showPassword,
+                })
+              }
+            />
 
             <div className="flex gap-2">
               <Button

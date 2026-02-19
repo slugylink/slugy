@@ -17,7 +17,8 @@ const bricolage = Bricolage_Grotesque({
 
 const CustomDomainNotFound = memo(function CustomDomainNotFound() {
   const domain = typeof window !== "undefined" ? window.location.hostname : "";
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const pathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70">
@@ -25,7 +26,7 @@ const CustomDomainNotFound = memo(function CustomDomainNotFound() {
         {/* 404 Animation */}
         <motion.div
           className="mb-8"
-          initial={{ scale: 0, rotate: -10 }}
+          initial={{ scale: 0.95, opacity: 0, rotate: -10 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{
             type: "spring",
@@ -37,7 +38,10 @@ const CustomDomainNotFound = memo(function CustomDomainNotFound() {
           <div className="relative">
             <div className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-r from-red-400 to-orange-400 opacity-20 blur-2xl" />
             <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-2 border-white/50 bg-white/80 shadow-xl backdrop-blur-sm">
-              <AlertCircle className="h-16 w-16 text-red-500" strokeWidth={1.5} />
+              <AlertCircle
+                className="h-16 w-16 text-red-500"
+                strokeWidth={1.5}
+              />
             </div>
           </div>
         </motion.div>
@@ -177,4 +181,3 @@ const CustomDomainNotFound = memo(function CustomDomainNotFound() {
 CustomDomainNotFound.displayName = "CustomDomainNotFound";
 
 export default CustomDomainNotFound;
-

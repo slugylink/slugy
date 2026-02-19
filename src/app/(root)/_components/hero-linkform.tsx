@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, LazyMotion, domAnimation, m } from "motion/react";
 
 import { Input } from "@/components/ui/input";
 import HeroLinkCard from "./hero-linkcard";
@@ -177,65 +177,70 @@ const HeroLinkForm = memo(function HeroLinkForm() {
   return (
     <div>
       {/* Form */}
-      <motion.form
-        onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
-        initial={{ opacity: 0, y: 10 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.2 }}
-        transition={{
-          duration: 0.4,
-          delay: 0.1,
-          ease: [0.25, 0.46, 0.45, 0.94],
-        }}
-      >
-        <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
-          <Input
-            type="text"
-            placeholder="Enter a destination URL"
-            disabled={isFormDisabled}
-            autoComplete="off"
-            {...register("url")}
-            className="w-full border-none focus-visible:ring-0"
-            required
-          />
-          <Button
-            type="submit"
-            disabled={isFormDisabled}
-            className="rounded-lg bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50"
-          >
-            {isSubmitting && (
-              <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
-            )}
-            Shorten{" "}
-            <Image
-              src="/icons/star.svg"
-              alt=""
-              width={16}
-              height={16}
-              priority
-              sizes="16px"
+      <LazyMotion features={domAnimation}>
+        <m.form
+          onSubmit={handleSubmit(onSubmit)}
+          className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{
+            duration: 0.4,
+            delay: 0.1,
+            ease: [0.25, 0.46, 0.45, 0.94],
+          }}
+        >
+          <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
+            <Input
+              type="text"
+              placeholder="Enter a destination URL"
+              disabled={isFormDisabled}
+              autoComplete="off"
+              {...register("url")}
+              className="w-full border-none focus-visible:ring-0"
+              required
             />
-          </Button>
-        </div>
-        {/* Links */}
-        <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
-          <AnimatePresence initial={false}>
-            {links.map((link) => (
-              <motion.div
-                key={link.short}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-                layout
-              >
-                <HeroLinkCard link={link} />
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </motion.form>
+            <Button
+              type="submit"
+              disabled={isFormDisabled}
+              className="rounded-lg bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50"
+            >
+              {isSubmitting && (
+                <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
+              )}
+              Shorten{" "}
+              <Image
+                src="/icons/star.svg"
+                alt=""
+                width={16}
+                height={16}
+                priority
+                sizes="16px"
+              />
+            </Button>
+          </div>
+          {/* Links */}
+          <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
+            <AnimatePresence initial={false}>
+              {links.map((link) => (
+                <m.div
+                  key={link.short}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{
+                    duration: 0.25,
+                    ease: [0.25, 0.46, 0.45, 0.94],
+                  }}
+                  layout
+                >
+                  <HeroLinkCard link={link} />
+                </m.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        </m.form>
+      </LazyMotion>
 
       {/* CTA */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-700">

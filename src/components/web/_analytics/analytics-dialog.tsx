@@ -1,7 +1,13 @@
 "use client";
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Scan } from "lucide-react";
 import TableCard from "./table-card";
@@ -15,7 +21,7 @@ interface AnalyticsDialogProps<T> {
   getClicks: (item: T) => number;
   getKey: (item: T, index: number) => string;
   progressColor?: string;
-  renderName: (item: T) => React.ReactNode;
+  NameComponent: React.ComponentType<{ item: T }>;
   title: string;
   headerLabel: string;
   showButton: boolean;
@@ -32,7 +38,7 @@ export default function AnalyticsDialog<T>({
   getClicks,
   getKey,
   progressColor = "bg-muted",
-  renderName,
+  NameComponent,
   title,
   headerLabel,
   showButton,
@@ -42,7 +48,7 @@ export default function AnalyticsDialog<T>({
   if (!showButton) return null;
 
   return (
-    <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-full mx-auto flex items-center justify-center bg-transparent z-10 py-1">
+    <div className="absolute bottom-1 left-1/2 z-10 mx-auto flex w-full -translate-x-1/2 items-center justify-center bg-transparent py-1">
       <Dialog open={dialogOpen} onOpenChange={onDialogOpenChange}>
         <DialogTrigger asChild className="">
           <Button size="xs" variant="secondary">
@@ -51,9 +57,7 @@ export default function AnalyticsDialog<T>({
         </DialogTrigger>
         <DialogContent className="max-h-[80vh] max-w-xl overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-lg">
-              {title}
-            </DialogTitle>
+            <DialogTitle className="text-lg">{title}</DialogTitle>
           </DialogHeader>
           <div className="mt-4">
             <div className="mb-2 flex items-center border-b pb-2">
@@ -70,7 +74,7 @@ export default function AnalyticsDialog<T>({
                 getClicks={getClicks}
                 getKey={getKey}
                 progressColor={progressColor}
-                renderName={renderName}
+                NameComponent={NameComponent}
               />
             </ScrollArea>
           </div>

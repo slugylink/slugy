@@ -1,5 +1,5 @@
 "use client";
-import React, { memo } from "react";
+import React, { memo, useCallback } from "react";
 import Actions from "@/components/web/_tags/tag-actions";
 import TagCard from "@/components/web/_tags/tag-card";
 import useSWR from "swr";
@@ -18,8 +18,6 @@ interface ApiError extends Error {
     error?: string;
   };
 }
-
-
 
 const EmptyState = memo(() => (
   <div className="flex h-full min-h-[60vh] w-full flex-col items-center justify-center rounded-xl border">
@@ -65,6 +63,9 @@ export default function TagsClient({
     isLoading,
     mutate,
   } = useSWR<Tag[], ApiError>(`/api/workspace/${workspaceslug}/tags`);
+  const handleRetry = useCallback(() => {
+    mutate();
+  }, [mutate]);
 
   return (
     <div>
@@ -76,7 +77,7 @@ export default function TagsClient({
         </div>
       )}
 
-      {error && <ErrorState error={error} onRetry={() => mutate()} />}
+      {error && <ErrorState error={error} onRetry={handleRetry} />}
 
       {!isLoading && !error && (
         <>

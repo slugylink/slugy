@@ -385,10 +385,13 @@ export default function LinkCard({
               <DropdownMenuGroup>
                 {dropdownItems.map((item, index) =>
                   item.type === "separator" ? (
-                    <Separator key={`separator-${index}`} className="my-1" />
+                    <Separator
+                      key={`separator-${item.label}`}
+                      className="my-1"
+                    />
                   ) : (
                     <DropdownMenuItem
-                      key={`${item.label}-${index}`}
+                      key={`separator-${item.label}`}
                       className={cn(
                         "flex cursor-pointer items-center gap-2 px-3 py-2",
                         item.color,

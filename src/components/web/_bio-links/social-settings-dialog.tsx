@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useReducer } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -40,6 +40,97 @@ const DEFAULT_VISIBLE_SOCIALS = BIO_SOCIAL_ICONS.slice(0, 5).map(
   (item) => item.platform,
 );
 
+type SocialDialogState = {
+  isSubmitting: boolean;
+  values: SocialValues;
+  visibility: SocialVisibility;
+  initialValues: SocialValues;
+  initialVisibility: SocialVisibility;
+  activePlatforms: ActivePlatforms;
+  platformSearch: string;
+};
+
+type SocialDialogAction =
+  | {
+      type: "initialize_from_data";
+      payload: {
+        values: SocialValues;
+        visibility: SocialVisibility;
+        activePlatforms: ActivePlatforms;
+      };
+    }
+  | { type: "set_submitting"; payload: boolean }
+  | { type: "set_platform_search"; payload: string }
+  | { type: "activate_platform"; payload: string }
+  | { type: "set_value"; payload: { platform: string; value: string } }
+  | { type: "set_visibility"; payload: { platform: string; value: boolean } }
+  | {
+      type: "commit_saved";
+      payload: { values: SocialValues; visibility: SocialVisibility };
+    };
+
+const INITIAL_STATE: SocialDialogState = {
+  isSubmitting: false,
+  values: INITIAL_VALUES,
+  visibility: INITIAL_VISIBILITY,
+  initialValues: INITIAL_VALUES,
+  initialVisibility: INITIAL_VISIBILITY,
+  activePlatforms: {},
+  platformSearch: "",
+};
+
+function socialDialogReducer(
+  state: SocialDialogState,
+  action: SocialDialogAction,
+): SocialDialogState {
+  switch (action.type) {
+    case "initialize_from_data":
+      return {
+        ...state,
+        values: action.payload.values,
+        visibility: action.payload.visibility,
+        initialValues: action.payload.values,
+        initialVisibility: action.payload.visibility,
+        activePlatforms: action.payload.activePlatforms,
+        platformSearch: "",
+      };
+    case "set_submitting":
+      return { ...state, isSubmitting: action.payload };
+    case "set_platform_search":
+      return { ...state, platformSearch: action.payload };
+    case "activate_platform":
+      return {
+        ...state,
+        activePlatforms: { ...state.activePlatforms, [action.payload]: true },
+        platformSearch: "",
+      };
+    case "set_value":
+      return {
+        ...state,
+        values: {
+          ...state.values,
+          [action.payload.platform]: action.payload.value,
+        },
+      };
+    case "set_visibility":
+      return {
+        ...state,
+        visibility: {
+          ...state.visibility,
+          [action.payload.platform]: action.payload.value,
+        },
+      };
+    case "commit_saved":
+      return {
+        ...state,
+        initialValues: action.payload.values,
+        initialVisibility: action.payload.visibility,
+      };
+    default:
+      return state;
+  }
+}
+
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
@@ -60,16 +151,16 @@ export function SocialSettingsDialog({
   initialData,
 }: SocialSettingsDialogProps) {
   const wasOpenRef = useRef(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [values, setValues] = useState<SocialValues>(INITIAL_VALUES);
-  const [visibility, setVisibility] =
-    useState<SocialVisibility>(INITIAL_VISIBILITY);
-  const [initialValues, setInitialValues] =
-    useState<SocialValues>(INITIAL_VALUES);
-  const [initialVisibility, setInitialVisibility] =
-    useState<SocialVisibility>(INITIAL_VISIBILITY);
-  const [activePlatforms, setActivePlatforms] = useState<ActivePlatforms>({});
-  const [platformSearch, setPlatformSearch] = useState("");
+  const [state, dispatch] = useReducer(socialDialogReducer, INITIAL_STATE);
+  const {
+    isSubmitting,
+    values,
+    visibility,
+    initialValues,
+    initialVisibility,
+    activePlatforms,
+    platformSearch,
+  } = state;
 
   useEffect(() => {
     const justOpened = open && !wasOpenRef.current;
@@ -95,12 +186,14 @@ export function SocialSettingsDialog({
       }
     });
 
-    setValues(nextValues);
-    setVisibility(nextVisibility);
-    setInitialValues(nextValues);
-    setInitialVisibility(nextVisibility);
-    setActivePlatforms(nextActivePlatforms);
-    setPlatformSearch("");
+    dispatch({
+      type: "initialize_from_data",
+      payload: {
+        values: nextValues,
+        visibility: nextVisibility,
+        activePlatforms: nextActivePlatforms,
+      },
+    });
   }, [initialData, open]);
 
   const visibleSocials = useMemo(
@@ -163,7 +256,7 @@ export function SocialSettingsDialog({
       isPublic: visibility[item.platform],
     })).filter((item) => item.url.length > 0);
 
-    setIsSubmitting(true);
+    dispatch({ type: "set_submitting", payload: true });
     try {
       await mutate(`/api/bio-gallery/${username}`);
 
@@ -182,8 +275,10 @@ export function SocialSettingsDialog({
 
       await mutate(`/api/bio-gallery/${username}`);
 
-      setInitialValues(trimmedValues);
-      setInitialVisibility({ ...visibility });
+      dispatch({
+        type: "commit_saved",
+        payload: { values: trimmedValues, visibility: { ...visibility } },
+      });
       toast.success("Social links updated successfully");
       onOpenChange(false);
     } catch (error) {
@@ -191,7 +286,7 @@ export function SocialSettingsDialog({
       toast.error("Failed to update social links");
       await mutate(`/api/bio-gallery/${username}`);
     } finally {
-      setIsSubmitting(false);
+      dispatch({ type: "set_submitting", payload: false });
     }
   };
 
@@ -218,7 +313,12 @@ export function SocialSettingsDialog({
               placeholder="Search platform (e.g. Pinterest, Medium)"
               value={platformSearch}
               disabled={isSubmitting}
-              onChange={(event) => setPlatformSearch(event.target.value)}
+              onChange={(event) =>
+                dispatch({
+                  type: "set_platform_search",
+                  payload: event.target.value,
+                })
+              }
             />
             {platformSearch.trim().length > 0 && (
               <div className="bg-popover text-popover-foreground absolute top-10 right-0 left-0 z-10 max-h-48 overflow-y-auto rounded-md border shadow-md">
@@ -229,13 +329,12 @@ export function SocialSettingsDialog({
                       type="button"
                       className="hover:bg-muted flex w-full items-center gap-2 px-3 py-2 text-left text-sm"
                       onMouseDown={(event) => event.preventDefault()}
-                      onClick={() => {
-                        setActivePlatforms((prev) => ({
-                          ...prev,
-                          [item.platform]: true,
-                        }));
-                        setPlatformSearch("");
-                      }}
+                      onClick={() =>
+                        dispatch({
+                          type: "activate_platform",
+                          payload: item.platform,
+                        })
+                      }
                       disabled={isSubmitting}
                     >
                       <item.icon className={`h-4 w-4 ${item.colorClass}`} />
@@ -262,20 +361,26 @@ export function SocialSettingsDialog({
                     value={values[item.platform] ?? ""}
                     disabled={isSubmitting}
                     onChange={(event) =>
-                      setValues((prev) => ({
-                        ...prev,
-                        [item.platform]: event.target.value,
-                      }))
+                      dispatch({
+                        type: "set_value",
+                        payload: {
+                          platform: item.platform,
+                          value: event.target.value,
+                        },
+                      })
                     }
                   />
                   <Switch
                     checked={visibility[item.platform] ?? false}
                     disabled={isSubmitting}
                     onCheckedChange={(checked) =>
-                      setVisibility((prev) => ({
-                        ...prev,
-                        [item.platform]: checked,
-                      }))
+                      dispatch({
+                        type: "set_visibility",
+                        payload: {
+                          platform: item.platform,
+                          value: checked,
+                        },
+                      })
                     }
                   />
                 </div>

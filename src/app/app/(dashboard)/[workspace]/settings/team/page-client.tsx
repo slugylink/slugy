@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useCallback, useMemo } from "react";
+import { memo, useState, useCallback } from "react";
 import useSWR from "swr";
 import Image from "next/image";
 import {
@@ -326,15 +326,29 @@ const RemoveMemberDialog = memo(
   }: RemoveMemberDialogProps) => {
     if (!open || !member) return null;
 
+    const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.target === e.currentTarget && !isSubmitting) {
+        onClose();
+      }
+    };
+
+    const handleBackdropKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if ((e.key === "Enter" || e.key === " ") && !isSubmitting) {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
     return (
       <div
         className="animate-in fade-in-0 fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm duration-150"
-        onClick={() => !isSubmitting && onClose()}
+        onClick={handleBackdropClick}
+        onKeyDown={handleBackdropKeyDown}
+        role="button"
+        tabIndex={0}
+        aria-label="Close remove member dialog"
       >
-        <div
-          className="bg-background animate-in fade-in-0 zoom-in-95 w-full max-w-md rounded-xl border p-6 shadow-lg duration-200"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className="bg-background animate-in fade-in-0 zoom-in-95 w-full max-w-md rounded-xl border p-6 shadow-lg duration-200">
           <div className="mb-4 space-y-2">
             <h2 className="text-lg font-semibold">Remove member</h2>
             <p className="text-muted-foreground text-sm">
@@ -403,7 +417,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
   const invitations = teamData?.invitations ?? [];
   const canManageTeam = teamData?.canManageTeam ?? false;
   const hasAny = members.length > 0 || invitations.length > 0;
-  const colSpan = useMemo(() => (canManageTeam ? 5 : 4), [canManageTeam]);
+  const colSpan = canManageTeam ? 5 : 4;
 
   // ============================================================================
   // Handlers

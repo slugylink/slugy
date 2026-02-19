@@ -2,7 +2,7 @@
 import type { ProfileSectionProps } from "@/types/bio-links";
 import { getDisplayName } from "@/utils/bio-links";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
-import { motion } from "motion/react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import { fadeUp } from "@/app/(bio-links)/bio/[username]/page-client";
 
 export default function ProfileSection({
@@ -18,31 +18,33 @@ export default function ProfileSection({
   return (
     <section className="relative z-10 h-full min-h-full bg-transparent">
       <div className="absolute inset-x-0 bottom-0 h-[200px] bg-gradient-to-t from-black via-black/70 to-transparent md:h-[280px]" />
-      <motion.div
-        className="absolute inset-x-0 bottom-0 z-10 px-6 pt-28 pb-8 text-center"
-        {...fadeUp(0.04)}
-      >
-        <h1
-          className={`flex items-center justify-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl ${theme.textColor}`}
+      <LazyMotion features={domAnimation}>
+        <m.div
+          className="absolute inset-x-0 bottom-0 z-10 px-6 pt-28 pb-8 text-center"
+          {...fadeUp(0.04)}
         >
-          <span>{displayName}</span>
-          <RiVerifiedBadgeFill
-            size={24}
-            className="fill-blue-500 text-blue-500"
-          />
-        </h1>
-        <p className="text-sm font-medium text-zinc-300 sm:text-base">
-          @{username}
-        </p>
-        {children ? <div className="mt-3">{children}</div> : null}
-        {bio && (
-          <p
-            className={`${theme.accentColor} mx-auto mt-4 text-sm leading-relaxed text-white/95 sm:text-base`}
+          <h1
+            className={`flex items-center justify-center gap-2 text-2xl font-bold tracking-tight sm:text-3xl ${theme.textColor}`}
           >
-            {bio}
+            <span>{displayName}</span>
+            <RiVerifiedBadgeFill
+              size={24}
+              className="fill-blue-500 text-blue-500"
+            />
+          </h1>
+          <p className="text-sm font-medium text-zinc-300 sm:text-base">
+            @{username}
           </p>
-        )}
-      </motion.div>
+          {children ? <div className="mt-3">{children}</div> : null}
+          {bio && (
+            <p
+              className={`${theme.accentColor} mx-auto mt-4 text-sm leading-relaxed text-white/95 sm:text-base`}
+            >
+              {bio}
+            </p>
+          )}
+        </m.div>
+      </LazyMotion>
     </section>
   );
 }

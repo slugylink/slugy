@@ -56,11 +56,15 @@ const WorkspaceLogoForm = ({
       const formData = new FormData();
       formData.append("file", file);
 
-      await axios.patch(`/api/workspace/${workspaceslug}/settings/logo`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
+      await axios.patch(
+        `/api/workspace/${workspaceslug}/settings/logo`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
         },
-      });
+      );
 
       toast.success("Logo updated successfully");
       router.refresh();
@@ -82,6 +86,7 @@ const WorkspaceLogoForm = ({
                 alt="Workspace Logo"
                 fill
                 className="object-cover"
+                sizes={"(max-width: 768px) 100vw, 50vw"}
               />
             ) : (
               <Image
@@ -89,6 +94,7 @@ const WorkspaceLogoForm = ({
                 alt="Default Workspace Logo"
                 fill
                 className="object-cover"
+                sizes={"(max-width: 768px) 100vw, 50vw"}
               />
             )}
           </div>

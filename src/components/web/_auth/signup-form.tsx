@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useReducer } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
@@ -43,17 +43,257 @@ const signupSchema = z.object({
 });
 
 type SignupFormData = z.infer<typeof signupSchema>;
+type PasswordChecks = {
+  length: boolean;
+  uppercase: boolean;
+  lowercase: boolean;
+  number: boolean;
+  special: boolean;
+};
+
+type SignupUiState = {
+  pending: boolean;
+  isGithubLoading: boolean;
+  isGoogleLoading: boolean;
+  isRedirecting: boolean;
+  showPassword: boolean;
+};
+
+type SignupUiAction =
+  | { type: "SET_PENDING"; payload: boolean }
+  | { type: "SET_GITHUB_LOADING"; payload: boolean }
+  | { type: "SET_GOOGLE_LOADING"; payload: boolean }
+  | { type: "SET_REDIRECTING"; payload: boolean }
+  | { type: "SET_SHOW_PASSWORD"; payload: boolean }
+  | { type: "TOGGLE_SHOW_PASSWORD" };
+
+const initialUiState: SignupUiState = {
+  pending: false,
+  isGithubLoading: false,
+  isGoogleLoading: false,
+  isRedirecting: false,
+  showPassword: false,
+};
+
+function signupUiReducer(
+  state: SignupUiState,
+  action: SignupUiAction,
+): SignupUiState {
+  switch (action.type) {
+    case "SET_PENDING":
+      return { ...state, pending: action.payload };
+    case "SET_GITHUB_LOADING":
+      return { ...state, isGithubLoading: action.payload };
+    case "SET_GOOGLE_LOADING":
+      return { ...state, isGoogleLoading: action.payload };
+    case "SET_REDIRECTING":
+      return { ...state, isRedirecting: action.payload };
+    case "SET_SHOW_PASSWORD":
+      return { ...state, showPassword: action.payload };
+    case "TOGGLE_SHOW_PASSWORD":
+      return { ...state, showPassword: !state.showPassword };
+    default:
+      return state;
+  }
+}
+
+function SignupNameField({
+  register,
+  errorMessage,
+  disabled,
+}: {
+  register: ReturnType<typeof useForm<SignupFormData>>["register"];
+  errorMessage?: string;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="name">Name</Label>
+      <Input
+        id="name"
+        type="text"
+        placeholder="John Doe"
+        {...register("name")}
+        className={cn(
+          "w-full",
+          errorMessage && "border-red-500 focus-visible:ring-red-500",
+        )}
+        aria-invalid={!!errorMessage}
+        aria-describedby={errorMessage ? "name-error" : undefined}
+        required
+        disabled={disabled}
+      />
+      {errorMessage && (
+        <p id="name-error" role="alert" className="text-sm text-red-600">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function SignupEmailField({
+  register,
+  errorMessage,
+  disabled,
+}: {
+  register: ReturnType<typeof useForm<SignupFormData>>["register"];
+  errorMessage?: string;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="email">Email</Label>
+      <Input
+        id="email"
+        type="email"
+        placeholder="m@example.com"
+        {...register("email")}
+        className={cn(
+          "w-full",
+          errorMessage && "border-red-500 focus-visible:ring-red-500",
+        )}
+        aria-invalid={!!errorMessage}
+        aria-describedby={errorMessage ? "email-error" : undefined}
+        required
+        disabled={disabled}
+      />
+      {errorMessage && (
+        <p id="email-error" role="alert" className="text-sm text-red-600">
+          {errorMessage}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PasswordRequirements({ checks }: { checks: PasswordChecks }) {
+  return (
+    <div
+      className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+      aria-live="polite"
+    >
+      <div className="flex items-center gap-1">
+        <FaCircleCheck
+          className={cn(
+            "h-2.5 w-2.5",
+            checks.length ? "text-green-500" : "text-zinc-400",
+          )}
+        />
+        <span className="text-muted-foreground">8 characters</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <FaCircleCheck
+          className={cn(
+            "h-2.5 w-2.5",
+            checks.uppercase ? "text-green-500" : "text-zinc-400",
+          )}
+        />
+        <span className="text-muted-foreground">Uppercase letter</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <FaCircleCheck
+          className={cn(
+            "h-2.5 w-2.5",
+            checks.lowercase ? "text-green-500" : "text-zinc-400",
+          )}
+        />
+        <span className="text-muted-foreground">Lowercase letter</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <FaCircleCheck
+          className={cn(
+            "h-2.5 w-2.5",
+            checks.number ? "text-green-500" : "text-zinc-400",
+          )}
+        />
+        <span className="text-muted-foreground">Number</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <FaCircleCheck
+          className={cn(
+            "h-2.5 w-2.5",
+            checks.special ? "text-green-500" : "text-zinc-400",
+          )}
+        />
+        <span className="text-muted-foreground">Special character</span>
+      </div>
+    </div>
+  );
+}
+
+function SignupPasswordField({
+  register,
+  showPassword,
+  passwordChecks,
+  errorMessage,
+  disabled,
+  onTogglePassword,
+}: {
+  register: ReturnType<typeof useForm<SignupFormData>>["register"];
+  showPassword: boolean;
+  passwordChecks: PasswordChecks;
+  errorMessage?: string;
+  disabled: boolean;
+  onTogglePassword: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="password">Password</Label>
+      <div className="relative">
+        <Input
+          id="password"
+          type={showPassword ? "text" : "password"}
+          {...register("password")}
+          className={cn(
+            "w-full pr-10",
+            errorMessage && "border-red-500 focus-visible:ring-red-500",
+          )}
+          aria-invalid={!!errorMessage}
+          aria-describedby={errorMessage ? "password-error" : undefined}
+          required
+          minLength={8}
+          maxLength={100}
+          autoComplete="new-password"
+          disabled={disabled}
+        />
+        <button
+          type="button"
+          onClick={onTogglePassword}
+          className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label={showPassword ? "Hide password" : "Show password"}
+          disabled={disabled}
+        >
+          {showPassword ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Eye className="h-4 w-4" />
+          )}
+        </button>
+      </div>
+      {errorMessage && (
+        <p id="password-error" role="alert" className="text-sm text-red-600">
+          {errorMessage}
+        </p>
+      )}
+      <PasswordRequirements checks={passwordChecks} />
+    </div>
+  );
+}
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
   const router = useRouter();
-  const [pending, setPending] = useState(false);
-  const [isGithubLoading, setIsGithubLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [state, dispatch] = useReducer(signupUiReducer, initialUiState);
+  const {
+    pending,
+    isGithubLoading,
+    isGoogleLoading,
+    isRedirecting,
+    showPassword,
+  } = state;
 
   // Computed state: true if any authentication is in progress
   const isAnyAuthInProgress =
@@ -81,17 +321,17 @@ export function SignupForm({
 
   const handleGoogleLogin = async () => {
     try {
-      setIsGoogleLoading(true);
+      dispatch({ type: "SET_GOOGLE_LOADING", payload: true });
       await authClient.signIn.social(
         { provider: "google" },
         {
           onSuccess: () => {
-            setIsRedirecting(true);
+            dispatch({ type: "SET_REDIRECTING", payload: true });
             router.push("/");
             router.refresh();
           },
           onError: (err) => {
-            setIsRedirecting(false);
+            dispatch({ type: "SET_REDIRECTING", payload: false });
             toast.error(
               err instanceof Error
                 ? err.message
@@ -101,27 +341,27 @@ export function SignupForm({
         },
       );
     } catch (err) {
-      setIsRedirecting(false);
+      dispatch({ type: "SET_REDIRECTING", payload: false });
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
     } finally {
-      setIsGoogleLoading(false);
+      dispatch({ type: "SET_GOOGLE_LOADING", payload: false });
     }
   };
 
   const handleGithubLogin = async () => {
     try {
-      setIsGithubLoading(true);
+      dispatch({ type: "SET_GITHUB_LOADING", payload: true });
       await authClient.signIn.social(
         { provider: "github" },
         {
           onSuccess: () => {
-            setIsRedirecting(true);
+            dispatch({ type: "SET_REDIRECTING", payload: true });
             router.push("/");
             router.refresh();
           },
           onError: (err) => {
-            setIsRedirecting(false);
+            dispatch({ type: "SET_REDIRECTING", payload: false });
             console.error("GitHub login error details:", err);
             toast.error(
               err instanceof Error
@@ -132,19 +372,19 @@ export function SignupForm({
         },
       );
     } catch (err) {
-      setIsRedirecting(false);
+      dispatch({ type: "SET_REDIRECTING", payload: false });
       console.error("GitHub login error:", err);
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
     } finally {
-      setIsGithubLoading(false);
+      dispatch({ type: "SET_GITHUB_LOADING", payload: false });
     }
   };
 
   const onSubmit = async (data: SignupFormData) => {
     try {
-      setPending(true);
+      dispatch({ type: "SET_PENDING", payload: true });
 
       // EMAIL FRAUD VALIDATION ONLY ON SUBMIT
       const validationResult = await validateEmail(data.email);
@@ -181,7 +421,7 @@ export function SignupForm({
               "Account created! Please check your email to complete your registration.",
             );
             reset();
-            setShowPassword(false);
+            dispatch({ type: "SET_SHOW_PASSWORD", payload: false });
           },
           onError: (err) => {
             toast.error(
@@ -195,7 +435,7 @@ export function SignupForm({
         err instanceof Error ? err.message : "Failed to create account",
       );
     } finally {
-      setPending(false);
+      dispatch({ type: "SET_PENDING", payload: false });
     }
   };
 
@@ -213,177 +453,31 @@ export function SignupForm({
             className="space-y-4"
             noValidate
           >
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                {...register("name")}
-                className={cn(
-                  "w-full",
-                  errors.name && "border-red-500 focus-visible:ring-red-500",
-                )}
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-error" : undefined}
-                required
-                disabled={isAnyAuthInProgress}
-              />
-              {errors.name && (
-                <p
-                  id="name-error"
-                  role="alert"
-                  className="text-sm text-red-600"
-                >
-                  {errors.name.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="m@example.com"
-                {...register("email")}
-                className={cn(
-                  "w-full",
-                  errors.email && "border-red-500 focus-visible:ring-red-500",
-                )}
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                required
-                disabled={isAnyAuthInProgress}
-              />
-              {errors.email && (
-                <p
-                  id="email-error"
-                  role="alert"
-                  className="text-sm text-red-600"
-                >
-                  {errors.email.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  {...register("password")}
-                  className={cn(
-                    "w-full pr-10",
-                    errors.password &&
-                      "border-red-500 focus-visible:ring-red-500",
-                  )}
-                  aria-invalid={!!errors.password}
-                  aria-describedby={
-                    errors.password ? "password-error" : undefined
-                  }
-                  required
-                  minLength={8}
-                  maxLength={100}
-                  autoComplete="new-password"
-                  disabled={isAnyAuthInProgress}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-zinc-500 hover:text-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  disabled={isAnyAuthInProgress}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p
-                  id="password-error"
-                  role="alert"
-                  className="text-sm text-red-600"
-                >
-                  {errors.password.message}
-                </p>
-              )}
-              <div
-                className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-                aria-live="polite"
-              >
-                <div className="flex items-center gap-1">
-                  <FaCircleCheck
-                    className={cn(
-                      "h-2.5 w-2.5",
-                      passwordChecks.length
-                        ? "text-green-500"
-                        : "text-zinc-400",
-                    )}
-                  />
-                  <span className="text-muted-foreground">8 characters</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <FaCircleCheck
-                    className={cn(
-                      "h-2.5 w-2.5",
-                      passwordChecks.uppercase
-                        ? "text-green-500"
-                        : "text-zinc-400",
-                    )}
-                  />
-                  <span className="text-muted-foreground">
-                    Uppercase letter
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <FaCircleCheck
-                    className={cn(
-                      "h-2.5 w-2.5",
-                      passwordChecks.lowercase
-                        ? "text-green-500"
-                        : "text-zinc-400",
-                    )}
-                  />
-                  <span className="text-muted-foreground">
-                    Lowercase letter
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <FaCircleCheck
-                    className={cn(
-                      "h-2.5 w-2.5",
-                      passwordChecks.number
-                        ? "text-green-500"
-                        : "text-zinc-400",
-                    )}
-                  />
-                  <span className="text-muted-foreground">Number</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <FaCircleCheck
-                    className={cn(
-                      "h-2.5 w-2.5",
-                      passwordChecks.special
-                        ? "text-green-500"
-                        : "text-zinc-400",
-                    )}
-                  />
-                  <span className="text-muted-foreground">
-                    Special character
-                  </span>
-                </div>
-              </div>
-            </div>
+            <SignupNameField
+              register={register}
+              errorMessage={errors.name?.message}
+              disabled={isAnyAuthInProgress}
+            />
+            <SignupEmailField
+              register={register}
+              errorMessage={errors.email?.message}
+              disabled={isAnyAuthInProgress}
+            />
+            <SignupPasswordField
+              register={register}
+              showPassword={showPassword}
+              passwordChecks={passwordChecks}
+              errorMessage={errors.password?.message}
+              disabled={isAnyAuthInProgress}
+              onTogglePassword={() =>
+                dispatch({ type: "TOGGLE_SHOW_PASSWORD" })
+              }
+            />
 
             <div className="flex gap-1">
               <Button
                 type="submit"
-                className="flex-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isAnyAuthInProgress || isSubmitting}
                 aria-busy={isSubmitting || pending}
               >

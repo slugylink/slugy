@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, type FormEvent } from "react";
+import { useReducer, useEffect, useRef } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
@@ -120,6 +120,107 @@ interface CustomDomain {
   dnsConfigured: boolean;
 }
 
+interface UrlValidationState {
+  isValid: boolean;
+  message: string;
+}
+
+interface LinkFormLocalState {
+  isAiLoading: boolean;
+  isRandomLoading: boolean;
+  isAddTagLoading: boolean;
+  urlSafetyStatus: UrlSafetyStatus;
+  popoverOpen: boolean;
+  selectedTags: string[];
+  searchValue: string;
+  isSlugEditable: boolean;
+  qrCodeDialogOpen: boolean;
+  metadataDialogOpen: boolean;
+  qrCodeKey: number;
+  previewUrl: string;
+  urlValidation: UrlValidationState;
+}
+
+type LinkFormAction =
+  | { type: "set_ai_loading"; payload: boolean }
+  | { type: "set_random_loading"; payload: boolean }
+  | { type: "set_add_tag_loading"; payload: boolean }
+  | { type: "set_url_safety_status"; payload: UrlSafetyStatus }
+  | { type: "set_popover_open"; payload: boolean }
+  | { type: "set_selected_tags"; payload: string[] }
+  | { type: "set_search_value"; payload: string }
+  | { type: "set_slug_editable"; payload: boolean }
+  | { type: "set_qr_code_dialog_open"; payload: boolean }
+  | { type: "set_metadata_dialog_open"; payload: boolean }
+  | { type: "bump_qr_code_key" }
+  | { type: "set_preview_url"; payload: string }
+  | { type: "set_url_validation"; payload: UrlValidationState };
+
+function linkFormReducer(
+  state: LinkFormLocalState,
+  action: LinkFormAction,
+): LinkFormLocalState {
+  switch (action.type) {
+    case "set_ai_loading":
+      return { ...state, isAiLoading: action.payload };
+    case "set_random_loading":
+      return { ...state, isRandomLoading: action.payload };
+    case "set_add_tag_loading":
+      return { ...state, isAddTagLoading: action.payload };
+    case "set_url_safety_status":
+      return { ...state, urlSafetyStatus: action.payload };
+    case "set_popover_open":
+      return { ...state, popoverOpen: action.payload };
+    case "set_selected_tags":
+      return { ...state, selectedTags: action.payload };
+    case "set_search_value":
+      return { ...state, searchValue: action.payload };
+    case "set_slug_editable":
+      return { ...state, isSlugEditable: action.payload };
+    case "set_qr_code_dialog_open":
+      return { ...state, qrCodeDialogOpen: action.payload };
+    case "set_metadata_dialog_open":
+      return { ...state, metadataDialogOpen: action.payload };
+    case "bump_qr_code_key":
+      return { ...state, qrCodeKey: state.qrCodeKey + 1 };
+    case "set_preview_url":
+      return { ...state, previewUrl: action.payload };
+    case "set_url_validation":
+      return { ...state, urlValidation: action.payload };
+    default:
+      return state;
+  }
+}
+
+function createInitialLinkFormState({
+  isEditMode,
+}: {
+  isEditMode: boolean;
+}): LinkFormLocalState {
+  return {
+    isAiLoading: false,
+    isRandomLoading: false,
+    isAddTagLoading: false,
+    urlSafetyStatus: {
+      isChecking: false,
+      isValid: null,
+      message: "",
+    },
+    popoverOpen: false,
+    selectedTags: [],
+    searchValue: "",
+    isSlugEditable: !isEditMode,
+    qrCodeDialogOpen: false,
+    metadataDialogOpen: false,
+    qrCodeKey: 0,
+    previewUrl: "",
+    urlValidation: {
+      isValid: true,
+      message: "",
+    },
+  };
+}
+
 // Utility functions
 const normalizeUrl = (rawUrl: string): string => {
   if (!rawUrl) return rawUrl;
@@ -218,321 +319,93 @@ const TagBadge = ({ tag }: { tag: TagType }) => {
   );
 };
 
-// Main component
-const LinkFormFields = ({
-  form,
-  code,
-  onGenerateRandomSlug,
-  isEditMode = false,
-  workspaceslug,
+interface LinkFormMainPanelsProps {
+  control: UseFormReturn<LinkFormValues>["control"];
+  getValues: UseFormReturn<LinkFormValues>["getValues"];
+  isEditMode: boolean;
+  isSlugEditable: boolean;
+  isAiLoading: boolean;
+  isRandomLoading: boolean;
+  isAddTagLoading: boolean;
+  isFreePlan: boolean;
+  domainsLoading: boolean;
+  tagsLoading: boolean;
+  tagsError: Error | undefined;
+  popoverOpen: boolean;
+  searchValue: string;
+  filteredTags: TagType[];
+  selectedTags: string[];
+  selectedTagObjects: TagType[];
+  availableDomains: DomainOption[];
+  canAddNew: boolean;
+  slugInputRef: React.RefObject<HTMLInputElement | null>;
+  urlSafetyStatus: UrlSafetyStatus;
+  urlValidation: UrlValidationState;
+  handleUrlBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+  handleAiRandomize: (rawUrl: string) => Promise<void>;
+  handleRandomize: () => void;
+  enableSlugEditing: () => void;
+  handleDomainChange: (selectedDomain: string) => void;
+  handleSelect: (tagId: string) => void;
+  handleAddNewTag: () => Promise<void>;
+  onPopoverOpenChange: (open: boolean) => void;
+  onSearchValueChange: (value: string) => void;
+  onOpenMetadataDialog: () => void;
+  qrCodeKey: number;
+  domain: string;
+  currentCode: string;
+  qrCodeCustomization: string | undefined;
+  linkId?: string;
+  normalizedUrl: string;
+  previewImage?: string;
+  effectiveImage?: string;
+  effectiveTitle?: string;
+  effectiveMetadesc?: string;
+}
+
+const LinkFormMainPanels = ({
+  control,
+  getValues,
+  isEditMode,
+  isSlugEditable,
+  isAiLoading,
+  isRandomLoading,
+  isAddTagLoading,
+  isFreePlan,
+  domainsLoading,
+  tagsLoading,
+  tagsError,
+  popoverOpen,
+  searchValue,
+  filteredTags,
+  selectedTags,
+  selectedTagObjects,
+  availableDomains,
+  canAddNew,
+  slugInputRef,
+  urlSafetyStatus,
+  urlValidation,
+  handleUrlBlur,
+  handleAiRandomize,
+  handleRandomize,
+  enableSlugEditing,
+  handleDomainChange,
+  handleSelect,
+  handleAddNewTag,
+  onPopoverOpenChange,
+  onSearchValueChange,
+  onOpenMetadataDialog,
+  qrCodeKey,
+  domain,
+  currentCode,
+  qrCodeCustomization,
   linkId,
-  onSafetyStatusChange,
-  draftMetadata,
-  onDraftMetadataSave,
-}: LinkFormFieldsProps) => {
-  const { control, getValues, watch, setValue } = form;
-  const { isPro, fetchSubscription } = useSubscriptionStore();
-  const isFreePlan = !isPro;
-
-  // State
-  const [currentCode, setCurrentCode] = useState(code);
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isRandomLoading, setIsRandomLoading] = useState(false);
-  const [isAddTagLoading, setIsAddTagLoading] = useState(false);
-  const [urlSafetyStatus, setUrlSafetyStatus] = useState<UrlSafetyStatus>({
-    isChecking: false,
-    isValid: null,
-    message: "",
-  });
-  const [popoverOpen, setPopoverOpen] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [searchValue, setSearchValue] = useState("");
-  const [isSlugEditable, setIsSlugEditable] = useState(!isEditMode);
-  const [qrCodeDialogOpen, setQrCodeDialogOpen] = useState(false);
-  const [metadataDialogOpen, setMetadataDialogOpen] = useState(false);
-  const [qrCodeKey, setQrCodeKey] = useState(0);
-  const [previewUrl, setPreviewUrl] = useState("");
-  const [urlValidation, setUrlValidation] = useState({
-    isValid: true,
-    message: "",
-  });
-
-  // Refs
-  const slugInputRef = useRef<HTMLInputElement | null>(null);
-  const safetyCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Watch form values
-  const domain = watch("domain");
-  const slug = watch("slug");
-  const url = watch("url");
-
-  // Fetch data
-  const {
-    data: tags,
-    error: tagsError,
-    isLoading: tagsLoading,
-  } = useSWR<TagType[]>(
-    workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
-  );
-
-  const { data: domainsData, isLoading: domainsLoading } = useSWR<{
-    domains: CustomDomain[];
-  }>(workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null);
-
-  // Computed values
-  const currentTags = getValues("tags") || [];
-  const selectedTagObjects =
-    tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
-
-  const availableDomains: DomainOption[] = (() => {
-    const domains: DomainOption[] = [
-      { value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null },
-    ];
-
-    if (domainsData?.domains) {
-      const customDomains = domainsData.domains
-        .filter((d) => d.verified && d.dnsConfigured)
-        .map((d) => ({ value: d.domain, label: d.domain, id: d.id }));
-      domains.push(...customDomains);
-    }
-
-    return domains;
-  })();
-
-  const filteredTags =
-    tags?.filter((tag) =>
-      tag.name.toLowerCase().includes(searchValue.toLowerCase()),
-    ) || [];
-
-  const canAddNew =
-    searchValue &&
-    tags &&
-    !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
-
-  // Handlers
-  const checkUrlSafety = async (checkUrl: string) => {
-    if (!checkUrl) {
-      const status = { isChecking: false, isValid: null, message: "" };
-      setUrlSafetyStatus(status);
-      onSafetyStatusChange?.(status);
-      return;
-    }
-
-    const checkingStatus = { isChecking: true, isValid: null, message: "" };
-    setUrlSafetyStatus(checkingStatus);
-    onSafetyStatusChange?.(checkingStatus);
-
-    try {
-      const normalizedUrl = normalizeUrl(checkUrl);
-      const result = await validateUrlSafety(normalizedUrl);
-      const finalStatus = {
-        isChecking: false,
-        isValid: result.isValid,
-        message: result.message || "",
-      };
-      setUrlSafetyStatus(finalStatus);
-      onSafetyStatusChange?.(finalStatus);
-    } catch (error) {
-      console.error("Error checking URL safety:", error);
-      const safeStatus = { isChecking: false, isValid: true, message: "" };
-      setUrlSafetyStatus(safeStatus);
-      onSafetyStatusChange?.(safeStatus);
-    }
-  };
-
-  const debouncedCheckUrlSafety = (checkUrl: string) => {
-    if (safetyCheckTimeoutRef.current) {
-      clearTimeout(safetyCheckTimeoutRef.current);
-    }
-    safetyCheckTimeoutRef.current = setTimeout(() => {
-      checkUrlSafety(checkUrl);
-    }, SAFETY_CHECK_DEBOUNCE_MS);
-  };
-
-  const handleAiRandomize = async (rawUrl: string) => {
-    if (!rawUrl) return;
-    setIsAiLoading(true);
-    try {
-      const normalizedUrl = normalizeUrl(rawUrl);
-      const res = await axios.post(AI_SLUG_ENDPOINT, { url: normalizedUrl });
-      const responseData = res.data as {
-        success: true;
-        data: { slug: string };
-      };
-      if (responseData.success && responseData.data?.slug) {
-        setValue("slug", responseData.data.slug, { shouldDirty: true });
-      } else {
-        console.error("Invalid response format from AI slug API");
-      }
-    } catch (error) {
-      console.error("Error generating AI slug:", error);
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  const handleRandomize = () => {
-    setIsRandomLoading(true);
-    onGenerateRandomSlug();
-    setTimeout(() => {
-      const newSlug = getValues("slug");
-      setValue("slug", newSlug, { shouldDirty: true });
-      setCurrentCode(`${domain}/${newSlug}`);
-      setIsRandomLoading(false);
-    }, RANDOM_SLUG_DELAY_MS);
-  };
-
-  const handleSelect = (tagId: string) => {
-    const newSelectedTags = selectedTags.includes(tagId)
-      ? selectedTags.filter((id) => id !== tagId)
-      : [...selectedTags, tagId];
-
-    setSelectedTags(newSelectedTags);
-
-    const selectedTagNames =
-      tags
-        ?.filter((tag) => newSelectedTags.includes(tag.id))
-        .map((tag) => tag.name) || [];
-    setValue("tags", selectedTagNames, { shouldDirty: true });
-  };
-
-  const handleAddNewTag = async () => {
-    if (!workspaceslug || !searchValue.trim()) return;
-    try {
-      setIsAddTagLoading(true);
-      const response = await axios.post(
-        `/api/workspace/${workspaceslug}/tags`,
-        {
-          name: searchValue.trim(),
-          color: null,
-        },
-      );
-      if (response.status === 201) {
-        const newTag = response.data;
-        handleSelect(newTag.id);
-        setSearchValue("");
-        await mutate(`/api/workspace/${workspaceslug}/tags`);
-      }
-    } catch (error) {
-      console.error("Error creating tag:", error);
-    } finally {
-      setIsAddTagLoading(false);
-    }
-  };
-
-  const handleUrlBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const normalizedUrl = normalizeUrl(e.target.value);
-    setValue("url", normalizedUrl, { shouldDirty: true });
-  };
-
-  const handleDomainChange = (selectedDomain: string) => {
-    setValue("domain", selectedDomain, { shouldDirty: true });
-    const domainObj = availableDomains.find((d) => d.value === selectedDomain);
-    setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
-  };
-
-  const enableSlugEditing = () => {
-    if (!isSlugEditable) {
-      setIsSlugEditable(true);
-      setTimeout(() => slugInputRef.current?.focus(), 0);
-    } else {
-      slugInputRef.current?.focus();
-    }
-  };
-
-  // Effects
-  useEffect(() => {
-    void fetchSubscription();
-  }, [fetchSubscription]);
-
-  useEffect(() => {
-    setCurrentCode(slug ? `${domain}/${slug}` : "");
-  }, [domain, slug]);
-
-  useEffect(() => {
-    const validation = validateUrlFormat(url);
-    setUrlValidation(validation);
-  }, [url]);
-
-  useEffect(() => {
-    if (!url) {
-      setUrlSafetyStatus({ isChecking: false, isValid: null, message: "" });
-      return;
-    }
-    debouncedCheckUrlSafety(url);
-  }, [url]);
-
-  useEffect(() => {
-    if (previewTimeoutRef.current) {
-      clearTimeout(previewTimeoutRef.current);
-    }
-
-    previewTimeoutRef.current = setTimeout(() => {
-      const normalized = normalizeUrl(url);
-      setPreviewUrl(normalized);
-    }, PREVIEW_DEBOUNCE_MS);
-  }, [url]);
-
-  useEffect(() => {
-    if (currentTags.length && tags) {
-      const tagIds = tags
-        .filter((tag) => currentTags.includes(tag.name))
-        .map((tag) => tag.id);
-      setSelectedTags(tagIds);
-    }
-  }, [currentTags, tags]);
-
-  useEffect(() => {
-    if (tags && currentTags.length > 0 && selectedTags.length === 0) {
-      const tagIds = tags
-        .filter((tag) => currentTags.includes(tag.name))
-        .map((tag) => tag.id);
-      setSelectedTags(tagIds);
-    }
-  }, [tags, currentTags, selectedTags.length]);
-
-  useEffect(() => {
-    return () => {
-      if (safetyCheckTimeoutRef.current) {
-        clearTimeout(safetyCheckTimeoutRef.current);
-      }
-      if (previewTimeoutRef.current) {
-        clearTimeout(previewTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Extract metadata
-  const normalizedUrl = previewUrl;
-  const qrCodeCustomization = isLinkData(form.formState.defaultValues)
-    ? form.formState.defaultValues.qrCode?.customization
-    : undefined;
-
-  const customMetadata = isLinkData(form.formState.defaultValues)
-    ? {
-        image: form.formState.defaultValues.image || null,
-        title: form.formState.defaultValues.title || null,
-        metadesc: form.formState.defaultValues.metadesc || null,
-      }
-    : { image: null, title: null, metadesc: null };
-
-  const previewImage = draftMetadata?.imagePreview
-    ? draftMetadata.imagePreview || undefined
-    : undefined;
-  const effectiveImage =
-    (draftMetadata?.image ?? null) !== null
-      ? draftMetadata?.image || undefined
-      : customMetadata.image || undefined;
-  const effectiveTitle =
-    (draftMetadata?.title ?? null) !== null
-      ? draftMetadata?.title || undefined
-      : customMetadata.title || undefined;
-  const effectiveMetadesc =
-    (draftMetadata?.metadesc ?? null) !== null
-      ? draftMetadata?.metadesc || undefined
-      : customMetadata.metadesc || undefined;
-
+  normalizedUrl,
+  previewImage,
+  effectiveImage,
+  effectiveTitle,
+  effectiveMetadesc,
+}: LinkFormMainPanelsProps) => {
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
       {/* Left side: Form fields */}
@@ -667,9 +540,12 @@ const LinkFormFields = ({
                       <SelectValue placeholder="Domain" />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableDomains.map((domain) => (
-                        <SelectItem key={domain.value} value={domain.value}>
-                          {domain.label}
+                      {availableDomains.map((domainItem) => (
+                        <SelectItem
+                          key={domainItem.value}
+                          value={domainItem.value}
+                        >
+                          {domainItem.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -705,7 +581,7 @@ const LinkFormFields = ({
         {/* Tag selection */}
         <div className="space-y-3">
           <Label>Tags</Label>
-          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <Popover open={popoverOpen} onOpenChange={onPopoverOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -732,7 +608,7 @@ const LinkFormFields = ({
                 <Input
                   placeholder="Search or add tags..."
                   value={searchValue}
-                  onChange={(e) => setSearchValue(e.target.value)}
+                  onChange={(e) => onSearchValueChange(e.target.value)}
                   className="mb-2"
                 />
                 <div className="max-h-60 overflow-y-auto">
@@ -841,11 +717,7 @@ const LinkFormFields = ({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (!isFreePlan) {
-                          setMetadataDialogOpen(true);
-                        }
-                      }}
+                      onClick={onOpenMetadataDialog}
                       disabled={isFreePlan}
                       className={cn(
                         "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
@@ -877,7 +749,379 @@ const LinkFormFields = ({
           />
         </div>
       </div>
+    </div>
+  );
+};
 
+// Main component
+const LinkFormFields = ({
+  form,
+  code: _code,
+  onGenerateRandomSlug,
+  isEditMode = false,
+  workspaceslug,
+  linkId,
+  onSafetyStatusChange,
+  draftMetadata,
+  onDraftMetadataSave,
+}: LinkFormFieldsProps) => {
+  void _code;
+  const { control, getValues, watch, setValue } = form;
+  const { isPro, fetchSubscription } = useSubscriptionStore();
+  const isFreePlan = !isPro;
+
+  const [state, dispatch] = useReducer(
+    linkFormReducer,
+    { isEditMode },
+    createInitialLinkFormState,
+  );
+  const {
+    isAiLoading,
+    isRandomLoading,
+    isAddTagLoading,
+    urlSafetyStatus,
+    popoverOpen,
+    selectedTags,
+    searchValue,
+    isSlugEditable,
+    qrCodeDialogOpen,
+    metadataDialogOpen,
+    qrCodeKey,
+    previewUrl,
+    urlValidation,
+  } = state;
+
+  // Refs
+  const slugInputRef = useRef<HTMLInputElement | null>(null);
+  const safetyCheckTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Watch form values
+  const domain = watch("domain");
+  const slug = watch("slug");
+  const url = watch("url");
+
+  // Fetch data
+  const {
+    data: tags,
+    error: tagsError,
+    isLoading: tagsLoading,
+  } = useSWR<TagType[]>(
+    workspaceslug ? `/api/workspace/${workspaceslug}/tags` : null,
+  );
+
+  const { data: domainsData, isLoading: domainsLoading } = useSWR<{
+    domains: CustomDomain[];
+  }>(workspaceslug ? `/api/workspace/${workspaceslug}/domains` : null);
+
+  // Computed values
+  const currentTags = getValues("tags") || [];
+  const selectedTagObjects =
+    tags?.filter((tag) => selectedTags.includes(tag.id)) || [];
+
+  const availableDomains: DomainOption[] = (() => {
+    const domains: DomainOption[] = [
+      { value: DEFAULT_DOMAIN, label: DEFAULT_DOMAIN, id: null },
+    ];
+
+    if (domainsData?.domains) {
+      const customDomains = domainsData.domains
+        .filter((d) => d.verified && d.dnsConfigured)
+        .map((d) => ({ value: d.domain, label: d.domain, id: d.id }));
+      domains.push(...customDomains);
+    }
+
+    return domains;
+  })();
+
+  const filteredTags =
+    tags?.filter((tag) =>
+      tag.name.toLowerCase().includes(searchValue.toLowerCase()),
+    ) || [];
+
+  const canAddNew =
+    searchValue &&
+    tags &&
+    !tags.some((tag) => tag.name.toLowerCase() === searchValue.toLowerCase());
+
+  // Handlers
+  const checkUrlSafety = async (checkUrl: string) => {
+    if (!checkUrl) {
+      const status = { isChecking: false, isValid: null, message: "" };
+      dispatch({ type: "set_url_safety_status", payload: status });
+      onSafetyStatusChange?.(status);
+      return;
+    }
+
+    const checkingStatus = { isChecking: true, isValid: null, message: "" };
+    dispatch({ type: "set_url_safety_status", payload: checkingStatus });
+    onSafetyStatusChange?.(checkingStatus);
+
+    try {
+      const normalizedUrl = normalizeUrl(checkUrl);
+      const result = await validateUrlSafety(normalizedUrl);
+      const finalStatus = {
+        isChecking: false,
+        isValid: result.isValid,
+        message: result.message || "",
+      };
+      dispatch({ type: "set_url_safety_status", payload: finalStatus });
+      onSafetyStatusChange?.(finalStatus);
+    } catch (error) {
+      console.error("Error checking URL safety:", error);
+      const safeStatus = { isChecking: false, isValid: true, message: "" };
+      dispatch({ type: "set_url_safety_status", payload: safeStatus });
+      onSafetyStatusChange?.(safeStatus);
+    }
+  };
+
+  const debouncedCheckUrlSafety = (checkUrl: string) => {
+    if (safetyCheckTimeoutRef.current) {
+      clearTimeout(safetyCheckTimeoutRef.current);
+    }
+    safetyCheckTimeoutRef.current = setTimeout(() => {
+      checkUrlSafety(checkUrl);
+    }, SAFETY_CHECK_DEBOUNCE_MS);
+  };
+
+  const handleAiRandomize = async (rawUrl: string) => {
+    if (!rawUrl) return;
+    dispatch({ type: "set_ai_loading", payload: true });
+    try {
+      const normalizedUrl = normalizeUrl(rawUrl);
+      const res = await axios.post(AI_SLUG_ENDPOINT, { url: normalizedUrl });
+      const responseData = res.data as {
+        success: true;
+        data: { slug: string };
+      };
+      if (responseData.success && responseData.data?.slug) {
+        setValue("slug", responseData.data.slug, { shouldDirty: true });
+      } else {
+        console.error("Invalid response format from AI slug API");
+      }
+    } catch (error) {
+      console.error("Error generating AI slug:", error);
+    } finally {
+      dispatch({ type: "set_ai_loading", payload: false });
+    }
+  };
+
+  const handleRandomize = () => {
+    dispatch({ type: "set_random_loading", payload: true });
+    onGenerateRandomSlug();
+    setTimeout(() => {
+      const newSlug = getValues("slug");
+      setValue("slug", newSlug, { shouldDirty: true });
+      dispatch({ type: "set_random_loading", payload: false });
+    }, RANDOM_SLUG_DELAY_MS);
+  };
+
+  const handleSelect = (tagId: string) => {
+    const newSelectedTags = selectedTags.includes(tagId)
+      ? selectedTags.filter((id) => id !== tagId)
+      : [...selectedTags, tagId];
+
+    dispatch({ type: "set_selected_tags", payload: newSelectedTags });
+
+    const selectedTagNames =
+      tags
+        ?.filter((tag) => newSelectedTags.includes(tag.id))
+        .map((tag) => tag.name) || [];
+    setValue("tags", selectedTagNames, { shouldDirty: true });
+  };
+
+  const handleAddNewTag = async () => {
+    if (!workspaceslug || !searchValue.trim()) return;
+    try {
+      dispatch({ type: "set_add_tag_loading", payload: true });
+      const response = await axios.post(
+        `/api/workspace/${workspaceslug}/tags`,
+        {
+          name: searchValue.trim(),
+          color: null,
+        },
+      );
+      if (response.status === 201) {
+        const newTag = response.data;
+        handleSelect(newTag.id);
+        dispatch({ type: "set_search_value", payload: "" });
+        await mutate(`/api/workspace/${workspaceslug}/tags`);
+      }
+    } catch (error) {
+      console.error("Error creating tag:", error);
+    } finally {
+      dispatch({ type: "set_add_tag_loading", payload: false });
+    }
+  };
+
+  const handleUrlBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const normalizedUrl = normalizeUrl(e.target.value);
+    setValue("url", normalizedUrl, { shouldDirty: true });
+  };
+
+  const handleDomainChange = (selectedDomain: string) => {
+    setValue("domain", selectedDomain, { shouldDirty: true });
+    const domainObj = availableDomains.find((d) => d.value === selectedDomain);
+    setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
+  };
+
+  const enableSlugEditing = () => {
+    if (!isSlugEditable) {
+      dispatch({ type: "set_slug_editable", payload: true });
+      setTimeout(() => slugInputRef.current?.focus(), 0);
+    } else {
+      slugInputRef.current?.focus();
+    }
+  };
+
+  // Effects
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
+
+  useEffect(() => {
+    const validation = validateUrlFormat(url);
+    dispatch({ type: "set_url_validation", payload: validation });
+  }, [url]);
+
+  useEffect(() => {
+    if (!url) {
+      dispatch({
+        type: "set_url_safety_status",
+        payload: { isChecking: false, isValid: null, message: "" },
+      });
+      return;
+    }
+    debouncedCheckUrlSafety(url);
+  }, [url]);
+
+  useEffect(() => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+    }
+
+    previewTimeoutRef.current = setTimeout(() => {
+      const normalized = normalizeUrl(url);
+      dispatch({ type: "set_preview_url", payload: normalized });
+    }, PREVIEW_DEBOUNCE_MS);
+  }, [url]);
+
+  useEffect(() => {
+    if (currentTags.length && tags) {
+      const tagIds = tags
+        .filter((tag) => currentTags.includes(tag.name))
+        .map((tag) => tag.id);
+      dispatch({ type: "set_selected_tags", payload: tagIds });
+    }
+  }, [currentTags, tags]);
+
+  useEffect(() => {
+    if (tags && currentTags.length > 0 && selectedTags.length === 0) {
+      const tagIds = tags
+        .filter((tag) => currentTags.includes(tag.name))
+        .map((tag) => tag.id);
+      dispatch({ type: "set_selected_tags", payload: tagIds });
+    }
+  }, [tags, currentTags, selectedTags.length]);
+
+  useEffect(() => {
+    return () => {
+      if (safetyCheckTimeoutRef.current) {
+        clearTimeout(safetyCheckTimeoutRef.current);
+      }
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Extract metadata
+  const normalizedUrl = previewUrl;
+  const currentCode = slug ? `${domain}/${slug}` : "";
+  const qrCodeCustomization = isLinkData(form.formState.defaultValues)
+    ? form.formState.defaultValues.qrCode?.customization
+    : undefined;
+
+  const customMetadata = isLinkData(form.formState.defaultValues)
+    ? {
+        image: form.formState.defaultValues.image || null,
+        title: form.formState.defaultValues.title || null,
+        metadesc: form.formState.defaultValues.metadesc || null,
+      }
+    : { image: null, title: null, metadesc: null };
+
+  const previewImage = draftMetadata?.imagePreview
+    ? draftMetadata.imagePreview || undefined
+    : undefined;
+  const effectiveImage =
+    (draftMetadata?.image ?? null) !== null
+      ? draftMetadata?.image || undefined
+      : customMetadata.image || undefined;
+  const effectiveTitle =
+    (draftMetadata?.title ?? null) !== null
+      ? draftMetadata?.title || undefined
+      : customMetadata.title || undefined;
+  const effectiveMetadesc =
+    (draftMetadata?.metadesc ?? null) !== null
+      ? draftMetadata?.metadesc || undefined
+      : customMetadata.metadesc || undefined;
+
+  return (
+    <>
+      <LinkFormMainPanels
+        control={control}
+        getValues={getValues}
+        isEditMode={isEditMode}
+        isSlugEditable={isSlugEditable}
+        isAiLoading={isAiLoading}
+        isRandomLoading={isRandomLoading}
+        isAddTagLoading={isAddTagLoading}
+        isFreePlan={isFreePlan}
+        domainsLoading={domainsLoading}
+        tagsLoading={tagsLoading}
+        tagsError={tagsError as Error | undefined}
+        popoverOpen={popoverOpen}
+        searchValue={searchValue}
+        filteredTags={filteredTags}
+        selectedTags={selectedTags}
+        selectedTagObjects={selectedTagObjects}
+        availableDomains={availableDomains}
+        canAddNew={Boolean(canAddNew)}
+        slugInputRef={slugInputRef}
+        urlSafetyStatus={urlSafetyStatus}
+        urlValidation={urlValidation}
+        handleUrlBlur={handleUrlBlur}
+        handleAiRandomize={handleAiRandomize}
+        handleRandomize={handleRandomize}
+        enableSlugEditing={enableSlugEditing}
+        handleDomainChange={handleDomainChange}
+        handleSelect={handleSelect}
+        handleAddNewTag={handleAddNewTag}
+        onPopoverOpenChange={(open) =>
+          dispatch({ type: "set_popover_open", payload: open })
+        }
+        onSearchValueChange={(value) =>
+          dispatch({ type: "set_search_value", payload: value })
+        }
+        onOpenMetadataDialog={() => {
+          if (!isFreePlan) {
+            dispatch({
+              type: "set_metadata_dialog_open",
+              payload: true,
+            });
+          }
+        }}
+        qrCodeKey={qrCodeKey}
+        domain={domain}
+        currentCode={currentCode}
+        qrCodeCustomization={qrCodeCustomization}
+        linkId={linkId}
+        normalizedUrl={normalizedUrl}
+        previewImage={previewImage}
+        effectiveImage={effectiveImage}
+        effectiveTitle={effectiveTitle}
+        effectiveMetadesc={effectiveMetadesc}
+      />
       {/* Link Metadata Dialog */}
       {((isEditMode && linkId) || !isEditMode) && (
         <LinkCustomMetadata
@@ -907,7 +1151,9 @@ const LinkFormFields = ({
           }
           workspaceslug={isEditMode ? workspaceslug! : undefined}
           open={metadataDialogOpen}
-          onOpenChange={setMetadataDialogOpen}
+          onOpenChange={(open) =>
+            dispatch({ type: "set_metadata_dialog_open", payload: open })
+          }
           persistMode={!isEditMode || onDraftMetadataSave ? "local" : "server"}
           onSave={(payload) => {
             if (!isEditMode || onDraftMetadataSave) {
@@ -922,7 +1168,7 @@ const LinkFormFields = ({
               }
               return;
             }
-            setQrCodeKey((prev) => prev + 1);
+            dispatch({ type: "bump_qr_code_key" });
             void mutate(
               (key) =>
                 typeof key === "string" &&
@@ -936,7 +1182,12 @@ const LinkFormFields = ({
 
       {/* QR Code Design Dialog */}
       {linkId && isEditMode && (
-        <Dialog open={qrCodeDialogOpen} onOpenChange={setQrCodeDialogOpen}>
+        <Dialog
+          open={qrCodeDialogOpen}
+          onOpenChange={(open) =>
+            dispatch({ type: "set_qr_code_dialog_open", payload: open })
+          }
+        >
           <DialogContent className="sm:max-w-[480px]">
             <DialogHeader>
               <DialogTitle className="text-xl font-medium">
@@ -948,9 +1199,9 @@ const LinkFormFields = ({
               domain={domain}
               code={slug || currentCode}
               onOpenChange={(open: boolean) => {
-                setQrCodeDialogOpen(open);
+                dispatch({ type: "set_qr_code_dialog_open", payload: open });
                 if (!open) {
-                  setQrCodeKey((prev) => prev + 1);
+                  dispatch({ type: "bump_qr_code_key" });
                   void mutate(
                     (key) =>
                       typeof key === "string" &&
@@ -964,7 +1215,7 @@ const LinkFormFields = ({
           </DialogContent>
         </Dialog>
       )}
-    </div>
+    </>
   );
 };
 

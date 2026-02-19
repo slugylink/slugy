@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
-import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import {
+  LazyMotion,
+  domAnimation,
+  m,
+  useMotionValue,
+  useSpring,
+  useTransform,
+} from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Link2, ChevronRight, MousePointerClick } from "lucide-react";
 import { formatNumber } from "@/lib/format-number";
@@ -97,7 +104,7 @@ function UsageProgressRow({
         </span>
       </div>
       <div className="bg-primary/20 relative h-[2px] w-full overflow-hidden rounded-full">
-        <motion.div className="h-full bg-orange-500" style={{ width }} />
+        <m.div className="h-full bg-orange-500" style={{ width }} />
       </div>
     </div>
   );
@@ -146,7 +153,11 @@ export function UsageStatsClient({
   usage,
 }: UsageStatsClientProps) {
   if (!workspace || !usage) {
-    return <EmptyUsageCard />;
+    return (
+      <LazyMotion features={domAnimation}>
+        <EmptyUsageCard />
+      </LazyMotion>
+    );
   }
 
   const { clicksTracked, linksCreated, periodEnd } = usage;
@@ -157,34 +168,36 @@ export function UsageStatsClient({
   const resetDate = formatResetDate(periodEnd);
 
   return (
-    <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="text-muted-foreground flex items-center text-sm">
-          Usage <ChevronRight className="ml-1 h-3 w-3" />
+    <LazyMotion features={domAnimation}>
+      <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground flex items-center text-sm">
+            Usage <ChevronRight className="ml-1 h-3 w-3" />
+          </div>
+          {isActivePro && <PlanBadge />}
         </div>
-        {isActivePro && <PlanBadge />}
-      </div>
 
-      <div className="space-y-3">
-        <UsageProgressRow
-          icon={<MousePointerClick {...ICON_PROPS} />}
-          label="Events"
-          used={clicksTracked}
-          limit={maxClicksLimit}
-          progress={clicksProgress}
-        />
-        <UsageProgressRow
-          icon={<Link2 {...ICON_PROPS} />}
-          label="Links"
-          used={linksCreated}
-          limit={maxLinksLimit}
-          progress={linksProgress}
-        />
-      </div>
+        <div className="space-y-3">
+          <UsageProgressRow
+            icon={<MousePointerClick {...ICON_PROPS} />}
+            label="Events"
+            used={clicksTracked}
+            limit={maxClicksLimit}
+            progress={clicksProgress}
+          />
+          <UsageProgressRow
+            icon={<Link2 {...ICON_PROPS} />}
+            label="Links"
+            used={linksCreated}
+            limit={maxLinksLimit}
+            progress={linksProgress}
+          />
+        </div>
 
-      <p className="text-muted-foreground mt-2 text-xs">
-        Usage will reset {resetDate}
-      </p>
-    </Card>
+        <p className="text-muted-foreground mt-2 text-xs">
+          Usage will reset {resetDate}
+        </p>
+      </Card>
+    </LazyMotion>
   );
 }

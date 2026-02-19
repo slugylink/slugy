@@ -12,7 +12,12 @@ interface UrlClicksProps {
   searchParams: Record<string, string>;
   timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   // New props to accept data directly
-  linksData?: Array<{ slug: string; url: string; domain: string; clicks: number }>;
+  linksData?: Array<{
+    slug: string;
+    url: string;
+    domain: string;
+    clicks: number;
+  }>;
   destinationsData?: Array<{ destination: string; clicks: number }>;
   isLoading?: boolean;
   error?: Error;
@@ -31,7 +36,7 @@ interface TabConfig {
   linkLabel: string; // used for TableHeader
   dataKey: string;
   progressColor: string;
-  renderName: (item: UrlClickData) => JSX.Element;
+  NameComponent: React.ComponentType<{ item: UrlClickData }>;
 }
 
 // ----------------------- TableHeader -----------------------
@@ -52,7 +57,7 @@ const tabConfigs: TabConfig[] = [
     linkLabel: "Link",
     dataKey: "slug",
     progressColor: "bg-orange-200/40",
-    renderName: (item) => {
+    NameComponent: ({ item }) => {
       // Type guard to check if item has slug and url
       if ("slug" in item && "url" in item) {
         return (
@@ -78,7 +83,7 @@ const tabConfigs: TabConfig[] = [
     linkLabel: "URL",
     dataKey: "destination",
     progressColor: "bg-orange-200/45",
-    renderName: (item) => {
+    NameComponent: ({ item }) => {
       // Type guard to check if item has destination
       if ("destination" in item) {
         return (
@@ -176,7 +181,7 @@ const UrlClicks = ({
                   return `${currentTabConfig.dataKey}-${index}`;
                 }}
                 progressColor={currentTabConfig.progressColor}
-                renderName={currentTabConfig.renderName}
+                NameComponent={currentTabConfig.NameComponent}
               />
             </div>
           </TabsContent>
@@ -198,7 +203,7 @@ const UrlClicks = ({
           return `${currentTabConfig.dataKey}-${index}`;
         }}
         progressColor={currentTabConfig.progressColor}
-        renderName={currentTabConfig.renderName}
+        NameComponent={currentTabConfig.NameComponent}
         title={currentTabConfig.label}
         headerLabel={currentTabConfig.linkLabel}
         showButton={!(isLoading ?? false) && sortedData.length > 7}

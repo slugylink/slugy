@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import Image from "next/image";
+import { useRef, useCallback, useReducer, useEffect } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import useSWR from "swr";
@@ -29,34 +30,251 @@ type MetadataApiResponse = {
 };
 
 interface LinkCustomMetadataProps {
-  // Server mode props
   linkId?: string;
   workspaceslug?: string;
-
-  // Common props
   linkUrl: string;
   currentImage: string | null;
   currentTitle: string | null;
   currentDescription: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  // onSave semantics:
-  // - server mode: called after successful server save, no args
-  // - local mode: called with draft payload to be stored in parent state
   onSave: (payload?: {
     image: string;
     title: string;
     metadesc: string;
-    // Optional when image is chosen as a file during create flow
     selectedFile?: File | null;
     imagePreview?: string;
   }) => void;
-  // Controls whether Save persists to server or just returns values to parent
   persistMode?: "server" | "local";
 }
 
+type MetadataState = {
+  image: string;
+  title: string;
+  metadesc: string;
+  isSaving: boolean;
+  isUploading: boolean;
+  selectedFile: File | null;
+  imagePreview: string;
+};
+
+type MetadataAction =
+  | {
+      type: "init";
+      payload: Pick<MetadataState, "image" | "title" | "metadesc">;
+    }
+  | { type: "set_title"; payload: string }
+  | { type: "set_description"; payload: string }
+  | { type: "set_image_url"; payload: string }
+  | { type: "set_file_preview"; payload: { file: File; preview: string } }
+  | { type: "clear_image" }
+  | { type: "start_save" }
+  | { type: "end_save" }
+  | { type: "start_upload" }
+  | { type: "end_upload" };
+
 const TITLE_MAX = 120;
 const DESCRIPTION_MAX = 240;
+
+function resolveMetadataDefaults({
+  currentImage,
+  currentTitle,
+  currentDescription,
+  defaults,
+}: {
+  currentImage: string | null;
+  currentTitle: string | null;
+  currentDescription: string | null;
+  defaults?: { image?: string | null; title?: string; description?: string };
+}): Pick<MetadataState, "image" | "title" | "metadesc"> {
+  return {
+    image: currentImage || defaults?.image || "",
+    title: currentTitle || defaults?.title || "",
+    metadesc: currentDescription || defaults?.description || "",
+  };
+}
+
+function metadataReducer(
+  state: MetadataState,
+  action: MetadataAction,
+): MetadataState {
+  switch (action.type) {
+    case "init":
+      return {
+        ...state,
+        image: action.payload.image,
+        title: action.payload.title,
+        metadesc: action.payload.metadesc,
+        selectedFile: null,
+        imagePreview: "",
+      };
+    case "set_title":
+      return { ...state, title: action.payload };
+    case "set_description":
+      return { ...state, metadesc: action.payload };
+    case "set_image_url":
+      return {
+        ...state,
+        image: action.payload,
+        selectedFile: null,
+        imagePreview: "",
+      };
+    case "set_file_preview":
+      return {
+        ...state,
+        selectedFile: action.payload.file,
+        image: "",
+        imagePreview: action.payload.preview,
+      };
+    case "clear_image":
+      return { ...state, image: "", imagePreview: "", selectedFile: null };
+    case "start_save":
+      return { ...state, isSaving: true };
+    case "end_save":
+      return { ...state, isSaving: false };
+    case "start_upload":
+      return { ...state, isUploading: true };
+    case "end_upload":
+      return { ...state, isUploading: false };
+    default:
+      return state;
+  }
+}
+
+function ImageSection({
+  image,
+  imagePreview,
+  isUploading,
+  fileInputRef,
+  onClear,
+  onSetImageUrl,
+  onDrop,
+  onDragOver,
+  onFileChange,
+  onContainerClick,
+}: {
+  image: string;
+  imagePreview: string;
+  isUploading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  onClear: () => void;
+  onSetImageUrl: () => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onContainerClick: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>Image</Label>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onClear}
+            className="cursor-pointer text-xs"
+            type="button"
+          >
+            Remove
+          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={onSetImageUrl}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div
+        onDrop={isUploading ? undefined : onDrop}
+        onDragOver={isUploading ? undefined : onDragOver}
+        className="relative cursor-pointer overflow-hidden rounded-lg border-2 border-dashed"
+        style={{ pointerEvents: isUploading ? "none" : "auto" }}
+        onClick={onContainerClick}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onFileChange}
+        />
+
+        {image || imagePreview ? (
+          <div className="group relative">
+            <Image
+              src={imagePreview || image}
+              alt="Preview"
+              width={1200}
+              height={630}
+              className="aspect-[1200/630] w-full object-cover"
+              unoptimized
+            />
+          </div>
+        ) : (
+          <div className="flex aspect-[1200/630] flex-col items-center justify-center bg-gray-50 text-center">
+            {isUploading ? (
+              <Loader2 className="mb-2 h-5 w-5 animate-spin" />
+            ) : (
+              <Upload className="text-muted-foreground mb-2 h-7 w-7" />
+            )}
+            <p className="text-muted-foreground text-xs">
+              {isUploading ? "Uploading..." : "Click to upload"}
+            </p>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Recommended: 1200 x 630 pixels (max 512kb)
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TextFieldSection({
+  label,
+  value,
+  max,
+  placeholder,
+  onChange,
+  isTextarea = false,
+}: {
+  label: string;
+  value: string;
+  max: number;
+  placeholder: string;
+  onChange: (value: string) => void;
+  isTextarea?: boolean;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <span className="text-muted-foreground text-xs">
+          {value.length}/{max}
+        </span>
+      </div>
+      {isTextarea ? (
+        <Textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={max}
+          className="resize-none overflow-y-auto"
+        />
+      ) : (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          maxLength={max}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function LinkCustomMetadata({
   linkId,
@@ -70,66 +288,94 @@ export default function LinkCustomMetadata({
   onSave,
   persistMode = "server",
 }: LinkCustomMetadataProps) {
-  // Fetch default metadata immediately (uses SWR cache if available)
   const { data: defaultMetadata } = useSWR<MetadataApiResponse>(
     linkUrl ? `/api/metadata?url=${encodeURIComponent(linkUrl)}` : null,
     { revalidateOnFocus: false, dedupingInterval: 60000 },
   );
 
   const resolvedDefaults = defaultMetadata?.data ?? {};
-
-  const [image, setImage] = useState(
-    currentImage || resolvedDefaults.image || "",
-  );
-  const [title, setTitle] = useState(
-    currentTitle || resolvedDefaults.title || "",
-  );
-  const [metadesc, setMetadesc] = useState(
-    currentDescription || resolvedDefaults.description || "",
-  );
-  const [isSaving, setIsSaving] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resolvedCurrentValues = resolveMetadataDefaults({
+    currentImage,
+    currentTitle,
+    currentDescription,
+    defaults: resolvedDefaults,
+  });
 
-  // Reset state when dialog opens/closes
+  const [state, dispatch] = useReducer(
+    metadataReducer,
+    resolvedCurrentValues,
+    (initialFields) => ({
+      ...initialFields,
+      isSaving: false,
+      isUploading: false,
+      selectedFile: null,
+      imagePreview: "",
+    }),
+  );
+
   useEffect(() => {
-    if (open) {
-      // Reset state to current values, fallback to defaults
-      setImage(currentImage || resolvedDefaults.image || "");
-      setTitle(currentTitle || resolvedDefaults.title || "");
-      setMetadesc(currentDescription || resolvedDefaults.description || "");
-      setSelectedFile(null);
-      setImagePreview("");
+    const hasCustomMetadata = Boolean(
+      currentImage || currentTitle || currentDescription,
+    );
+    const hasUserEdits =
+      state.selectedFile !== null ||
+      state.imagePreview !== "" ||
+      state.image !== resolvedCurrentValues.image ||
+      state.title !== resolvedCurrentValues.title ||
+      state.metadesc !== resolvedCurrentValues.metadesc;
+
+    const needsHydration =
+      state.image !== resolvedCurrentValues.image ||
+      state.title !== resolvedCurrentValues.title ||
+      state.metadesc !== resolvedCurrentValues.metadesc;
+
+    if (open && !hasCustomMetadata && !hasUserEdits && needsHydration) {
+      dispatch({ type: "init", payload: resolvedCurrentValues });
     }
   }, [
     open,
     currentImage,
     currentTitle,
     currentDescription,
-    resolvedDefaults.image,
-    resolvedDefaults.title,
-    resolvedDefaults.description,
+    resolvedCurrentValues,
+    state.selectedFile,
+    state.imagePreview,
+    state.image,
+    state.title,
+    state.metadesc,
   ]);
 
-  const resetToDefaults = useCallback(async () => {
-    try {
-      const response = await axios.get<MetadataApiResponse>(
-        `/api/metadata?url=${encodeURIComponent(linkUrl)}`,
-      );
-      const metadata = response.data?.data;
-      setImage(metadata?.image || "");
-      setTitle(metadata?.title || "");
-      setMetadesc(metadata?.description || "");
-      setSelectedFile(null);
-      setImagePreview("");
-      toast.success("Reset to default metadata");
-    } catch (error) {
-      console.error("Failed to fetch default metadata:", error);
-      toast.error("Failed to reset metadata");
-    }
-  }, [linkUrl]);
+  const syncFromSource = useCallback(
+    (useRemoteDefaults: boolean) => {
+      dispatch({
+        type: "init",
+        payload: useRemoteDefaults
+          ? {
+              image: resolvedDefaults.image || "",
+              title: resolvedDefaults.title || "",
+              metadesc: resolvedDefaults.description || "",
+            }
+          : resolveMetadataDefaults({
+              currentImage,
+              currentTitle,
+              currentDescription,
+              defaults: resolvedDefaults,
+            }),
+      });
+    },
+    [currentImage, currentTitle, currentDescription, resolvedDefaults],
+  );
+
+  const handleDialogOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      if (nextOpen) {
+        syncFromSource(false);
+      }
+      onOpenChange(nextOpen);
+    },
+    [syncFromSource, onOpenChange],
+  );
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -137,23 +383,19 @@ export default function LinkCustomMetadata({
       return;
     }
 
-    // Check file size (max 512KB)
-    const maxSize = 512 * 1024; // 512KB in bytes
+    const maxSize = 512 * 1024;
     if (file.size > maxSize) {
       toast.error("Image size must be less than 512KB");
       return;
     }
 
-    // Store the file to upload later
-    setSelectedFile(file);
-    // Clear existing image URL
-    setImage("");
-
-    // Create a preview using FileReader
     const reader = new FileReader();
     reader.onloadend = () => {
       const result = reader.result as string;
-      setImagePreview(result);
+      dispatch({
+        type: "set_file_preview",
+        payload: { file, preview: result },
+      });
     };
     reader.readAsDataURL(file);
   }, []);
@@ -173,76 +415,95 @@ export default function LinkCustomMetadata({
     e.preventDefault();
   }, []);
 
-  const handleSave = useCallback(async () => {
-    setIsSaving(true);
+  const resetToDefaults = useCallback(async () => {
     try {
-      // Local mode: return values to parent without network calls
+      const response = await axios.get<MetadataApiResponse>(
+        `/api/metadata?url=${encodeURIComponent(linkUrl)}`,
+      );
+      const metadata = response.data?.data;
+      dispatch({
+        type: "init",
+        payload: {
+          image: metadata?.image || "",
+          title: metadata?.title || "",
+          metadesc: metadata?.description || "",
+        },
+      });
+      toast.success("Reset to default metadata");
+    } catch (error) {
+      console.error("Failed to fetch default metadata:", error);
+      toast.error("Failed to reset metadata");
+    }
+  }, [linkUrl]);
+
+  const handleSetImageUrl = useCallback(() => {
+    const url = prompt("Enter image URL:");
+    if (!url) return;
+
+    try {
+      new URL(url);
+      dispatch({ type: "set_image_url", payload: url });
+    } catch {
+      toast.error("Invalid URL");
+    }
+  }, []);
+
+  const handleSave = useCallback(async () => {
+    dispatch({ type: "start_save" });
+    try {
       if (persistMode === "local") {
         onSave({
-          image: image,
-          title,
-          metadesc,
-          selectedFile,
-          imagePreview,
+          image: state.image,
+          title: state.title,
+          metadesc: state.metadesc,
+          selectedFile: state.selectedFile,
+          imagePreview: state.imagePreview,
         });
-        setIsSaving(false);
         onOpenChange(false);
         return;
       }
 
-      let imageUrl = image;
+      let imageUrl = state.image;
 
-      // If there's a selected file, upload it to R2 first
-      if (selectedFile) {
-        setIsUploading(true);
+      if (state.selectedFile) {
+        dispatch({ type: "start_upload" });
         try {
-          // Create FormData for file upload
           const formData = new FormData();
-          formData.append("file", selectedFile);
+          formData.append("file", state.selectedFile);
 
-          // Upload to R2 via the workspace-specific endpoint
           const uploadResponse = await axios.post(
             `/api/workspace/${workspaceslug}/link/${linkId}/upload-image`,
             formData,
-            {
-              headers: { "Content-Type": "multipart/form-data" },
-            },
+            { headers: { "Content-Type": "multipart/form-data" } },
           );
 
           imageUrl = uploadResponse.data.url;
-          // Update the image state with the uploaded URL
-          setImage(imageUrl);
-          setSelectedFile(null);
-          setImagePreview("");
+          dispatch({ type: "set_image_url", payload: imageUrl });
         } catch (error) {
           console.error("Failed to upload image:", error);
           toast.error("Failed to upload image");
-          setIsSaving(false);
-          setIsUploading(false);
           return;
         } finally {
-          setIsUploading(false);
+          dispatch({ type: "end_upload" });
         }
       }
 
-      // Build update payload only with changed fields
       const updatePayload: {
         image?: string | null;
         title?: string | null;
         metadesc?: string | null;
       } = {};
 
-      if (image !== currentImage) {
+      if (state.image !== currentImage) {
         updatePayload.image = imageUrl || null;
       }
-      if (title !== currentTitle) {
-        updatePayload.title = title || null;
+      if (state.title !== currentTitle) {
+        updatePayload.title = state.title || null;
       }
-      if (metadesc !== currentDescription) {
-        updatePayload.metadesc = metadesc || null;
+      if (state.metadesc !== currentDescription) {
+        updatePayload.metadesc = state.metadesc || null;
       }
 
-      // Only update if there are changes
       if (Object.keys(updatePayload).length > 0) {
         await axios.patch(
           `/api/workspace/${workspaceslug}/link/${linkId}/update`,
@@ -257,182 +518,91 @@ export default function LinkCustomMetadata({
       console.error("Failed to update metadata:", error);
       toast.error("Failed to update link preview metadata");
     } finally {
-      setIsSaving(false);
+      dispatch({ type: "end_save" });
     }
   }, [
-    image,
-    selectedFile,
-    title,
-    metadesc,
-    workspaceslug,
+    currentDescription,
+    currentImage,
+    currentTitle,
     linkId,
-    onSave,
     onOpenChange,
+    onSave,
     persistMode,
-    imagePreview,
+    state.image,
+    state.imagePreview,
+    state.metadesc,
+    state.selectedFile,
+    state.title,
+    workspaceslug,
   ]);
 
   const handleCancel = useCallback(() => {
-    setImage(currentImage || "");
-    setTitle(currentTitle || "");
-    setMetadesc(currentDescription || "");
-    setSelectedFile(null);
-    setImagePreview("");
+    syncFromSource(false);
     onOpenChange(false);
-  }, [currentImage, currentTitle, currentDescription, onOpenChange]);
+  }, [syncFromSource, onOpenChange]);
 
   const isDirty =
-    selectedFile !== null ||
-    imagePreview !== "" ||
-    image !== currentImage ||
-    title !== currentTitle ||
-    metadesc !== currentDescription;
+    state.selectedFile !== null ||
+    state.imagePreview !== "" ||
+    state.image !== resolvedCurrentValues.image ||
+    state.title !== resolvedCurrentValues.title ||
+    state.metadesc !== resolvedCurrentValues.metadesc;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
       <DialogContent className="p-4 sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
             <DialogTitle>Link Preview</DialogTitle>
-            {/* <Badge variant="secondary">PRO</Badge> */}
           </div>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {/* Image Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Image</Label>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setImage("");
-                    setImagePreview("");
-                    setSelectedFile(null);
-                  }}
-                  className="cursor-pointer text-xs"
-                >
-                  Remove{" "}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    const url = prompt("Enter image URL:");
-                    if (url) {
-                      try {
-                        new URL(url);
-                        setImage(url);
-                        // Clear selected file when setting URL directly
-                        setSelectedFile(null);
-                        setImagePreview("");
-                      } catch {
-                        toast.error("Invalid URL");
-                      }
-                    }
-                  }}
-                >
-                  <Link2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+          <ImageSection
+            image={state.image}
+            imagePreview={state.imagePreview}
+            isUploading={state.isUploading}
+            fileInputRef={fileInputRef}
+            onClear={() => dispatch({ type: "clear_image" })}
+            onSetImageUrl={handleSetImageUrl}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onFileChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileSelect(file);
+              }
+            }}
+            onContainerClick={() => fileInputRef.current?.click()}
+          />
 
-            <div
-              onDrop={isUploading ? undefined : handleDrop}
-              onDragOver={isUploading ? undefined : handleDragOver}
-              className="relative cursor-pointer overflow-hidden rounded-lg border-2 border-dashed"
-              style={{ pointerEvents: isUploading ? "none" : "auto" }}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    handleFileSelect(file);
-                  }
-                }}
-              />
+          <TextFieldSection
+            label="Title"
+            value={state.title}
+            max={TITLE_MAX}
+            placeholder="Add a title..."
+            onChange={(value) =>
+              dispatch({ type: "set_title", payload: value })
+            }
+          />
 
-              {image || imagePreview ? (
-                <div className="group relative">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imagePreview || image}
-                    alt="Preview"
-                    className="aspect-[1200/630] w-full object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="flex aspect-[1200/630] flex-col items-center justify-center bg-gray-50 text-center">
-                  {isUploading ? (
-                    <Loader2 className="mb-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Upload className="text-muted-foreground mb-2 h-7 w-7" />
-                  )}
-                  <p className="text-muted-foreground text-xs">
-                    {isUploading ? "Uploading..." : "Click to upload"}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    Recommended: 1200 x 630 pixels (max 512kb)
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Title Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Title</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">
-                  {title.length}/{TITLE_MAX}
-                </span>
-                {/* <Button variant="ghost" size="icon" className="h-6 w-6">
-                  <Settings className="h-4 w-4" />
-                </Button> */}
-              </div>
-            </div>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Add a title..."
-              maxLength={TITLE_MAX}
-            />
-          </div>
-
-          {/* Description Section */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Description</Label>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground text-xs">
-                  {metadesc.length}/{DESCRIPTION_MAX}
-                </span>
-                {/* <Button variant="ghost" size="icon" className="h-6 w-6">
-                  <Settings className="h-4 w-4" />
-                </Button> */}
-              </div>
-            </div>
-            <Textarea
-              value={metadesc}
-              onChange={(e) => setMetadesc(e.target.value)}
-              placeholder="Add a description..."
-              maxLength={DESCRIPTION_MAX}
-              className="resize-none overflow-y-auto"
-            />
-          </div>
+          <TextFieldSection
+            label="Description"
+            value={state.metadesc}
+            max={DESCRIPTION_MAX}
+            placeholder="Add a description..."
+            onChange={(value) =>
+              dispatch({ type: "set_description", payload: value })
+            }
+            isTextarea
+          />
         </div>
 
         <DialogFooter className="flex items-center justify-between sm:justify-between">
           <button
             onClick={resetToDefaults}
             className="cursor-pointer text-xs text-gray-800 hover:text-black"
+            type="button"
           >
             Reset to default
           </button>
@@ -440,12 +610,12 @@ export default function LinkCustomMetadata({
             <Button
               variant="outline"
               onClick={handleCancel}
-              disabled={isSaving}
+              disabled={state.isSaving}
             >
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !isDirty}>
-              {isSaving && (
+            <Button onClick={handleSave} disabled={state.isSaving || !isDirty}>
+              {state.isSaving && (
                 <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
               )}
               Save changes

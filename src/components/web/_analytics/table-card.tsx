@@ -4,14 +4,14 @@ import { cn } from "@/lib/utils";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 
 interface TableCardProps<T> {
   data: T[];
   loading: boolean;
   error?: Error;
   keyPrefix: string;
-  renderName: (item: T) => React.ReactNode;
+  NameComponent: React.ComponentType<{ item: T }>;
   getClicks: (item: T) => number;
   getKey: (item: T, index: number) => string;
   progressColor?: string;
@@ -19,12 +19,12 @@ interface TableCardProps<T> {
   dataKey?: string; // Unique identifier for the data source
 }
 
-export default function TableCard<T>({
+function TableCardBody<T>({
   data,
   loading,
   error,
   keyPrefix,
-  renderName,
+  NameComponent,
   getClicks,
   getKey,
   progressColor = "bg-muted",
@@ -76,7 +76,9 @@ export default function TableCard<T>({
     <div className="space-y-1" role="list">
       {data.map((item, index) => {
         const clicks = getClicks(item);
-        const targetWidthPercentage = maxClicks ? (clicks / maxClicks) * 100 : 0;
+        const targetWidthPercentage = maxClicks
+          ? (clicks / maxClicks) * 100
+          : 0;
         const widthPercentage = targetWidthPercentage;
         const keyId = getKey(item, index);
         const paramJoiner = currentPath.includes("?") ? "&" : "?";
@@ -99,7 +101,7 @@ export default function TableCard<T>({
               />
               {/* name */}
               <div className="relative z-10 flex-1 p-2 text-left text-sm">
-                {renderName(item)}
+                <NameComponent item={item} />
               </div>
               {/* clicks */}
               <div className="relative z-10 min-w-[80px] p-2 text-right text-sm">
@@ -110,5 +112,21 @@ export default function TableCard<T>({
         );
       })}
     </div>
+  );
+}
+
+function TableCardFallback() {
+  return (
+    <div className="flex h-60 items-center justify-center py-4 text-gray-500">
+      <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+    </div>
+  );
+}
+
+export default function TableCard<T>(props: TableCardProps<T>) {
+  return (
+    <Suspense fallback={<TableCardFallback />}>
+      <TableCardBody {...props} />
+    </Suspense>
   );
 }

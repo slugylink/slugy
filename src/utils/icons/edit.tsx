@@ -17,21 +17,21 @@ export function EditIcon(props: SVGProps<SVGSVGElement>) {
         stroke="#141B34"
         strokeWidth="1.5"
         strokeLinecap="round"
-        stroke-linejoin="round"
+        strokeLinejoin="round"
       />
       <path
         d="M12 21H18"
         stroke="#141B34"
         strokeWidth="1.5"
         strokeLinecap="round"
-        stroke-linejoin="round"
+        strokeLinejoin="round"
       />
       <path
         d="M14.5 5.5L18.5 9.5"
         stroke="#141B34"
         strokeWidth="1.5"
         strokeLinecap="round"
-        stroke-linejoin="round"
+        strokeLinejoin="round"
       />
     </svg>
   );

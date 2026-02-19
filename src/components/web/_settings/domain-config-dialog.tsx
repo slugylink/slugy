@@ -316,7 +316,7 @@ export function DomainConfigContent({ domain }: DomainConfigContentProps) {
             <tbody>
               {dnsRecords.map((record, index) => (
                 <DnsRecordRow
-                  key={index}
+                  key={record.name}
                   record={record}
                   index={index}
                   copiedField={copiedField}
@@ -338,7 +338,7 @@ export function DomainConfigContent({ domain }: DomainConfigContentProps) {
         <div className="space-y-3 sm:hidden">
           {dnsRecords.map((record, index) => (
             <MobileDnsRecord
-              key={index}
+              key={record.name}
               record={record}
               index={index}
               copiedField={copiedField}

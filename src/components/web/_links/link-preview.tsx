@@ -132,6 +132,23 @@ const SuccessState = ({ metadata }: { metadata: DisplayMetadata }) => (
   </>
 );
 
+const PreviewState = ({
+  isLoading,
+  hasError,
+  shouldFetch,
+  metadata,
+}: {
+  isLoading: boolean;
+  hasError: boolean;
+  shouldFetch: boolean;
+  metadata: DisplayMetadata;
+}) => {
+  if (isLoading) return <LoadingState />;
+  if (hasError) return <ErrorState />;
+  if (!shouldFetch) return <EmptyState />;
+  return <SuccessState metadata={metadata} />;
+};
+
 // Main component
 export default function LinkPreview({
   url,
@@ -140,7 +157,7 @@ export default function LinkPreview({
   customTitle,
   customDescription,
 }: LinkPreviewProps) {
-  const shouldFetch = url && url.trim() !== "";
+  const shouldFetch = Boolean(url && url.trim() !== "");
 
   const {
     data: metadata,
@@ -162,17 +179,15 @@ export default function LinkPreview({
     image: customImage || metadata?.image || null,
   };
 
-  const renderContent = () => {
-    if (isLoading) return <LoadingState />;
-    if (error) return <ErrorState />;
-    if (!shouldFetch) return <EmptyState />;
-    return <SuccessState metadata={displayMetadata} />;
-  };
-
   return (
     <div className={cn("space-y-5", className)}>
       <div className="relative overflow-hidden rounded-lg border md:max-w-xs md:min-w-xs">
-        {renderContent()}
+        <PreviewState
+          isLoading={isLoading}
+          hasError={Boolean(error)}
+          shouldFetch={shouldFetch}
+          metadata={displayMetadata}
+        />
       </div>
     </div>
   );

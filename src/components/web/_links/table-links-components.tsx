@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback } from "react";
 import { Link as LinkIcon } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -20,7 +20,7 @@ export const LinkCardSkeleton = memo(() => (
     {Array.from({ length: 3 }, (_, index) => (
       <div
         key={index}
-        className="flex w-full flex-row items-start space-y-0 rounded-xl border p-[21px] sm:items-center sm:space-x-4 mb-4"
+        className="mb-4 flex w-full flex-row items-start space-y-0 rounded-xl border p-[21px] sm:items-center sm:space-x-4"
       >
         <div className="hidden rounded-full sm:block">
           <Skeleton className="size-9 rounded-full" />
@@ -73,7 +73,8 @@ EmptyState.displayName = "EmptyState";
 export const ErrorState = memo(
   ({ error, onRetry }: { error: Error; onRetry: () => void }) => {
     const errorMessage =
-      error.message || "There was an error loading your links. Please try again later.";
+      error.message ||
+      "There was an error loading your links. Please try again later.";
 
     return (
       <div
@@ -85,12 +86,7 @@ export const ErrorState = memo(
         <p className="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
           {errorMessage}
         </p>
-        <Button
-          onClick={onRetry}
-          className="mt-4"
-          variant="outline"
-          size="sm"
-        >
+        <Button onClick={onRetry} className="mt-4" variant="outline" size="sm">
           Try Again
         </Button>
       </div>
@@ -100,123 +96,129 @@ export const ErrorState = memo(
 
 ErrorState.displayName = "ErrorState";
 
-const LinkItem = memo(({
-  link,
-  isSelectModeOn,
-  isSelected,
-  onSelect,
-}: {
-  link: Link;
-  isSelectModeOn: boolean;
-  isSelected: boolean;
-  onSelect: () => void;
-}) => (
-  <div>
-    <LinkCard
-      link={link}
-      isPublic={link.isPublic}
-      isSelectModeOn={isSelectModeOn}
-      isSelected={isSelected}
-      onSelect={onSelect}
-    />
-  </div>
-));
+const LinkItem = memo(
+  ({
+    link,
+    isSelectModeOn,
+    isSelected,
+    onSelectById,
+  }: {
+    link: Link;
+    isSelectModeOn: boolean;
+    isSelected: boolean;
+    onSelectById: (id: string) => void;
+  }) => {
+    const handleSelect = useCallback(() => {
+      onSelectById(link.id);
+    }, [onSelectById, link.id]);
+
+    return (
+      <div>
+        <LinkCard
+          link={link}
+          isPublic={link.isPublic}
+          isSelectModeOn={isSelectModeOn}
+          isSelected={isSelected}
+          onSelect={handleSelect}
+        />
+      </div>
+    );
+  },
+);
 
 LinkItem.displayName = "LinkItem";
 
-export const LinkList = memo(({
-  links,
-  isGridLayout,
-  isLoading,
-  isSelectModeOn,
-  selectedLinks,
-  onSelect,
-}: {
-  links: Link[];
-  isGridLayout: boolean;
-  isLoading: boolean;
-  isSelectModeOn: boolean;
-  selectedLinks: Set<string>;
-  onSelect: (id: string) => void;
-}) => {
-  const gridClasses = `mb-24 grid gap-4 ${
-    isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
-  } ${isLoading ? "opacity-70" : ""}`;
+export const LinkList = memo(
+  ({
+    links,
+    isGridLayout,
+    isLoading,
+    isSelectModeOn,
+    selectedLinks,
+    onSelect,
+  }: {
+    links: Link[];
+    isGridLayout: boolean;
+    isLoading: boolean;
+    isSelectModeOn: boolean;
+    selectedLinks: Set<string>;
+    onSelect: (id: string) => void;
+  }) => {
+    const gridClasses = `mb-24 grid gap-4 ${
+      isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+    } ${isLoading ? "opacity-70" : ""}`;
 
-  return (
-    <div
-      className={gridClasses}
-      aria-label="Link list"
-      role="grid"
-      aria-rowcount={links.length}
-    >
-      {links.map((link) => (
-        <LinkItem
-          key={link.id}
-          link={link}
-          isSelectModeOn={isSelectModeOn}
-          isSelected={selectedLinks.has(link.id)}
-          onSelect={() => onSelect(link.id)}
-        />
-      ))}
-    </div>
-  );
-});
+    return (
+      <div
+        className={gridClasses}
+        aria-label="Link list"
+        role="grid"
+        aria-rowcount={links.length}
+      >
+        {links.map((link) => (
+          <LinkItem
+            key={link.id}
+            link={link}
+            isSelectModeOn={isSelectModeOn}
+            isSelected={selectedLinks.has(link.id)}
+            onSelectById={onSelect}
+          />
+        ))}
+      </div>
+    );
+  },
+);
 
 LinkList.displayName = "LinkList";
 
-export const BulkOperationDialog = memo(({
-  isOpen,
-  onClose,
-  operation,
-  selectedCount,
-  onConfirm,
-  isProcessing,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  operation: "delete" | "archive" | null;
-  selectedCount: number;
-  onConfirm: () => void;
-  isProcessing: boolean;
-}) => {
-  if (!operation) return null;
+export const BulkOperationDialog = memo(
+  ({
+    isOpen,
+    onClose,
+    operation,
+    selectedCount,
+    onConfirm,
+    isProcessing,
+  }: {
+    isOpen: boolean;
+    onClose: () => void;
+    operation: "delete" | "archive" | null;
+    selectedCount: number;
+    onConfirm: () => void;
+    isProcessing: boolean;
+  }) => {
+    if (!operation) return null;
 
-  const title = `${operation === "delete" ? "Delete" : "Archive"} Links`;
-  const description = `Are you sure you want to ${operation} ${selectedCount} selected ${selectedCount === 1 ? "link" : "links"}?${operation === "delete" ? " This action cannot be undone." : ""}`;
-  const actionText = operation === "delete" ? "Delete" : "Archive";
+    const title = `${operation === "delete" ? "Delete" : "Archive"} Links`;
+    const description = `Are you sure you want to ${operation} ${selectedCount} selected ${selectedCount === 1 ? "link" : "links"}?${operation === "delete" ? " This action cannot be undone." : ""}`;
+    const actionText = operation === "delete" ? "Delete" : "Archive";
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            {description}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant={operation === "delete" ? "destructive" : "default"}
-            onClick={onConfirm}
-            disabled={isProcessing}
-          >
-            {isProcessing && (
-              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            {actionText}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-});
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} disabled={isProcessing}>
+              Cancel
+            </Button>
+            <Button
+              variant={operation === "delete" ? "destructive" : "default"}
+              onClick={onConfirm}
+              disabled={isProcessing}
+            >
+              {isProcessing && (
+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {actionText}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  },
+);
 
 BulkOperationDialog.displayName = "BulkOperationDialog";

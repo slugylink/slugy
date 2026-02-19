@@ -1,13 +1,13 @@
 "use client";
 
-import React, {
+import {
   useCallback,
   useEffect,
   useRef,
   useState,
-  useMemo,
   memo,
   type RefObject,
+  useMemo,
 } from "react";
 import QRCodeStyling, { type Options } from "qr-code-styling";
 import { Button } from "@/components/ui/button";
@@ -112,7 +112,7 @@ function createCanvasFromSVG(svg: SVGElement, scale: number = 1) {
     width: { baseVal: { value: number } };
     height: { baseVal: { value: number } };
   };
-  
+
   canvas.width = svgElement.width.baseVal.value * scale;
   canvas.height = svgElement.height.baseVal.value * scale;
 
@@ -171,7 +171,7 @@ const QRCodePreview = memo(
         className="flex aspect-square h-[150px] w-[150px] items-center justify-center bg-white p-1.5"
       />
     </div>
-  )
+  ),
 );
 QRCodePreview.displayName = "QRCodePreview";
 
@@ -204,7 +204,7 @@ const ColorPicker = memo(
         <HexColorPicker color={color} onChange={onChange} />
       </PopoverContent>
     </Popover>
-  )
+  ),
 );
 ColorPicker.displayName = "ColorPicker";
 
@@ -240,7 +240,7 @@ const ColorButtons = memo(
         </button>
       ))}
     </div>
-  )
+  ),
 );
 ColorButtons.displayName = "ColorButtons";
 
@@ -254,7 +254,7 @@ export default function QRCodeDesigner({
   code,
   onOpenChange,
 }: QRCodeDesignerProps) {
-  const url = useMemo(() => `https://${domain}/${code}?via=qr`, [code, domain]);
+  const url = `https://${domain}/${code}?via=qr`;
 
   // State
   const [isSaving, setIsSaving] = useState(false);
@@ -372,7 +372,7 @@ export default function QRCodeDesigner({
         return newOptions;
       });
     },
-    []
+    [],
   );
 
   const downloadHighQualityQR = useCallback(async () => {
@@ -401,7 +401,7 @@ export default function QRCodeDesigner({
           URL.revokeObjectURL(url);
         },
         "image/png",
-        1.0
+        1.0,
       );
     } catch (error) {
       console.error("Error downloading QR code:", error);
@@ -472,7 +472,7 @@ export default function QRCodeDesigner({
     } catch (error) {
       console.error("Failed to save QR code:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to save QR code"
+        error instanceof Error ? error.message : "Failed to save QR code",
       );
     } finally {
       setIsSaving(false);
