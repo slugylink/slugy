@@ -66,7 +66,7 @@ const UsageStats = memo(function UsageStats({
 
   return (
     <>
-      {!isActivePro && !isLoading && (
+      {/* {!isActivePro && !isLoading && (
         <Link
           href={`/${workspaceslug}/settings/billing/upgrade`}
           rel="noopener noreferrer"
@@ -75,11 +75,12 @@ const UsageStats = memo(function UsageStats({
             Upgrade to Pro
           </Button>
         </Link>
-      )}
+      )} */}
       <UsageStatsClient
         isActivePro={isActivePro}
         workspace={workspace}
         usage={usage}
+        workspaceslug={workspaceslug}
       />
     </>
   );

@@ -12,6 +12,8 @@ import {
 import { Card } from "@/components/ui/card";
 import { Link2, ChevronRight, MousePointerClick } from "lucide-react";
 import { formatNumber } from "@/lib/format-number";
+import Link from "next/link";
+import { IoIosArrowRoundUp } from "react-icons/io";
 
 // ============================================================================
 // Types
@@ -33,6 +35,7 @@ interface UsageStatsClientProps {
   isActivePro: boolean;
   workspace: Workspace | null;
   usage: Usage | null;
+  workspaceslug: string;
 }
 
 interface UsageProgressRowProps {
@@ -110,8 +113,30 @@ function UsageProgressRow({
   );
 }
 
-function PlanBadge() {
-  return <div className="bg-primary/10 rounded-sm px-1 text-xs">Pro</div>;
+function PlanBadge({
+  isActivePro,
+  workspaceslug,
+}: {
+  isActivePro: boolean;
+  workspaceslug: string;
+}) {
+  if (isActivePro) {
+    return (
+      <div className="bg-primary/10 flex items-center rounded-md px-1.5 py-0.5 text-xs">
+        <span className="">Pro</span>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={`/${workspaceslug}/settings/billing/upgrade`}
+      className="bg-primary flex items-center rounded-md px-1.5 py-0.5 text-xs"
+    >
+      <span className="shiny-loader-text">Upgrade</span>
+      <IoIosArrowRoundUp className="ml-0.5 rotate-45 text-white" />
+    </Link>
+  );
 }
 
 function EmptyUsageCard() {
@@ -151,6 +176,7 @@ export function UsageStatsClient({
   isActivePro,
   workspace,
   usage,
+  workspaceslug,
 }: UsageStatsClientProps) {
   if (!workspace || !usage) {
     return (
@@ -174,7 +200,7 @@ export function UsageStatsClient({
           <div className="text-muted-foreground flex items-center text-sm">
             Usage <ChevronRight className="ml-1 h-3 w-3" />
           </div>
-          {isActivePro && <PlanBadge />}
+          <PlanBadge isActivePro={isActivePro} workspaceslug={workspaceslug} />
         </div>
 
         <div className="space-y-3">
