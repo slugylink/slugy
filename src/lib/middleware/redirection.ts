@@ -206,6 +206,10 @@ function getIpAddress(req: NextRequest): string {
 function buildAnalyticsData(req: NextRequest, trigger: string): AnalyticsData {
   const ua = userAgent(req);
   const geoData = getGeoData(req);
+  const refParam = req.nextUrl.searchParams.get("ref")?.trim();
+  const referer = refParam
+    ? safeDecodeURIComponent(refParam)
+    : (req.headers.get("referer") ?? DIRECT_REFERER);
 
   return {
     ipAddress: getIpAddress(req),
@@ -215,7 +219,7 @@ function buildAnalyticsData(req: NextRequest, trigger: string): AnalyticsData {
     device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
     browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
     os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-    referer: req.headers.get("referer") ?? DIRECT_REFERER,
+    referer,
     trigger,
   };
 }
