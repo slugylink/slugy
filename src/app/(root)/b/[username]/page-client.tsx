@@ -49,6 +49,7 @@ export default function GalleryLinksProfileClient({
           fill
           sizes="100vw"
           quality={60}
+          priority
           placeholder="blur"
           blurDataURL={IMAGE_BLUR_DATA_URL}
           className="scale-110 object-cover opacity-80 blur-2xl"
