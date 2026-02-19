@@ -4,7 +4,6 @@ import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { cache } from "react";
 import { magicLink, admin, organization } from "better-auth/plugins";
-import { sendMagicLinkEmail } from "@/utils/magiclink";
 import { db } from "@/server/db";
 import { sendEmail, sendOrganizationInvitation } from "@/server/actions/email";
 import { polar, checkout } from "@polar-sh/better-auth";
@@ -14,11 +13,34 @@ import { templates } from "@/constants/email-templates";
 
 let _polarClientAuth: Polar | null = null;
 
+const getAppBaseUrl = () =>
+  process.env.NEXT_APP_URL ||
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_BASE_URL ||
+  "http://localhost:3000";
+
+const getPolarServer = () =>
+  process.env.NODE_ENV === "production" ? "production" : "sandbox";
+
+const resolveTokenFromUrl = (rawUrl: string) => {
+  try {
+    const parsed = new URL(rawUrl);
+    const queryToken = parsed.searchParams.get("token");
+    if (queryToken) return queryToken;
+
+    const pathToken = parsed.pathname.split("/").filter(Boolean).pop();
+    return pathToken || null;
+  } catch {
+    const tokenMatch = rawUrl.match(/\/reset-password\/([^?]+)/);
+    return tokenMatch?.[1] ?? null;
+  }
+};
+
 const getPolarClient = () => {
   if (!_polarClientAuth) {
     _polarClientAuth = new Polar({
       accessToken: process.env.POLAR_ACCESS_TOKEN || "",
-      server: "sandbox",
+      server: getPolarServer(),
     });
   }
   return _polarClientAuth;
@@ -36,15 +58,14 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      const tokenMatch = url.match(/\/reset-password\/([^?]+)/);
-      const token = tokenMatch ? tokenMatch[1] : null;
+      const token = resolveTokenFromUrl(url);
 
       if (!token) {
         console.error("Failed to extract token from reset password URL:", url);
         return;
       }
 
-      const resetUrl = `${process.env.BETTER_AUTH_URL}/reset-password?token=${token}`;
+      const resetUrl = `${getAppBaseUrl()}/reset-password?token=${encodeURIComponent(token)}`;
       const htmlTemplate = templates["reset-password"]({
         email: user.email,
         resetUrl,
@@ -63,7 +84,8 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, token }) => {
-      const verificationUrl = `${process.env.NEXT_BASE_URL}/api/auth/verify-email?token=${token}&callbackURL=${process.env.EMAIL_VERIFICATION_CALLBACK}`;
+      const callbackUrl = process.env.EMAIL_VERIFICATION_CALLBACK || "/app";
+      const verificationUrl = `${getAppBaseUrl()}/api/auth/verify-email?token=${encodeURIComponent(token)}&callbackURL=${encodeURIComponent(callbackUrl)}`;
       const htmlTemplate = templates["verification"]({
         verificationUrl,
         token,
@@ -77,7 +99,6 @@ export const auth = betterAuth({
       });
     },
     afterEmailVerification: async (userData: { id: string; email: string }) => {
-      // Check if this is the first time verification (user was just created)
       const userWithCreatedAt = await db.user.findUnique({
         where: { id: userData.id },
         select: {
@@ -89,11 +110,10 @@ export const auth = betterAuth({
 
       if (!userWithCreatedAt) return;
 
-      // Only send welcome email if user was created recently (within last hour)
-      // This prevents sending welcome emails on re-verification
+      // If user was created within the last hour, send them a welcome email
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
       if (userWithCreatedAt.createdAt > oneHourAgo) {
-        const dashboardUrl = `${process.env.NEXT_APP_URL || process.env.NEXT_BASE_URL}/login`;
+        const dashboardUrl = `${getAppBaseUrl()}/login`;
         const welcomeTemplate = templates["welcome"]({
           name: userWithCreatedAt.name || "there",
           dashboardUrl,
@@ -196,8 +216,7 @@ export const getUserByEmail = async (email: string) => {
 
 export type Session = typeof auth.$Infer.Session;
 
-// Base cached session lookup - uses React's cache() to deduplicate session fetches
-// within the same request/render cycle, preventing duplicate database calls
+// Cached session
 const getCachedSession = cache(async (): Promise<Session | null> => {
   try {
     const headersList = await headers();
@@ -206,7 +225,6 @@ const getCachedSession = cache(async (): Promise<Session | null> => {
     });
     return session;
   } catch (error) {
-    // Only log in development to avoid noise in production
     if (process.env.NODE_ENV === "development") {
       console.error("Session fetch error:", error);
     }
@@ -214,15 +232,12 @@ const getCachedSession = cache(async (): Promise<Session | null> => {
   }
 });
 
-// Cached session for root/public layouts (non-critical)
-// Returns null if no session exists, allowing graceful degradation
+// Cached session for root route
 export async function getCachedRootSession(): Promise<Session | null> {
   return await getCachedSession();
 }
 
-// Optimized session getter for protected routes/API routes
-// Uses React's cache() to prevent duplicate fetches within the same request
-// Returns a discriminated union for type-safe handling
+// Cached session for authenticated routes
 export async function getAuthSession(): Promise<
   { success: true; session: Session } | { success: false; redirectTo: "/login" }
 > {

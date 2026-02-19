@@ -69,11 +69,11 @@ function buildNewWorkspacePath(
   newSlug: string,
 ): string {
   const workspaceSlugPattern = `/${currentSlug}`;
-  
+
   if (pathname.startsWith(workspaceSlugPattern)) {
     return pathname.replace(workspaceSlugPattern, `/${newSlug}`);
   }
-  
+
   return `/${newSlug}${pathname}`;
 }
 
@@ -107,13 +107,9 @@ const RoleIndicator = memo<{ userRole: WorkspaceArr["userRole"] }>(
     if (!isNonOwner(userRole)) return null;
 
     return (
-      <UserRoundPlus 
-        strokeWidth={1.5} 
-        size={13} 
-        className="ml-1 p-[1.5px]"
-      />
+      <UserRoundPlus strokeWidth={1.5} size={13} className="ml-1 p-[1.5px]" />
     );
-  }
+  },
 );
 RoleIndicator.displayName = "RoleIndicator";
 
@@ -133,7 +129,7 @@ const WorkspaceMenuItem = memo<{
   >
     <div
       className={cn(
-        "flex size-6 items-center justify-center overflow-hidden rounded-full border",
+        "flex size-6 items-center justify-center overflow-hidden rounded-lg border",
         isActive && "border-accent-foreground/20",
       )}
     >
@@ -144,7 +140,7 @@ const WorkspaceMenuItem = memo<{
       />
     </div>
     <span className="flex items-center gap-1">
-      <span className="truncate line-clamp-1">{workspace.name}</span>
+      <span className="line-clamp-1 truncate">{workspace.name}</span>
       <RoleIndicator userRole={workspace.userRole} />
     </span>
     <DropdownMenuShortcut>{index + 1}</DropdownMenuShortcut>
@@ -156,7 +152,10 @@ WorkspaceMenuItem.displayName = "WorkspaceMenuItem";
 // Main Component
 // ============================================================================
 
-function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) {
+function WorkspaceSwitch({
+  workspaces,
+  workspaceslug,
+}: WorkspaceSwitcherProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { isMobile } = useSidebar();
@@ -171,11 +170,15 @@ function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) 
   // Handle workspace switching
   const handleWorkspaceSwitch = useCallback(
     (workspace: WorkspaceArr) => {
-      const newPath = buildNewWorkspacePath(pathname, workspaceslug, workspace.slug);
+      const newPath = buildNewWorkspacePath(
+        pathname,
+        workspaceslug,
+        workspace.slug,
+      );
       router.refresh();
       router.push(newPath);
     },
-    [pathname, router, workspaceslug]
+    [pathname, router, workspaceslug],
   );
 
   // Render workspace menu items
@@ -194,7 +197,7 @@ function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) 
               />
             ))
         : [],
-    [workspaces, activeWorkspace, handleWorkspaceSwitch]
+    [workspaces, activeWorkspace, handleWorkspaceSwitch],
   );
 
   // Show skeleton if no valid workspaces
@@ -219,7 +222,7 @@ function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) 
               className="bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground cursor-pointer"
               aria-label="Select workspace"
             >
-              <div className="bg-sidebar-border flex aspect-square size-8 items-center justify-center overflow-hidden rounded-full">
+              <div className="bg-sidebar-border flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg">
                 <WorkspaceAvatar
                   workspace={activeWorkspace}
                   size={AVATAR_SIZES.medium}
@@ -228,7 +231,7 @@ function WorkspaceSwitch({ workspaces, workspaceslug }: WorkspaceSwitcherProps) 
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="flex items-center gap-1 truncate font-medium">
-                  <span className="truncate line-clamp-1">
+                  <span className="line-clamp-1 truncate">
                     {activeWorkspace.name ?? "Select Workspace"}
                   </span>
                   <RoleIndicator userRole={activeWorkspace.userRole} />

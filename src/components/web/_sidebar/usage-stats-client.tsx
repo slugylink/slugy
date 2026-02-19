@@ -197,8 +197,13 @@ export function UsageStatsClient({
     <LazyMotion features={domAnimation}>
       <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="text-muted-foreground flex items-center text-sm">
-            Usage <ChevronRight className="ml-1 h-3 w-3" />
+          <div className="">
+            <Link
+              href={`/${workspaceslug}/settings/billing`}
+              className="text-muted-foreground flex items-center text-sm transition-colors hover:text-zinc-700"
+            >
+              Usage <ChevronRight className="ml-1 h-3 w-3" />
+            </Link>
           </div>
           <PlanBadge isActivePro={isActivePro} workspaceslug={workspaceslug} />
         </div>
