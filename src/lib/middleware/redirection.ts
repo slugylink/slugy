@@ -18,6 +18,7 @@ const DEFAULT_DOMAIN = "slugy.co";
 const DEFAULT_DEVICE = "desktop";
 const DEFAULT_BROWSER = "chrome";
 const DEFAULT_OS = "windows";
+const MAX_REFERER_LENGTH = 512;
 
 interface AnalyticsData {
   ipAddress: string;
@@ -44,6 +45,41 @@ interface GeoData {
   city: string;
   continent: string;
   region: string;
+}
+
+function truncateValue(value: string, maxLength: number): string {
+  return value.length > maxLength ? value.slice(0, maxLength) : value;
+}
+
+// Normalize referer into a stable analytics source value.
+function normalizeReferer(rawValue: string | null): string {
+  const trimmed = rawValue?.trim();
+  if (!trimmed) return DIRECT_REFERER;
+
+  const decoded = truncateValue(
+    safeDecodeURIComponent(trimmed),
+    MAX_REFERER_LENGTH,
+  );
+  if (!decoded) return DIRECT_REFERER;
+
+  if (/^https?:\/\//i.test(decoded)) {
+    try {
+      return new URL(decoded).origin;
+    } catch {
+      return decoded;
+    }
+  }
+
+  // Common case: hostname-like values (e.g. "google.com")
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(decoded)) {
+    try {
+      return new URL(`https://${decoded}`).origin;
+    } catch {
+      return decoded;
+    }
+  }
+
+  return decoded;
 }
 
 // Safely decode URI component
@@ -206,10 +242,9 @@ function getIpAddress(req: NextRequest): string {
 function buildAnalyticsData(req: NextRequest, trigger: string): AnalyticsData {
   const ua = userAgent(req);
   const geoData = getGeoData(req);
-  const refParam = req.nextUrl.searchParams.get("ref")?.trim();
-  const referer = refParam
-    ? safeDecodeURIComponent(refParam)
-    : (req.headers.get("referer") ?? DIRECT_REFERER);
+  const refParam = req.nextUrl.searchParams.get("ref");
+  const headerReferer = req.headers.get("referer");
+  const referer = normalizeReferer(refParam?.trim() ? refParam : headerReferer);
 
   return {
     ipAddress: getIpAddress(req),
