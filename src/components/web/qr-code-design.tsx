@@ -41,7 +41,6 @@ interface FormState {
   fgColor: string;
   size: number;
   dotStyle: DotType;
-  logo?: string;
 }
 
 interface QRCodeDesignerProps {
@@ -49,26 +48,24 @@ interface QRCodeDesignerProps {
   domain: string;
   code: string;
   onOpenChange: (open: boolean) => void;
+  onCustomizationSaved?: (customization: {
+    fgColor: string;
+    size: number;
+    dotStyle: DotType;
+  }) => void;
 }
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const STATIC_LOGO = {
-  src: "/logo.svg",
-  size: 0.3,
-  margin: 5,
-} as const;
-
 const QR_CONFIG = {
   DEFAULT_SIZE: 300,
   BACKGROUND_COLOR: "#ffffff",
   MIN_SIZE: 256,
   MAX_SIZE: 2048,
-  LOGO_SIZE: 0.5,
   CANVAS_SCALE: 4,
-  DEFAULT_MARGIN: 2,
+  DEFAULT_MARGIN: 1.5,
 } as const;
 
 const COLORS = [
@@ -82,20 +79,14 @@ const COLORS = [
 ] as const;
 
 const DEFAULT_QR_OPTIONS: Options = {
-  width: QR_CONFIG.DEFAULT_SIZE * 1.3,
-  height: QR_CONFIG.DEFAULT_SIZE * 1.3,
+  width: QR_CONFIG.DEFAULT_SIZE,
+  height: QR_CONFIG.DEFAULT_SIZE,
   type: "svg",
   margin: QR_CONFIG.DEFAULT_MARGIN,
   qrOptions: {
     typeNumber: 0,
     mode: "Byte",
     errorCorrectionLevel: "H",
-  },
-  imageOptions: {
-    hideBackgroundDots: true,
-    imageSize: STATIC_LOGO.size,
-    margin: STATIC_LOGO.margin,
-    crossOrigin: "anonymous",
   },
   backgroundOptions: {
     color: QR_CONFIG.BACKGROUND_COLOR,
@@ -142,9 +133,16 @@ function svgToBlob(svg: SVGElement): Promise<Blob> {
 function blobToImage(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(img);
+    };
+    img.onerror = (error) => {
+      URL.revokeObjectURL(objectUrl);
+      reject(error);
+    };
+    img.src = objectUrl;
   });
 }
 
@@ -253,6 +251,7 @@ export default function QRCodeDesigner({
   domain,
   code,
   onOpenChange,
+  onCustomizationSaved,
 }: QRCodeDesignerProps) {
   const url = `https://${domain}/${code}?via=qr`;
 
@@ -278,7 +277,6 @@ export default function QRCodeDesigner({
       color: "#000000",
       type: "square",
     },
-    image: STATIC_LOGO.src,
   }));
 
   // Refs
@@ -290,8 +288,7 @@ export default function QRCodeDesigner({
     return (
       formState.fgColor !== initialState.fgColor ||
       formState.size !== initialState.size ||
-      formState.dotStyle !== initialState.dotStyle ||
-      formState.logo !== initialState.logo
+      formState.dotStyle !== initialState.dotStyle
     );
   }, [formState, initialState]);
 
@@ -302,14 +299,14 @@ export default function QRCodeDesigner({
   const updateQRCode = useCallback(() => {
     if (!containerRef.current) return;
 
-    containerRef.current.innerHTML = "";
-
     if (!qrCodeRef.current) {
       qrCodeRef.current = new QRCodeStyling(options);
-      qrCodeRef.current.append(containerRef.current);
     } else {
       qrCodeRef.current.update(options);
     }
+
+    containerRef.current.replaceChildren();
+    qrCodeRef.current.append(containerRef.current);
   }, [options]);
 
   const fetchQrCode = useCallback(async () => {
@@ -326,7 +323,6 @@ export default function QRCodeDesigner({
         fgColor: qrCodeData.fgColor as string,
         size: qrCodeData.size as number,
         dotStyle: qrCodeData.dotStyle as DotType,
-        logo: qrCodeData.logo as string | undefined,
       };
 
       setInitialState(updatedFormState);
@@ -341,7 +337,6 @@ export default function QRCodeDesigner({
           color: qrCodeData.fgColor as string,
           type: qrCodeData.dotStyle as DotType,
         },
-        image: STATIC_LOGO.src,
       }));
     } catch (error) {
       console.error("Failed to fetch QR code:", error);
@@ -359,8 +354,12 @@ export default function QRCodeDesigner({
         const newOptions = { ...prev };
 
         if (field === "size") {
-          newOptions.width = Number(value);
-          newOptions.height = Number(value);
+          const normalizedSize = Math.max(
+            QR_CONFIG.MIN_SIZE,
+            Math.min(QR_CONFIG.MAX_SIZE, Number(value)),
+          );
+          newOptions.width = normalizedSize;
+          newOptions.height = normalizedSize;
         } else if (field === "fgColor" || field === "dotStyle") {
           newOptions.dotsOptions = {
             ...prev.dotsOptions,
@@ -452,18 +451,28 @@ export default function QRCodeDesigner({
       const blob = new Blob([svgData], { type: "image/svg+xml" });
       const imageUrl = URL.createObjectURL(blob);
 
-      const result = await saveQrCode({
-        linkId,
-        imageUrl,
-        customization: {
+      const result = await (async () => {
+        try {
+          return await saveQrCode({
+            linkId,
+            imageUrl,
+            customization: {
+              fgColor: formState.fgColor,
+              size: formState.size,
+              dotStyle: formState.dotStyle,
+            },
+          });
+        } finally {
+          URL.revokeObjectURL(imageUrl);
+        }
+      })();
+
+      if (result.success) {
+        onCustomizationSaved?.({
           fgColor: formState.fgColor,
           size: formState.size,
           dotStyle: formState.dotStyle,
-          logo: formState.logo,
-        },
-      });
-
-      if (result.success) {
+        });
         toast.success("QR code saved successfully");
         onOpenChange(false);
       } else {
@@ -477,7 +486,7 @@ export default function QRCodeDesigner({
     } finally {
       setIsSaving(false);
     }
-  }, [linkId, formState, onOpenChange]);
+  }, [linkId, formState, onCustomizationSaved, onOpenChange]);
 
   // ============================================================================
   // Effects

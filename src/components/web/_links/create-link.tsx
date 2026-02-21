@@ -150,7 +150,8 @@ const CreateLinkForm = React.memo(
     );
 
     const shouldDisableSubmit = useMemo(
-      () => !isSafeToSubmit || isSubmitting || (isFreePlan && hasPremiumFeatures),
+      () =>
+        !isSafeToSubmit || isSubmitting || (isFreePlan && hasPremiumFeatures),
       [isSafeToSubmit, isSubmitting, isFreePlan, hasPremiumFeatures],
     );
 
@@ -159,7 +160,7 @@ const CreateLinkForm = React.memo(
     // Watch form URL changes with debouncing to prevent UI freezing
     useEffect(() => {
       let timeoutId: NodeJS.Timeout;
-      
+
       const subscription = form.watch((value) => {
         // Debounce URL updates to prevent excessive re-renders
         clearTimeout(timeoutId);
@@ -167,7 +168,7 @@ const CreateLinkForm = React.memo(
           setCurrentUrl(value.url || "");
         }, 100);
       });
-      
+
       return () => {
         clearTimeout(timeoutId);
         subscription.unsubscribe();
@@ -180,7 +181,6 @@ const CreateLinkForm = React.memo(
       setValue("slug", randomSlug);
       setCode(randomSlug);
     }, [nanoid, setValue]);
-
 
     const resetForm = useCallback(() => {
       reset();
@@ -258,7 +258,9 @@ const CreateLinkForm = React.memo(
               } catch (e) {
                 // Non-blocking: creation succeeded; notify upload failure only
                 console.error("Preview image upload failed:", e);
-                toast.error("Preview image upload failed. You can try editing later.");
+                toast.error(
+                  "Preview image upload failed. You can try editing later.",
+                );
               }
             }
 
@@ -343,10 +345,18 @@ const CreateLinkForm = React.memo(
       }
 
       if (urlSafetyStatus.isValid === false) {
-        return <>Create link <CornerDownLeft size={12} /></>;
+        return (
+          <>
+            Create link <CornerDownLeft size={12} />
+          </>
+        );
       }
 
-      return <>Create link <CornerDownLeft size={12} /></>;
+      return (
+        <>
+          Create link <CornerDownLeft size={12} />
+        </>
+      );
     }, [isSubmitting, urlSafetyStatus.isValid]);
 
     return (
@@ -357,7 +367,7 @@ const CreateLinkForm = React.memo(
             <span className="hidden sm:inline">Create Link</span>
           </Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
+        <DialogContent className="max-h-[95vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
           <Form {...form}>
             <form
               onSubmit={handleSubmit(onSubmit)}

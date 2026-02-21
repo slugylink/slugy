@@ -419,7 +419,7 @@ const EditLinkForm = memo(
 
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="scrollbar-hide max-h-[90vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
+        <DialogContent className="scrollbar-hide max-h-[95vh] w-full !max-w-5xl overflow-y-auto p-0 md:p-0">
           <Form {...form}>
             <form
               onSubmit={handleSubmit(onSubmit)}

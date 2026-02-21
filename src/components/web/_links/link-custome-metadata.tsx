@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useCallback, useReducer, useEffect } from "react";
+import { useRef, useCallback, useReducer, useEffect, useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
 import useSWR from "swr";
@@ -27,6 +27,11 @@ type MetadataApiResponse = {
     description?: string;
     image?: string | null;
   };
+};
+type MetadataDefaults = {
+  title?: string;
+  description?: string;
+  image?: string | null;
 };
 
 interface LinkCustomMetadataProps {
@@ -288,12 +293,34 @@ export default function LinkCustomMetadata({
   onSave,
   persistMode = "server",
 }: LinkCustomMetadataProps) {
-  const { data: defaultMetadata } = useSWR<MetadataApiResponse>(
+  const wasOpenRef = useRef(false);
+  const metadataFetcher = useCallback(async (endpoint: string) => {
+    const response = await axios.get<MetadataApiResponse | MetadataDefaults>(
+      endpoint,
+    );
+    const payload = response.data;
+
+    // Support both API shapes:
+    // 1) { success, data: { title, description, image } }
+    // 2) { title, description, image }
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "success" in payload &&
+      "data" in payload
+    ) {
+      return (payload as MetadataApiResponse).data ?? {};
+    }
+    return (payload as MetadataDefaults) ?? {};
+  }, []);
+
+  const { data: defaultMetadata } = useSWR<MetadataDefaults>(
     linkUrl ? `/api/metadata?url=${encodeURIComponent(linkUrl)}` : null,
+    metadataFetcher,
     { revalidateOnFocus: false, dedupingInterval: 60000 },
   );
 
-  const resolvedDefaults = defaultMetadata?.data ?? {};
+  const resolvedDefaults = defaultMetadata ?? {};
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resolvedCurrentValues = resolveMetadataDefaults({
     currentImage,
@@ -301,6 +328,9 @@ export default function LinkCustomMetadata({
     currentDescription,
     defaults: resolvedDefaults,
   });
+  const hasCustomMetadata = Boolean(
+    currentImage || currentTitle || currentDescription,
+  );
 
   const [state, dispatch] = useReducer(
     metadataReducer,
@@ -313,69 +343,77 @@ export default function LinkCustomMetadata({
       imagePreview: "",
     }),
   );
+  const [initialFields, setInitialFields] = useState<
+    Pick<MetadataState, "image" | "title" | "metadesc">
+  >(resolvedCurrentValues);
+
+  const hydrateFromSource = useCallback(() => {
+    const source = resolveMetadataDefaults({
+      currentImage,
+      currentTitle,
+      currentDescription,
+      defaults: resolvedDefaults,
+    });
+    dispatch({ type: "init", payload: source });
+    setInitialFields(source);
+  }, [currentImage, currentTitle, currentDescription, resolvedDefaults]);
 
   useEffect(() => {
-    const hasCustomMetadata = Boolean(
-      currentImage || currentTitle || currentDescription,
-    );
-    const hasUserEdits =
+    if (open && !wasOpenRef.current) {
+      hydrateFromSource();
+      wasOpenRef.current = true;
+      return;
+    }
+
+    if (!open) {
+      wasOpenRef.current = false;
+    }
+  }, [open, hydrateFromSource]);
+
+  // If there is no custom metadata and destination metadata arrives later,
+  // hydrate once while untouched so initial fields are visible.
+  useEffect(() => {
+    if (!open || hasCustomMetadata) return;
+
+    const userHasEdited =
       state.selectedFile !== null ||
       state.imagePreview !== "" ||
-      state.image !== resolvedCurrentValues.image ||
-      state.title !== resolvedCurrentValues.title ||
-      state.metadesc !== resolvedCurrentValues.metadesc;
+      state.image !== initialFields.image ||
+      state.title !== initialFields.title ||
+      state.metadesc !== initialFields.metadesc;
+    if (userHasEdited) return;
 
-    const needsHydration =
-      state.image !== resolvedCurrentValues.image ||
-      state.title !== resolvedCurrentValues.title ||
-      state.metadesc !== resolvedCurrentValues.metadesc;
+    const source = resolveMetadataDefaults({
+      currentImage,
+      currentTitle,
+      currentDescription,
+      defaults: resolvedDefaults,
+    });
+    const changed =
+      state.image !== source.image ||
+      state.title !== source.title ||
+      state.metadesc !== source.metadesc;
 
-    if (open && !hasCustomMetadata && !hasUserEdits && needsHydration) {
-      dispatch({ type: "init", payload: resolvedCurrentValues });
+    if (changed) {
+      dispatch({ type: "init", payload: source });
+      setInitialFields(source);
     }
   }, [
     open,
+    hasCustomMetadata,
     currentImage,
     currentTitle,
     currentDescription,
-    resolvedCurrentValues,
+    resolvedDefaults,
     state.selectedFile,
     state.imagePreview,
     state.image,
     state.title,
     state.metadesc,
+    initialFields.image,
+    initialFields.title,
+    initialFields.metadesc,
   ]);
-
-  const syncFromSource = useCallback(
-    (useRemoteDefaults: boolean) => {
-      dispatch({
-        type: "init",
-        payload: useRemoteDefaults
-          ? {
-              image: resolvedDefaults.image || "",
-              title: resolvedDefaults.title || "",
-              metadesc: resolvedDefaults.description || "",
-            }
-          : resolveMetadataDefaults({
-              currentImage,
-              currentTitle,
-              currentDescription,
-              defaults: resolvedDefaults,
-            }),
-      });
-    },
-    [currentImage, currentTitle, currentDescription, resolvedDefaults],
-  );
-
-  const handleDialogOpenChange = useCallback(
-    (nextOpen: boolean) => {
-      if (nextOpen) {
-        syncFromSource(false);
-      }
-      onOpenChange(nextOpen);
-    },
-    [syncFromSource, onOpenChange],
-  );
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith("image/")) {
@@ -416,25 +454,32 @@ export default function LinkCustomMetadata({
   }, []);
 
   const resetToDefaults = useCallback(async () => {
+    if (!linkUrl) {
+      dispatch({
+        type: "init",
+        payload: { image: "", title: "", metadesc: "" },
+      });
+      return;
+    }
+
     try {
-      const response = await axios.get<MetadataApiResponse>(
+      const metadata = await metadataFetcher(
         `/api/metadata?url=${encodeURIComponent(linkUrl)}`,
       );
-      const metadata = response.data?.data;
       dispatch({
         type: "init",
         payload: {
-          image: metadata?.image || "",
-          title: metadata?.title || "",
-          metadesc: metadata?.description || "",
+          image: metadata.image || "",
+          title: metadata.title || "",
+          metadesc: metadata.description || "",
         },
       });
-      toast.success("Reset to default metadata");
+      toast.success("Reset to destination metadata");
     } catch (error) {
-      console.error("Failed to fetch default metadata:", error);
-      toast.error("Failed to reset metadata");
+      console.error("Failed to reset metadata:", error);
+      toast.error("Failed to load destination metadata");
     }
-  }, [linkUrl]);
+  }, [linkUrl, metadataFetcher]);
 
   const handleSetImageUrl = useCallback(() => {
     const url = prompt("Enter image URL:");
@@ -537,19 +582,19 @@ export default function LinkCustomMetadata({
   ]);
 
   const handleCancel = useCallback(() => {
-    syncFromSource(false);
+    dispatch({ type: "init", payload: initialFields });
     onOpenChange(false);
-  }, [syncFromSource, onOpenChange]);
+  }, [initialFields, onOpenChange]);
 
   const isDirty =
     state.selectedFile !== null ||
     state.imagePreview !== "" ||
-    state.image !== resolvedCurrentValues.image ||
-    state.title !== resolvedCurrentValues.title ||
-    state.metadesc !== resolvedCurrentValues.metadesc;
+    state.image !== initialFields.image ||
+    state.title !== initialFields.title ||
+    state.metadesc !== initialFields.metadesc;
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="p-4 sm:max-w-lg">
         <DialogHeader>
           <div className="flex items-center gap-2">
@@ -563,7 +608,9 @@ export default function LinkCustomMetadata({
             imagePreview={state.imagePreview}
             isUploading={state.isUploading}
             fileInputRef={fileInputRef}
-            onClear={() => dispatch({ type: "clear_image" })}
+            onClear={() => {
+              dispatch({ type: "clear_image" });
+            }}
             onSetImageUrl={handleSetImageUrl}
             onDrop={handleDrop}
             onDragOver={handleDragOver}
@@ -581,9 +628,9 @@ export default function LinkCustomMetadata({
             value={state.title}
             max={TITLE_MAX}
             placeholder="Add a title..."
-            onChange={(value) =>
-              dispatch({ type: "set_title", payload: value })
-            }
+            onChange={(value) => {
+              dispatch({ type: "set_title", payload: value });
+            }}
           />
 
           <TextFieldSection
@@ -591,9 +638,9 @@ export default function LinkCustomMetadata({
             value={state.metadesc}
             max={DESCRIPTION_MAX}
             placeholder="Add a description..."
-            onChange={(value) =>
-              dispatch({ type: "set_description", payload: value })
-            }
+            onChange={(value) => {
+              dispatch({ type: "set_description", payload: value });
+            }}
             isTextarea
           />
         </div>

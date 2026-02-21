@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useEffect, useRef } from "react";
+import { useReducer, useEffect, useRef, useState } from "react";
 import type { UseFormReturn } from "react-hook-form";
 import axios from "axios";
 import useSWR, { mutate } from "swr";
@@ -351,10 +351,11 @@ interface LinkFormMainPanelsProps {
   onPopoverOpenChange: (open: boolean) => void;
   onSearchValueChange: (value: string) => void;
   onOpenMetadataDialog: () => void;
+  onOpenQrCodeDialog: () => void;
   qrCodeKey: number;
   domain: string;
   currentCode: string;
-  qrCodeCustomization: string | undefined;
+  qrCodeCustomization: string | Record<string, string | number> | undefined;
   linkId?: string;
   normalizedUrl: string;
   previewImage?: string;
@@ -395,6 +396,7 @@ const LinkFormMainPanels = ({
   onPopoverOpenChange,
   onSearchValueChange,
   onOpenMetadataDialog,
+  onOpenQrCodeDialog,
   qrCodeKey,
   domain,
   currentCode,
@@ -699,7 +701,25 @@ const LinkFormMainPanels = ({
       <div className="space-y-4 sm:space-y-6">
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label>QR Code</Label>
+            <Label>QR Code</Label>{" "}
+            {isEditMode && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={onOpenQrCodeDialog}
+                      className={cn(
+                        "text-muted-foreground hover:text-foreground cursor-pointer transition-colors",
+                      )}
+                    >
+                      <EditIcon className="h-4 w-4" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit QR code</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
           <LinkQrCode
             key={qrCodeKey}
@@ -790,6 +810,13 @@ const LinkFormFields = ({
     previewUrl,
     urlValidation,
   } = state;
+
+  type QrCustomization = string | Record<string, string | number> | undefined;
+  const initialQrCodeCustomization = isLinkData(form.formState.defaultValues)
+    ? form.formState.defaultValues.qrCode?.customization
+    : undefined;
+  const [qrCodeCustomizationState, setQrCodeCustomizationState] =
+    useState<QrCustomization>(initialQrCodeCustomization as QrCustomization);
 
   // Refs
   const slugInputRef = useRef<HTMLInputElement | null>(null);
@@ -1036,11 +1063,9 @@ const LinkFormFields = ({
   }, []);
 
   // Extract metadata
-  const normalizedUrl = previewUrl;
-  const currentCode = slug ? `${domain}/${slug}` : "";
-  const qrCodeCustomization = isLinkData(form.formState.defaultValues)
-    ? form.formState.defaultValues.qrCode?.customization
-    : undefined;
+  const normalizedUrl = previewUrl || normalizeUrl(url || "");
+  const metadataUrl = normalizeUrl(url || "");
+  const currentCode = slug || "";
 
   const customMetadata = isLinkData(form.formState.defaultValues)
     ? {
@@ -1111,10 +1136,18 @@ const LinkFormFields = ({
             });
           }
         }}
+        onOpenQrCodeDialog={() => {
+          if (isEditMode && linkId) {
+            dispatch({
+              type: "set_qr_code_dialog_open",
+              payload: true,
+            });
+          }
+        }}
         qrCodeKey={qrCodeKey}
         domain={domain}
         currentCode={currentCode}
-        qrCodeCustomization={qrCodeCustomization}
+        qrCodeCustomization={qrCodeCustomizationState}
         linkId={linkId}
         normalizedUrl={normalizedUrl}
         previewImage={previewImage}
@@ -1124,31 +1157,40 @@ const LinkFormFields = ({
       />
       {/* Link Metadata Dialog */}
       {((isEditMode && linkId) || !isEditMode) && (
+        <Dialog
+          open={qrCodeDialogOpen}
+          onOpenChange={(open) =>
+            dispatch({ type: "set_qr_code_dialog_open", payload: open })
+          }
+        >
+          <DialogContent className="sm:max-w-[480px]">
+            <DialogHeader>
+              <DialogTitle>Edit QR code</DialogTitle>
+            </DialogHeader>
+            {linkId && currentCode ? (
+              <QRCodeDesign
+                linkId={linkId}
+                domain={domain}
+                code={currentCode}
+                onOpenChange={(open) =>
+                  dispatch({ type: "set_qr_code_dialog_open", payload: open })
+                }
+                onCustomizationSaved={(customization) => {
+                  setQrCodeCustomizationState(customization);
+                  dispatch({ type: "bump_qr_code_key" });
+                }}
+              />
+            ) : null}
+          </DialogContent>
+        </Dialog>
+      )}
+      {((isEditMode && linkId) || !isEditMode) && (
         <LinkCustomMetadata
           linkId={isEditMode ? linkId : undefined}
-          linkUrl={normalizedUrl}
-          currentImage={
-            isEditMode
-              ? (draftMetadata?.image ??
-                (form.formState.defaultValues as LinkData | undefined)?.image ??
-                null)
-              : draftMetadata?.image || null
-          }
-          currentTitle={
-            isEditMode
-              ? (draftMetadata?.title ??
-                (form.formState.defaultValues as LinkData | undefined)?.title ??
-                null)
-              : draftMetadata?.title || null
-          }
-          currentDescription={
-            isEditMode
-              ? (draftMetadata?.metadesc ??
-                (form.formState.defaultValues as LinkData | undefined)
-                  ?.metadesc ??
-                null)
-              : draftMetadata?.metadesc || null
-          }
+          linkUrl={metadataUrl}
+          currentImage={previewImage || effectiveImage || null}
+          currentTitle={effectiveTitle || null}
+          currentDescription={effectiveMetadesc || null}
           workspaceslug={isEditMode ? workspaceslug! : undefined}
           open={metadataDialogOpen}
           onOpenChange={(open) =>
@@ -1178,42 +1220,6 @@ const LinkFormFields = ({
             );
           }}
         />
-      )}
-
-      {/* QR Code Design Dialog */}
-      {linkId && isEditMode && (
-        <Dialog
-          open={qrCodeDialogOpen}
-          onOpenChange={(open) =>
-            dispatch({ type: "set_qr_code_dialog_open", payload: open })
-          }
-        >
-          <DialogContent className="sm:max-w-[480px]">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-medium">
-                QR Code Design
-              </DialogTitle>
-            </DialogHeader>
-            <QRCodeDesign
-              linkId={linkId}
-              domain={domain}
-              code={slug || currentCode}
-              onOpenChange={(open: boolean) => {
-                dispatch({ type: "set_qr_code_dialog_open", payload: open });
-                if (!open) {
-                  dispatch({ type: "bump_qr_code_key" });
-                  void mutate(
-                    (key) =>
-                      typeof key === "string" &&
-                      key.includes(`/workspace/${workspaceslug}/link/`),
-                    undefined,
-                    { revalidate: true },
-                  );
-                }
-              }}
-            />
-          </DialogContent>
-        </Dialog>
       )}
     </>
   );
