@@ -1,6 +1,6 @@
 <div align="center">
 
-![Slugy Banner](https://res.cloudinary.com/dcsouj6ix/image/upload/v1770805910/slugy_npzdqi.png)
+![Slugy Banner](https://res.cloudinary.com/dcsouj6ix/image/upload/v1771156577/slugy-meta-img_pjaerq.png)
 
 # Slugy
 
