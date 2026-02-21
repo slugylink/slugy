@@ -82,6 +82,7 @@ export function detectTrigger(req: NextRequest): TriggerType {
   const purpose = headers.get("purpose") || headers.get("sec-purpose") || "";
   const isNextData = headers.has("next-url");
   const refererHost = extractRefererHost(refererRaw);
+  const viaParam = req.nextUrl.searchParams.get("via")?.toLowerCase();
 
   // Bot detection (highest priority)
   if (isBotUserAgent(ua)) {
@@ -99,7 +100,12 @@ export function detectTrigger(req: NextRequest): TriggerType {
   }
 
   // QR code detection
-  if (QR_REGEX.test(ua) || req.nextUrl.searchParams.has("qr")) {
+  if (
+    QR_REGEX.test(ua) ||
+    req.nextUrl.searchParams.has("qr") ||
+    viaParam === "qr" ||
+    viaParam === "qrcode"
+  ) {
     return "qr";
   }
 
