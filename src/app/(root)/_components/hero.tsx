@@ -35,7 +35,7 @@ const heroData = {
     ),
     href: null,
   },
-  heading1: "Simplify Links Like",
+  heading1: "Turn Every Clicks Into Insightful",
   heading2: (
     <div className="flex items-center gap-2">
       <span className="text-[#ffaa40]">
@@ -43,12 +43,12 @@ const heroData = {
           src={"/icons/star.svg"}
           width={50}
           height={50}
-          alt="Magic"
+          alt="Slugy"
           priority
           sizes="50px"
         />
       </span>
-      Magic
+      Analytics
     </div>
   ),
   heading2Gradient:

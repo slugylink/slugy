@@ -45,16 +45,17 @@ function NavbarLogo() {
   return (
     <Link
       href="/"
-      className="flex items-center gap-3"
+      className="group inline-flex items-center gap-2.5"
       aria-label="Go to home page"
     >
-      <div className="flex items-center gap-2">
-        <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-          <AppLogo />
-        </div>
-        <div className="grid flex-1 text-left text-lg">
-          <span className="font-medium">Slugy</span>
-        </div>
+      <div className="text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg">
+        <AppLogo />
+      </div>
+      <div className="flex flex-col items-start leading-none">
+        <span className="text-md font-medium tracking-tight">Slugy</span>
+        <span className="mt-0.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+          beta
+        </span>
       </div>
     </Link>
   );
