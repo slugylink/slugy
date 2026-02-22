@@ -12,8 +12,13 @@ export async function checkWorkspaceAccessAndLimits(
     name: true,
     slug: true,
     _count: { select: { links: true } },
-    usages: { select: { linksCreated: true } },
-  };
+    usages: {
+      where: { deletedAt: null },
+      orderBy: { createdAt: "desc" },
+      take: 1,
+      select: { linksCreated: true },
+    },
+  } as const;
 
   try {
     // Get user's subscription with plan details
