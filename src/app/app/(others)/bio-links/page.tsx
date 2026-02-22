@@ -116,6 +116,27 @@ async function getCachedBio(userId: string): Promise<CacheResult | null> {
   }
 }
 
+async function isValidCachedBio(
+  userId: string,
+  username: string,
+): Promise<boolean> {
+  try {
+    const bio = await db.bio.findFirst({
+      where: {
+        userId,
+        username,
+      },
+      select: {
+        username: true,
+      },
+    });
+
+    return Boolean(bio?.username);
+  } catch {
+    return false;
+  }
+}
+
 async function updateBioCache(
   userId: string,
   bioData: BioData | null,
@@ -216,7 +237,14 @@ export default async function BioLinks() {
     // Check cache first
     const cachedBio = await getCachedBio(userId);
     if (cachedBio?.username) {
-      return redirectToBio(cachedBio.username, 0);
+      const cacheIsValid = await isValidCachedBio(userId, cachedBio.username);
+      if (cacheIsValid) {
+        return redirectToBio(cachedBio.username, 0);
+      }
+
+      updateBioCache(userId, null).catch(() => {
+        // Silently handle cache failures
+      });
     }
 
     // Fetch from database
