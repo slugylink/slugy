@@ -51,26 +51,24 @@ export default function GetStartedButton({
   isGitVisible = true,
   className,
 }: GetStartedButtonProps) {
-  const { data: session } = useSession();
   const { stars, isLoading } = useGitHubStars("slugylink/slugy");
   const [navigating, setNavigating] = useState(false);
 
   const appUrl = useAppUrl();
-  const destination = session ? appUrl : `${appUrl}/login`;
 
   // Warm up on mount + session change
   useEffect(() => {
-    fetch(destination, { method: "GET", mode: "no-cors" }).catch(() => {});
-  }, [destination]);
+    fetch(appUrl, { method: "GET", mode: "no-cors" }).catch(() => {});
+  }, [appUrl]);
 
   const prefetch = useCallback(() => {
-    fetch(destination, { method: "GET", mode: "no-cors" }).catch(() => {});
-  }, [destination]);
+    fetch(appUrl, { method: "GET", mode: "no-cors" }).catch(() => {});
+  }, [appUrl]);
 
   return (
     <>
       <link rel="preconnect" href={appUrl} />
-      <link rel="prefetch" href={destination} />
+      <link rel="prefetch" href={appUrl} />
 
       <div className={cn("flex gap-2", className)}>
         {isGitVisible && (
@@ -93,7 +91,7 @@ export default function GetStartedButton({
 
         {/* <a> instead of <Link> — cross-origin navigation to app subdomain */}
         <a
-          href={destination}
+          href={appUrl}
           onMouseEnter={prefetch}
           onTouchStart={prefetch}
           onClick={() => setNavigating(true)}
