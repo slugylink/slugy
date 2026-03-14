@@ -6,18 +6,7 @@ import { ArrowRightIcon } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { LazyMotion, domAnimation, m } from "motion/react";
-import { Bricolage_Grotesque } from "next/font/google";
 import { memo } from "react";
-
-// ---------------------
-// Optimized Data-Driven Content
-// ---------------------
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  preload: true,
-  display: "swap",
-});
 
 // Memoized data object for better performance
 const heroData = {
@@ -35,9 +24,10 @@ const heroData = {
     ),
     href: null,
   },
-  heading1: "Turn Every Clicks Into Insightful",
+  heading1: "Short Links with Powerful",
   heading2: (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+      Analytics
       <span className="text-[#ffaa40]">
         <Image
           src={"/icons/star.svg"}
@@ -45,19 +35,19 @@ const heroData = {
           height={50}
           alt="Slugy"
           priority
-          sizes="50px"
+          sizes="(max-width: 640px) 32px, 50px"
+          className="h-8 w-8 sm:h-[50px] sm:w-[50px]"
         />
       </span>
-      Analytics
     </div>
   ),
   heading2Gradient:
     "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text- [text-fill-color:transparent]",
-  fontFamily: "var(--font-bricolage)",
+  // fontFamily: "var(--font-bricolage)",
   subheading1: (
     <>
-      A modern link platform where creators, entrepreneurs{" "}
-      <br className="hidden sm:block" /> and teams turn clicks into growth.
+      Shorten links, track performance, and understand your audience
+      <br className="hidden sm:block" /> — all in one place.
     </>
   ),
   subheading2: "",
@@ -74,30 +64,18 @@ const heroData = {
 const Hero = memo(function Hero() {
   return (
     <LazyMotion features={domAnimation}>
-      <section className="mx-auto max-w-6xl px-4">
+      <section className="mx-auto max-w-6xl px-3 sm:px-4">
         {/* Decorative Background */}
         <m.div
-          className="absolute top-36 right-0 left-1/2 z-0 h-[400px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-48 sm:h-[580px]"
+          className="absolute top-28 right-0 left-1/2 z-0 h-[320px] w-full -translate-x-1/2 overflow-hidden opacity-20 mix-blend-multiply sm:top-40 sm:h-[460px] md:top-48 md:h-[580px]"
           initial={{ opacity: 0, scale: 1.02 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-        >
-          <Image
-            src={heroData.backgroundImage}
-            alt={heroData.backgroundAlt}
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 100vw, 100vw"
-            quality={75}
-            placeholder="blur"
-            blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R+IRjWjBqO6O2mhP//Z"
-            className="object-cover opacity-20 mix-blend-multiply"
-          />
-        </m.div>
+        ></m.div>
 
         {/* Heading */}
         <div className="relative h-full w-full">
-          <div className="mt-8 text-center">
+          <div className="mt-6 text-center sm:mt-8">
             {/* Announcement Banner */}
             <m.div
               className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12"
@@ -111,11 +89,12 @@ const Hero = memo(function Hero() {
             >
               <div
                 className={cn(
-                  "group rounded-full border border-black/10 bg-neutral-50 text-base text-white transition-all hover:cursor-pointer hover:bg-neutral-100 dark:border-white/5 dark:bg-neutral-900 dark:hover:bg-neutral-800",
+                  "group rounded-full border border-black/10 bg-neutral-50 text-white transition-all hover:cursor-pointer hover:bg-neutral-100 dark:border-white/5 dark:bg-neutral-900 dark:hover:bg-neutral-800",
                 )}
               >
-                <AnimatedShinyText className="inline-flex items-center justify-center px-3 py-1 text-xs transition ease-out hover:text-neutral-600 hover:duration-300 sm:text-sm hover:dark:text-neutral-400">
-                  <span className="inline"></span> {heroData.announcement.text}
+                <AnimatedShinyText className="inline-flex items-center justify-center px-2.5 py-1 text-[11px] transition ease-out hover:text-neutral-600 hover:duration-300 sm:px-3 sm:text-sm hover:dark:text-neutral-400">
+                  <span className="inline pb-1"></span>{" "}
+                  {heroData.announcement.text}
                   <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
                 </AnimatedShinyText>
               </div>
@@ -123,7 +102,7 @@ const Hero = memo(function Hero() {
 
             {/* Large Gradient Heading */}
             <m.div
-              className="space-y-1 text-3xl font-medium md:space-y-2 md:text-4xl lg:text-[53px]"
+              className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{
@@ -133,7 +112,7 @@ const Hero = memo(function Hero() {
               }}
             >
               <m.h2
-                className={bricolage.className}
+                // className={bricolage.className}
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
@@ -142,11 +121,11 @@ const Hero = memo(function Hero() {
                   delay: 0.2,
                 }}
               >
-                {heroData.heading1}
+                <span className="text-balance">{heroData.heading1}</span>
               </m.h2>
               <m.h2
                 className={cn(
-                  bricolage.className,
+                  // bricolage.className,
                   heroData.heading2Gradient,
                   "font-medium",
                 )}
@@ -163,7 +142,7 @@ const Hero = memo(function Hero() {
             </m.div>
             <div className="mx-auto max-w-2xl text-zinc-700">
               <m.p
-                className="mt-4 text-sm sm:mt-6 sm:text-base md:text-xl"
+                className="mt-4 px-1 text-sm sm:mt-4 sm:text-base md:px-0 md:text-lg"
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
@@ -174,7 +153,7 @@ const Hero = memo(function Hero() {
               >
                 {heroData.subheading1}
               </m.p>
-              {heroData.subheading2 && (
+              {/* {heroData.subheading2 && (
                 <m.p
                   className="text-sm sm:text-base md:text-lg"
                   initial={{ opacity: 0, y: 6 }}
@@ -187,7 +166,7 @@ const Hero = memo(function Hero() {
                 >
                   {heroData.subheading2}
                 </m.p>
-              )}
+              )} */}
             </div>
           </div>
 

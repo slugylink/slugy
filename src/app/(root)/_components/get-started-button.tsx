@@ -17,7 +17,6 @@ type GetStartedButtonProps = {
 };
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const { useSession } = createAuthClient();
 
 // ── Hooks ─────────────────────────────────────────────────────────────────────
 function useGitHubStars(repo: string) {

@@ -23,8 +23,8 @@ const sponsors = [
 
 export default function Sponsors() {
   return (
-    <div className="bg-transparent dark:bg-[#121212]">
-      <div className="mx-auto max-w-6xl mt-12 px-4 py-16">
+    <div className="mt-4 bg-transparent dark:bg-[#121212]">
+      <div className="mx-auto max-w-6xl px-4 py-16">
         {/* Header Section */}
         <motion.div
           className="mb-16 text-center"
@@ -44,7 +44,7 @@ export default function Sponsors() {
 
         {/* Sponsors Section */}
         <motion.div
-          className=" flex items-center justify-center"
+          className="flex items-center justify-center"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
@@ -61,24 +61,23 @@ export default function Sponsors() {
               }}
               className="w-full max-w-sm rounded-2xl border bg-zinc-100/80 p-1"
             >
-                <div className="relative mx-auto aspect-video w-[50%]">
-                    <Image
-                      src={sponsor.icon}
-                      alt={sponsor.name}
-                      fill
-                      className="h-12 w-12 object-contain"
-                    />
-                  </div>
+              <div className="relative mx-auto aspect-video w-[30%]">
+                <Image
+                  src={sponsor.icon}
+                  alt={sponsor.name}
+                  fill
+                  className="h-12 w-12 object-contain"
+                />
+              </div>
               <Card className="h-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-               
                 <CardContent className="pt-0">
-                  <CardDescription className="mb-4 text-base text-gray-600 dark:text-gray-300 text-center">
+                  <CardDescription className="mb-3 text-center text-base text-gray-600 dark:text-gray-300">
                     {sponsor.description}
                   </CardDescription>
-                  <div className="border-t border-gray-200 pt-4 dark:border-gray-700 mx-auto text-center">
+                  <div className="mx-auto border-t border-gray-200 pt-3 text-center dark:border-gray-700">
                     <Button
                       variant="ghost"
-                      className="h-auto p-0 hover:bg-transparent font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white w-full"
+                      className="h-auto w-full p-0 font-medium text-gray-700 hover:bg-transparent hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
                       asChild
                     >
                       <a

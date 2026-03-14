@@ -101,26 +101,31 @@ const CustomTooltip = memo(
 CustomTooltip.displayName = "CustomTooltip";
 
 // Memoize StatCard component
-const StatCard = memo(({ stat }: { stat: (typeof statsData)[number] }) => (
-  <motion.div
-    variants={animations.item}
-    className="rounded-2xl border border-zinc-200/40 p-1"
-  >
-    <Card className="flex aspect-square items-center justify-center overflow-hidden border border-zinc-200/70 bg-zinc-50 shadow-none backdrop-blur-sm transition-all">
-      <div className="p-4">
-        <div className="mb-2 flex justify-center">
-          <div className={`rounded-full p-2 ${stat.iconBg}`} />
+const StatCard = memo(
+  ({
+    stat,
+    borderClassName,
+  }: {
+    stat: (typeof statsData)[number];
+    borderClassName: string;
+  }) => (
+    <motion.div variants={animations.item} className="mt-3 sm:mt-4">
+      <Card
+        className={`bg-zinc- flex overflow-hidden rounded-none px-2 py-1 shadow-none backdrop-blur-sm transition-all sm:px-4 ${borderClassName}`}
+      >
+        <div className="">
+          <div className="text-start">
+            <p className="text-primary font-mono text-lg font-medium sm:text-xl">
+              <AnimatedNumber value={stat.count} suffix={stat.suffix} />
+            </p>
+            <h3 className="text-muted-foreground mt-1 text-sm">{stat.title}</h3>
+          </div>
         </div>
-        <div className="text-center">
-          <p className="text-primary font-mono text-2xl font-medium">
-            <AnimatedNumber value={stat.count} suffix={stat.suffix} />
-          </p>
-          <h3 className="text-muted-foreground mt-1 text-sm">{stat.title}</h3>
-        </div>
-      </div>
-    </Card>
-  </motion.div>
-));
+      </Card>
+    </motion.div>
+  ),
+);
+
 StatCard.displayName = "StatCard";
 
 function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
@@ -160,7 +165,7 @@ export default function Stats() {
   const growthData = useMemo(() => generateGrowthData(100), []);
 
   return (
-    <section className="relative mx-auto mt-20 max-w-6xl px-4 md:mt-16">
+    <section className="relative mx-auto mt-10 max-w-6xl px-3 py-2 sm:mt-12 sm:px-4">
       <motion.div
         className="text-center"
         initial={{ opacity: 0, y: 20 }}
@@ -168,7 +173,7 @@ export default function Stats() {
         transition={{ duration: 0.5 }}
       >
         <h2 className="text-2xl font-medium tracking-tight sm:text-4xl">
-          Our Growth
+          Built to scale
         </h2>
         <p className="text-muted-foreground mt-3 text-sm md:text-base">
           Steady growth with natural ups and downs
@@ -176,23 +181,17 @@ export default function Stats() {
       </motion.div>
 
       <motion.div
-        className="mt-12"
+        className=""
         variants={animations.container}
         initial="hidden"
         animate="show"
       >
-        <Card className="overflow-hidden border-none bg-transparent p-4 shadow-none">
+        <Card className="mt-2 overflow-hidden border-none bg-transparent p-0 shadow-none">
           <div className="relative">
-            <div className="absolute top-0 left-0 z-10 grid w-[80%] grid-cols-2 gap-3 sm:grid-cols-2 lg:w-[35%]">
-              {statsData.map((stat) => (
-                <StatCard key={stat.title} stat={stat} />
-              ))}
-            </div>
             <div
               ref={chartRef}
-              className="relative h-[370px] w-full sm:h-[500px]"
+              className="relative h-[280px] w-full sm:h-[360px] md:h-[420px]"
             >
-              <div className="absolute inset-x-0 -bottom-3 z-20 h-[10%] w-full bg-gradient-to-b from-transparent via-[#ffffff] to-[#ffffff] dark:via-[#121212] dark:to-[#121212]" />
               {isInView && (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={growthData}>
@@ -233,6 +232,19 @@ export default function Stats() {
                   </AreaChart>
                 </ResponsiveContainer>
               )}
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4">
+              {statsData.map((stat, index) => (
+                <StatCard
+                  key={stat.title}
+                  stat={stat}
+                  borderClassName={
+                    index === 0
+                      ? "border-none"
+                      : "border-t sm:border-l sm:border-t-0"
+                  }
+                />
+              ))}
             </div>
           </div>
         </Card>

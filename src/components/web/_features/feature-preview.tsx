@@ -52,7 +52,7 @@ const FeatureLinkPreview = ({
 
   return (
     <>
-      <div className="relative mx-auto flex w-fit flex-col items-start">
+      <div className="relative mx-auto flex w-fit flex-col items-start rounded-[48px] shadow-[0_0_16px_rgba(0,0,0,0.07)]">
         {/* iPhone Frame Container */}
         <div className="relative mx-auto w-[280px]">
           {/* iPhone Notch */}
@@ -95,7 +95,7 @@ const FeatureLinkPreview = ({
                     {links.length === 0 ? (
                       <div className={`text-center ${currentTheme.textColor}`}>
                         <p>No links available.</p>
-                      </div>  
+                      </div>
                     ) : (
                       links.map((link) => (
                         <a

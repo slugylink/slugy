@@ -220,7 +220,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
             </Button>
           </div>
           {/* Links */}
-          <div className="mx-auto mt-6 max-w-[580px] space-y-2.5">
+          <div className="mx-auto mt-4 max-w-[580px] space-y-2">
             <AnimatePresence initial={false}>
               {links.map((link) => (
                 <m.div

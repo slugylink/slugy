@@ -34,7 +34,12 @@ import { Session } from "@/lib/auth";
 
 type NavLink = (typeof NAV_LINKS)[number];
 
-const VISIBLE_PATHS = ["/", "/tools/metadatas", "/pricing", "/sponsors"];
+const VISIBLE_PATHS = new Set([
+  "/",
+  "/tools/metadatas",
+  "/pricing",
+  "/sponsors",
+]);
 
 interface NavbarProps {
   session: Session | null;
@@ -45,17 +50,17 @@ function NavbarLogo() {
   return (
     <Link
       href="/"
-      className="group inline-flex items-center gap-2.5"
+      className="group inline-flex items-center gap-2"
       aria-label="Go to home page"
     >
-      <div className="text-sidebar-primary-foreground flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg">
-        <AppLogo />
+      <div className="text-sidebar-primary-foreground flex aspect-square shrink-0 items-center justify-center rounded-lg">
+        <AppLogo className="rounded-md" />
       </div>
       <div className="flex flex-col items-start leading-none">
-        <span className="text-md font-medium tracking-tight">Slugy</span>
-        <span className="mt-0.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
+        <span className="text-xl font-medium tracking-tight">Slugy</span>
+        {/* <span className="mt-0.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
           beta
-        </span>
+        </span> */}
       </div>
     </Link>
   );
@@ -120,15 +125,16 @@ function DesktopMenu() {
             {link.menu ? (
               <DesktopSubmenu link={link} />
             ) : (
-              <Link href={link.href} legacyBehavior passHref>
-                <NavigationMenuLink
+              <NavigationMenuLink asChild>
+                <Link
+                  href={link.href}
                   className={cn(
                     "group hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[active]:bg-accent/50 data-[state=open]:bg-accent/50 inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-normal transition-colors focus:outline-none disabled:pointer-events-none disabled:opacity-50",
                   )}
                 >
                   {link.title}
-                </NavigationMenuLink>
-              </Link>
+                </Link>
+              </NavigationMenuLink>
             )}
           </NavigationMenuItem>
         ))}
@@ -195,7 +201,7 @@ function MobileMenuContent() {
 }
 
 // Mobile menu with sheet
-function MobileMenu({ session }: { session: Session | null }) {
+function MobileMenu() {
   return (
     <div className="flex items-center gap-2">
       <GetStartedButton isGitVisible={true} className="flex" />
@@ -224,9 +230,9 @@ function MobileMenu({ session }: { session: Session | null }) {
 }
 
 // Main navbar component
-export default function Navbar({ session }: NavbarProps) {
+export default function Navbar({ session: _session }: NavbarProps) {
   const pathname = usePathname();
-  const isVisible = VISIBLE_PATHS.includes(pathname);
+  const isVisible = VISIBLE_PATHS.has(pathname);
 
   if (!isVisible) return null;
 
@@ -235,7 +241,7 @@ export default function Navbar({ session }: NavbarProps) {
       <div className="mx-auto flex h-[3.5rem] max-w-6xl items-center justify-between px-4">
         <NavbarLogo />
         <DesktopMenu />
-        <MobileMenu session={session} />
+        <MobileMenu />
       </div>
     </nav>
   );

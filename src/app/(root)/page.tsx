@@ -100,30 +100,32 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Features Section */}
-      <section id="features" className="mt-12 scroll-mt-20">
-        <Features />
-      </section>
+      <div>
+        {/* Features Section */}
+        <section id="features" className="scroll-mt-20">
+          <Features />
+        </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="scroll-mt-20">
-        <PricingSection />
-      </section>
+        {/* Pricing Section */}
+        <section id="pricing" className="scroll-mt-20">
+          <PricingSection />
+        </section>
 
-      {/* Stats Section */}
-      <section id="stats" className="scroll-mt-20">
-        <Stats />
-      </section>
+        {/* Stats Section */}
+        <section id="stats" className="scroll-mt-20">
+          <Stats />
+        </section>
 
-      {/* Sponsors Section */}
-      <section id="sponsors" className="scroll-mt-20">
-        <Sponsors />
-      </section>
+        {/* Sponsors Section */}
+        <section id="sponsors" className="scroll-mt-20">
+          <Sponsors />
+        </section>
 
-      {/* Open Source Section */}
-      <section id="open-source" className="scroll-mt-20">
-        <OpenSource />
-      </section>
+        {/* Open Source Section */}
+        <section id="open-source" className="scroll-mt-20">
+          <OpenSource />
+        </section>
+      </div>
     </main>
   );
 }

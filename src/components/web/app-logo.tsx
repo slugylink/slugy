@@ -1,8 +1,14 @@
+import { cn } from "@/lib/utils";
 import Image from "next/image";
 
-const AppLogo = () => {
+const AppLogo = ({ className }: { className?: string }) => {
   return (
-    <div className="overflow- relative flex h-8 w-8 items-center justify-center rounded-lg bg-black shadow-sm">
+    <div
+      className={cn(
+        "relative flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-lg bg-black shadow-sm",
+        className,
+      )}
+    >
       {/* <Link size={16} /> */}
       <Image
         src="/icon.svg"
