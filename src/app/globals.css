@@ -393,11 +393,12 @@ html::-webkit-scrollbar-thumb:hover {
     rgba(255, 255, 255, 1) 50%,
     rgba(255, 255, 255, 0.55) 75%
   );
-  background-size: 220% 100%;
+  background-size: 200% 100%;
   background-position: 100% 0;
   background-clip: text;
   -webkit-background-clip: text;
-  animation: shimmer 2s linear infinite;
+  animation: shimmer 2.8s linear infinite;
+  will-change: background-position;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -409,9 +410,9 @@ html::-webkit-scrollbar-thumb:hover {
 
 @keyframes shimmer {
   0% {
-    background-position: 200% 0;
+    background-position: 100% 0;
   }
   100% {
-    background-position: -200% 0;
+    background-position: -100% 0;
   }
 }
