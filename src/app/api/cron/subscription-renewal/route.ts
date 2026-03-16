@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
-import { syncUserLimits, revalidateSubscriptionCache } from "@/lib/subscription/limits-sync";
+import {
+  syncUserLimits,
+  revalidateSubscriptionCache,
+} from "@/lib/subscription/limits-sync";
 
 const BATCH_SIZE = 100;
 
@@ -17,16 +20,16 @@ async function processBatch(subscriptions: any[]) {
   return db.$transaction(async (tx) => {
     let renewedCount = 0;
     let downgradedCount = 0;
+    const freePlan = await tx.plan.findFirst({
+      where: { planType: "free" },
+      select: { id: true },
+    });
 
     for (const subscription of subscriptions) {
       // Only process if period has ended
       if (subscription.periodEnd <= now) {
         // Handle canceled subscriptions - downgrade to free plan
         if (subscription.cancelAtPeriodEnd) {
-          const freePlan = await tx.plan.findFirst({
-            where: { planType: "free" },
-          });
-
           if (freePlan) {
             const newPeriodStart = new Date(now);
             const newPeriodEnd = new Date(now);
@@ -34,7 +37,7 @@ async function processBatch(subscriptions: any[]) {
 
             const daysWithService = Math.ceil(
               (newPeriodEnd.getTime() - newPeriodStart.getTime()) /
-                (1000 * 60 * 60 * 24)
+                (1000 * 60 * 60 * 24),
             );
 
             // Downgrade to free plan
@@ -57,10 +60,10 @@ async function processBatch(subscriptions: any[]) {
 
             downgradedCount++;
             console.log(
-              `[Subscription Renewal] Downgraded canceled subscription ${subscription.id} to free plan for user ${subscription.referenceId}`
+              `[Subscription Renewal] Downgraded canceled subscription ${subscription.id} to free plan for user ${subscription.referenceId}`,
             );
           }
-        } 
+        }
         // Handle free plan renewals
         else if (subscription.plan.planType === "free") {
           const newPeriodStart = new Date(now);
@@ -76,7 +79,7 @@ async function processBatch(subscriptions: any[]) {
 
           const daysWithService = Math.ceil(
             (newPeriodEnd.getTime() - newPeriodStart.getTime()) /
-              (1000 * 60 * 60 * 24)
+              (1000 * 60 * 60 * 24),
           );
 
           await tx.subscription.update({
@@ -90,7 +93,7 @@ async function processBatch(subscriptions: any[]) {
 
           renewedCount++;
           console.log(
-            `[Subscription Renewal] Renewed free subscription ${subscription.id} for user ${subscription.referenceId}`
+            `[Subscription Renewal] Renewed free subscription ${subscription.id} for user ${subscription.referenceId}`,
           );
         }
       }
@@ -102,7 +105,9 @@ async function processBatch(subscriptions: any[]) {
 
 async function handler() {
   try {
-    console.log("[Subscription Renewal] Starting subscription renewal cron job");
+    console.log(
+      "[Subscription Renewal] Starting subscription renewal cron job",
+    );
 
     const now = new Date();
 
@@ -132,7 +137,7 @@ async function handler() {
       console.log("[Subscription Renewal] No subscriptions need processing");
       return NextResponse.json(
         { message: "No subscriptions need processing" },
-        { status: 200 }
+        { status: 200 },
       );
     }
 
@@ -179,7 +184,7 @@ async function handler() {
     await revalidateSubscriptionCache();
 
     console.log(
-      `[Subscription Renewal] Completed - Renewed: ${renewedTotal}, Downgraded: ${downgradedTotal}`
+      `[Subscription Renewal] Completed - Renewed: ${renewedTotal}, Downgraded: ${downgradedTotal}`,
     );
 
     return NextResponse.json({
@@ -192,7 +197,7 @@ async function handler() {
     console.error("[Subscription Renewal] Error in cron job:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

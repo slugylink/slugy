@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 
@@ -46,19 +47,43 @@ export async function PUT(
     }
     const { links } = parseResult.data;
 
-    // Update each link's position
-    await Promise.all(
-      links.map((link: { id: string; position: number }) =>
-        db.bioLinks.update({
-          where: { id: link.id },
-          data: { position: link.position },
-        }),
-      ),
-    );
+    const uniqueIds = new Set(links.map((link: { id: string }) => link.id));
+    if (uniqueIds.size !== links.length) {
+      return NextResponse.json(
+        { error: "Duplicate link IDs are not allowed" },
+        { status: 400 },
+      );
+    }
+
+    if (links.length > 0) {
+      const values = links.map(
+        (link: { id: string; position: number }) =>
+          Prisma.sql`(${link.id}, ${link.position})`,
+      );
+
+      const updatedCount = await db.$executeRaw(
+        Prisma.sql`
+          UPDATE "bio_links" AS bl
+          SET
+            "position" = v.position,
+            "updatedAt" = NOW()
+          FROM (VALUES ${Prisma.join(values)}) AS v(id, position)
+          WHERE bl.id = v.id
+            AND bl."bioId" = ${gallery.id}
+        `,
+      );
+
+      if (updatedCount !== links.length) {
+        return NextResponse.json(
+          { error: "One or more links were not found in this gallery" },
+          { status: 400 },
+        );
+      }
+    }
 
     // Invalidate both caches: public gallery + admin dashboard
     await Promise.all([
-      invalidateBioCache.links(params.username),           // Public cache
+      invalidateBioCache.links(params.username), // Public cache
       invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
     ]);
 

@@ -101,7 +101,11 @@ export async function GET(
     });
 
     if (!workspace) {
-      return jsonWithETag(req, { message: "Workspace not found" }, { status: 404 });
+      return jsonWithETag(
+        req,
+        { message: "Workspace not found" },
+        { status: 404 },
+      );
     }
 
     // Build where clause for date filtering
@@ -217,12 +221,20 @@ export async function POST(
     const file = formData.get("file") as File;
 
     if (!file) {
-      return jsonWithETag(req, { message: "No file provided" }, { status: 400 });
+      return jsonWithETag(
+        req,
+        { message: "No file provided" },
+        { status: 400 },
+      );
     }
 
     // Validate file type
     if (file.type !== "text/csv" && !file.name.endsWith(".csv")) {
-      return jsonWithETag(req, { message: "Invalid file type. Please upload a CSV file." }, { status: 400 });
+      return jsonWithETag(
+        req,
+        { message: "Invalid file type. Please upload a CSV file." },
+        { status: 400 },
+      );
     }
 
     // Read and parse CSV
@@ -234,20 +246,28 @@ export async function POST(
     });
 
     if (records.length === 0) {
-      return jsonWithETag(req, { message: "CSV file is empty or has no valid data" }, { status: 400 });
+      return jsonWithETag(
+        req,
+        { message: "CSV file is empty or has no valid data" },
+        { status: 400 },
+      );
     }
 
     // Add warning for very large files
     if (records.length > 5000) {
-      console.warn(`Large CSV import detected: ${records.length} records. This may take several minutes to process.`);
+      console.warn(
+        `Large CSV import detected: ${records.length} records. This may take several minutes to process.`,
+      );
     }
 
     // Check if importing these links would exceed the allowed limit
-    const allowedToCreate = workspaceCheck.maxLinks - workspaceCheck.currentLinks;
+    const allowedToCreate =
+      workspaceCheck.maxLinks - workspaceCheck.currentLinks;
     if (records.length > allowedToCreate) {
       return NextResponse.json(
         {
-          error: "Link limit would be exceeded by this import. Please reduce the number of links or upgrade your plan.",
+          error:
+            "Link limit would be exceeded by this import. Please reduce the number of links or upgrade your plan.",
           limitInfo: {
             currentLinks: workspaceCheck.currentLinks,
             maxLinks: workspaceCheck.maxLinks,
@@ -415,7 +435,10 @@ export async function POST(
             }
             return null;
           })
-          .filter(Boolean) as Array<{ row: number; errors: Array<{ message: string; path: string[] }> }>;
+          .filter(Boolean) as Array<{
+          row: number;
+          errors: Array<{ message: string; path: string[] }>;
+        }>;
         if (conflictErrors.length > 0) {
           return jsonWithETag(
             req,
@@ -432,7 +455,8 @@ export async function POST(
     // Scan URLs for safety in parallel (with concurrency limit)
     console.log(`Scanning ${urlsToScan.length} URLs for safety...`);
     const CONCURRENCY_LIMIT = 10; // Limit concurrent requests to avoid overwhelming the API
-    const unsafeUrls: Array<{ url: string; row: number; threats: string[] }> = [];
+    const unsafeUrls: Array<{ url: string; row: number; threats: string[] }> =
+      [];
 
     for (let i = 0; i < urlsToScan.length; i += CONCURRENCY_LIMIT) {
       const batch = urlsToScan.slice(i, i + CONCURRENCY_LIMIT);
@@ -451,7 +475,11 @@ export async function POST(
       });
 
       const batchResults = await Promise.all(scanPromises);
-      const batchUnsafeUrls = batchResults.filter(Boolean) as Array<{ url: string; row: number; threats: string[] }>;
+      const batchUnsafeUrls = batchResults.filter(Boolean) as Array<{
+        url: string;
+        row: number;
+        threats: string[];
+      }>;
       unsafeUrls.push(...batchUnsafeUrls);
     }
 
@@ -459,18 +487,27 @@ export async function POST(
     if (unsafeUrls.length > 0) {
       const safetyErrors = unsafeUrls.map(({ row, threats }) => ({
         row,
-        errors: [{
-          message: `Unsafe URL detected - contains ${threats.map(t => {
-            switch (t) {
-              case "MALWARE": return "malware";
-              case "SOCIAL_ENGINEERING": return "phishing";
-              case "UNWANTED_SOFTWARE": return "unwanted software";
-              case "POTENTIALLY_HARMFUL_APPLICATION": return "potentially harmful application";
-              default: return "security threat";
-            }
-          }).join(", ")}`,
-          path: ["url"],
-        }],
+        errors: [
+          {
+            message: `Unsafe URL detected - contains ${threats
+              .map((t) => {
+                switch (t) {
+                  case "MALWARE":
+                    return "malware";
+                  case "SOCIAL_ENGINEERING":
+                    return "phishing";
+                  case "UNWANTED_SOFTWARE":
+                    return "unwanted software";
+                  case "POTENTIALLY_HARMFUL_APPLICATION":
+                    return "potentially harmful application";
+                  default:
+                    return "security threat";
+                }
+              })
+              .join(", ")}`,
+            path: ["url"],
+          },
+        ],
       }));
 
       return jsonWithETag(
@@ -493,14 +530,17 @@ export async function POST(
     // Optimized batch processing: create links individually to get IDs, process tags efficiently
     // Dynamically adjust batch size based on total records for optimal performance
     const TOTAL_RECORDS = linksToCreate.length;
-    const BATCH_SIZE = TOTAL_RECORDS > 1000 ? 25 : TOTAL_RECORDS > 500 ? 50 : 100;
+    const BATCH_SIZE =
+      TOTAL_RECORDS > 1000 ? 25 : TOTAL_RECORDS > 500 ? 50 : 100;
 
     // Add progress tracking for large imports
     const shouldTrackProgress = TOTAL_RECORDS > 100;
     let processedCount = 0;
 
     if (shouldTrackProgress) {
-      console.log(`Starting batch import of ${TOTAL_RECORDS} links (batch size: ${BATCH_SIZE})`);
+      console.log(
+        `Starting batch import of ${TOTAL_RECORDS} links (batch size: ${BATCH_SIZE})`,
+      );
     }
     let totalCreatedCount = 0;
     const createdSlugs: string[] = [];
@@ -513,27 +553,43 @@ export async function POST(
     );
 
     if (allTagNames.length > 0) {
-      // Use individual upserts for better control and to ensure all tags exist
-      // This is more reliable than createMany + skipDuplicates for concurrent operations
-      await db.$transaction(async (tx) => {
-        for (const tagName of allTagNames) {
-          const existing = await tx.tag.upsert({
-            where: {
-              name_workspaceId: {
-                name: tagName,
-                workspaceId: workspaceCheck.workspace.id,
-              },
-            },
-            update: {}, // No updates needed, just ensure it exists
-            create: {
-              name: tagName,
-              workspaceId: workspaceCheck.workspace.id,
-            },
-            select: { id: true, name: true },
-          });
-          tagNameToId.set(existing.name, existing.id);
-        }
+      const existingTags = await db.tag.findMany({
+        where: {
+          workspaceId: workspaceCheck.workspace.id,
+          name: { in: allTagNames },
+        },
+        select: { id: true, name: true },
       });
+
+      for (const tag of existingTags) {
+        tagNameToId.set(tag.name, tag.id);
+      }
+
+      const missingTagNames = allTagNames.filter(
+        (name) => !tagNameToId.has(name),
+      );
+
+      if (missingTagNames.length > 0) {
+        await db.tag.createMany({
+          data: missingTagNames.map((name) => ({
+            name,
+            workspaceId: workspaceCheck.workspace.id,
+          })),
+          skipDuplicates: true,
+        });
+
+        const refreshedTags = await db.tag.findMany({
+          where: {
+            workspaceId: workspaceCheck.workspace.id,
+            name: { in: allTagNames },
+          },
+          select: { id: true, name: true },
+        });
+
+        for (const tag of refreshedTags) {
+          tagNameToId.set(tag.name, tag.id);
+        }
+      }
     }
 
     // Process links in batches
@@ -543,7 +599,9 @@ export async function POST(
       const totalBatches = Math.ceil(linksToCreate.length / BATCH_SIZE);
 
       if (shouldTrackProgress) {
-        console.log(`Processing batch ${batchNumber}/${totalBatches} (${batch.length} links)`);
+        console.log(
+          `Processing batch ${batchNumber}/${totalBatches} (${batch.length} links)`,
+        );
       }
 
       await db.$transaction(async (tx) => {
@@ -561,7 +619,13 @@ export async function POST(
             createdSlugs.push(created.slug);
           } catch (error) {
             // Skip duplicates (slug already exists)
-            if (error && typeof error === 'object' && 'code' in error && error.code === 'P2002') continue;
+            if (
+              error &&
+              typeof error === "object" &&
+              "code" in error &&
+              error.code === "P2002"
+            )
+              continue;
             throw error;
           }
         }
@@ -571,7 +635,9 @@ export async function POST(
         const processedPairs = new Set<string>();
 
         tagsToCreate
-          .filter((tagData) => batchResults.some((link) => link.slug === tagData.linkSlug))
+          .filter((tagData) =>
+            batchResults.some((link) => link.slug === tagData.linkSlug),
+          )
           .forEach(({ linkSlug, tagNames }) => {
             const linkId = slugToId.get(linkSlug);
             if (!linkId) return;
@@ -600,13 +666,17 @@ export async function POST(
 
         if (shouldTrackProgress && batchNumber % 5 === 0) {
           const progress = ((processedCount / TOTAL_RECORDS) * 100).toFixed(1);
-          console.log(`Progress: ${progress}% (${processedCount}/${TOTAL_RECORDS} processed, ${totalCreatedCount} created)`);
+          console.log(
+            `Progress: ${progress}% (${processedCount}/${TOTAL_RECORDS} processed, ${totalCreatedCount} created)`,
+          );
         }
       });
     }
 
     if (shouldTrackProgress) {
-      console.log(`Import completed: ${totalCreatedCount} links created from ${TOTAL_RECORDS} records`);
+      console.log(
+        `Import completed: ${totalCreatedCount} links created from ${TOTAL_RECORDS} records`,
+      );
     }
 
     // Update usage counters once at the end
@@ -639,7 +709,8 @@ export async function POST(
       const originalLink = linksToCreate.find((l) => l.slug === slug);
       if (!originalLink) return;
 
-      const linkTags = tagsToCreate.find((t) => t.linkSlug === slug)?.tagNames || [];
+      const linkTags =
+        tagsToCreate.find((t) => t.linkSlug === slug)?.tagNames || [];
       const tagIds = linkTags
         .map((name) => tagNameToId.get(name))
         .filter(Boolean) as string[];

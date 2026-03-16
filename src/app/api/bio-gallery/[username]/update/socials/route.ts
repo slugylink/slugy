@@ -29,10 +29,6 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    if (!session.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const gallery = await db.bio.findFirst({
       where: {
         userId: session.user.id,
@@ -49,27 +45,52 @@ export async function PATCH(
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid body" }, { status: 400 });
     }
-    
-    // Upsert each social
-    const results = await Promise.all(
-      parsed.data.socials.map(async (social) => {
-        // Try to find existing social for this gallery and platform
-        const existing = await db.bioSocials.findFirst({
-          where: {
-            bioId: gallery.id,
-            platform: social.platform,
-          },
-        });
-        if (existing) {
-          return db.bioSocials.update({
-            where: { id: existing.id },
-            data: {
-              url: social.url,
-              isPublic: social.isPublic ?? false,
-            },
-          });
-        } else {
-          return db.bioSocials.create({
+
+    // De-duplicate by platform to avoid duplicate writes in a single request.
+    // Last occurrence wins to match common PATCH semantics.
+    const socialsByPlatform = new Map<
+      string,
+      { platform: string; url?: string; isPublic?: boolean }
+    >();
+    for (const social of parsed.data.socials) {
+      socialsByPlatform.set(social.platform, social);
+    }
+    const socialsToUpsert = Array.from(socialsByPlatform.values());
+
+    const platforms = socialsToUpsert.map((social) => social.platform);
+    const existingSocials = await db.bioSocials.findMany({
+      where: {
+        bioId: gallery.id,
+        platform: { in: platforms },
+      },
+      select: {
+        id: true,
+        platform: true,
+      },
+    });
+
+    const existingByPlatform = new Map<string, string>();
+    for (const social of existingSocials) {
+      if (social.platform && !existingByPlatform.has(social.platform)) {
+        existingByPlatform.set(social.platform, social.id);
+      }
+    }
+
+    const results = await db.$transaction(async (tx) => {
+      return Promise.all(
+        socialsToUpsert.map((social) => {
+          const existingId = existingByPlatform.get(social.platform);
+          if (existingId) {
+            return tx.bioSocials.update({
+              where: { id: existingId },
+              data: {
+                url: social.url,
+                isPublic: social.isPublic ?? false,
+              },
+            });
+          }
+
+          return tx.bioSocials.create({
             data: {
               bioId: gallery.id,
               platform: social.platform,
@@ -77,13 +98,13 @@ export async function PATCH(
               isPublic: social.isPublic ?? false,
             },
           });
-        }
-      }),
-    );
+        }),
+      );
+    });
 
     // Invalidate both caches: public gallery + admin dashboard
     await Promise.all([
-      invalidateBioCache.socials(params.username),           // Public cache
+      invalidateBioCache.socials(params.username), // Public cache
       invalidateBioByUsernameAndUser(params.username, session.user.id), // Admin cache
     ]);
 

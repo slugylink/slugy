@@ -28,6 +28,14 @@ type WorkspaceValidationCacheResult = {
   workspace: WorkspaceCacheType;
 };
 
+function workspaceValidationKey(userId: string, slug: string): string {
+  return `workspace:validate:${userId}:${slug}`;
+}
+
+function workspaceValidationIndexKey(userId: string): string {
+  return `workspace:validate:index:${userId}`;
+}
+
 // Type guards
 function isWorkspaceCacheType(obj: unknown): obj is WorkspaceCacheType {
   if (!obj || typeof obj !== "object") return false;
@@ -150,7 +158,7 @@ export async function getWorkspaceValidationCache(
   slug: string,
 ): Promise<WorkspaceValidationCacheResult> {
   try {
-    const cached = await redis.get(`workspace:validate:${userId}:${slug}`);
+    const cached = await redis.get(workspaceValidationKey(userId, slug));
     if (cached === null || cached === undefined) {
       return { hasValue: false, workspace: null };
     }
@@ -177,13 +185,16 @@ export async function setWorkspaceValidationCache(
   data: WorkspaceCacheType,
 ): Promise<void> {
   try {
-    await redis.set(
-      `workspace:validate:${userId}:${slug}`,
-      JSON.stringify(data),
-      {
+    await Promise.all([
+      redis.set(workspaceValidationKey(userId, slug), JSON.stringify(data), {
         ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,
-      },
-    );
+      }),
+      redis.sadd(workspaceValidationIndexKey(userId), slug),
+      redis.expire(
+        workspaceValidationIndexKey(userId),
+        CACHE_BASE_TTL + CACHE_TTL_JITTER,
+      ),
+    ]);
   } catch {}
 }
 
@@ -208,12 +219,23 @@ export async function invalidateWorkspaceCache(userId: string): Promise<void> {
 // Invalidate all validation caches for a user using pattern matching
 async function invalidateAllValidationCaches(userId: string): Promise<void> {
   try {
-    const keys = await redis.keys(`workspace:validate:${userId}:*`);
-
-    if (keys.length > 0) {
-      await redis.del(...keys);
+    const indexKey = workspaceValidationIndexKey(userId);
+    const slugs = await redis.smembers<string[]>(indexKey);
+    if (slugs.length > 0) {
+      const keys = slugs.map((slug) => workspaceValidationKey(userId, slug));
+      await redis.del(...keys, indexKey);
       console.log(
         `Cleared ${keys.length} validation cache keys for user ${userId}`,
+      );
+      return;
+    }
+
+    // Backward compatibility for pre-indexed keys
+    const legacyKeys = await redis.keys(`workspace:validate:${userId}:*`);
+    if (legacyKeys.length > 0) {
+      await redis.del(...legacyKeys);
+      console.log(
+        `Cleared ${legacyKeys.length} legacy validation cache keys for user ${userId}`,
       );
     }
   } catch (error) {
@@ -230,7 +252,10 @@ export async function invalidateWorkspaceBySlug(
   slug: string,
 ): Promise<void> {
   try {
-    await redis.del(`workspace:validate:${userId}:${slug}`);
+    await Promise.all([
+      redis.del(workspaceValidationKey(userId, slug)),
+      redis.srem(workspaceValidationIndexKey(userId), slug),
+    ]);
   } catch (error) {
     console.error(
       `Failed to invalidate workspace cache for ${userId}:${slug}:`,

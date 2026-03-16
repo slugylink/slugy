@@ -73,6 +73,9 @@ export async function createOrganization({
       return newOrganization;
     });
 
+    // Ensure workspace switchers/default workspace views are fresh immediately.
+    await revalidateWorkspaceData(userId);
+
     return { success: true, organization };
   } catch (error) {
     console.error("Error creating organization:", error);
@@ -123,7 +126,10 @@ export async function inviteMember({
     });
 
     if (existingMember) {
-      return { success: false, error: "User is already a member of this organization" };
+      return {
+        success: false,
+        error: "User is already a member of this organization",
+      };
     }
 
     // Check if there's already a pending invitation
@@ -163,7 +169,10 @@ export async function inviteMember({
     });
 
     if (!defaultWorkspace) {
-      return { success: false, error: "No default workspace found for organization" };
+      return {
+        success: false,
+        error: "No default workspace found for organization",
+      };
     }
 
     // Create invitation
@@ -227,7 +236,7 @@ export async function getOrganizations() {
     });
 
     const organizations = memberships
-      .map(membership => membership.organization)
+      .map((membership) => membership.organization)
       .filter(Boolean);
 
     return { success: true, organizations };
@@ -297,7 +306,8 @@ export async function acceptInvitation(invitationId: string) {
       ) {
         return {
           success: false,
-          error: "You must be signed in with the invited email address to accept",
+          error:
+            "You must be signed in with the invited email address to accept",
         };
       }
     }
@@ -409,4 +419,4 @@ export async function getInvitationDetails(invitationId: string) {
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
-} 
+}

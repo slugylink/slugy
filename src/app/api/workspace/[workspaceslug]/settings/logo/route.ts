@@ -109,13 +109,10 @@ export async function PATCH(
       data: { logo: logoUrl },
     });
 
-    // Get the route path from the request
-    const path = new URL(req.url).pathname;
-
     // Invalidate caches
     await Promise.all([
-      revalidateTag("workspace", path),
-      revalidateTag("all-workspaces", path),
+      revalidateTag("workspace", "max"),
+      revalidateTag("all-workspaces", "max"),
       invalidateWorkspaceCache(session.user.id),
       invalidateWorkspaceBySlug(session.user.id, context.workspaceslug),
     ]);

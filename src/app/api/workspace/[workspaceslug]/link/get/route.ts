@@ -31,41 +31,40 @@ const DEFAULT_OFFSET = 0;
 
 // Link select fields for database queries
 const LINK_SELECT_FIELDS = {
-          id: true,
-          slug: true,
-          url: true,
-          clicks: true,
-          description: true,
-          password: true,
-          expiresAt: true,
-          isArchived: true,
-          domain: true,
-          image: true,
-          title: true,
-          qrCode: {
-            select: {
-              id: true,
-              customization: true,
-            },
-          },
-          lastClicked: true,
-          createdAt: true,
-          expirationUrl: true,
-          tags: {
-            select: {
-              tag: {
-                select: { id: true, name: true, color: true },
-              },
-            },
-          },
-          creator: {
-            select: {
-              name: true,
-              image: true,
-            },
-          },
+  id: true,
+  slug: true,
+  url: true,
+  clicks: true,
+  description: true,
+  password: true,
+  expiresAt: true,
+  isArchived: true,
+  domain: true,
+  image: true,
+  title: true,
+  qrCode: {
+    select: {
+      id: true,
+      customization: true,
+    },
+  },
+  lastClicked: true,
+  createdAt: true,
+  expirationUrl: true,
+  tags: {
+    select: {
+      tag: {
+        select: { id: true, name: true, color: true },
+      },
+    },
+  },
+  creator: {
+    select: {
+      name: true,
+      image: true,
+    },
+  },
 } as const;
-
 
 const getSearchConditions = (
   search: string,
@@ -134,42 +133,44 @@ export async function GET(
     }
 
     const searchParams = request.nextUrl.searchParams;
-    
+
     // Apply defaults at API level - client only sends non-default values
     const search = searchParams.get("search")?.trim() ?? "";
     const showArchived = searchParams.get("showArchived") === "true"; // defaults to false
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset");
     const limitParam = searchParams.get("limit");
-    
+
     // Use defaults if not provided
     const offset = offsetParam ? parseInt(offsetParam, 10) : DEFAULT_OFFSET;
     const limit = limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT;
 
     // Validate parsed parameters
     const errors: string[] = [];
-    
+
     if (
       sortBy &&
-      !VALID_SORT_OPTIONS.includes(sortBy as (typeof VALID_SORT_OPTIONS)[number])
+      !VALID_SORT_OPTIONS.includes(
+        sortBy as (typeof VALID_SORT_OPTIONS)[number],
+      )
     ) {
       errors.push(
         `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
       );
     }
-    
+
     if (isNaN(offset) || offset < 0) {
       errors.push("Offset must be a non-negative integer");
     }
-    
+
     if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
       errors.push(`Limit must be between ${MIN_LIMIT} and ${MAX_LIMIT}`);
     }
 
     if (errors.length > 0) {
       return NextResponse.json(
-        { 
-          error: "Invalid parameters", 
+        {
+          error: "Invalid parameters",
           details: errors,
           code: "VALIDATION_ERROR",
         },
@@ -177,37 +178,43 @@ export async function GET(
       );
     }
 
-    // Optimized: Check ownership first (fast with userId index), then membership if needed
-    // This avoids the slow OR/EXISTS query pattern
-    let workspace = await db.workspace.findFirst({
-      where: {
-        slug: workspaceslug,
-        userId: session.user.id, // Check ownership first (uses userId index)
-      },
-      select: { id: true },
+    // Fetch workspace by unique slug first, then authorize via owner or member.
+    // Membership lookup uses the (workspaceId, userId) unique index.
+    const workspace = await db.workspace.findUnique({
+      where: { slug: workspaceslug },
+      select: { id: true, userId: true },
     });
-
-    // If not owner, check if user is a member
-    if (!workspace) {
-      workspace = await db.workspace.findFirst({
-        where: {
-          slug: workspaceslug,
-          members: {
-            some: { userId: session.user.id }, // Uses members.userId index
-          },
-        },
-        select: { id: true },
-      });
-    }
 
     if (!workspace) {
       return NextResponse.json(
-        { 
+        {
           error: "Workspace not found or access denied",
           code: "WORKSPACE_NOT_FOUND",
         },
         { status: 404 },
       );
+    }
+
+    if (workspace.userId !== session.user.id) {
+      const member = await db.member.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: workspace.id,
+            userId: session.user.id,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (!member) {
+        return NextResponse.json(
+          {
+            error: "Workspace not found or access denied",
+            code: "WORKSPACE_NOT_FOUND",
+          },
+          { status: 404 },
+        );
+      }
     }
 
     const searchConditions = getSearchConditions(search);
@@ -221,7 +228,7 @@ export async function GET(
 
     // First, get the total count to check if offset needs adjustment
     const totalLinks = await db.link.count({ where: conditions });
-    
+
     // Adjust offset if it exceeds total links
     const adjustedOffset = offset >= totalLinks && totalLinks > 0 ? 0 : offset;
 
@@ -255,7 +262,7 @@ export async function GET(
     if (error instanceof Error) {
       if (error.message.includes("database")) {
         return NextResponse.json(
-          { 
+          {
             error: "Database connection error",
             code: "DATABASE_ERROR",
           },
@@ -265,7 +272,7 @@ export async function GET(
     }
 
     return NextResponse.json(
-      { 
+      {
         error: "Failed to fetch links",
         code: "INTERNAL_ERROR",
       },
