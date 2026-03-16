@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
 import {
   GoogleGenerativeAI,
+  type GenerativeModel,
   type GenerationConfig,
 } from "@google/generative-ai";
 import { buildGeminiPrompt } from "@/lib/gemini-ai-slug-prompt";
@@ -126,7 +127,20 @@ const slugCache = new LRUCache<string, string>(CACHE_SIZE);
  * Gemini Config
  * ========================================================================== */
 
-const client = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+let geminiModel: GenerativeModel | null = null;
+
+function getGeminiModel(): GenerativeModel | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  if (geminiModel) return geminiModel;
+
+  const client = new GoogleGenerativeAI(apiKey);
+  geminiModel = client.getGenerativeModel({
+    model: "gemini-2.5-flash",
+  });
+
+  return geminiModel;
+}
 
 const GEMINI_CONFIG: GenerationConfig = {
   temperature: 0.3,
@@ -230,7 +244,8 @@ function generateSeoSlugFallback(url: string): string {
  * ========================================================================== */
 
 async function generateSeoSlugWithGemini(url: string): Promise<string> {
-  if (slugCache.has(url)) return slugCache.get(url)!;
+  const cachedSlug = slugCache.get(url);
+  if (cachedSlug) return cachedSlug;
 
   const pathSegments = extractPathSegments(url);
 
@@ -241,13 +256,10 @@ async function generateSeoSlugWithGemini(url: string): Promise<string> {
     return fallback;
   }
 
-  if (!process.env.GEMINI_API_KEY) {
+  const model = getGeminiModel();
+  if (!model) {
     return generateSeoSlugFallback(url);
   }
-
-  const model = client.getGenerativeModel({
-    model: "gemini-2.5-flash",
-  });
 
   let retries = GEMINI_MAX_RETRIES;
   let slug = "";
@@ -293,19 +305,35 @@ function isValidUrl(url: string) {
 }
 
 async function checkUrlExists(url: string): Promise<boolean> {
-  try {
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), URL_CHECK_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), URL_CHECK_TIMEOUT_MS);
 
-    const res = await fetch(url, {
+  try {
+    // Prefer HEAD to reduce response payload and latency.
+    const headRes = await fetch(url, {
+      method: "HEAD",
+      headers: { "User-Agent": USER_AGENT },
+      signal: controller.signal,
+    });
+
+    if (headRes.ok) return true;
+
+    // Some origins reject HEAD requests; fall back to a tiny ranged GET.
+    if (headRes.status !== 405 && headRes.status !== 501) {
+      return false;
+    }
+
+    const getRes = await fetch(url, {
       method: "GET",
       headers: { "User-Agent": USER_AGENT, Range: "bytes=0-512" },
       signal: controller.signal,
     });
 
-    return res.ok;
+    return getRes.ok;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 

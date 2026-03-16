@@ -10,6 +10,7 @@ import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { waitUntil } from "@vercel/functions";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
+import { Prisma } from "@prisma/client";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -63,18 +64,6 @@ function preprocessEmptyStrings(body: CreateLinkRequest): CreateLinkRequest {
   };
 }
 
-// Helper: Check slug availability
-async function isSlugAvailable(
-  slug: string,
-  domain: string = DEFAULT_DOMAIN,
-): Promise<boolean> {
-  const existingSlug = await db.link.findFirst({
-    where: { slug, domain },
-    select: { id: true },
-  });
-  return !existingSlug;
-}
-
 // Helper: Verify and get custom domain
 async function verifyCustomDomain(
   customDomainId: string,
@@ -94,31 +83,37 @@ async function verifyCustomDomain(
 
 // Helper: Handle tag creation and assignment
 async function handleTags(
-  tx: any,
+  tx: Prisma.TransactionClient,
   linkId: string,
   workspaceId: string,
   tagNames: string[],
-): Promise<void> {
-  if (!tagNames.length) return;
+): Promise<Array<{ id: string; name: string; color: string | null }>> {
+  if (!tagNames.length) return [];
 
-  // Fetch existing tags
+  const normalizedTagNames = Array.from(
+    new Set(tagNames.map((name) => name.trim()).filter(Boolean)),
+  );
+
+  if (!normalizedTagNames.length) return [];
+
+  // Fetch existing tags in one query
   const existingTags = await tx.tag.findMany({
     where: {
       workspaceId,
-      name: { in: tagNames },
+      name: { in: normalizedTagNames },
       deletedAt: null,
     },
-    select: { id: true, name: true },
+    select: { id: true, name: true, color: true },
   });
 
-  const existingTagNames = existingTags.map(
-    (tag: { id: string; name: string }) => tag.name,
-  );
-  const newTagNames = tagNames.filter(
-    (name) => !existingTagNames.includes(name),
+  const existingTagNames = new Set(existingTags.map((tag) => tag.name));
+  const newTagNames = normalizedTagNames.filter(
+    (name) => !existingTagNames.has(name),
   );
 
-  let allTags = [...existingTags];
+  let allTags: Array<{ id: string; name: string; color: string | null }> = [
+    ...existingTags,
+  ];
 
   // Create new tags if needed and within limit
   if (newTagNames.length > 0) {
@@ -131,16 +126,27 @@ async function handleTags(
       MAX_TAGS_PER_WORKSPACE - currentTagCount,
     );
 
-    if (canCreateCount > 0) {
-      const createdTags = await Promise.all(
-        newTagNames.slice(0, canCreateCount).map((name) =>
-          tx.tag.create({
-            data: { name, workspaceId, color: null },
-            select: { id: true, name: true },
-          }),
-        ),
-      );
-      allTags = [...existingTags, ...createdTags];
+    const tagNamesToCreate = newTagNames.slice(0, canCreateCount);
+    if (tagNamesToCreate.length > 0) {
+      await tx.tag.createMany({
+        data: tagNamesToCreate.map((name) => ({
+          name,
+          workspaceId,
+          color: null,
+        })),
+        skipDuplicates: true,
+      });
+
+      allTags = await tx.tag.findMany({
+        where: {
+          workspaceId,
+          name: {
+            in: [...existingTags.map((tag) => tag.name), ...tagNamesToCreate],
+          },
+          deletedAt: null,
+        },
+        select: { id: true, name: true, color: true },
+      });
     }
   }
 
@@ -151,6 +157,8 @@ async function handleTags(
       skipDuplicates: true,
     });
   }
+
+  return allTags;
 }
 
 export async function POST(
@@ -231,15 +239,6 @@ export async function POST(
     const slug = validatedData.slug?.trim() || nanoid();
     const domain = customDomainName || DEFAULT_DOMAIN;
 
-    // Check slug availability
-    if (!(await isSlugAvailable(slug, domain))) {
-      return jsonWithETag(
-        req,
-        apiErrorPayload("Slug already exists for this domain!", "CONFLICT"),
-        { status: 400 },
-      );
-    }
-
     // Create link in transaction
     let result;
     try {
@@ -288,13 +287,17 @@ export async function POST(
         });
 
         // Handle tags
+        let tags: Array<{
+          tag: { id: string; name: string; color: string | null };
+        }> = [];
         if (validatedData.tags?.length) {
-          await handleTags(
+          const assignedTags = await handleTags(
             tx,
             link.id,
             workspaceCheck.workspace.id,
             validatedData.tags,
           );
+          tags = assignedTags.map((tag) => ({ tag }));
         }
 
         // Update workspace and usage stats
@@ -306,12 +309,16 @@ export async function POST(
           tx.usage.updateMany({
             where: {
               workspaceId: workspaceCheck.workspace.id,
+              deletedAt: null,
             },
             data: { linksCreated: { increment: 1 } },
           }),
         ]);
 
-        return link;
+        return {
+          ...link,
+          tags,
+        };
       });
     } catch (error: unknown) {
       // Handle unique constraint violation
@@ -330,62 +337,22 @@ export async function POST(
       throw error;
     }
 
-    // Fetch complete link with tags
-    const linkWithTags = await db.link.findUnique({
-      where: { id: result.id },
-      select: {
-        id: true,
-        url: true,
-        slug: true,
-        image: true,
-        title: true,
-        description: true,
-        metadesc: true,
-        password: true,
-        expiresAt: true,
-        expirationUrl: true,
-        utm_source: true,
-        utm_medium: true,
-        utm_campaign: true,
-        utm_content: true,
-        utm_term: true,
-        createdAt: true,
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!linkWithTags) {
-      return jsonWithETag(req, apiErrorPayload("Link not found", "NOT_FOUND"), {
-        status: 404,
-      });
-    }
-
     // Invalidate cache and send metadata (non-blocking)
-    await invalidateLinkCache(linkWithTags.slug, domain);
+    await invalidateLinkCache(result.slug, domain);
 
     waitUntil(
       sendLinkMetadata({
-        link_id: linkWithTags.id,
+        link_id: result.id,
         domain,
-        slug: linkWithTags.slug,
-        url: linkWithTags.url,
-        tag_ids: linkWithTags.tags.map((t) => t.tag.id),
+        slug: result.slug,
+        url: result.url,
+        tag_ids: result.tags.map((t) => t.tag.id),
         workspace_id: workspaceCheck.workspace.id,
-        created_at: linkWithTags.createdAt.toISOString(),
+        created_at: result.createdAt.toISOString(),
       }),
     );
 
-    return jsonWithETag(req, apiSuccessPayload(linkWithTags), {
+    return jsonWithETag(req, apiSuccessPayload(result), {
       status: 201,
       headers: {
         "Access-Control-Allow-Origin": "*",

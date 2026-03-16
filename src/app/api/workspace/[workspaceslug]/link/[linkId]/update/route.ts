@@ -1,6 +1,5 @@
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
-import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -8,6 +7,9 @@ import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { updateLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
+
+const DEFAULT_DOMAIN = "slugy.co";
+const MAX_TAGS_PER_WORKSPACE = 5;
 
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),
@@ -53,14 +55,23 @@ export async function PATCH(
     const context = await params;
 
     // Check workspace access (member/admin/owner can edit links)
-    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    const access = await getWorkspaceAccess(
+      session.user.id,
+      context.workspaceslug,
+    );
     if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const workspace = access.workspace;
 
-    const link = await db.link.findUnique({
+    const link = await db.link.findFirst({
       where: { id: context.linkId, workspaceId: workspace.id },
+      select: {
+        id: true,
+        slug: true,
+        domain: true,
+        image: true,
+      },
     });
     if (!link) {
       return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
@@ -81,7 +92,11 @@ export async function PATCH(
         });
 
         if (!customDomain) {
-        return jsonWithETag(req, { error: "Invalid or unverified custom domain" }, { status: 400 });
+          return jsonWithETag(
+            req,
+            { error: "Invalid or unverified custom domain" },
+            { status: 400 },
+          );
         }
 
         customDomainName = customDomain.domain;
@@ -89,15 +104,20 @@ export async function PATCH(
       // If customDomainId is null, we're removing the custom domain (reverting to default)
     }
 
-    // If slug is being updated, check for uniqueness per domain
-    if (validatedData.slug && validatedData.slug !== link.slug) {
-      // Determine the target domain (current link's domain or new custom domain)
-      const targetDomain = customDomainName || link.domain || "slugy.co";
+    // If slug and/or domain is changing, check uniqueness for the target pair.
+    const targetSlug = validatedData.slug?.trim() || link.slug;
+    const targetDomain =
+      validatedData.customDomainId !== undefined
+        ? customDomainName || DEFAULT_DOMAIN
+        : link.domain || DEFAULT_DOMAIN;
 
-      // Check if slug exists on the target domain (excluding current link)
+    if (
+      targetSlug !== link.slug ||
+      targetDomain !== (link.domain || DEFAULT_DOMAIN)
+    ) {
       const existingSlug = await db.link.findFirst({
         where: {
-          slug: validatedData.slug,
+          slug: targetSlug,
           domain: targetDomain,
           id: { not: link.id }, // Exclude current link from check
         },
@@ -105,7 +125,11 @@ export async function PATCH(
       });
 
       if (existingSlug) {
-        return jsonWithETag(req, { message: `Slug already exists for this domain!` }, { status: 400 });
+        return jsonWithETag(
+          req,
+          { message: `Slug already exists for this domain!` },
+          { status: 400 },
+        );
       }
     }
 
@@ -134,20 +158,15 @@ export async function PATCH(
       validatedData.image !== "" &&
       !validatedData.image.includes("files.slugy.co")
     ) {
-      const currentLink = await db.link.findUnique({
-        where: { id: context.linkId },
-        select: { image: true },
-      });
-
       // Only delete old R2 image if it's being replaced with a different URL
       if (
-        currentLink?.image &&
-        currentLink.image !== validatedData.image &&
-        currentLink.image.includes("files.slugy.co")
+        link.image &&
+        link.image !== validatedData.image &&
+        link.image.includes("files.slugy.co")
       ) {
         try {
           const { s3Service } = await import("@/lib/s3-service");
-          const url = new URL(currentLink.image);
+          const url = new URL(link.image);
           const oldImageKey = url.pathname.substring(1);
           if (oldImageKey) {
             await s3Service.deleteFile(oldImageKey);
@@ -160,7 +179,7 @@ export async function PATCH(
 
     // Use transaction to ensure data consistency
     try {
-      await db.$transaction(async (tx) => {
+      const linkWithTags = await db.$transaction(async (tx) => {
         // Prepare update data (only provided fields)
         const updateData: Record<string, unknown> = {};
         for (const key of Object.keys(validatedData)) {
@@ -176,31 +195,13 @@ export async function PATCH(
 
         // If customDomainId is being updated, also update the domain field
         if (validatedData.customDomainId !== undefined) {
-          updateData.domain = customDomainName || "slugy.co";
+          updateData.domain = customDomainName || DEFAULT_DOMAIN;
         }
 
         // Update the link
-        const link = await tx.link.update({
+        await tx.link.update({
           where: { id: context.linkId },
           data: updateData,
-          select: {
-            id: true,
-            url: true,
-            slug: true,
-            image: true,
-            title: true,
-            metadesc: true,
-            description: true,
-            password: true,
-            expiresAt: true,
-            expirationUrl: true,
-            utm_source: true,
-            utm_medium: true,
-            utm_campaign: true,
-            utm_content: true,
-            utm_term: true,
-            createdAt: true,
-          },
         });
 
         // Handle tags if provided
@@ -212,20 +213,28 @@ export async function PATCH(
 
           // Add new tag relationships if tags are provided
           if (validatedData.tags.length > 0) {
+            const normalizedTags = Array.from(
+              new Set(
+                validatedData.tags.map((tag) => tag.trim()).filter(Boolean),
+              ),
+            );
+
             // Get existing tags for this workspace
             const existingTags = await tx.tag.findMany({
               where: {
                 workspaceId: workspace.id,
-                name: { in: validatedData.tags },
+                name: { in: normalizedTags },
                 deletedAt: null,
               },
-              select: { id: true, name: true },
+              select: { id: true, name: true, color: true },
             });
 
             // Find tags that don't exist yet
-            const existingTagNames = existingTags.map((tag) => tag.name);
-            const newTagNames = validatedData.tags.filter(
-              (tagName) => !existingTagNames.includes(tagName),
+            const existingTagNames = new Set(
+              existingTags.map((tag) => tag.name),
+            );
+            const newTagNames = normalizedTags.filter(
+              (tagName) => !existingTagNames.has(tagName),
             );
 
             // Create new tags if needed
@@ -241,26 +250,34 @@ export async function PATCH(
 
               const canCreateCount = Math.min(
                 newTagNames.length,
-                5 - currentTagCount,
+                MAX_TAGS_PER_WORKSPACE - currentTagCount,
               );
 
               if (canCreateCount > 0) {
                 const tagsToCreate = newTagNames.slice(0, canCreateCount);
 
-                const createdTags = await Promise.all(
-                  tagsToCreate.map((tagName) =>
-                    tx.tag.create({
-                      data: {
-                        name: tagName,
-                        workspaceId: workspace.id,
-                        color: null, // Default color
-                      },
-                      select: { id: true, name: true },
-                    }),
-                  ),
-                );
+                await tx.tag.createMany({
+                  data: tagsToCreate.map((tagName) => ({
+                    name: tagName,
+                    workspaceId: workspace.id,
+                    color: null,
+                  })),
+                  skipDuplicates: true,
+                });
 
-                allTags = [...existingTags, ...createdTags];
+                allTags = await tx.tag.findMany({
+                  where: {
+                    workspaceId: workspace.id,
+                    name: {
+                      in: [
+                        ...existingTags.map((tag) => tag.name),
+                        ...tagsToCreate,
+                      ],
+                    },
+                    deletedAt: null,
+                  },
+                  select: { id: true, name: true, color: true },
+                });
               }
             }
 
@@ -277,8 +294,67 @@ export async function PATCH(
           }
         }
 
-        return link;
+        const updatedLink = await tx.link.findUnique({
+          where: { id: context.linkId },
+          select: {
+            id: true,
+            url: true,
+            slug: true,
+            domain: true,
+            image: true,
+            title: true,
+            metadesc: true,
+            description: true,
+            password: true,
+            expiresAt: true,
+            expirationUrl: true,
+            utm_source: true,
+            utm_medium: true,
+            utm_campaign: true,
+            utm_content: true,
+            utm_term: true,
+            createdAt: true,
+            tags: {
+              select: {
+                tag: {
+                  select: {
+                    id: true,
+                    name: true,
+                    color: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!updatedLink) {
+          throw new Error("Link not found");
+        }
+
+        return updatedLink;
       });
+
+      // Invalidate cache for the updated link
+      await invalidateLinkCache(
+        linkWithTags.slug!,
+        linkWithTags.domain || DEFAULT_DOMAIN,
+      );
+
+      // Update link metadata in Tinybird
+      waitUntil(
+        updateLink({
+          id: linkWithTags.id,
+          domain: linkWithTags.domain || DEFAULT_DOMAIN,
+          slug: linkWithTags.slug,
+          url: linkWithTags.url,
+          workspaceId: workspace.id,
+          createdAt: linkWithTags.createdAt,
+          tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
+        }),
+      );
+
+      return jsonWithETag(req, linkWithTags, { status: 200 });
     } catch (error: unknown) {
       // Handle unique constraint violation
       if (
@@ -293,7 +369,8 @@ export async function PATCH(
         Array.isArray(error.meta.target) &&
         error.meta.target.includes("slug")
       ) {
-        return NextResponse.json(
+        return jsonWithETag(
+          req,
           { message: `Slug already exists for this domain!` },
           { status: 400 },
         );
@@ -301,65 +378,6 @@ export async function PATCH(
       // Re-throw other errors
       throw error;
     }
-
-    // Fetch the updated link with tags for the response
-    const linkWithTags = await db.link.findUnique({
-      where: { id: context.linkId },
-      select: {
-        id: true,
-        url: true,
-        slug: true,
-        domain: true,
-        image: true,
-        title: true,
-        metadesc: true,
-        description: true,
-        password: true,
-        expiresAt: true,
-        expirationUrl: true,
-        utm_source: true,
-        utm_medium: true,
-        utm_campaign: true,
-        utm_content: true,
-        utm_term: true,
-        createdAt: true,
-        tags: {
-          select: {
-            tag: {
-              select: {
-                id: true,
-                name: true,
-                color: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    // Invalidate cache for the updated link
-    if (!linkWithTags) {
-      return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
-    }
-    await invalidateLinkCache(
-      linkWithTags.slug!,
-      linkWithTags.domain || "slugy.co",
-    );
-
-    // Update link metadata in Tinybird
-    const linkData = {
-      id: linkWithTags.id,
-      domain: linkWithTags.domain || "slugy.co", // Use custom domain if set, otherwise default
-      slug: linkWithTags.slug,
-      url: linkWithTags.url,
-      workspaceId: workspace.id,
-      createdAt: linkWithTags.createdAt,
-      tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
-    };
-
-    waitUntil(updateLink(linkData));
-
-    return jsonWithETag(req, linkWithTags, { status: 200 });
   } catch (error) {
     console.error("Error updating link:", error);
     if (error instanceof z.ZodError) {
