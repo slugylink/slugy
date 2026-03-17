@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
-import { apiSuccess, apiErrors } from "@/lib/api-response";
+import { apiErrors } from "@/lib/api-response";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -102,49 +102,6 @@ interface TinybirdResponse {
   };
 }
 
-// Type for analytics results
-type AnalyticsResult =
-  | { slug: string; url: string; domain: string; clicks: number }
-  | { city: string; country: string; clicks: number }
-  | { country: string; clicks: number }
-  | { continent: string; clicks: number }
-  | { device: string; clicks: number }
-  | { browser: string; clicks: number }
-  | { os: string; clicks: number }
-  | { referrer: string; clicks: number }
-  | { destination: string; clicks: number };
-
-// Helper function to aggregate data by key with filtering
-function aggregateByKey(
-  data: TinybirdResponse["data"],
-  keyFn: (item: TinybirdResponse["data"][0]) => string | null,
-  createItem: (item: TinybirdResponse["data"][0]) => AnalyticsResult,
-  updateItem?: (
-    existing: AnalyticsResult,
-    item: TinybirdResponse["data"][0],
-  ) => void,
-): AnalyticsResult[] {
-  const map = new Map<string, AnalyticsResult>();
-
-  data.forEach((item) => {
-    const key = keyFn(item);
-    if (!key) return;
-
-    const existing = map.get(key);
-    if (existing) {
-      if (updateItem) {
-        updateItem(existing, item);
-      } else {
-        existing.clicks += item.clicks;
-      }
-    } else {
-      map.set(key, createItem(item));
-    }
-  });
-
-  return Array.from(map.values()).sort((a, b) => b.clicks - a.clicks);
-}
-
 // Helper function to get time key based on period
 function getTimeKey(day: string, timePeriod: TimePeriod): string {
   const dayDate = new Date(day);
@@ -170,112 +127,176 @@ function transformTinybirdData(
   timePeriod: TimePeriod = "7d",
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {};
+  const metricSet = new Set(requestedMetrics);
 
-  // Total clicks - simple aggregation
-  if (requestedMetrics.includes("totalClicks")) {
-    result.totalClicks = tinybirdData.reduce(
-      (sum, item) => sum + item.clicks,
-      0,
-    );
+  const timeMap = metricSet.has("clicksOverTime")
+    ? new Map<string, number>()
+    : null;
+  const linksMap = metricSet.has("links")
+    ? new Map<
+        string,
+        { slug: string; url: string; domain: string; clicks: number }
+      >()
+    : null;
+  const citiesMap = metricSet.has("cities")
+    ? new Map<string, { city: string; country: string; clicks: number }>()
+    : null;
+  const countriesMap = metricSet.has("countries")
+    ? new Map<string, { country: string; clicks: number }>()
+    : null;
+  const continentsMap = metricSet.has("continents")
+    ? new Map<string, { continent: string; clicks: number }>()
+    : null;
+  const devicesMap = metricSet.has("devices")
+    ? new Map<string, { device: string; clicks: number }>()
+    : null;
+  const browsersMap = metricSet.has("browsers")
+    ? new Map<string, { browser: string; clicks: number }>()
+    : null;
+  const osesMap = metricSet.has("oses")
+    ? new Map<string, { os: string; clicks: number }>()
+    : null;
+  const referrersMap = metricSet.has("referrers")
+    ? new Map<string, { referrer: string; clicks: number }>()
+    : null;
+  const destinationsMap = metricSet.has("destinations")
+    ? new Map<string, { destination: string; clicks: number }>()
+    : null;
+
+  let totalClicks = 0;
+
+  for (const item of tinybirdData) {
+    const clicks = item.clicks;
+    if (metricSet.has("totalClicks")) totalClicks += clicks;
+
+    if (timeMap) {
+      const timeKey = getTimeKey(item.day, timePeriod);
+      timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + clicks);
+    }
+
+    if (linksMap) {
+      const key = `${item["meta.slug"]}-${item["meta.url"]}-${item.domain || "slugy.co"}`;
+      const existing = linksMap.get(key);
+      if (existing) existing.clicks += clicks;
+      else {
+        linksMap.set(key, {
+          slug: item["meta.slug"],
+          url: item["meta.url"],
+          domain: item.domain || "slugy.co",
+          clicks,
+        });
+      }
+    }
+
+    if (citiesMap && item.city) {
+      const key = `${item.city}-${item.country}`;
+      const existing = citiesMap.get(key);
+      if (existing) existing.clicks += clicks;
+      else
+        citiesMap.set(key, {
+          city: item.city,
+          country: item.country || "unknown",
+          clicks,
+        });
+    }
+
+    if (countriesMap && item.country) {
+      const existing = countriesMap.get(item.country);
+      if (existing) existing.clicks += clicks;
+      else countriesMap.set(item.country, { country: item.country, clicks });
+    }
+
+    if (continentsMap && item.continent) {
+      const existing = continentsMap.get(item.continent);
+      if (existing) existing.clicks += clicks;
+      else
+        continentsMap.set(item.continent, {
+          continent: item.continent,
+          clicks,
+        });
+    }
+
+    if (devicesMap && item.device) {
+      const existing = devicesMap.get(item.device);
+      if (existing) existing.clicks += clicks;
+      else devicesMap.set(item.device, { device: item.device, clicks });
+    }
+
+    if (browsersMap && item.browser) {
+      const existing = browsersMap.get(item.browser);
+      if (existing) existing.clicks += clicks;
+      else browsersMap.set(item.browser, { browser: item.browser, clicks });
+    }
+
+    if (osesMap && item.os && item.os !== "unknown") {
+      const existing = osesMap.get(item.os);
+      if (existing) existing.clicks += clicks;
+      else osesMap.set(item.os, { os: item.os, clicks });
+    }
+
+    if (referrersMap && item.referer) {
+      const existing = referrersMap.get(item.referer);
+      if (existing) existing.clicks += clicks;
+      else referrersMap.set(item.referer, { referrer: item.referer, clicks });
+    }
+
+    if (destinationsMap && item["meta.url"]) {
+      const existing = destinationsMap.get(item["meta.url"]);
+      if (existing) existing.clicks += clicks;
+      else
+        destinationsMap.set(item["meta.url"], {
+          destination: item["meta.url"],
+          clicks,
+        });
+    }
   }
 
-  // Clicks over time - time-based aggregation
-  if (requestedMetrics.includes("clicksOverTime")) {
-    const timeMap = new Map<string, number>();
+  if (metricSet.has("totalClicks")) {
+    result.totalClicks = totalClicks;
+  }
 
-    tinybirdData.forEach((item) => {
-      const timeKey = getTimeKey(item.day, timePeriod);
-      timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + item.clicks);
-    });
-
+  if (timeMap) {
     result.clicksOverTime = Array.from(timeMap.entries())
       .map(([time, clicks]) => ({ time: new Date(time), clicks }))
       .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
 
-  // Use helper function for all other aggregations
-  const metricConfigs = {
-    links: {
-      keyFn: (item: TinybirdResponse["data"][0]) =>
-        `${item["meta.slug"]}-${item["meta.url"]}-${item.domain || "slugy.co"}`,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        slug: item["meta.slug"],
-        url: item["meta.url"],
-        domain: item.domain || "slugy.co",
-        clicks: item.clicks,
-      }),
-    },
-    cities: {
-      keyFn: (item: TinybirdResponse["data"][0]) =>
-        item.city ? `${item.city}-${item.country}` : null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        city: item.city,
-        country: item.country || "unknown",
-        clicks: item.clicks,
-      }),
-    },
-    countries: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item.country || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        country: item.country,
-        clicks: item.clicks,
-      }),
-    },
-    continents: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item.continent || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        continent: item.continent,
-        clicks: item.clicks,
-      }),
-    },
-    devices: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item.device || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        device: item.device,
-        clicks: item.clicks,
-      }),
-    },
-    browsers: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item.browser || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        browser: item.browser,
-        clicks: item.clicks,
-      }),
-    },
-    oses: {
-      keyFn: (item: TinybirdResponse["data"][0]) =>
-        item.os && item.os !== "unknown" ? item.os : null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        os: item.os,
-        clicks: item.clicks,
-      }),
-    },
-    referrers: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item.referer || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        referrer: item.referer,
-        clicks: item.clicks,
-      }),
-    },
-    destinations: {
-      keyFn: (item: TinybirdResponse["data"][0]) => item["meta.url"] || null,
-      createItem: (item: TinybirdResponse["data"][0]) => ({
-        destination: item["meta.url"],
-        clicks: item.clicks,
-      }),
-    },
-  } as const;
-
-  // Apply aggregations for requested metrics
-  Object.entries(metricConfigs).forEach(([metric, config]) => {
-    if (requestedMetrics.includes(metric as AnalyticsMetric)) {
-      result[metric] = aggregateByKey(
-        tinybirdData,
-        config.keyFn,
-        config.createItem,
-      );
-    }
-  });
+  if (linksMap)
+    result.links = Array.from(linksMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (citiesMap)
+    result.cities = Array.from(citiesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (countriesMap)
+    result.countries = Array.from(countriesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (continentsMap)
+    result.continents = Array.from(continentsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (devicesMap)
+    result.devices = Array.from(devicesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (browsersMap)
+    result.browsers = Array.from(browsersMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (osesMap)
+    result.oses = Array.from(osesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (referrersMap)
+    result.referrers = Array.from(referrersMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  if (destinationsMap)
+    result.destinations = Array.from(destinationsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
 
   return result;
 }
@@ -286,7 +307,7 @@ export async function GET(
 ) {
   try {
     const { workspaceslug } = await params;
-    const search = new URL(request.url).searchParams;
+    const search = request.nextUrl.searchParams;
 
     // Parse and validate input parameters with defaults applied at API level
     const raw = {
@@ -369,9 +390,15 @@ export async function GET(
     ];
 
     // Normalize metrics (convert "os" to "oses")
-    const normalizedMetrics = requestedMetrics.map((metric) =>
-      metric === "os" ? "oses" : metric,
+    const normalizedMetrics = Array.from(
+      new Set(
+        requestedMetrics.map((metric) => (metric === "os" ? "oses" : metric)),
+      ),
     ) as AnalyticsMetric[];
+
+    if (!process.env.TINYBIRD_API_KEY) {
+      return apiErrors.serviceUnavailable("Analytics service unavailable");
+    }
 
     // Build Tinybird query URL
     const queryString = new URLSearchParams(tinybirdParams).toString();

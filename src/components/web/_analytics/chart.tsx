@@ -73,17 +73,38 @@ const CHART_CONFIG = {
 } as const;
 
 const getDateKey = (date: Date, timePeriod: TimePeriod): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+
   if (timePeriod === "24h") {
-    const hourDate = new Date(date);
-    hourDate.setMinutes(0, 0, 0);
-    return hourDate.toISOString().substring(0, 13);
+    return `${y}-${m}-${d}-${h}`;
   }
 
   if (timePeriod === "7d" || timePeriod === "30d") {
-    return date.toDateString();
+    return `${y}-${m}-${d}`;
   }
 
-  return date.toISOString().substring(0, 7);
+  return `${y}-${m}`;
+};
+
+const getBucketTimestamp = (date: Date, timePeriod: TimePeriod): number => {
+  const bucket = new Date(date);
+
+  if (timePeriod === "24h") {
+    bucket.setMinutes(0, 0, 0);
+    return bucket.getTime();
+  }
+
+  if (timePeriod === "7d" || timePeriod === "30d") {
+    bucket.setHours(0, 0, 0, 0);
+    return bucket.getTime();
+  }
+
+  bucket.setDate(1);
+  bucket.setHours(0, 0, 0, 0);
+  return bucket.getTime();
 };
 
 const AnalyticsChart = ({
@@ -122,7 +143,12 @@ const AnalyticsChart = ({
       if (existing) {
         existing.clicks += item.clicks;
       } else {
-        deduplicatedMap.set(dateKey, { ...item });
+        const bucketTimestamp = getBucketTimestamp(date, timePeriod);
+        deduplicatedMap.set(dateKey, {
+          ...item,
+          timestamp: bucketTimestamp,
+          time: new Date(bucketTimestamp).toISOString(),
+        });
       }
     });
 
@@ -153,7 +179,11 @@ const AnalyticsChart = ({
               ? { month: "short", day: "numeric" }
               : { month: "short", year: "numeric" };
 
-        return date.toLocaleTimeString("en-US", formatOptions);
+        if (timePeriod === "24h") {
+          return date.toLocaleTimeString("en-US", formatOptions);
+        }
+
+        return date.toLocaleDateString("en-US", formatOptions);
       } catch {
         return "";
       }
