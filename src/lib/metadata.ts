@@ -124,6 +124,7 @@ export async function getHtml(url: string): Promise<string | null> {
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
+        "x-slugy-preview": "1",
       },
       signal: controller.signal,
       next: { revalidate: CACHE_REVALIDATE_SECONDS },

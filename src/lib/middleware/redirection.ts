@@ -171,7 +171,8 @@ function serveLinkPreview(
   const baseUrl = req.nextUrl.origin;
   const title = linkData.title || "Slugy Link";
   const image = linkData.image || `${baseUrl}/logo.svg`;
-  const metadesc = linkData.metadesc || "";
+  const metadesc = linkData.metadesc || linkData.description || "";
+  const canonicalUrl = `${baseUrl}/${slug}`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -184,7 +185,8 @@ function serveLinkPreview(
   <meta property="og:title" content="${escapeHtml(title)}">
   <meta property="og:description" content="${escapeHtml(metadesc)}">
   <meta property="og:image" content="${escapeHtml(image)}">
-  <meta property="og:url" content="${escapeHtml(req.url)}">
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
+  <meta property="og:site_name" content="Slugy">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(title)}">
   <meta name="twitter:description" content="${escapeHtml(metadesc)}">
@@ -380,9 +382,18 @@ export async function URLRedirects(
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
       const trigger = detectTrigger(req);
       const isBot = trigger === "bot";
+      const isExplicitPreviewRequest =
+        req.headers.get("x-slugy-preview") === "1" ||
+        req.nextUrl.searchParams.get("preview") === "1";
+      const hasPreviewMetadata = Boolean(
+        linkData.title ||
+          linkData.image ||
+          linkData.metadesc ||
+          linkData.description,
+      );
 
       // Serve preview for bots with metadata
-      if (isBot && (linkData.title || linkData.image || linkData.metadesc)) {
+      if ((isBot || isExplicitPreviewRequest) && hasPreviewMetadata) {
         return serveLinkPreview(req, shortCode, linkData);
       }
 
