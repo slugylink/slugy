@@ -254,9 +254,10 @@ const AnalyticsChart = ({
             </div>
           )}
           {!isLoading && isRefreshing && (
-            <div className="bg-background/80 text-muted-foreground absolute top-3 right-3 z-10 flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-              <span>Updating...</span>
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+              <div className="bg-background/90 text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm shadow-xs">
+                <LoaderCircle className="h-4 w-4 animate-spin" />
+              </div>
             </div>
           )}
           {error && (
