@@ -106,7 +106,7 @@ const UrlClicks = dynamic(
   {
     ssr: true,
     loading: CardSkeleton,
-  }
+  },
 );
 
 const GeoClicks = dynamic(
@@ -114,7 +114,7 @@ const GeoClicks = dynamic(
   {
     ssr: true,
     loading: CardSkeleton,
-  }
+  },
 );
 
 const DeviceClicks = dynamic(
@@ -122,7 +122,7 @@ const DeviceClicks = dynamic(
   {
     ssr: false,
     loading: CardSkeleton,
-  }
+  },
 );
 
 const ReferrerClicks = dynamic(
@@ -130,7 +130,7 @@ const ReferrerClicks = dynamic(
   {
     ssr: false,
     loading: CardSkeleton,
-  }
+  },
 );
 
 // ============================================================================
@@ -141,16 +141,18 @@ function isValidTimePeriod(period: string | null): period is TimePeriod {
   return Boolean(period && VALID_TIME_PERIODS.includes(period as TimePeriod));
 }
 
-function extractFilterParams(searchParams: URLSearchParams): Record<string, string> {
+function extractFilterParams(
+  searchParams: URLSearchParams,
+): Record<string, string> {
   const params: Record<string, string> = {};
-  
+
   VALID_FILTER_KEYS.forEach((key) => {
     const value = searchParams.get(key);
     if (value) {
       params[key] = value;
     }
   });
-  
+
   return params;
 }
 
@@ -245,7 +247,8 @@ function ErrorState({ message }: { message?: string }) {
         Error loading analytics
       </h2>
       <p className="text-muted-foreground mt-2 max-w-md text-center text-sm">
-        {message || "There was an error loading your analytics. Please try again later."}
+        {message ||
+          "There was an error loading your analytics. Please try again later."}
       </p>
       <button
         onClick={() => window.location.reload()}
@@ -275,7 +278,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   // Extract filter parameters (excluding time_period)
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
-    [searchParams]
+    [searchParams],
   );
 
   // Fetch analytics data
@@ -292,7 +295,6 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     destinations,
     error,
     isLoading,
-    isValidating,
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
@@ -343,20 +345,33 @@ export const AnalyticsClient = memo(function AnalyticsClient({
         clicks: item.clicks,
       })),
     }),
-    [links, countries, cities, continents, browsers, oses, devices, referrers, destinations]
+    [
+      links,
+      countries,
+      cities,
+      continents,
+      browsers,
+      oses,
+      devices,
+      referrers,
+      destinations,
+    ],
   );
 
   // Build filter categories
   const filterCategories = useMemo(
     () => buildFilterCategories(filterData),
-    [filterData]
+    [filterData],
   );
 
   // Normalize chart data
   const chartData = useMemo(
     () => normalizeChartData(res?.clicksOverTime),
-    [res?.clicksOverTime]
+    [res?.clicksOverTime],
   );
+
+  const hasResolvedData = Boolean(res);
+  const showInitialLoadingState = isLoading && !hasResolvedData;
 
   // Shared props for all card components
   const sharedProps = useMemo(
@@ -364,10 +379,10 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       workspaceslug: workspace,
       searchParams: filterParams,
       timePeriod,
-      isLoading: isLoading || isValidating,
+      isLoading: showInitialLoadingState,
       error,
     }),
-    [workspace, filterParams, timePeriod, isLoading, isValidating, error]
+    [workspace, filterParams, timePeriod, showInitialLoadingState, error],
   );
 
   // Handle error state

@@ -227,6 +227,7 @@ export function useAnalytics({
       dedupingInterval: SWR_DEDUPING_INTERVAL,
       errorRetryCount: SWR_ERROR_RETRY_COUNT,
       errorRetryInterval: SWR_ERROR_RETRY_INTERVAL,
+      keepPreviousData: true,
     },
   );
 
