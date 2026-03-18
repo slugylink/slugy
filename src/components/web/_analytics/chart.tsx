@@ -249,15 +249,13 @@ const AnalyticsChart = ({
       <CardContent className="p-0 pr-2 pb-4">
         <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (
-            <div className="bg-background/10 absolute inset-0 z-10 flex items-center justify-center">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
               <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           )}
           {!isLoading && isRefreshing && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <div className="bg-background/90 text-muted-foreground flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm shadow-xs">
-                <LoaderCircle className="h-4 w-4 animate-spin" />
-              </div>
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
+              <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
             </div>
           )}
           {error && (
