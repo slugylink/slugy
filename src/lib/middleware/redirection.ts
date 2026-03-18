@@ -229,7 +229,7 @@ async function checkAnalyticsRateLimit(
     return limited;
   } catch (error) {
     console.error("[Rate Limit Error]", error);
-    return false; // Fail open if Redis fails
+    return false;
   }
 }
 
