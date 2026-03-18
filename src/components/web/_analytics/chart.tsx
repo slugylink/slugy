@@ -38,6 +38,7 @@ interface ChartProps {
   workspaceslug?: string;
   searchParams?: Record<string, string>;
   isLoading?: boolean;
+  isRefreshing?: boolean;
   error?: Error;
 }
 
@@ -112,6 +113,7 @@ const AnalyticsChart = ({
   totalClicks: propTotalClicks,
   timePeriod = "24h",
   isLoading,
+  isRefreshing,
   error,
 }: ChartProps) => {
   const processedData = useMemo(() => {
@@ -249,6 +251,12 @@ const AnalyticsChart = ({
           {isLoading && (
             <div className="bg-background/10 absolute inset-0 z-10 flex items-center justify-center">
               <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
+            </div>
+          )}
+          {!isLoading && isRefreshing && (
+            <div className="bg-background/80 text-muted-foreground absolute top-3 right-3 z-10 flex items-center gap-2 rounded-md border px-2 py-1 text-xs">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              <span>Updating...</span>
             </div>
           )}
           {error && (

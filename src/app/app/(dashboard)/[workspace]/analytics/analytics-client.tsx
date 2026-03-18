@@ -295,6 +295,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     destinations,
     error,
     isLoading,
+    isValidating,
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
@@ -372,6 +373,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const hasResolvedData = Boolean(res);
   const showInitialLoadingState = isLoading && !hasResolvedData;
+  const chartRefreshing = isValidating && hasResolvedData;
 
   // Shared props for all card components
   const sharedProps = useMemo(
@@ -403,6 +405,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           {...sharedProps}
           data={chartData}
           totalClicks={res?.totalClicks}
+          isRefreshing={chartRefreshing}
         />
 
         {/* Analytics Cards Grid */}
