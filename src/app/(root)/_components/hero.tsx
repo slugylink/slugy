@@ -1,12 +1,14 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { LazyMotion, domAnimation, m } from "motion/react";
 import { memo } from "react";
+import { Button } from "@/components/ui/button";
 
 // Memoized data object for better performance
 const heroData = {
@@ -62,6 +64,12 @@ const heroData = {
 } as const;
 
 const Hero = memo(function Hero() {
+  const handleViewDemo = () => {
+    const demoSection = document.getElementById("demo");
+    if (!demoSection) return;
+    demoSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <LazyMotion features={domAnimation}>
       <section className="mx-auto max-w-6xl px-3 sm:px-4">
@@ -153,6 +161,28 @@ const Hero = memo(function Hero() {
               >
                 {heroData.subheading1}
               </m.p>
+              <m.div
+                className="mt-6 flex flex-row items-center justify-center gap-3 sm:mt-7"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.25, 0.46, 0.45, 0.94],
+                  delay: 0.35,
+                }}
+              >
+                <Button asChild className="w-auto">
+                  <Link href="https://app.slugy.co">Get Started</Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleViewDemo}
+                  className="border-zinc-300 bg-white/60 text-zinc-800 hover:bg-zinc-50"
+                >
+                  View a Demo
+                </Button>
+              </m.div>
               {/* {heroData.subheading2 && (
                 <m.p
                   className="text-sm sm:text-base md:text-lg"

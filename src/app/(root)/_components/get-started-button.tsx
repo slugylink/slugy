@@ -96,11 +96,11 @@ export default function GetStartedButton({
           onClick={() => setNavigating(true)}
         >
           <Button
-            variant="default"
+            variant="outline"
             disabled={navigating}
             className="w-full sm:w-fit"
           >
-            Get started
+            Login
           </Button>
         </a>
       </div>

@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import Sponsors from "./_components/sponsors";
+import VideoDemoSection from "./_components/video-demo";
 
 const LOADING_HEIGHT = {
   features: "h-[400px]",
@@ -104,6 +105,11 @@ export default function Home() {
         {/* Features Section */}
         <section id="features" className="scroll-mt-20">
           <Features />
+        </section>
+
+        {/* Stats Section */}
+        <section id="stats" className="scroll-mt-20">
+          <VideoDemoSection />
         </section>
 
         {/* Pricing Section */}

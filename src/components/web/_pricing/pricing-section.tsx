@@ -23,7 +23,7 @@ export default function PricingSection() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
   return (
-    <section className="py-8 sm:py-10">
+    <section className="mt-12 py-8 sm:py-10">
       <MaxWidthContainer>
         <div className="mb-6 text-center sm:mb-8">
           <h2 className="text-2xl font-medium text-balance sm:text-4xl">
