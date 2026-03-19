@@ -45,7 +45,6 @@ interface NavbarProps {
   session: Session | null;
 }
 
-// Logo component
 function NavbarLogo() {
   return (
     <Link
@@ -58,15 +57,11 @@ function NavbarLogo() {
       </div>
       <div className="flex flex-col items-start leading-none">
         <span className="text-xl font-medium tracking-tight">Slugy</span>
-        {/* <span className="mt-0.5 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-zinc-500 uppercase">
-          beta
-        </span> */}
       </div>
     </Link>
   );
 }
 
-// Desktop submenu with dropdown
 function DesktopSubmenu({ link }: { link: NavLink }) {
   const isFeatures = link.title === "Features";
 
@@ -115,7 +110,6 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
   );
 }
 
-// Desktop navigation menu
 function DesktopMenu() {
   return (
     <NavigationMenu className="hidden lg:flex">
@@ -143,7 +137,6 @@ function DesktopMenu() {
   );
 }
 
-// Mobile menu content
 function MobileMenuContent() {
   return (
     <div className="flex flex-col">
@@ -194,17 +187,23 @@ function MobileMenuContent() {
       </div>
       <hr className="mx-auto my-4 flex w-[90%] items-center justify-center" />
       <div className="p-4">
-        <GetStartedButton isGitVisible={false} className="flex w-full" />
+        <GetStartedButton
+          isGitVisible={false}
+          className="grid w-full grid-cols-2"
+        />
       </div>
     </div>
   );
 }
 
-// Mobile menu with sheet
 function MobileMenu() {
   return (
-    <div className="flex items-center gap-2">
-      <GetStartedButton isGitVisible={true} className="flex" />
+    <div className="flex items-center gap-2 lg:hidden">
+      <GetStartedButton
+        isGitVisible={true}
+        showAuthButtons={false}
+        className="flex"
+      />
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="lg:hidden">
@@ -229,7 +228,6 @@ function MobileMenu() {
   );
 }
 
-// Main navbar component
 export default function Navbar({ session: _session }: NavbarProps) {
   const pathname = usePathname();
   const isVisible = VISIBLE_PATHS.has(pathname);
@@ -241,6 +239,10 @@ export default function Navbar({ session: _session }: NavbarProps) {
       <div className="mx-auto flex h-[3.5rem] max-w-6xl items-center justify-between px-4">
         <NavbarLogo />
         <DesktopMenu />
+        <GetStartedButton
+          isGitVisible={true}
+          className="hidden items-center lg:flex"
+        />
         <MobileMenu />
       </div>
     </nav>
