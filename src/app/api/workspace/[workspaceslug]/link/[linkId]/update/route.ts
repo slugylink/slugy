@@ -14,6 +14,7 @@ const MAX_TAGS_PER_WORKSPACE = 5;
 const updateLinkSchema = z.object({
   url: z.string().url().optional(),
   slug: z.string().max(50).optional(),
+  description: z.string().max(500).optional().nullable(),
   image: z.string().url().optional().nullable(),
   title: z.string().max(100).optional().nullable(),
   metadesc: z.string().max(500).optional().nullable(),
@@ -43,6 +44,7 @@ export async function PATCH(
     // Preprocess: convert empty strings to null for optional fields
     const preprocessedBody = {
       ...body,
+      description: body.description === "" ? null : body.description,
       image: body.image === "" ? null : body.image,
       title: body.title === "" ? null : body.title,
       metadesc: body.metadesc === "" ? null : body.metadesc,
