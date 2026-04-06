@@ -19,6 +19,7 @@ interface UrlClicksProps {
     clicks: number;
   }>;
   destinationsData?: Array<{ destination: string; clicks: number }>;
+  metricLabel?: string;
   isLoading?: boolean;
   error?: Error;
 }
@@ -40,11 +41,17 @@ interface TabConfig {
 }
 
 // ----------------------- TableHeader -----------------------
-function TableHeader({ linkLabel }: { linkLabel: string }) {
+function TableHeader({
+  linkLabel,
+  metricLabel,
+}: {
+  linkLabel: string;
+  metricLabel: string;
+}) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
       <div className="flex-1 text-sm">{linkLabel}</div>
-      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+      <div className="min-w-[80px] text-right text-sm">{metricLabel}</div>
     </div>
   );
 }
@@ -111,6 +118,7 @@ const tabConfigs: TabConfig[] = [
 const UrlClicks = ({
   linksData,
   destinationsData,
+  metricLabel = "Clicks",
   isLoading,
   error,
 }: UrlClicksProps) => {
@@ -165,9 +173,12 @@ const UrlClicks = ({
             <div
               className="relative h-72 w-full"
               role="list"
-              aria-label={`${currentTabConfig.label} click data`}
+              aria-label={`${currentTabConfig.label} ${metricLabel.toLowerCase()} data`}
             >
-              <TableHeader linkLabel={currentTabConfig.linkLabel} />
+              <TableHeader
+                linkLabel={currentTabConfig.linkLabel}
+                metricLabel={metricLabel}
+              />
               <TableCard
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}

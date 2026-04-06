@@ -11,6 +11,7 @@ interface ReferrerClicksProps {
   searchParams: Record<string, string>;
   timePeriod: "24h" | "7d" | "30d" | "3m" | "12m" | "all";
   referrersData?: Array<{ referrer: string; clicks: number }>;
+  metricLabel?: string;
   isLoading?: boolean;
   error?: Error;
 }
@@ -29,11 +30,17 @@ interface TabConfig {
   NameComponent: React.ComponentType<{ item: ProcessedReferrerData }>;
 }
 
-function TableHeader({ label }: { label: string }) {
+function TableHeader({
+  label,
+  metricLabel,
+}: {
+  label: string;
+  metricLabel: string;
+}) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
       <div className="flex-1 text-sm">{label}</div>
-      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+      <div className="min-w-[80px] text-right text-sm">{metricLabel}</div>
     </div>
   );
 }
@@ -61,6 +68,7 @@ const tabConfigs: TabConfig[] = [
 
 const ReferrerClicks = ({
   referrersData,
+  metricLabel = "Clicks",
   isLoading,
   error,
 }: ReferrerClicksProps) => {
@@ -113,9 +121,12 @@ const ReferrerClicks = ({
             <div
               className="relative h-72 w-full"
               role="list"
-              aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
+              aria-label={`${metricLabel} by ${currentTabConfig.label.toLowerCase()}`}
             >
-              <TableHeader label={currentTabConfig.singular} />
+              <TableHeader
+                label={currentTabConfig.singular}
+                metricLabel={metricLabel}
+              />
               <TableCard
                 data={processedData.slice(0, 7)}
                 loading={isLoading ?? false}

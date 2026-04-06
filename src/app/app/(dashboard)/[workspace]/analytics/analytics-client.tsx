@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import { memo, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { useAnalytics } from "@/hooks/use-analytics";
+import { useAnalytics, type AnalyticsEvent } from "@/hooks/use-analytics";
+import { useQueryState, parseAsBoolean, parseAsString } from "nuqs";
 import FilterActions, {
   type CategoryId,
   type FilterCategory,
@@ -41,6 +42,9 @@ type FilterKey =
   | "referrer_key"
   | "destination_key"
   | "domain_key";
+
+const DEFAULT_EVENT: AnalyticsEvent = "clicks";
+const VALID_EVENTS: readonly AnalyticsEvent[] = ["clicks", "leads"] as const;
 
 // ============================================================================
 // Constants
@@ -139,6 +143,10 @@ const ReferrerClicks = dynamic(
 
 function isValidTimePeriod(period: string | null): period is TimePeriod {
   return Boolean(period && VALID_TIME_PERIODS.includes(period as TimePeriod));
+}
+
+function isValidEvent(event: string | null): event is AnalyticsEvent {
+  return Boolean(event && VALID_EVENTS.includes(event as AnalyticsEvent));
 }
 
 function extractFilterParams(
@@ -268,12 +276,25 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   workspace,
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
+  const [eventQuery, setEventQuery] = useQueryState(
+    "event",
+    parseAsString.withDefault(DEFAULT_EVENT),
+  );
+  const [chartExpanded] = useQueryState(
+    "chart_expanded",
+    parseAsBoolean.withDefault(false),
+  );
 
   // Extract and validate time period
   const timePeriod = useMemo(() => {
     const period = searchParams.get("time_period");
     return isValidTimePeriod(period) ? period : DEFAULT_TIME_PERIOD;
   }, [searchParams]);
+
+  const event = useMemo(
+    () => (isValidEvent(eventQuery) ? eventQuery : DEFAULT_EVENT),
+    [eventQuery],
+  );
 
   // Extract filter parameters (excluding time_period)
   const filterParams = useMemo(
@@ -299,8 +320,25 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
+    event,
     searchParams: filterParams,
     metrics: ANALYTICS_METRICS,
+  });
+
+  const { totalClicks: clicksTotal } = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    event: "clicks",
+    searchParams: filterParams,
+    metrics: ["totalClicks"],
+  });
+
+  const { totalClicks: leadsTotal } = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    event: "leads",
+    searchParams: filterParams,
+    metrics: ["totalClicks"],
   });
 
   // Normalize filter options
@@ -371,6 +409,8 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     [res?.clicksOverTime],
   );
 
+  const metricLabel = event === "leads" ? "Leads" : "Clicks";
+
   const hasResolvedData = Boolean(res);
   const showInitialLoadingState = isLoading && !hasResolvedData;
   const chartRefreshing = isValidating && hasResolvedData;
@@ -404,7 +444,12 @@ export const AnalyticsClient = memo(function AnalyticsClient({
         <Chart
           {...sharedProps}
           data={chartData}
-          totalClicks={res?.totalClicks}
+          totalClicks={clicksTotal}
+          totalLeads={leadsTotal}
+          currentEvent={event}
+          onEventChange={(nextEvent) => void setEventQuery(nextEvent)}
+          metricLabel={metricLabel}
+          isExpanded={chartExpanded}
           isRefreshing={chartRefreshing}
         />
 
@@ -414,6 +459,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
             {...sharedProps}
             linksData={filterData.links}
             destinationsData={filterData.destinations}
+            metricLabel={metricLabel}
           />
 
           <GeoClicks
@@ -421,6 +467,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
             citiesData={filterData.cities}
             countriesData={filterData.countries}
             continentsData={filterData.continents}
+            metricLabel={metricLabel}
           />
 
           <DeviceClicks
@@ -428,11 +475,13 @@ export const AnalyticsClient = memo(function AnalyticsClient({
             devicesData={filterData.devices}
             browsersData={filterData.browsers}
             osesData={filterData.oses}
+            metricLabel={metricLabel}
           />
 
           <ReferrerClicks
             {...sharedProps}
             referrersData={filterData.referrers}
+            metricLabel={metricLabel}
           />
         </div>
       </div>

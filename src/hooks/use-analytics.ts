@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+export type AnalyticsEvent = "clicks" | "leads";
 
 export interface AnalyticsData {
   totalClicks: number;
@@ -21,6 +22,7 @@ export interface AnalyticsData {
 interface UseAnalyticsParams {
   workspaceslug: string;
   timePeriod: TimePeriod;
+  event?: AnalyticsEvent;
   searchParams?: Record<string, string>;
   enabled?: boolean;
   metrics?: readonly (keyof AnalyticsData)[];
@@ -100,6 +102,7 @@ const areMetricsDefault = (metrics: Array<keyof AnalyticsData>): boolean => {
 const fetchAnalyticsData = async (
   workspaceslug: string,
   params: Record<string, string>,
+  event: AnalyticsEvent,
   metrics?: Array<keyof AnalyticsData>,
   useTinybird: boolean = true,
 ): Promise<Partial<AnalyticsData>> => {
@@ -119,6 +122,10 @@ const fetchAnalyticsData = async (
   // Only send metrics if not requesting all default metrics
   if (metrics?.length && !areMetricsDefault(metrics)) {
     searchParams.set("metrics", metrics.join(","));
+  }
+
+  if (event !== "clicks") {
+    searchParams.set("event", event);
   }
 
   const endpoint = useTinybird
@@ -170,19 +177,20 @@ const sortByClicks = <T extends { clicks: number }>(data: T[]): T[] => {
 export function useAnalytics({
   workspaceslug,
   timePeriod,
+  event = "clicks",
   searchParams = {},
   enabled = true,
   metrics = DEFAULT_METRICS,
   useTinybird = true,
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
-    const params = { time_period: timePeriod, ...searchParams };
+    const params = { time_period: timePeriod, event, ...searchParams };
     return Object.fromEntries(
       Object.entries(params).filter(
         ([, value]) => value != null && String(value).length > 0,
       ),
     );
-  }, [timePeriod, searchParams]);
+  }, [timePeriod, event, searchParams]);
 
   const debouncedSearchParams = useDebounce(stableSearchParams, DEBOUNCE_DELAY);
   const shouldFetch = enabled && Boolean(workspaceslug?.trim());
@@ -220,6 +228,7 @@ export function useAnalytics({
       fetchAnalyticsData(
         workspaceslug,
         debouncedSearchParams,
+        event,
         [...metrics],
         useTinybird,
       ),

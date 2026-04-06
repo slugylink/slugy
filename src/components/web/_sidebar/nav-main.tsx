@@ -82,6 +82,7 @@ const SIDEBAR_DATA = {
       icon: SettingsIcon,
       items: [
         { title: "General", url: "/settings" },
+        { title: "API Keys", url: "/settings/api-keys" },
         { title: "Billing", url: "/settings/billing" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
@@ -93,7 +94,7 @@ const SIDEBAR_DATA = {
 const NAV_ACCESS_CONTROL = {
   restrictedSubItems: {
     Billing: ["owner"] as const,
-    "API key": ["owner", "admin"] as const,
+    "API Keys": ["owner", "admin"] as const,
     General: ["owner", "admin"] as const,
   },
 } as const;

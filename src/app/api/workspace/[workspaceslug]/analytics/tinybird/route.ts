@@ -6,6 +6,7 @@ import { apiErrors } from "@/lib/api-response";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+type AnalyticsEvent = "clicks" | "leads";
 type AnalyticsMetric =
   | "totalClicks"
   | "clicksOverTime"
@@ -52,6 +53,7 @@ const analyticsPropsSchema = z
     device_key: z.string().nullable().optional(),
     destination_key: z.string().nullable().optional(),
     domain_key: z.string().nullable().optional(),
+    event: z.enum(["clicks", "leads"]).optional(),
     metrics: z
       .array(
         z.enum([
@@ -100,6 +102,13 @@ interface TinybirdResponse {
     rows_read: number;
     bytes_read: number;
   };
+}
+
+interface LeadsAnalyticsRow {
+  slug: string;
+  url: string;
+  domain: string;
+  leads: number;
 }
 
 // Helper function to get time key based on period
@@ -301,6 +310,52 @@ function transformTinybirdData(
   return result;
 }
 
+function transformLeadsData(
+  rows: LeadsAnalyticsRow[],
+  requestedMetrics: AnalyticsMetric[],
+): Record<string, unknown> {
+  const metricSet = new Set(requestedMetrics);
+  const totalLeads = rows.reduce((sum, row) => sum + Number(row.leads || 0), 0);
+
+  const links = rows
+    .filter((row) => Number(row.leads || 0) > 0)
+    .map((row) => ({
+      slug: row.slug,
+      url: row.url,
+      domain: row.domain || "slugy.co",
+      clicks: Number(row.leads || 0),
+    }))
+    .sort((a, b) => b.clicks - a.clicks);
+
+  const destinationsMap = new Map<string, number>();
+
+  for (const row of rows) {
+    const leads = Number(row.leads || 0);
+    if (!leads) continue;
+    destinationsMap.set(row.url, (destinationsMap.get(row.url) || 0) + leads);
+  }
+
+  const destinations = Array.from(destinationsMap.entries())
+    .map(([destination, clicks]) => ({ destination, clicks }))
+    .sort((a, b) => b.clicks - a.clicks);
+
+  const result: Record<string, unknown> = {};
+
+  if (metricSet.has("totalClicks")) result.totalClicks = totalLeads;
+  if (metricSet.has("clicksOverTime")) result.clicksOverTime = [];
+  if (metricSet.has("links")) result.links = links;
+  if (metricSet.has("destinations")) result.destinations = destinations;
+  if (metricSet.has("cities")) result.cities = [];
+  if (metricSet.has("countries")) result.countries = [];
+  if (metricSet.has("continents")) result.continents = [];
+  if (metricSet.has("devices")) result.devices = [];
+  if (metricSet.has("browsers")) result.browsers = [];
+  if (metricSet.has("oses")) result.oses = [];
+  if (metricSet.has("referrers")) result.referrers = [];
+
+  return result;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceslug: string }> },
@@ -322,6 +377,7 @@ export async function GET(
       device_key: search.get("device_key") || null,
       destination_key: search.get("destination_key") || null,
       domain_key: search.get("domain_key") || null,
+      event: (search.get("event") as AnalyticsEvent) || "clicks",
       metrics: search.get("metrics")
         ? (search.get("metrics")!.split(",").filter(Boolean) as ClientMetric[])
         : undefined, // Default to all metrics if not provided
@@ -396,6 +452,37 @@ export async function GET(
       ),
     ) as AnalyticsMetric[];
 
+    if (props.event === "leads") {
+      const leadsRowsResult = await sql`
+        SELECT
+          l.slug,
+          l.url,
+          l.domain,
+          l.leads
+        FROM "links" l
+        JOIN "workspaces" w ON w.id = l."workspaceId"
+        WHERE w.id = ${workspaceId}
+          AND l."deletedAt" IS NULL
+          AND (${props.slug_key || ""} = '' OR l.slug = ${props.slug_key || ""})
+          AND (${props.destination_key || ""} = '' OR l.url = ${props.destination_key || ""})
+          AND (${props.domain_key || ""} = '' OR l.domain = ${props.domain_key || ""})
+      `;
+
+      const leadsRows = leadsRowsResult as LeadsAnalyticsRow[];
+      const analyticsData = transformLeadsData(leadsRows, normalizedMetrics);
+
+      return NextResponse.json(analyticsData, {
+        status: 200,
+        headers: {
+          "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+          "X-Analytics-Metrics": normalizedMetrics.join(","),
+          "X-Analytics-Period": props.timePeriod,
+          "X-Analytics-Event": props.event ?? "leads",
+          "X-Analytics-Cache": `${CACHE_DURATION}s`,
+        },
+      });
+    }
+
     if (!process.env.TINYBIRD_API_KEY) {
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
@@ -434,6 +521,7 @@ export async function GET(
       "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
       "X-Analytics-Metrics": normalizedMetrics.join(","),
       "X-Analytics-Period": props.timePeriod,
+      "X-Analytics-Event": props.event ?? "clicks",
       "X-Analytics-Cache": `${CACHE_DURATION}s`,
       "X-Tinybird-Rows": tinybirdResponse.rows.toString(),
       "X-Tinybird-Elapsed": tinybirdResponse.statistics.elapsed.toString(),

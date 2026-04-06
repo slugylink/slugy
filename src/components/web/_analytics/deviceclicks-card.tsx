@@ -14,11 +14,17 @@ const FALLBACK_SRC = `${BASE_ASSET_URL}/browser/default.svg`;
 const formatNameForUrl = (name: string): string =>
   name.toLowerCase().replace(/\s+/g, "-");
 
-function TableHeader({ label }: { label: string }) {
+function TableHeader({
+  label,
+  metricLabel,
+}: {
+  label: string;
+  metricLabel: string;
+}) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
       <div className="flex-1 text-sm">{label}</div>
-      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+      <div className="min-w-[80px] text-right text-sm">{metricLabel}</div>
     </div>
   );
 }
@@ -52,6 +58,7 @@ interface DeviceClicksProps {
   devicesData?: DeviceData[];
   browsersData?: DeviceData[];
   osesData?: DeviceData[];
+  metricLabel?: string;
   isLoading?: boolean;
   error?: Error;
 }
@@ -99,6 +106,7 @@ const DeviceClicks = ({
   devicesData,
   browsersData,
   osesData,
+  metricLabel = "Clicks",
   isLoading: propIsLoading,
   error,
 }: DeviceClicksProps) => {
@@ -174,9 +182,12 @@ const DeviceClicks = ({
             <div
               className="relative h-72 w-full"
               role="list"
-              aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
+              aria-label={`${metricLabel} by ${currentTabConfig.label.toLowerCase()}`}
             >
-              <TableHeader label={currentTabConfig.label} />
+              <TableHeader
+                label={currentTabConfig.label}
+                metricLabel={metricLabel}
+              />
               <TableCard
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}

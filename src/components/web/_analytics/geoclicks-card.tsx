@@ -18,6 +18,7 @@ interface GeoclicksProps {
   citiesData?: GeoData[];
   countriesData?: GeoData[];
   continentsData?: GeoData[];
+  metricLabel?: string;
   isLoading?: boolean;
   error?: Error;
 }
@@ -41,11 +42,17 @@ interface TabConfig {
 // ------------------------------
 // Helper Components
 // ------------------------------
-function TableHeader({ label }: { label: string }) {
+function TableHeader({
+  label,
+  metricLabel,
+}: {
+  label: string;
+  metricLabel: string;
+}) {
   return (
     <div className="mb-2 flex items-center border-b pb-2">
       <div className="flex-1 text-sm">{label}</div>
-      <div className="min-w-[80px] text-right text-sm">Clicks</div>
+      <div className="min-w-[80px] text-right text-sm">{metricLabel}</div>
     </div>
   );
 }
@@ -123,6 +130,7 @@ const Geoclicks = ({
   citiesData,
   countriesData,
   continentsData,
+  metricLabel = "Clicks",
   isLoading: propIsLoading,
   error,
 }: GeoclicksProps) => {
@@ -233,10 +241,13 @@ const Geoclicks = ({
             <div
               className="relative h-72 w-full"
               role="list"
-              aria-label={`Clicks by ${currentTabConfig.label.toLowerCase()}`}
+              aria-label={`${metricLabel} by ${currentTabConfig.label.toLowerCase()}`}
             >
               {/* Correct singular label */}
-              <TableHeader label={currentTabConfig.singular} />
+              <TableHeader
+                label={currentTabConfig.singular}
+                metricLabel={metricLabel}
+              />
               <TableCard
                 data={sortedData.slice(0, 7)}
                 loading={isLoading ?? false}

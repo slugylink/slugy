@@ -34,6 +34,11 @@ interface ProcessedDataPoint {
 interface ChartProps {
   data?: ChartDataPoint[];
   totalClicks?: number;
+  totalLeads?: number;
+  currentEvent?: "clicks" | "leads";
+  onEventChange?: (event: "clicks" | "leads") => void;
+  metricLabel?: string;
+  isExpanded?: boolean;
   timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
@@ -111,6 +116,11 @@ const getBucketTimestamp = (date: Date, timePeriod: TimePeriod): number => {
 const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
+  totalLeads = 0,
+  currentEvent = "clicks",
+  onEventChange,
+  metricLabel = "Clicks",
+  isExpanded = false,
   timePeriod = "24h",
   isLoading,
   isRefreshing,
@@ -215,7 +225,7 @@ const AnalyticsChart = ({
             <Separator className="my-1 px-0" />
             <div className="text-foreground m-0 flex items-center gap-2 px-3 text-sm">
               <div className="h-2 w-2 bg-[#EA877E]" />
-              <span>Clicks:</span>
+              <span>{metricLabel}:</span>
               {formatNumber(clicks!)}
             </div>
           </div>
@@ -224,15 +234,28 @@ const AnalyticsChart = ({
         return null;
       }
     },
-    [formatTime],
+    [formatTime, metricLabel],
   );
 
   const tickCount = CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
 
+  const handleEventChange = useCallback(
+    (nextEvent: "clicks" | "leads") => {
+      if (nextEvent === currentEvent) return;
+      onEventChange?.(nextEvent);
+    },
+    [currentEvent, onEventChange],
+  );
+
   return (
     <Card className="w-full border p-0 shadow-none">
-      <CardHeader className="grid grid-cols-2 gap-0 px-0 md:grid-cols-3">
-        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
+      <CardHeader className="grid grid-cols-2 gap-0 px-0 md:grid-cols-2">
+        <CardTitle
+          className={`flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium transition-colors sm:p-6 ${
+            currentEvent === "clicks" ? "bg-muted/30" : ""
+          }`}
+          onClick={() => handleEventChange("clicks")}
+        >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
             <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />
             <span>Clicks</span>
@@ -243,8 +266,22 @@ const AnalyticsChart = ({
             className="text-2xl sm:text-3xl"
           />
         </CardTitle>
-        <div className="hidden h-full border-r border-b p-5 sm:block" />
-        <div className="hidden h-full border-b p-5 sm:block" />
+        <CardTitle
+          className={`flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-[28px] font-medium transition-colors sm:p-6 ${
+            currentEvent === "leads" ? "bg-muted/30" : ""
+          }`}
+          onClick={() => handleEventChange("leads")}
+        >
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+            <div className="h-2.5 w-2.5 bg-[#ca61eb] sm:mb-1" />
+            <span>Leads</span>
+          </div>
+          <NumberFlow
+            value={totalLeads}
+            format={{ maximumFractionDigits: 0 }}
+            className="text-2xl sm:text-3xl"
+          />
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-4">
         <div className="relative h-[320px] w-full sm:h-[500px]">

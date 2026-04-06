@@ -9,6 +9,7 @@ const PAGE_TITLES: Record<string, string> = {
   analytics: "Analytics",
   "bio-links": "Bio Links",
   settings: "Settings",
+  "api-keys": "API Keys",
   team: "Team",
   billing: "Billing",
   account: "Account",
