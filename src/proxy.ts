@@ -110,7 +110,12 @@ const isKnownDomain = (hostname: string): boolean =>
   hostname === ROOT_DOMAIN ||
   hostname === SUBDOMAINS.bio ||
   hostname === SUBDOMAINS.app ||
-  hostname === SUBDOMAINS.admin;
+  hostname === SUBDOMAINS.admin ||
+  hostname === SUBDOMAINS.api;
+
+const API_SUBDOMAIN_ROUTE_MAP: Record<string, string> = {
+  "/link/track": "/api/public/conversions",
+};
 
 const normalizeHostname = (host: string | null): string =>
   host
@@ -153,16 +158,19 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   try {
     const { pathname } = req.nextUrl;
     const url = req.nextUrl.clone();
+    const hostname = normalizeHostname(req.headers.get("host"));
 
     if (isStaticAsset(pathname)) {
       return NextResponse.next();
     }
 
-    const hostname = normalizeHostname(req.headers.get("host"));
-
     // Allow webhook subdomain to pass through untouched during local development
     if (!IS_PRODUCTION && hostname === SUBDOMAINS.webhook) {
       return NextResponse.next();
+    }
+
+    if (hostname === SUBDOMAINS.api) {
+      return handleApiSubdomain(url, req, req.url);
     }
 
     if (pathname.startsWith("/api/")) {
@@ -293,6 +301,52 @@ async function handleAppSubdomain(
   }
 
   return addSecurityHeaders(NextResponse.next());
+}
+
+async function handleApiSubdomain(
+  url: URL,
+  req: NextRequest,
+  baseUrl: string,
+): Promise<NextResponse> {
+  const { pathname, search } = url;
+  const internalPath = API_SUBDOMAIN_ROUTE_MAP[pathname] ?? pathname;
+
+  if (IS_PRODUCTION && req.headers.get("x-forwarded-proto") !== "https") {
+    const httpsURL = new URL(req.url);
+    httpsURL.protocol = "https:";
+    return redirectTo(httpsURL.toString(), 308);
+  }
+
+  if (!internalPath.startsWith("/api/")) {
+    return addSecurityHeaders(
+      new NextResponse(
+        JSON.stringify({
+          error: "Not found",
+        }),
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+  }
+
+  const clientIP = getClientIP(req);
+  const isFastUser = isFastApiRoute(internalPath);
+
+  if (process.env.NODE_ENV !== "development") {
+    const limitResult = isFastUser
+      ? checkFastRateLimit(clientIP)
+      : await checkRateLimit(clientIP);
+
+    if (!limitResult.success) {
+      return rateLimitExceededResponse(limitResult);
+    }
+  }
+
+  return rewriteTo(`${internalPath}${search}`, baseUrl);
 }
 
 async function handleRootDomain(

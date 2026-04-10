@@ -4,6 +4,7 @@ const nextConfig: import("next").NextConfig = {
   reactCompiler: true,
 
   images: {
+    qualities: [75, 85],
     remotePatterns: [
       // CDN and storage services
       { hostname: "public.blob.vercel-storage.com" },

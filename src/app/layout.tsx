@@ -33,7 +33,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://api.producthunt.com" />
       </head>
 
-      <body>
+      <body suppressHydrationWarning>
         <NuqsAdapter>
           <Providers>
             {children}
