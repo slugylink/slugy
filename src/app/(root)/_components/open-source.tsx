@@ -57,7 +57,7 @@ const OpenSource = memo(function OpenSource() {
                   variant={"secondary"}
                   className="rounded-md bg-white text-black"
                 >
-                  Start for free
+                  Get started
                 </Button>
               </Link>
               <Link target="_blank" href="https://github.com/slugylink/slugy">

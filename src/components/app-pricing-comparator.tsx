@@ -22,7 +22,6 @@ const CURRENCY_FORMAT = {
 type BillingPeriod = "monthly" | "yearly";
 type FeatureValue = string | boolean | number;
 type PriceInterval = "month" | "year" | null;
-type Plan = (typeof plans)[number];
 
 interface ProductPrice {
   id: string;
@@ -41,24 +40,33 @@ interface PricingComparatorProps {
   products?: ProductData[];
   workspace?: string;
   isPaidPlan?: boolean;
+  successUrlPath?: string;
 }
 
 interface Feature {
   feature: string;
-  free: FeatureValue;
+  basic: FeatureValue;
   pro: FeatureValue;
 }
 
-const [FREE_PLAN, PRO_PLAN] = (() => {
-  const free = plans.find((plan) => plan.planType === "free");
+const [BASIC_PLAN, PRO_PLAN] = (() => {
+  const basic = plans.find((plan) => plan.planType === "basic");
   const pro = plans.find((plan) => plan.planType === "pro");
 
-  if (!free || !pro) {
+  if (!basic || !pro) {
     throw new Error("Pricing plans are not configured correctly.");
   }
 
-  return [free, pro] as const;
+  return [basic, pro] as const;
 })();
+
+function getPlanTypeFromProductName(name?: string): "basic" | "pro" | null {
+  const normalized = (name ?? "").toLowerCase().trim();
+  if (!normalized) return null;
+  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("pro")) return "pro";
+  return null;
+}
 
 function formatClicks(clicks: number): string {
   if (clicks < 1000) return `${clicks} clicks`;
@@ -73,63 +81,78 @@ function buildFeatures(): Feature[] {
   return [
     {
       feature: "Workspaces",
-      free: FREE_PLAN.maxWorkspaces,
+      basic: BASIC_PLAN.maxWorkspaces,
       pro: PRO_PLAN.maxWorkspaces,
     },
     {
       feature: "Links",
-      free: `${FREE_PLAN.maxLinksPerWorkspace} / workspace`,
+      basic: `${BASIC_PLAN.maxLinksPerWorkspace} / workspace`,
       pro: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
     },
     {
       feature: "Analytics",
-      free: formatClicks(FREE_PLAN.maxClicksPerWorkspace),
+      basic: formatClicks(BASIC_PLAN.maxClicksPerWorkspace),
       pro: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
     },
     {
       feature: "Analytics Retention",
-      free: FREE_PLAN.analyticsRetention,
+      basic: BASIC_PLAN.analyticsRetention,
       pro: PRO_PLAN.analyticsRetention,
     },
-    { feature: "Advanced Analytics", free: false, pro: true },
+    { feature: "Advanced Analytics", basic: false, pro: true },
     {
       feature: "Bio Links",
-      free: FREE_PLAN.maxBioLinks,
+      basic: BASIC_PLAN.maxBioLinks,
       pro: PRO_PLAN.maxBioLinks,
     },
     {
       feature: "Link Tags",
-      free: FREE_PLAN.maxLinkTags,
+      basic: BASIC_PLAN.maxLinkTags,
       pro: PRO_PLAN.maxLinkTags,
     },
     {
       feature: "Custom Domains",
-      free: FREE_PLAN.maxCustomDomains,
+      basic: BASIC_PLAN.maxCustomDomains,
       pro: PRO_PLAN.maxCustomDomains,
     },
-    { feature: "Users", free: FREE_PLAN.maxUsers, pro: PRO_PLAN.maxUsers },
-    { feature: "UTM Templates", free: FREE_PLAN.maxUTM, pro: PRO_PLAN.maxUTM },
+    { feature: "Users", basic: BASIC_PLAN.maxUsers, pro: PRO_PLAN.maxUsers },
+    {
+      feature: "UTM Templates",
+      basic: BASIC_PLAN.maxUTM,
+      pro: PRO_PLAN.maxUTM,
+    },
     {
       feature: "Custom Link Preview",
-      free: FREE_PLAN.customizeLinkPreview,
+      basic: BASIC_PLAN.customizeLinkPreview,
       pro: PRO_PLAN.customizeLinkPreview,
     },
     {
       feature: "Link Expiration",
-      free: FREE_PLAN.linkExp,
+      basic: BASIC_PLAN.linkExp,
       pro: PRO_PLAN.linkExp,
     },
     {
       feature: "Password Protection",
-      free: FREE_PLAN.linkPassword,
+      basic: BASIC_PLAN.linkPassword,
       pro: PRO_PLAN.linkPassword,
     },
   ];
 }
 
-function getProductIds(products?: ProductData[]): string[] {
-  const productIds = products?.map((p) => p.id).filter(Boolean) ?? [];
+function getProductIdsByPlanType(
+  planType: "basic" | "pro",
+  products?: ProductData[],
+): string[] {
+  const productIds =
+    products
+      ?.filter((p) => getPlanTypeFromProductName(p.name) === planType)
+      .map((p) => p.id)
+      .filter(Boolean) ?? [];
   if (productIds.length > 0) return productIds;
+
+  if (planType === "basic") {
+    return [process.env.NEXT_PUBLIC_BASIC_PRICE_ID].filter(Boolean) as string[];
+  }
 
   return [
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,
@@ -141,18 +164,42 @@ function buildProCtaUrl(
   products?: ProductData[],
   workspace?: string,
   isPaidPlan?: boolean,
+  successUrlPath?: string,
 ): string {
   if (isPaidPlan && workspace) {
     return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
   }
 
-  const productIds = getProductIds(products);
+  const productIds = getProductIdsByPlanType("pro", products);
   if (productIds.length === 0) return CHECKOUT_BASE_URL;
 
   const params = new URLSearchParams();
   params.set("products", productIds.join(","));
 
-  if (workspace) {
+  if (successUrlPath) {
+    params.set("successUrl", successUrlPath);
+  } else if (workspace) {
+    params.set("successUrl", `/${workspace}/settings/billing`);
+  }
+
+  return `${CHECKOUT_BASE_URL}?${params.toString()}`;
+}
+
+function buildBasicCtaUrl(
+  products?: ProductData[],
+  workspace?: string,
+  successUrlPath?: string,
+): string {
+  if (!workspace) return "https://app.slugy.co/login";
+
+  const productIds = getProductIdsByPlanType("basic", products);
+  if (productIds.length === 0) return CHECKOUT_BASE_URL;
+
+  const params = new URLSearchParams();
+  params.set("products", productIds.join(","));
+  if (successUrlPath) {
+    params.set("successUrl", successUrlPath);
+  } else {
     params.set("successUrl", `/${workspace}/settings/billing`);
   }
 
@@ -167,7 +214,9 @@ function getProPrices(products?: ProductData[]): {
     return { monthly: PRO_PLAN.monthlyPrice, yearly: PRO_PLAN.yearlyPrice };
   }
 
-  const allPrices = products.flatMap((p) => p.prices);
+  const allPrices = products
+    .filter((p) => getPlanTypeFromProductName(p.name) === "pro")
+    .flatMap((p) => p.prices);
   const monthly = allPrices.find((p) => p.interval === "month")?.amount;
   const yearly = allPrices.find((p) => p.interval === "year")?.amount;
 
@@ -192,6 +241,7 @@ export default function AppPricingComparator({
   products,
   workspace,
   isPaidPlan,
+  successUrlPath,
 }: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
 
@@ -201,23 +251,23 @@ export default function AppPricingComparator({
     billingPeriod === "yearly" ? proPrices.yearly : proPrices.monthly;
   const proSubtitle = billingPeriod === "yearly" ? "/year" : "/month";
   const proCtaUrl = useMemo(
-    () => buildProCtaUrl(products, workspace, isPaidPlan),
-    [products, workspace, isPaidPlan],
+    () => buildProCtaUrl(products, workspace, isPaidPlan, successUrlPath),
+    [products, workspace, isPaidPlan, successUrlPath],
   );
-
-  const freeCtaUrl = workspace
-    ? `/${workspace}/settings/billing`
-    : "https://app.slugy.co/login";
+  const basicCtaUrl = useMemo(
+    () => buildBasicCtaUrl(products, workspace, successUrlPath),
+    [products, workspace, successUrlPath],
+  );
 
   return (
     <section>
       <div className="mx-auto max-w-full">
-        <div className="mb-8 flex justify-end">
+        <div className="mb-6 flex justify-center sm:mb-8 sm:justify-end">
           <Tabs
             value={billingPeriod}
             onValueChange={(value) => setBillingPeriod(value as BillingPeriod)}
           >
-            <TabsList className="flex w-full max-w-md gap-1 border text-sm">
+            <TabsList className="flex w-full max-w-md gap-1 border text-xs sm:text-sm">
               <TabsTrigger value="monthly" className="text-sm">
                 Monthly
               </TabsTrigger>
@@ -228,24 +278,89 @@ export default function AppPricingComparator({
           </Tabs>
         </div>
 
-        <div className="w-full overflow-auto lg:overflow-visible">
+        <div className="space-y-4 md:hidden">
+          <div className="grid gap-3">
+            <div className="rounded-lg border p-4">
+              <p className="font-medium">{BASIC_PLAN.name}</p>
+              <p className="mt-1 text-2xl font-medium">
+                <NumberFlow
+                  value={BASIC_PLAN.monthlyPrice}
+                  format={CURRENCY_FORMAT}
+                />
+              </p>
+              <p className="text-muted-foreground text-xs">Forever</p>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="mt-3 w-full"
+              >
+                <Link href={basicCtaUrl}>Get Basic</Link>
+              </Button>
+            </div>
+
+            <div className="bg-muted rounded-lg border p-4">
+              <p className="font-medium">{PRO_PLAN.name}</p>
+              <p className="mt-1 text-2xl font-medium">
+                <NumberFlow value={proPrice} format={CURRENCY_FORMAT} />
+              </p>
+              <p className="text-muted-foreground text-xs">{proSubtitle}</p>
+              <Button
+                asChild
+                variant={isPaidPlan ? "outline" : "default"}
+                size="sm"
+                className="mt-3 w-full"
+              >
+                <Link href={proCtaUrl}>
+                  {isPaidPlan ? "Manage" : PRO_PLAN.buttonLabel}
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border">
+            <div className="border-b px-4 py-3 font-medium">Features</div>
+            <div className="divide-y">
+              {features.map((feature) => (
+                <div
+                  key={feature.feature}
+                  className="space-y-2 px-4 py-3 text-sm"
+                >
+                  <p className="text-muted-foreground">{feature.feature}</p>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-md border px-2 py-1">
+                      <span className="text-muted-foreground mr-1">Basic:</span>
+                      <FeatureCell value={feature.basic} />
+                    </div>
+                    <div className="rounded-md border px-2 py-1">
+                      <span className="text-muted-foreground mr-1">Pro:</span>
+                      <FeatureCell value={feature.pro} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="hidden w-full overflow-auto md:block lg:overflow-visible">
           <table className="w-full border-separate border-spacing-x-3 md:w-full dark:[--color-muted:var(--color-zinc-900)]">
             <thead className="bg-background sticky top-0">
               <tr className="*:py-4 *:text-left *:font-medium">
                 <th className="lg:w-2/5" />
-                <th className="space-y-3">
-                  <span className="block">{FREE_PLAN.name}</span>
+                <th className="space-y-3 bg-white">
+                  <span className="block">{BASIC_PLAN.name}</span>
                   <span className="block text-2xl font-medium">
                     <NumberFlow
-                      value={FREE_PLAN.monthlyPrice}
+                      value={BASIC_PLAN.monthlyPrice}
                       format={CURRENCY_FORMAT}
                     />
                   </span>
                   <span className="text-muted-foreground block text-xs">
-                    Forever free
+                    Forever
                   </span>
                   <Button asChild variant="outline" size="sm">
-                    <Link href={freeCtaUrl}>Get Started</Link>
+                    <Link href={basicCtaUrl}>Get Basic</Link>
                   </Button>
                 </th>
 
@@ -281,7 +396,7 @@ export default function AppPricingComparator({
                 <tr key={feature.feature} className="*:border-b *:py-3">
                   <td className="text-muted-foreground">{feature.feature}</td>
                   <td>
-                    <FeatureCell value={feature.free} />
+                    <FeatureCell value={feature.basic} />
                   </td>
                   <td className="bg-muted border-none px-4">
                     <div className="-mb-3 border-b py-3">

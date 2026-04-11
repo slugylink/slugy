@@ -90,7 +90,7 @@ async function getSubscriptionData(userId: string) {
 function isActivePro(subscription: any): boolean {
   if (!subscription?.plan) return false;
 
-  const isPaidPlan = subscription.plan.planType.toLowerCase() !== "free";
+  const isPaidPlan = subscription.plan.planType.toLowerCase() === "pro";
   const isActiveStatus =
     subscription.status === "active" || subscription.status === "trialing";
   const isNotCanceled = !subscription.cancelAtPeriodEnd;

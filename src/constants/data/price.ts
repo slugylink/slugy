@@ -9,7 +9,7 @@ export interface Plan {
   buttonLabel: string;
   isReady: boolean;
   yearlyDiscount: number;
-  planType: "free" | "pro";
+  planType: "basic" | "pro";
   currency: string;
   interval: "month" | "year";
   maxWorkspaces: number;
@@ -27,57 +27,16 @@ export interface Plan {
   features: string[];
 }
 
-const FREE_PLAN: Plan = {
-  name: "Free",
-  description: "Get started with basic link shortening for personal use.",
-  monthlyPrice: 0,
-  yearlyPrice: 0,
-  monthlyPriceId: "",
-  yearlyPriceId: "",
-  isRecommended: false,
-  buttonLabel: "Start for free",
-  isReady: true,
-  yearlyDiscount: 0,
-  planType: "free",
-  currency: "USD",
-  interval: "month",
-  // Limits
-  maxWorkspaces: 2,
-  maxLinksPerWorkspace: 20,
-  maxClicksPerWorkspace: 500,
-  maxUsers: 1,
-  maxCustomDomains: 2,
-  maxBioLinks: 5,
-  maxLinkTags: 5,
-  maxUTM: 5,
-  linkExp: false,
-  linkPassword: false,
-  analyticsRetention: "30 days",
-  customizeLinkPreview: false,
-  features: [
-    "2 workspaces",
-    "20 links/workspace",
-    "500 tracked clicks/month",
-    "Basic analytics",
-    "Basic QR codes",
-    "5 links/bio links",
-    "2 custom domains",
-    "1 user",
-    "Community support",
-    "5 link tags",
-  ],
-};
-
 const PRO_PLAN: Plan = {
   name: "Pro",
   description:
     "Perfect for individuals and small teams who need advanced features.",
-  monthlyPrice: 8,
-  yearlyPrice: 80,
+  monthlyPrice: 10,
+  yearlyPrice: 100,
   monthlyPriceId: process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID!,
   yearlyPriceId: process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID!,
   isRecommended: true,
-  buttonLabel: "Get pro",
+  buttonLabel: "Get Pro",
   isReady: true,
   yearlyDiscount: 16.67,
   planType: "pro",
@@ -112,4 +71,45 @@ const PRO_PLAN: Plan = {
   ],
 };
 
-export const plans: Plan[] = [FREE_PLAN, PRO_PLAN];
+const BASIC_PLAN: Plan = {
+  name: "Basic",
+  description: "Great for genuine users who need essential link tools.",
+  monthlyPrice: 1,
+  yearlyPrice: 1,
+  monthlyPriceId: process.env.NEXT_PUBLIC_BASIC_PRICE_ID || "",
+  yearlyPriceId: process.env.NEXT_PUBLIC_BASIC_PRICE_ID || "",
+  isRecommended: false,
+  buttonLabel: "Get Basic",
+  isReady: true,
+  yearlyDiscount: 0,
+  planType: "basic",
+  currency: "USD",
+  interval: "month",
+  // Limits
+  maxWorkspaces: 2,
+  maxLinksPerWorkspace: 20,
+  maxClicksPerWorkspace: 1000,
+  maxUsers: 1,
+  maxCustomDomains: 2,
+  maxBioLinks: 5,
+  maxLinkTags: 5,
+  maxUTM: 5,
+  linkExp: false,
+  linkPassword: false,
+  analyticsRetention: "30 days",
+  customizeLinkPreview: false,
+  features: [
+    "2 workspaces",
+    "20 links/workspace",
+    "1k tracked clicks/month",
+    "Basic analytics",
+    "Basic QR codes",
+    "5 links/bio links",
+    "2 custom domains",
+    "1 user",
+    "Community support",
+    "5 link tags",
+  ],
+};
+
+export const plans: Plan[] = [BASIC_PLAN, PRO_PLAN];

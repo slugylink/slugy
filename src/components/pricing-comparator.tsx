@@ -18,7 +18,7 @@ interface PricingComparatorProps {
 
 interface Feature {
   feature: string;
-  freeValue: string | boolean | number;
+  basicValue: string | boolean | number;
   proValue: string | boolean | number;
 }
 
@@ -28,15 +28,15 @@ const CURRENCY_FORMAT = {
   maximumFractionDigits: 0,
 };
 
-const [FREE_PLAN, PRO_PLAN] = (() => {
-  const free = plans.find((plan) => plan.planType === "free");
+const [BASIC_PLAN, PRO_PLAN] = (() => {
+  const basic = plans.find((plan) => plan.planType === "basic");
   const pro = plans.find((plan) => plan.planType === "pro");
 
-  if (!free || !pro) {
+  if (!basic || !pro) {
     throw new Error("Pricing plans are not configured correctly.");
   }
 
-  return [free, pro] as const;
+  return [basic, pro] as const;
 })();
 
 function formatClicks(clicks: number): string {
@@ -52,67 +52,67 @@ function buildFeatures(): Feature[] {
   return [
     {
       feature: "Workspaces",
-      freeValue: FREE_PLAN.maxWorkspaces,
+      basicValue: BASIC_PLAN.maxWorkspaces,
       proValue: PRO_PLAN.maxWorkspaces,
     },
     {
       feature: "Links",
-      freeValue: `${FREE_PLAN.maxLinksPerWorkspace} / workspace`,
+      basicValue: `${BASIC_PLAN.maxLinksPerWorkspace} / workspace`,
       proValue: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
     },
     {
       feature: "Analytics",
-      freeValue: formatClicks(FREE_PLAN.maxClicksPerWorkspace),
+      basicValue: formatClicks(BASIC_PLAN.maxClicksPerWorkspace),
       proValue: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
     },
     {
       feature: "Analytics Retention",
-      freeValue: FREE_PLAN.analyticsRetention,
+      basicValue: BASIC_PLAN.analyticsRetention,
       proValue: PRO_PLAN.analyticsRetention,
     },
     {
       feature: "Advanced Analytics",
-      freeValue: false,
+      basicValue: false,
       proValue: true,
     },
     {
       feature: "Bio Links",
-      freeValue: FREE_PLAN.maxBioLinks,
+      basicValue: BASIC_PLAN.maxBioLinks,
       proValue: PRO_PLAN.maxBioLinks,
     },
     {
       feature: "Link Tags",
-      freeValue: FREE_PLAN.maxLinkTags,
+      basicValue: BASIC_PLAN.maxLinkTags,
       proValue: PRO_PLAN.maxLinkTags,
     },
     {
       feature: "Custom Domains",
-      freeValue: FREE_PLAN.maxCustomDomains,
+      basicValue: BASIC_PLAN.maxCustomDomains,
       proValue: PRO_PLAN.maxCustomDomains,
     },
     {
       feature: "Users",
-      freeValue: FREE_PLAN.maxUsers,
+      basicValue: BASIC_PLAN.maxUsers,
       proValue: PRO_PLAN.maxUsers,
     },
     {
       feature: "UTM Templates",
-      freeValue: FREE_PLAN.maxUTM,
+      basicValue: BASIC_PLAN.maxUTM,
       proValue: PRO_PLAN.maxUTM,
     },
     {
       feature: "Custom Link Preview",
-      freeValue: FREE_PLAN.customizeLinkPreview,
+      basicValue: BASIC_PLAN.customizeLinkPreview,
       proValue: PRO_PLAN.customizeLinkPreview,
     },
     {
       feature: "Link Expiration",
-      freeValue: FREE_PLAN.linkExp,
+      basicValue: BASIC_PLAN.linkExp,
       proValue: PRO_PLAN.linkExp,
     },
     {
       feature: "Password Protection",
-      freeValue: FREE_PLAN.linkPassword,
+      basicValue: BASIC_PLAN.linkPassword,
       proValue: PRO_PLAN.linkPassword,
     },
   ];
@@ -137,11 +137,12 @@ function buildButtonUrl(
 }
 
 function getPrice(plan: Plan, billing: BillingPeriod): number {
+  if (plan.planType === "basic") return plan.monthlyPrice;
   return billing === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 }
 
 function getPriceSubtitle(plan: Plan, billing: BillingPeriod): string {
-  if (plan.planType === "free") return "Forever free";
+  if (plan.planType === "basic") return "Forever";
   return billing === "yearly" ? "/year" : "/month";
 }
 
@@ -198,12 +199,12 @@ function PriceHeader({
   );
 }
 
-function FeatureRow({ feature, freeValue, proValue }: Feature) {
+function FeatureRow({ feature, basicValue, proValue }: Feature) {
   return (
     <tr className="*:border-b *:py-3">
       <td className="text-muted-foreground">{feature}</td>
       <td>
-        <FeatureValue value={freeValue} />
+        <FeatureValue value={basicValue} />
       </td>
       <td className="bg-muted border-none px-4">
         <div className="-mb-3 border-b py-3">
@@ -247,7 +248,7 @@ export default function PricingComparator({
               <tr className="*:py-4 *:text-left *:font-medium">
                 <th className="lg:w-2/5" />
                 <PriceHeader
-                  plan={FREE_PLAN}
+                  plan={BASIC_PLAN}
                   billing={billingPeriod}
                   workspace={workspace}
                   isPaidPlan={isPaidPlan}

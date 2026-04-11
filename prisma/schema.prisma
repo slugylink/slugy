@@ -16,9 +16,8 @@ enum Role {
 }
 
 enum PlanType {
-  free
+  basic
   pro
-  premium
 }
 
 enum Interval {
@@ -154,14 +153,14 @@ model Plan {
   yearlyPrice           Float    @default(0)
   yearlyPriceId         String?
   yearlyDiscount        Float    @default(0)
-  planType              PlanType @default(free)
+  planType              PlanType @default(basic)
   currency              String   @default("USD")
   interval              Interval @default(month)
   
   // Limits
   maxWorkspaces         Int @default(2)
   maxLinksPerWorkspace  Int @default(20)
-  maxClicksPerWorkspace Int @default(500)
+  maxClicksPerWorkspace Int @default(1000)
   maxGalleries          Int @default(1)
   maxLinksPerBio        Int @default(5)
   maxUsers              Int @default(1)
@@ -241,7 +240,7 @@ model Workspace {
   linksUsage     Int      @default(0)
   clicksUsage    Int      @default(0)
   maxLinksLimit  Int      @default(20)
-  maxClicksLimit Int      @default(500)
+  maxClicksLimit Int      @default(1000)
   maxUsers       Int      @default(1)
   maxLinkTags    Int      @default(5)
   addedUsers     Int      @default(1)
@@ -549,7 +548,7 @@ model Bio {
   linksUsage     Int      @default(0)
   clicksUsage    Int      @default(0)
   maxLinksLimit  Int      @default(5)
-  maxClicksLimit Int      @default(500)
+  maxClicksLimit Int      @default(1000)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?

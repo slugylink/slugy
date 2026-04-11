@@ -133,7 +133,7 @@ function PlanBadge({
       href={`/${workspaceslug}/settings/billing/upgrade`}
       className="bg-primary flex items-center rounded-md px-1.5 py-0.5 text-xs"
     >
-      <span className="shiny-loader-text">Upgrade</span>
+      <span className="shiny-loader-text">Get Pro</span>
       <IoIosArrowRoundUp className="ml-0.5 rotate-45 text-white" />
     </Link>
   );

@@ -1,4 +1,3 @@
-import PricingComparator from "@/components/pricing-comparator";
 import { polarClient } from "@/lib/polar";
 import { db } from "@/server/db";
 import { getBillingData } from "@/server/actions/subscription";
@@ -66,10 +65,10 @@ export default async function Upgrade({
 
   const items = response?.result?.items ?? [];
 
-  // Check if user has a paid subscription (not free plan)
+  // Check if user has a paid subscription (Pro)
   const isPaidPlan =
     billingResult.success && billingResult.data?.plan?.planType
-      ? billingResult.data.plan.planType.toLowerCase() !== "free"
+      ? billingResult.data.plan.planType.toLowerCase() === "pro"
       : false;
 
   // Sync Pro plan price IDs from Polar so webhooks can match (Plan not found for price ID)

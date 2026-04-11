@@ -10,96 +10,37 @@ const BATCH_SIZE = 100;
 
 /**
  * Process subscription renewals and cancellations
- * - Free plans: Renew monthly (1 month period)
- * - Canceled paid plans: Downgrade to free when period ends
- * - Active paid plans: Handled by Polar webhooks
+ * - Canceled subscriptions: End access when paid period ends
+ * - Active subscriptions: Handled by Polar webhooks
  */
 async function processBatch(subscriptions: any[]) {
   const now = new Date();
 
   return db.$transaction(async (tx) => {
-    let renewedCount = 0;
-    let downgradedCount = 0;
-    const freePlan = await tx.plan.findFirst({
-      where: { planType: "free" },
-      select: { id: true },
-    });
+    let expiredCount = 0;
 
     for (const subscription of subscriptions) {
       // Only process if period has ended
       if (subscription.periodEnd <= now) {
-        // Handle canceled subscriptions - downgrade to free plan
         if (subscription.cancelAtPeriodEnd) {
-          if (freePlan) {
-            const newPeriodStart = new Date(now);
-            const newPeriodEnd = new Date(now);
-            newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
-
-            const daysWithService = Math.ceil(
-              (newPeriodEnd.getTime() - newPeriodStart.getTime()) /
-                (1000 * 60 * 60 * 24),
-            );
-
-            // Downgrade to free plan
-            await tx.subscription.update({
-              where: { id: subscription.id },
-              data: {
-                planId: freePlan.id,
-                status: "active",
-                cancelAtPeriodEnd: false,
-                periodStart: newPeriodStart,
-                periodEnd: newPeriodEnd,
-                billingInterval: "month",
-                daysWithService,
-                priceId: null,
-              },
-            });
-
-            // Downgrade user limits to free tier
-            await syncUserLimits(subscription.referenceId, "free");
-
-            downgradedCount++;
-            console.log(
-              `[Subscription Renewal] Downgraded canceled subscription ${subscription.id} to free plan for user ${subscription.referenceId}`,
-            );
-          }
-        }
-        // Handle free plan renewals
-        else if (subscription.plan.planType === "free") {
-          const newPeriodStart = new Date(now);
-          const newPeriodEnd = new Date(now);
-
-          // Set period based on billing interval
-          if (subscription.billingInterval === "year") {
-            newPeriodEnd.setFullYear(newPeriodEnd.getFullYear() + 1);
-          } else {
-            // Default to monthly billing
-            newPeriodEnd.setMonth(newPeriodEnd.getMonth() + 1);
-          }
-
-          const daysWithService = Math.ceil(
-            (newPeriodEnd.getTime() - newPeriodStart.getTime()) /
-              (1000 * 60 * 60 * 24),
-          );
-
           await tx.subscription.update({
             where: { id: subscription.id },
             data: {
-              periodStart: newPeriodStart,
-              periodEnd: newPeriodEnd,
-              daysWithService,
+              status: "inactive",
+              cancelAtPeriodEnd: false,
+              canceledAt: subscription.canceledAt ?? now,
             },
           });
 
-          renewedCount++;
+          expiredCount++;
           console.log(
-            `[Subscription Renewal] Renewed free subscription ${subscription.id} for user ${subscription.referenceId}`,
+            `[Subscription Renewal] Ended subscription ${subscription.id} for user ${subscription.referenceId}`,
           );
         }
       }
     }
 
-    return { renewedCount, downgradedCount };
+    return { expiredCount };
   });
 }
 
@@ -111,25 +52,15 @@ async function handler() {
 
     const now = new Date();
 
-    // Process subscriptions that need renewal or cancellation
-    // 1. Free plans that need renewal
-    // 2. Canceled subscriptions that reached period end (need downgrade)
+    // Process subscriptions that need to be ended
+    // 1. Canceled paid subscriptions that reached period end
     const totalSubscriptions = await db.subscription.count({
       where: {
         status: "active",
         periodEnd: {
           lte: now, // Period has ended
         },
-        OR: [
-          {
-            plan: {
-              planType: "free",
-            },
-          },
-          {
-            cancelAtPeriodEnd: true, // Canceled paid plans ready for downgrade
-          },
-        ],
+        cancelAtPeriodEnd: true, // Canceled paid plans ready for deactivation
       },
     });
 
@@ -141,8 +72,7 @@ async function handler() {
       );
     }
 
-    let renewedTotal = 0;
-    let downgradedTotal = 0;
+    let expiredTotal = 0;
 
     for (let skip = 0; skip < totalSubscriptions; skip += BATCH_SIZE) {
       const batch = await db.subscription.findMany({
@@ -153,16 +83,7 @@ async function handler() {
           periodEnd: {
             lte: now,
           },
-          OR: [
-            {
-              plan: {
-                planType: "free",
-              },
-            },
-            {
-              cancelAtPeriodEnd: true,
-            },
-          ],
+          cancelAtPeriodEnd: true,
         },
         include: {
           plan: {
@@ -175,22 +96,18 @@ async function handler() {
 
       if (batch.length === 0) break;
 
-      const { renewedCount, downgradedCount } = await processBatch(batch);
-      renewedTotal += renewedCount;
-      downgradedTotal += downgradedCount;
+      const { expiredCount } = await processBatch(batch);
+      expiredTotal += expiredCount;
     }
 
     // Revalidate caches after processing
     await revalidateSubscriptionCache();
 
-    console.log(
-      `[Subscription Renewal] Completed - Renewed: ${renewedTotal}, Downgraded: ${downgradedTotal}`,
-    );
+    console.log(`[Subscription Renewal] Completed - Ended: ${expiredTotal}`);
 
     return NextResponse.json({
       message: "Subscription renewal cron job completed",
-      renewed: renewedTotal,
-      downgraded: downgradedTotal,
+      expired: expiredTotal,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

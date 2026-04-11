@@ -1,6 +1,7 @@
 "use server";
 import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
+import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
 
 //* Optimized function to check workspace access and link limits in one query
 export async function checkWorkspaceAccessAndLimits(
@@ -106,23 +107,28 @@ export async function checkWorkspaceLimit(userId: string) {
   try {
     // Get user's subscription with plan details
     const subscriptionResult = await getSubscriptionWithPlan(userId);
+    const currentWorkspaceCount = await db.workspace.count({
+      where: { userId },
+    });
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      const basicLimits = await getBasicPlanLimits();
+      const maxWorkspaces = basicLimits.maxWorkspaces;
+      const canCreate = currentWorkspaceCount < maxWorkspaces;
+
       return {
-        canCreate: false,
-        message: "No active subscription found",
-        currentCount: 0,
-        maxLimit: 0,
+        canCreate,
+        message: canCreate
+          ? "Can create workspace"
+          : `Workspace limit reached. Upgrade to Pro.`,
+        currentCount: currentWorkspaceCount,
+        maxLimit: maxWorkspaces,
+        planType: "basic" as const,
       };
     }
 
     const { subscription } = subscriptionResult;
     const maxWorkspaces = subscription.plan.maxWorkspaces;
-
-    // Count current workspaces for this user
-    const currentWorkspaceCount = await db.workspace.count({
-      where: { userId },
-    });
 
     const canCreate = currentWorkspaceCount < maxWorkspaces;
 

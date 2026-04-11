@@ -54,7 +54,23 @@ async function getCustomerId(): Promise<string> {
   });
 
   if (!user?.customerId) {
-    throw new Error("No customer ID found");
+    const subscription = await db.subscription.findUnique({
+      where: { referenceId: session.user.id },
+      select: { customerId: true },
+    });
+
+    if (!subscription?.customerId) {
+      throw new Error("No customer ID found");
+    }
+
+    if (
+      typeof subscription.customerId !== "string" ||
+      subscription.customerId.trim().length === 0
+    ) {
+      throw new Error("Invalid customer ID");
+    }
+
+    return subscription.customerId;
   }
 
   if (

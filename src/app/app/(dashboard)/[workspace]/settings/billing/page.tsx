@@ -41,11 +41,14 @@ export default async function Billing({
   // This shows the actual subscription period, not workspace usage tracking period
   console.log("[Billing Page] Billing cycle from subscription:", billingCycle);
 
-  // Check if user has a paid subscription (not free plan)
-  const isPaidPlan = plan.planType && plan.planType.toLowerCase() !== "free";
+  // Both Basic and Pro are paid plans now (no free tier).
+  const isPaidPlan =
+    plan.planType && ["basic", "pro"].includes(plan.planType.toLowerCase());
+  const canManagePortal = subscription?.canManagePortal === true;
 
   // Check if subscription is canceled but still active (grace period)
   const isCanceledButActive = subscription?.cancelAtPeriodEnd === true;
+  const isBasicPlan = plan.planType?.toLowerCase() === "basic";
 
   const usageMetrics: UsageMetric[] = [
     {
@@ -80,8 +83,7 @@ export default async function Billing({
           <AlertDescription className="">
             Your subscription has been canceled and will end on{" "}
             <span className="font-medium">{billingCycle.end}</span>. You'll
-            continue to have access to {plan.name} features until then, after
-            which you'll be moved to the Free plan.
+            continue to have access to {plan.name} features until then.
           </AlertDescription>
         </Alert>
       )}
@@ -99,13 +101,25 @@ export default async function Billing({
                 )}
               </CardTitle>
             </div>
-            <p className="text-muted-foreground text-sm">
-              <span className="font-medium">Billing cycle:</span>{" "}
-              {billingCycle.start} - {billingCycle.end}
-            </p>
+            {isBasicPlan ? (
+              <p className="text-muted-foreground text-sm">
+                <span className="font-medium">Access:</span> Lifetime (one-time
+                payment)
+                {billingCycle.start && (
+                  <span> - Purchased {billingCycle.start}</span>
+                )}
+              </p>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                <span className="font-medium">Billing cycle:</span>{" "}
+                {billingCycle.start && billingCycle.end
+                  ? `${billingCycle.start} - ${billingCycle.end}`
+                  : "Not available"}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            {isPaidPlan ? (
+            {isPaidPlan && canManagePortal ? (
               <>
                 <Button variant={"outline"} asChild>
                   <Link
@@ -117,7 +131,9 @@ export default async function Billing({
               </>
             ) : (
               <Button asChild>
-                <Link href="billing/upgrade">Upgrade</Link>
+                <Link href={`/${workspace}/settings/billing/upgrade`}>
+                  Upgrade
+                </Link>
               </Button>
             )}
           </div>

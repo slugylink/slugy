@@ -2,6 +2,7 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: import("next").NextConfig = {
   reactCompiler: true,
+  allowedDevOrigins: ["oxidize-ashen-pastel.ngrok-free.dev"],
 
   images: {
     remotePatterns: [

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-type PlanType = "free" | "pro" | string;
+type PlanType = "basic" | "pro" | string;
 
 interface SubscriptionPlan {
   id?: string;
@@ -10,6 +10,8 @@ interface SubscriptionPlan {
 
 interface ActiveSubscription {
   id?: string;
+  priceId?: string | null;
+  provider?: string | null;
   status?: string;
   periodStart?: string | Date;
   periodEnd?: string | Date;
@@ -60,7 +62,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
 
           set({
             subscription: null,
-            planType: "free",
+            planType: "basic",
             isPro: false,
             hasFetched: true,
             isLoading: false,
@@ -76,8 +78,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
         const subscription = data.subscription ?? null;
         const planType =
           (subscription?.plan?.planType as PlanType | undefined) ?? null;
-        const isPro =
-          !!planType && planType.toString().toLowerCase() !== "free";
+        const isPro = !!planType && planType.toString().toLowerCase() === "pro";
 
         set({
           subscription,
@@ -90,7 +91,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
       } catch {
         set({
           subscription: null,
-          planType: "free",
+          planType: "basic",
           isPro: false,
           hasFetched: true,
           isLoading: false,
@@ -100,4 +101,3 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
     },
   }),
 );
-

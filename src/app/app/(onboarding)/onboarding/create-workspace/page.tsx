@@ -1,6 +1,7 @@
 "use client";
 import { ChangeEvent } from "react";
 import { createWorkspace } from "@/server/actions/workspace/workspace";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -38,6 +39,7 @@ const formSchema = z.object({
 });
 
 export default function CreateWorkspace() {
+  const router = useRouter();
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -69,8 +71,8 @@ export default function CreateWorkspace() {
       if (res.success) {
         toast.success("Workspace created successfully!");
         form.reset();
-        // Full navigation so dashboard layout fetches fresh workspaces (workspace switch appears without manual refresh)
-        window.location.assign(`/${data.workspaceslug}`);
+        const slug = res.slug || data.workspaceslug;
+        router.push(`/onboarding/plans?workspace=${encodeURIComponent(slug)}`);
       } else {
         const errorMessage = res.error || "Failed to create workspace";
 

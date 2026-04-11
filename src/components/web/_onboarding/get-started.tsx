@@ -1,53 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { createFreeSubscription } from "@/server/actions/onbaording/get-started";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { toast } from "sonner";
-
-const ONBOARDING_NEXT_PATH = "/onboarding/create-workspace";
+import Link from "next/link";
 
 interface GetStartedProps {
   userId: string;
 }
 
-export default function GetStarted({ userId }: GetStartedProps) {
-  const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-
-    try {
-      const result = await createFreeSubscription(userId);
-      if (result.success) {
-        router.push(ONBOARDING_NEXT_PATH);
-        return;
-      }
-      toast.error(result.message);
-    } catch {
-      toast.error("An unexpected error occurred. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
+export default function GetStarted({ userId: _userId }: GetStartedProps) {
   return (
-    <form className="w-full" onSubmit={handleSubmit}>
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isLoading}
-        aria-busy={isLoading}
-      >
-        {isLoading && (
-          <LoaderCircle className="mr-1 h-5 w-5 animate-spin" aria-hidden />
-        )}
-        Get started
+    <div className="w-full">
+      <Button asChild className="w-full">
+        <Link href="/onboarding/create-workspace">Get started</Link>
       </Button>
-    </form>
+    </div>
   );
 }

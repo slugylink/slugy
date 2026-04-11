@@ -397,7 +397,7 @@ html::-webkit-scrollbar-thumb:hover {
   background-position: 100% 0;
   background-clip: text;
   -webkit-background-clip: text;
-  animation: shimmer 2.8s linear infinite;
+  animation: shimmer 1.3s linear infinite;
   will-change: background-position;
 }
 

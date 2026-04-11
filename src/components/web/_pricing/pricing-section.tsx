@@ -62,7 +62,12 @@ export default function PricingSection() {
                 } = plan;
                 const showMore = features.length > 9;
                 const isYearly = billing === "yearly";
-                const price = isYearly ? yearlyPrice : monthlyPrice;
+                const isBasic = plan.planType === "basic";
+                const price = isBasic
+                  ? monthlyPrice
+                  : isYearly
+                    ? yearlyPrice
+                    : monthlyPrice;
 
                 return (
                   <Card
@@ -91,13 +96,14 @@ export default function PricingSection() {
                           className="text-2xl font-medium tracking-tight sm:text-3xl"
                         />
                         <span className="mb-2 text-sm text-zinc-700">
-                          {price === 0
-                            ? "[Free forever]"
+                          {isBasic
+                            ? "Forever"
                             : isYearly
                               ? "/ year"
                               : "/ month"}
                         </span>
                         {isYearly &&
+                          !isBasic &&
                           typeof yearlyDiscount === "number" &&
                           yearlyDiscount > 0 && (
                             <Badge variant="secondary" className="mb-1">
@@ -120,12 +126,7 @@ export default function PricingSection() {
                     <CardContent className="px-4 pb-4">
                       <div className="border-zinc-200 text-sm dark:border-zinc-800">
                         <p className="mb-3 border-b pb-2.5 text-xs font-normal text-zinc-700 uppercase dark:text-zinc-200">
-                          Includes:{" "}
-                          {name !== "Free" && (
-                            <span className="normal-case">
-                              (Everything in free, plus)
-                            </span>
-                          )}
+                          Includes
                         </p>
                         <ul className="space-y-2">
                           {features

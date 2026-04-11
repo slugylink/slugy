@@ -6,10 +6,17 @@ import { syncUserLimits } from "@/lib/subscription/limits-sync";
 
 export async function getActiveSubscription(userId: string) {
   try {
-    const subscription = await db.subscription.findUnique({
-      where: { referenceId: userId },
+    const subscription = await db.subscription.findFirst({
+      where: {
+        referenceId: userId,
+        status: {
+          in: ["active", "trialing"],
+        },
+      },
       select: {
         id: true,
+        priceId: true,
+        provider: true,
         status: true,
         periodStart: true,
         periodEnd: true,
@@ -42,10 +49,17 @@ export async function getActiveSubscription(userId: string) {
 
 export async function getSubscriptionWithPlan(userId: string) {
   try {
-    const subscription = await db.subscription.findUnique({
-      where: { referenceId: userId },
+    const subscription = await db.subscription.findFirst({
+      where: {
+        referenceId: userId,
+        status: {
+          in: ["active", "trialing"],
+        },
+      },
       select: {
         id: true,
+        customerId: true,
+        provider: true,
         status: true,
         periodStart: true,
         periodEnd: true,
@@ -142,28 +156,33 @@ export async function getBillingData(workspaceSlug: string) {
       };
     }
 
-    const [subscriptionResult, bioCount, bioWithMostLinks] = await Promise.all([
-      getSubscriptionWithPlan(userId),
-      db.bio.count({
-        where: { userId },
-      }),
-      db.bio.findFirst({
-        where: { userId },
-        select: {
-          _count: {
-            select: {
-              links: true,
+    const [subscriptionResult, user, bioCount, bioWithMostLinks] =
+      await Promise.all([
+        getSubscriptionWithPlan(userId),
+        db.user.findUnique({
+          where: { id: userId },
+          select: { customerId: true },
+        }),
+        db.bio.count({
+          where: { userId },
+        }),
+        db.bio.findFirst({
+          where: { userId },
+          select: {
+            _count: {
+              select: {
+                links: true,
+              },
+            },
+            maxLinksLimit: true,
+          },
+          orderBy: {
+            links: {
+              _count: "desc",
             },
           },
-          maxLinksLimit: true,
-        },
-        orderBy: {
-          links: {
-            _count: "desc",
-          },
-        },
-      }),
-    ]);
+        }),
+      ]);
     const plan = subscriptionResult.subscription?.plan;
 
     // If user has a plan and workspace/bio limits don't match plan, sync (fixes Pro limits after seed update)
@@ -176,20 +195,27 @@ export async function getBillingData(workspaceSlug: string) {
     }
 
     // Format billing cycle dates
-    const periodStart =
-      subscriptionResult.subscription?.periodStart || new Date();
-    const periodEnd = subscriptionResult.subscription?.periodEnd || new Date();
+    const periodStart = subscriptionResult.subscription?.periodStart;
+    const periodEnd = subscriptionResult.subscription?.periodEnd;
+    const hasActiveSubscription = Boolean(subscriptionResult.subscription?.id);
+    const hasCustomerId = Boolean(
+      subscriptionResult.subscription?.customerId || user?.customerId,
+    );
+    const isPolarSubscription =
+      subscriptionResult.subscription?.provider === "polar";
+    const canManagePortal =
+      hasActiveSubscription && hasCustomerId && isPolarSubscription;
 
     return {
       success: true,
       message: "Billing data retrieved",
       data: {
         plan: subscriptionResult.subscription?.plan || {
-          name: "Free",
-          planType: "free",
+          name: "Basic",
+          planType: "basic",
           maxWorkspaces: 2,
           maxLinksPerWorkspace: 20,
-          maxClicksPerWorkspace: 500,
+          maxClicksPerWorkspace: 1000,
           maxUsers: 1,
           maxCustomDomains: 2,
           maxGalleries: 1,
@@ -197,21 +223,27 @@ export async function getBillingData(workspaceSlug: string) {
           maxTagsPerWorkspace: 5,
         },
         billingCycle: {
-          start: periodStart.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          end: periodEnd.toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
+          start: periodStart
+            ? periodStart.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : null,
+          end: periodEnd
+            ? periodEnd.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : null,
         },
         subscription: {
           cancelAtPeriodEnd:
             subscriptionResult.subscription?.cancelAtPeriodEnd || false,
           canceledAt: subscriptionResult.subscription?.canceledAt,
+          hasActiveSubscription,
+          canManagePortal,
         },
         usage: {
           customDomains: workspace._count.customDomains,

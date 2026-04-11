@@ -79,11 +79,11 @@ export async function revalidateSubscriptionCache() {
 }
 
 /**
- * Gets default free plan limits
+ * Gets default basic plan limits
  */
-export async function getFreePlanLimits() {
-  const freePlan = await db.plan.findFirst({
-    where: { planType: "free" },
+export async function getBasicPlanLimits() {
+  const basicPlan = await db.plan.findFirst({
+    where: { planType: "basic" },
     select: {
       maxWorkspaces: true,
       maxLinksPerWorkspace: true,
@@ -97,10 +97,10 @@ export async function getFreePlanLimits() {
   });
 
   return (
-    freePlan || {
+    basicPlan || {
       maxWorkspaces: 2,
       maxLinksPerWorkspace: 20,
-      maxClicksPerWorkspace: 500,
+      maxClicksPerWorkspace: 1000,
       maxUsers: 1,
       maxCustomDomains: 2,
       maxGalleries: 1,

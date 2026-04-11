@@ -249,7 +249,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
           href="https://app.slugy.co/login"
           className="text-black underline hover:text-gray-700"
         >
-          Create a free account to get started.
+          Create an account to get started.
         </a>
       </div>
     </div>

@@ -1,6 +1,10 @@
 import { Webhooks } from "@polar-sh/nextjs";
+import { NextRequest } from "next/server";
 import { db } from "@/server/db";
-import { syncUserLimits, revalidateSubscriptionCache } from "@/lib/subscription/limits-sync";
+import {
+  syncUserLimits,
+  revalidateSubscriptionCache,
+} from "@/lib/subscription/limits-sync";
 import { polarClient } from "@/lib/polar";
 
 const LOG_PREFIX = "[Polar]";
@@ -30,14 +34,14 @@ type PolarSubscription = {
 
 function getPriceId(sub: PolarSubscription): string | null {
   const id =
-    sub.prices?.[0]?.id ??
-    sub.product?.prices?.[0]?.id ??
-    sub.priceId ??
-    null;
+    sub.prices?.[0]?.id ?? sub.product?.prices?.[0]?.id ?? sub.priceId ?? null;
   return id ?? null;
 }
 
-function matchesPriceId(plan: { monthlyPriceId: string | null; yearlyPriceId: string | null }, priceId: string): boolean {
+function matchesPriceId(
+  plan: { monthlyPriceId: string | null; yearlyPriceId: string | null },
+  priceId: string,
+): boolean {
   const p = priceId.trim();
   return plan.monthlyPriceId?.trim() === p || plan.yearlyPriceId?.trim() === p;
 }
@@ -49,59 +53,100 @@ async function findPlanByPriceId(priceId: string) {
   if (plan) return plan;
   const plans = await db.plan.findMany({
     where: {
-      OR: [
-        { monthlyPriceId: { not: null } },
-        { yearlyPriceId: { not: null } },
-      ],
+      OR: [{ monthlyPriceId: { not: null } }, { yearlyPriceId: { not: null } }],
     },
   });
   return plans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
 
-async function syncProPlanPriceIdsFromPolar(): Promise<void> {
+function getPlanTypeByProductName(name?: string): "basic" | "pro" | null {
+  const normalized = (name ?? "").toLowerCase().trim();
+  if (!normalized) return null;
+  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("pro")) return "pro";
+  return null;
+}
+
+async function syncPlanPriceIdsFromPolar(): Promise<void> {
   try {
     const response = await polarClient.products.list({ isArchived: false });
     const items = response?.result?.items ?? [];
-    let monthlyPriceId: string | null = null;
-    let yearlyPriceId: string | null = null;
+
+    const updates: Record<
+      "basic" | "pro",
+      { monthlyPriceId: string | null; yearlyPriceId: string | null }
+    > = {
+      basic: { monthlyPriceId: null, yearlyPriceId: null },
+      pro: { monthlyPriceId: null, yearlyPriceId: null },
+    };
+
     for (const product of items) {
+      const planType = getPlanTypeByProductName(product.name ?? "");
+      if (!planType) continue;
+
       for (const price of product.prices ?? []) {
-        const raw = price as { id?: string; recurring_interval?: string; recurringInterval?: string };
+        const raw = price as {
+          id?: string;
+          recurring_interval?: string;
+          recurringInterval?: string;
+        };
         const id = raw.id ?? "";
-        const interval = (raw.recurringInterval ?? raw.recurring_interval ?? "") as string;
+        const interval = (raw.recurringInterval ??
+          raw.recurring_interval ??
+          "") as string;
         if (!id) continue;
-        if (interval === "month") monthlyPriceId = id;
-        if (interval === "year") yearlyPriceId = id;
+        if (interval === "month") updates[planType].monthlyPriceId = id;
+        if (interval === "year") updates[planType].yearlyPriceId = id;
+        if (!interval && planType === "basic") {
+          // Basic can be a one-time "forever" product (non-recurring).
+          updates.basic.monthlyPriceId = id;
+          updates.basic.yearlyPriceId = id;
+        }
       }
     }
-    if (!monthlyPriceId && !yearlyPriceId) return;
-    const pro = await db.plan.findFirst({ where: { planType: "pro" } });
-    if (!pro) return;
-    await db.plan.update({
-      where: { id: pro.id },
-      data: {
-        ...(monthlyPriceId && { monthlyPriceId }),
-        ...(yearlyPriceId && { yearlyPriceId }),
-      },
-    });
-    console.log(`${LOG_PREFIX} Synced Pro plan price IDs from Polar API`);
+
+    for (const planType of ["basic", "pro"] as const) {
+      const monthlyPriceId = updates[planType].monthlyPriceId;
+      const yearlyPriceId = updates[planType].yearlyPriceId;
+      if (!monthlyPriceId && !yearlyPriceId) continue;
+
+      const plan = await db.plan.findFirst({ where: { planType } });
+      if (!plan) continue;
+
+      await db.plan.update({
+        where: { id: plan.id },
+        data: {
+          ...(monthlyPriceId && { monthlyPriceId }),
+          ...(yearlyPriceId && { yearlyPriceId }),
+        },
+      });
+    }
+
+    console.log(`${LOG_PREFIX} Synced Basic/Pro plan price IDs from Polar API`);
   } catch (err) {
-    console.error(`${LOG_PREFIX} Failed to sync Pro plan price IDs:`, err);
+    console.error(`${LOG_PREFIX} Failed to sync plan price IDs:`, err);
   }
 }
 
 async function findPlanByPriceIdWithSync(priceId: string) {
   let plan = await findPlanByPriceId(priceId);
   if (plan) return plan;
-  await syncProPlanPriceIdsFromPolar();
+  await syncPlanPriceIdsFromPolar();
   plan = await findPlanByPriceId(priceId);
   if (plan) return plan;
-  const proPlans = await db.plan.findMany({ where: { planType: "pro" } });
-  return proPlans.find((p) => matchesPriceId(p, priceId)) ?? null;
+  const candidatePlans = await db.plan.findMany({
+    where: { planType: { in: ["basic", "pro"] } },
+  });
+  return candidatePlans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
 
 function getUserId(sub: PolarSubscription): string | null {
-  return sub.metadata?.userId ?? sub.user_metadata?.userId ?? sub.customer?.externalId ?? null;
+  return (
+    sub.metadata?.userId ??
+    sub.user_metadata?.userId ??
+    sub.customer?.externalId ??
+    null
+  );
 }
 
 function getCustomerId(sub: PolarSubscription): string | null {
@@ -112,14 +157,38 @@ function getSubscriptionFields(sub: PolarSubscription) {
   const periodStart = sub.currentPeriodStart ?? sub.current_period_start;
   const periodEnd = sub.currentPeriodEnd ?? sub.current_period_end;
   const recurringInterval = sub.recurringInterval ?? sub.recurring_interval;
-  const cancelAtPeriodEnd = sub.cancelAtPeriodEnd ?? sub.cancel_at_period_end ?? false;
+  const cancelAtPeriodEnd =
+    sub.cancelAtPeriodEnd ?? sub.cancel_at_period_end ?? false;
   return {
     customerId: getCustomerId(sub),
     periodStart: periodStart ? new Date(periodStart) : undefined,
     periodEnd: periodEnd ? new Date(periodEnd) : undefined,
-    billingInterval: recurringInterval === "year" ? "year" as const : "month" as const,
+    billingInterval:
+      recurringInterval === "year" ? ("year" as const) : ("month" as const),
     cancelAtPeriodEnd,
   };
+}
+
+function getNormalizedPeriodEnd(
+  planType: "basic" | "pro",
+  periodStart: Date,
+  periodEnd?: Date,
+): Date {
+  // Basic is a one-time forever plan. If provider doesn't send recurring
+  // bounds, keep it active for a long lifetime window.
+  if (planType === "basic") {
+    if (!periodEnd || periodEnd <= periodStart) {
+      const lifetimeEnd = new Date(periodStart);
+      lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + 100);
+      return lifetimeEnd;
+    }
+    return periodEnd;
+  }
+
+  if (periodEnd) return periodEnd;
+  const fallbackEnd = new Date(periodStart);
+  fallbackEnd.setMonth(fallbackEnd.getMonth() + 1);
+  return fallbackEnd;
 }
 
 async function findExistingSubscription(sub: PolarSubscription) {
@@ -139,53 +208,33 @@ async function findExistingSubscription(sub: PolarSubscription) {
   return existing;
 }
 
-async function downgradeToFreePlan(
+async function deactivateSubscription(
   subscriptionId: string,
-  referenceId: string,
-  options?: { canceledAt?: Date }
+  options?: { canceledAt?: Date },
 ) {
-  const freePlan = await db.plan.findFirst({ where: { planType: "free" } });
-  if (!freePlan) return false;
-  const currentPeriodStart = new Date();
-  const currentPeriodEnd = new Date(currentPeriodStart);
-  currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-  const daysWithService = Math.ceil(
-    (currentPeriodEnd.getTime() - currentPeriodStart.getTime()) / (1000 * 60 * 60 * 24)
-  );
   await db.subscription.update({
     where: { id: subscriptionId },
     data: {
-      status: "active",
-      planId: freePlan.id,
+      status: "inactive",
       canceledAt: options?.canceledAt ?? new Date(),
       cancelAtPeriodEnd: false,
-      periodStart: currentPeriodStart,
-      periodEnd: currentPeriodEnd,
-      billingInterval: "month",
-      daysWithService,
-      priceId: null,
     },
   });
-  await syncUserLimits(referenceId, "free");
   await revalidateSubscriptionCache();
   return true;
 }
 
-async function revokeSubscriptionOnly(subscriptionId: string) {
-  await db.subscription.update({
-    where: { id: subscriptionId },
-    data: { status: "revoked", canceledAt: new Date() },
-  });
-  await revalidateSubscriptionCache();
-}
-
 // --- Webhook handlers ---
 
-export const POST = Webhooks({
+const polarWebhookHandler = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
 
   onOrderCreated: async (payload) => {
-    const order = payload.data as { id?: string; metadata?: { userId?: string }; customer_id?: string };
+    const order = payload.data as {
+      id?: string;
+      metadata?: { userId?: string };
+      customer_id?: string;
+    };
     console.log(`${LOG_PREFIX} order.created`, order?.id ?? "no-id");
     try {
       const userId = order.metadata?.userId;
@@ -221,10 +270,21 @@ export const POST = Webhooks({
       }
       const plan = await findPlanByPriceIdWithSync(priceId);
       if (!plan) {
-        console.error(`${LOG_PREFIX} Plan not found for price ID:`, priceId, "Product:", sub.product?.name);
+        console.error(
+          `${LOG_PREFIX} Plan not found for price ID:`,
+          priceId,
+          "Product:",
+          sub.product?.name,
+        );
         return;
       }
       const fields = getSubscriptionFields(sub);
+      const periodStart = fields.periodStart ?? new Date();
+      const periodEnd = getNormalizedPeriodEnd(
+        plan.planType as "basic" | "pro",
+        periodStart,
+        fields.periodEnd,
+      );
       await db.subscription.upsert({
         where: { referenceId: userId },
         create: {
@@ -235,8 +295,8 @@ export const POST = Webhooks({
           customerId: fields.customerId ?? undefined,
           status: sub.status ?? "active",
           provider: "polar",
-          periodStart: fields.periodStart!,
-          periodEnd: fields.periodEnd!,
+          periodStart,
+          periodEnd,
           billingInterval: fields.billingInterval,
           cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
         },
@@ -247,8 +307,8 @@ export const POST = Webhooks({
           customerId: fields.customerId ?? undefined,
           status: sub.status ?? "active",
           provider: "polar",
-          periodStart: fields.periodStart!,
-          periodEnd: fields.periodEnd!,
+          periodStart,
+          periodEnd,
           billingInterval: fields.billingInterval,
           cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
         },
@@ -269,7 +329,11 @@ export const POST = Webhooks({
 
   onSubscriptionUpdated: async (payload) => {
     const sub = payload.data as unknown as PolarSubscription;
-    console.log(`${LOG_PREFIX} subscription.updated`, sub?.id ?? "no-id", sub?.status);
+    console.log(
+      `${LOG_PREFIX} subscription.updated`,
+      sub?.id ?? "no-id",
+      sub?.status,
+    );
     try {
       const existing = await findExistingSubscription(sub);
       if (!existing) {
@@ -279,20 +343,15 @@ export const POST = Webhooks({
       const status = sub.status ?? existing.status;
       const fields = getSubscriptionFields(sub);
 
-      if (status === "canceled" || status === "revoked") {
-        const ok = await downgradeToFreePlan(existing.id, existing.referenceId, {
-          canceledAt: status === "canceled" || status === "revoked" ? new Date() : undefined,
-        });
-        if (!ok) {
-          console.error(`${LOG_PREFIX} Free plan not found`);
-        }
+      if (status === "revoked") {
+        await deactivateSubscription(existing.id, { canceledAt: new Date() });
         return;
       }
 
       const priceId = getPriceId(sub);
       let updatedPlan: Awaited<ReturnType<typeof findPlanByPriceId>> = null;
       if (priceId && priceId !== existing.priceId) {
-        updatedPlan = await findPlanByPriceId(priceId);
+        updatedPlan = await findPlanByPriceIdWithSync(priceId);
       }
 
       const updateData: Record<string, unknown> = {
@@ -325,12 +384,16 @@ export const POST = Webhooks({
       if (!existing) {
         const userId = getUserId(sub);
         if (!userId) {
-          console.error(`${LOG_PREFIX} Cannot create subscription - no user ID`);
+          console.error(
+            `${LOG_PREFIX} Cannot create subscription - no user ID`,
+          );
           return;
         }
         const priceId = getPriceId(sub);
         if (!priceId) {
-          console.error(`${LOG_PREFIX} Cannot create subscription - no price ID`);
+          console.error(
+            `${LOG_PREFIX} Cannot create subscription - no price ID`,
+          );
           return;
         }
         const plan = await findPlanByPriceIdWithSync(priceId);
@@ -339,6 +402,12 @@ export const POST = Webhooks({
           return;
         }
         const fields = getSubscriptionFields(sub);
+        const periodStart = fields.periodStart ?? new Date();
+        const periodEnd = getNormalizedPeriodEnd(
+          plan.planType as "basic" | "pro",
+          periodStart,
+          fields.periodEnd,
+        );
         existing = await db.subscription.create({
           data: {
             referenceId: userId,
@@ -348,8 +417,8 @@ export const POST = Webhooks({
             customerId: fields.customerId ?? undefined,
             status: "active",
             provider: "polar",
-            periodStart: fields.periodStart!,
-            periodEnd: fields.periodEnd!,
+            periodStart,
+            periodEnd,
             billingInterval: fields.billingInterval,
             cancelAtPeriodEnd: false,
           },
@@ -406,14 +475,63 @@ export const POST = Webhooks({
         console.error(`${LOG_PREFIX} Subscription not found:`, sub.id);
         return;
       }
-      const ok = await downgradeToFreePlan(existing.id, existing.referenceId, { canceledAt: new Date() });
-      if (!ok) {
-        console.error(`${LOG_PREFIX} Free plan not found`);
-        await revokeSubscriptionOnly(existing.id);
-      }
+      await deactivateSubscription(existing.id, { canceledAt: new Date() });
     } catch (error) {
       console.error(`${LOG_PREFIX} Subscription revocation failed:`, error);
       throw error;
     }
   },
 });
+
+function isUnknownPolarEventError(error: unknown): error is Error {
+  if (!error) return false;
+
+  const err = error as {
+    name?: string;
+    message?: string;
+    cause?: unknown;
+    rawMessage?: string;
+  };
+
+  const ownMessage = `${err.name ?? ""} ${err.message ?? ""} ${err.rawMessage ?? ""}`;
+  const causeMessage =
+    err.cause && typeof err.cause === "object"
+      ? `${(err.cause as { name?: string }).name ?? ""} ${(err.cause as { message?: string }).message ?? ""} ${(err.cause as { rawMessage?: string }).rawMessage ?? ""}`
+      : "";
+
+  const combined = `${ownMessage} ${causeMessage}`.toLowerCase();
+
+  return (
+    combined.includes("unknown event type") ||
+    combined.includes("failed to parse event")
+  );
+}
+
+export async function POST(req: NextRequest): Promise<Response> {
+  try {
+    return await polarWebhookHandler(req);
+  } catch (error) {
+    if (isUnknownPolarEventError(error)) {
+      console.warn(
+        `${LOG_PREFIX} Ignoring unsupported webhook event from Polar:`,
+        error.message,
+      );
+      return new Response(
+        JSON.stringify({ ok: true, ignored: "unsupported_event_type" }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      );
+    }
+
+    console.error(`${LOG_PREFIX} Webhook handler failed:`, error);
+    return new Response(
+      JSON.stringify({ ok: false, error: "webhook_processing_failed" }),
+      {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      },
+    );
+  }
+}
