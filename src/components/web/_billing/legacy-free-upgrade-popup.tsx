@@ -47,6 +47,11 @@ export default function LegacyFreeUpgradePopup() {
   const isExemptPage = useMemo(() => {
     if (!pathname) return false;
     return (
+      /\/invite\/?$/.test(pathname) ||
+      /\/verify-email\/?$/.test(pathname) ||
+      /\/reset-password\/?$/.test(pathname) ||
+      /\/forgot-password\/?$/.test(pathname) ||
+      /\/email-verified\/?$/.test(pathname) ||
       /\/signup\/?$/.test(pathname) ||
       /\/login\/?$/.test(pathname) ||
       /\/upgrade\/?$/.test(pathname) ||
