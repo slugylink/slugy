@@ -99,7 +99,7 @@ export default function LegacyFreeUpgradePopup() {
           <DialogTitle>Upgrade Required</DialogTitle>
           <DialogDescription>
             Your account is on a legacy Free plan. Please upgrade to continue
-            with Basic ($1/month) or Pro.
+            with Basic ($1 Forever) or Pro ($10/month).
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">
@@ -109,10 +109,10 @@ export default function LegacyFreeUpgradePopup() {
             variant="outline"
             className="w-full sm:w-auto"
           >
-            <Link href={`${upgradePath}?plan=basic`}>Upgrade to Basic</Link>
+            <Link href={`${upgradePath}?plan=basic`}>Get Basic</Link>
           </Button>
           <Button asChild size={"sm"} className="w-full sm:w-auto">
-            <Link href={`${upgradePath}?plan=pro`}>Upgrade to Pro</Link>
+            <Link href={`${upgradePath}?plan=pro`}>Get Pro</Link>
           </Button>
         </DialogFooter>
       </DialogContent>

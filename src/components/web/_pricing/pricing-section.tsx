@@ -19,6 +19,13 @@ import NumberFlow from "@number-flow/react";
 
 type Plan = (typeof plans)[number];
 
+const CURRENCY_FORMAT = {
+  style: "currency" as const,
+  currency: "USD",
+  currencyDisplay: "narrowSymbol" as const,
+  maximumFractionDigits: 0,
+};
+
 export default function PricingSection() {
   const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
 
@@ -88,11 +95,8 @@ export default function PricingSection() {
                       <div className="mb-1 flex items-end gap-2">
                         <NumberFlow
                           value={price}
-                          format={{
-                            style: "currency",
-                            currency: "USD",
-                            maximumFractionDigits: 0,
-                          }}
+                          locales="en-US"
+                          format={CURRENCY_FORMAT}
                           className="text-2xl font-medium tracking-tight sm:text-3xl"
                         />
                         <span className="mb-2 text-sm text-zinc-700">

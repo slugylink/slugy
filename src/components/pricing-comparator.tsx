@@ -25,6 +25,7 @@ interface Feature {
 const CURRENCY_FORMAT = {
   style: "currency" as const,
   currency: "USD",
+  currencyDisplay: "narrowSymbol" as const,
   maximumFractionDigits: 0,
 };
 
@@ -189,7 +190,7 @@ function PriceHeader({
     <th className={headerClass}>
       <span className="block">{plan.name}</span>
       <span className="block text-2xl font-medium">
-        <NumberFlow value={price} format={CURRENCY_FORMAT} />
+        <NumberFlow value={price} locales="en-US" format={CURRENCY_FORMAT} />
       </span>
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
       <Button asChild variant={buttonVariant} size="sm">

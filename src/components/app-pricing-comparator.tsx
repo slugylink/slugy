@@ -16,6 +16,7 @@ const YEARLY_SAVINGS = "2 Months Free";
 const CURRENCY_FORMAT = {
   style: "currency" as const,
   currency: "USD",
+  currencyDisplay: "narrowSymbol" as const,
   maximumFractionDigits: 0,
 };
 
@@ -285,6 +286,7 @@ export default function AppPricingComparator({
               <p className="mt-1 text-2xl font-medium">
                 <NumberFlow
                   value={BASIC_PLAN.monthlyPrice}
+                  locales="en-US"
                   format={CURRENCY_FORMAT}
                 />
               </p>
@@ -302,7 +304,11 @@ export default function AppPricingComparator({
             <div className="bg-muted rounded-lg border p-4">
               <p className="font-medium">{PRO_PLAN.name}</p>
               <p className="mt-1 text-2xl font-medium">
-                <NumberFlow value={proPrice} format={CURRENCY_FORMAT} />
+                <NumberFlow
+                  value={proPrice}
+                  locales="en-US"
+                  format={CURRENCY_FORMAT}
+                />
               </p>
               <p className="text-muted-foreground text-xs">{proSubtitle}</p>
               <Button
@@ -353,6 +359,7 @@ export default function AppPricingComparator({
                   <span className="block text-2xl font-medium">
                     <NumberFlow
                       value={BASIC_PLAN.monthlyPrice}
+                      locales="en-US"
                       format={CURRENCY_FORMAT}
                     />
                   </span>
@@ -367,7 +374,11 @@ export default function AppPricingComparator({
                 <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
                   <span className="block">{PRO_PLAN.name}</span>
                   <span className="block text-2xl font-medium">
-                    <NumberFlow value={proPrice} format={CURRENCY_FORMAT} />
+                    <NumberFlow
+                      value={proPrice}
+                      locales="en-US"
+                      format={CURRENCY_FORMAT}
+                    />
                   </span>
                   <span className="text-muted-foreground block text-sm">
                     {proSubtitle}
