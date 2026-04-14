@@ -202,7 +202,7 @@ const ColorPicker = memo(
           className="flex items-center gap-0 overflow-hidden rounded-md border-2"
         >
           <div
-            className="h-7 w-7 cursor-pointer"
+            className="h-[31px] w-[31px] cursor-pointer"
             style={{ backgroundColor: color }}
           />
           <Input
@@ -551,7 +551,7 @@ export default function QRCodeDesigner({
           value={formState.dotStyle}
           onValueChange={(value) => handleFormChange("dotStyle", value)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="py-0">
             <SelectValue placeholder="Select dot type" />
           </SelectTrigger>
           <SelectContent>
