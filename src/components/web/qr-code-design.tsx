@@ -202,7 +202,7 @@ const ColorPicker = memo(
           className="flex items-center gap-0 overflow-hidden rounded-md border-2"
         >
           <div
-            className="h-[31px] w-[31px] cursor-pointer"
+            className="h-[32px] w-[31px] cursor-pointer"
             style={{ backgroundColor: color }}
           />
           <Input
@@ -230,13 +230,13 @@ const ColorButtons = memo(
     selectedColor: string;
     onColorSelect: (color: string) => void;
   }) => (
-    <div className="relative z-[2] flex flex-wrap gap-1.5">
+    <div className="relative z-[2] flex gap-1.5 overflow-x-auto pb-1">
       {colors.map((color) => (
         <button
           key={color}
           type="button"
           aria-label={`Select color ${color}`}
-          className={`flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
+          className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
             selectedColor === color ? "border-primary" : "border-transparent"
           }`}
           style={{ backgroundColor: color }}
@@ -537,11 +537,13 @@ export default function QRCodeDesigner({
             color={formState.fgColor}
             onChange={(color) => handleFormChange("fgColor", color)}
           />
-          <ColorButtons
-            colors={COLORS}
-            selectedColor={formState.fgColor}
-            onColorSelect={(color) => handleFormChange("fgColor", color)}
-          />
+          <div className="overflow-x-auto">
+            <ColorButtons
+              colors={COLORS}
+              selectedColor={formState.fgColor}
+              onColorSelect={(color) => handleFormChange("fgColor", color)}
+            />
+          </div>
         </div>
       </div>
 

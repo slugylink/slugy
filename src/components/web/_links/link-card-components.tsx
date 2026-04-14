@@ -160,7 +160,7 @@ export const AnalyticsBadge = ({
 }: AnalyticsBadgeProps) => (
   <Badge
     variant="outline"
-    className="flex cursor-pointer items-center justify-center gap-x-1 rounded-sm bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+    className="flex cursor-pointer items-center justify-center gap-x-1 rounded-md bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
   >
     <Tooltip>
       <TooltipTrigger asChild>

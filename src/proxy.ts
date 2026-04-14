@@ -38,6 +38,7 @@ export const config = {
 const STATIC_ASSETS_EXTENSIONS =
   /\.(ico|png|jpg|jpeg|gif|svg|css|js|woff|woff2|ttf|eot|webp|avif)$/;
 const STATIC_ASSET_PATHS = ["_next", "static", "images", "icons"] as const;
+const DEFAULT_SHORTLINK_DOMAIN = "slugy.co";
 
 const isStaticAsset = (pathname: string): boolean => {
   if (STATIC_ASSETS_EXTENSIONS.test(pathname)) return true;
@@ -113,10 +114,21 @@ const isKnownDomain = (hostname: string): boolean =>
   hostname === SUBDOMAINS.admin;
 
 const normalizeHostname = (host: string | null): string =>
-  host
-    ?.toLowerCase()
-    .replace(/\.localhost:3000$/, `.${ROOT_DOMAIN}`)
-    .trim() ?? "";
+  (() => {
+    const normalized = host?.toLowerCase().trim() ?? "";
+    if (!normalized) return "";
+
+    // In local development, treat localhost as the root domain for routing.
+    if (
+      !IS_PRODUCTION &&
+      (normalized.startsWith("localhost:") ||
+        normalized.startsWith("127.0.0.1:"))
+    ) {
+      return ROOT_DOMAIN;
+    }
+
+    return normalized.replace(/\.localhost(?::\d+)?$/, `.${ROOT_DOMAIN}`);
+  })();
 
 type RateLimitResult = {
   success: boolean;
@@ -302,6 +314,10 @@ async function handleRootDomain(
   const { pathname } = url;
   const shortCode = pathname.slice(1);
   const hostname = normalizeHostname(req.headers.get("host"));
+  const shortLinkLookupDomain =
+    !IS_PRODUCTION && ROOT_DOMAIN.includes("localhost")
+      ? DEFAULT_SHORTLINK_DOMAIN
+      : hostname;
   const shouldPreserveMethod = req.method === "GET" || req.method === "HEAD";
   const redirectStatus = shouldPreserveMethod ? 307 : 303;
 
@@ -329,7 +345,11 @@ async function handleRootDomain(
       if (tempRedirect) return tempRedirect;
     }
 
-    const redirectResponse = await URLRedirects(req, shortCode, hostname);
+    const redirectResponse = await URLRedirects(
+      req,
+      shortCode,
+      shortLinkLookupDomain,
+    );
     if (redirectResponse) return redirectResponse;
   }
 
