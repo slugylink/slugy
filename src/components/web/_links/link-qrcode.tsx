@@ -1,8 +1,8 @@
 "use client";
 
-import QRCode from "react-qr-code";
+import { useEffect, useMemo, useRef } from "react";
+import QRCodeStyling, { type Options } from "qr-code-styling";
 import { QrCode as QrCodeIcon } from "lucide-react";
-import type { Options } from "qr-code-styling";
 
 type DotType = NonNullable<Options["dotsOptions"]>["type"];
 const DOT_TYPES: DotType[] = [
@@ -15,37 +15,22 @@ const DOT_TYPES: DotType[] = [
 ];
 
 const DEFAULT_OPTIONS: Options = {
-  width: 220,
-  height: 220,
+  width: 110,
+  height: 110,
   type: "svg",
   data: "",
-  image: "",
-  margin: 10,
+  margin: 1.5,
   qrOptions: {
     typeNumber: 0,
     mode: "Byte",
     errorCorrectionLevel: "H",
   },
-  imageOptions: {
-    hideBackgroundDots: true,
-    imageSize: 0.4,
-    margin: 0,
-    crossOrigin: "anonymous",
-  },
   dotsOptions: {
-    type: "rounded",
-    color: "#000",
+    type: "square",
+    color: "#000000",
   },
   backgroundOptions: {
-    color: "#fff",
-  },
-  cornersSquareOptions: {
-    type: "extra-rounded",
-    color: "#4267B2",
-  },
-  cornersDotOptions: {
-    type: "dot",
-    color: "#4267B2",
+    color: "#ffffff",
   },
 };
 
@@ -62,12 +47,13 @@ function isDotType(val: unknown): val is DotType {
   return typeof val === "string" && DOT_TYPES.includes(val as DotType);
 }
 
-const LinkQrCode = ({
-  domain,
-  code,
-  customization,
-}: LinkQrCodeProps) => {
-  const mergedOptions = (() => {
+const LinkQrCode = ({ domain, code, customization }: LinkQrCodeProps) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const qrCodeRef = useRef<QRCodeStyling | null>(null);
+
+  const mergedOptions = useMemo(() => {
+    if (!code) return null;
+
     let custom: Partial<Options> = {};
     if (customization) {
       if (typeof customization === "string") {
@@ -89,9 +75,11 @@ const LinkQrCode = ({
         : {}),
       ...(isDotType(customObj.dotStyle) ? { type: customObj.dotStyle } : {}),
     };
+
     return {
       ...DEFAULT_OPTIONS,
       ...custom,
+      data: `https://${domain}/${code}?via=qr`,
       width:
         typeof customObj.size === "number"
           ? customObj.size
@@ -105,32 +93,44 @@ const LinkQrCode = ({
             ? customObj.height
             : DEFAULT_OPTIONS.height,
       dotsOptions,
-      cornersSquareOptions: {
-        ...DEFAULT_OPTIONS.cornersSquareOptions,
-        ...(custom.cornersSquareOptions || {}),
-      },
-      cornersDotOptions: {
-        ...DEFAULT_OPTIONS.cornersDotOptions,
-        ...(custom.cornersDotOptions || {}),
-      },
       backgroundOptions: {
         ...DEFAULT_OPTIONS.backgroundOptions,
         ...(custom.backgroundOptions || {}),
       },
     };
-  })();
+  }, [code, customization, domain]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    if (!code || !mergedOptions) {
+      containerRef.current.replaceChildren();
+      return;
+    }
+
+    if (!qrCodeRef.current) {
+      qrCodeRef.current = new QRCodeStyling(mergedOptions);
+    } else {
+      qrCodeRef.current.update(mergedOptions);
+    }
+
+    containerRef.current.replaceChildren();
+    qrCodeRef.current.append(containerRef.current);
+  }, [code, mergedOptions]);
+
+  useEffect(() => {
+    return () => {
+      qrCodeRef.current = null;
+    };
+  }, []);
 
   return (
     <div className="flex aspect-[16/7] items-center justify-center rounded-lg border">
       {code ? (
-        <div>
-          <QRCode
-            value={`https://${domain}/${code}?via=qr`}
-            size={90}
-            fgColor={mergedOptions.dotsOptions?.color}
-            bgColor={mergedOptions.backgroundOptions?.color}
-          />
-        </div>
+        <div
+          ref={containerRef}
+          className="flex h-[110px] w-[110px] items-center justify-center"
+        />
       ) : (
         <div className="flex flex-col items-center gap-2">
           <QrCodeIcon

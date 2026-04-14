@@ -421,7 +421,7 @@ export default function LinkCard({
           open={isDialogOpen("qrCode")}
           onOpenChange={(open) => toggleDialog("qrCode", open)}
         >
-          <DialogContent className="sm:max-w-[480px]">
+          <DialogContent className="p-4 sm:max-w-[480px]">
             <DialogHeader>
               <DialogTitle className="text-xl font-medium">
                 QR Code Design

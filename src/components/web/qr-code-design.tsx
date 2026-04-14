@@ -14,12 +14,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { HexColorPicker } from "react-colorful";
-import { Download, Copy, Check } from "lucide-react";
+import { Download, Check } from "lucide-react";
 import { getQrCode, saveQrCode } from "@/server/actions/save-qrcode";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -65,17 +72,24 @@ const QR_CONFIG = {
   MIN_SIZE: 256,
   MAX_SIZE: 2048,
   CANVAS_SCALE: 4,
+  DOWNLOAD_PADDING: 24,
   DEFAULT_MARGIN: 1.5,
 } as const;
 
 const COLORS = [
   "#000000", // Black
-  "#FF5F2D", // Orange
   "#FF0000", // Red
   "#ecb731", // Gold
   "#0abf53", // Green
   "#1DA1F2", // Blue
   "#833AB4", // Purple
+] as const;
+
+const DOT_STYLE_OPTIONS: ReadonlyArray<{ value: DotType; label: string }> = [
+  { value: "square", label: "Square" },
+  { value: "dots", label: "Dots" },
+  { value: "rounded", label: "Rounded" },
+  { value: "extra-rounded", label: "Extra Rounded" },
 ] as const;
 
 const DEFAULT_QR_OPTIONS: Options = {
@@ -158,15 +172,15 @@ const QRCodePreview = memo(
     containerRef: RefObject<HTMLDivElement | null>;
     isFetching: boolean;
   }) => (
-    <div className="bg-muted relative flex aspect-[16/5] w-full items-center justify-center rounded-lg border py-3">
+    <div className="bg-/50 relative flex aspect-[16/5] w-full items-center justify-center rounded-xl border py-3">
       {isFetching && (
-        <div className="bg-background/80 absolute top-0 left-0 flex aspect-video h-full w-full items-center justify-center backdrop-blur-sm">
+        <div className="bg-background/80 absolute top-0 left-0 flex aspect-video h-full w-full items-center justify-center rounded-xl backdrop-blur-sm">
           <LoaderCircle className="h-5 w-5 animate-spin" />
         </div>
       )}
       <div
         ref={containerRef}
-        className="flex aspect-square h-[150px] w-[150px] items-center justify-center bg-white p-1.5"
+        className="flex aspect-square h-[150px] w-[150px] items-center justify-center rounded-lg bg-white p-1"
       />
     </div>
   ),
@@ -188,7 +202,7 @@ const ColorPicker = memo(
           className="flex items-center gap-0 overflow-hidden rounded-md border-2"
         >
           <div
-            className="h-8 w-8 cursor-pointer"
+            className="h-7 w-7 cursor-pointer"
             style={{ backgroundColor: color }}
           />
           <Input
@@ -384,10 +398,22 @@ export default function QRCodeDesigner({
       const { canvas, ctx } = createCanvasFromSVG(svg, QR_CONFIG.CANVAS_SCALE);
       const svgBlob = await svgToBlob(svg);
       const img = await blobToImage(svgBlob);
+      const padding = QR_CONFIG.DOWNLOAD_PADDING * QR_CONFIG.CANVAS_SCALE;
 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      canvas.toBlob(
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = canvas.width + padding * 2;
+      exportCanvas.height = canvas.height + padding * 2;
+
+      const exportCtx = exportCanvas.getContext("2d");
+      if (!exportCtx) throw new Error("Could not get export canvas context");
+
+      exportCtx.fillStyle = QR_CONFIG.BACKGROUND_COLOR;
+      exportCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      exportCtx.drawImage(canvas, padding, padding);
+
+      exportCanvas.toBlob(
         (blob) => {
           if (!blob) return;
           const url = URL.createObjectURL(blob);
@@ -405,37 +431,6 @@ export default function QRCodeDesigner({
     } catch (error) {
       console.error("Error downloading QR code:", error);
       toast.error("Failed to download QR code");
-    }
-  }, []);
-
-  const handleCopyImage = useCallback(async () => {
-    if (!containerRef.current) return;
-
-    try {
-      const svg = containerRef.current.querySelector("svg");
-      if (!svg) throw new Error("SVG element not found");
-
-      const svgBlob = await svgToBlob(svg);
-      const img = await blobToImage(svgBlob);
-      const { canvas, ctx } = createCanvasFromSVG(svg);
-
-      ctx.drawImage(img, 0, 0);
-
-      canvas.toBlob(async (blob) => {
-        if (!blob) return;
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ "image/png": blob }),
-          ]);
-          toast.success("QR code copied to clipboard");
-        } catch (err) {
-          console.error("Failed to copy image: ", err);
-          toast.error("Failed to copy QR code");
-        }
-      }, "image/png");
-    } catch (error) {
-      console.error("Error copying image:", error);
-      toast.error("Failed to copy QR code");
     }
   }, []);
 
@@ -518,7 +513,7 @@ export default function QRCodeDesigner({
     <div className="space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="font-medium">Preview</span>
+        <span className="">Preview</span>
         <div className="flex gap-2">
           <Button
             onClick={downloadHighQualityQR}
@@ -528,14 +523,6 @@ export default function QRCodeDesigner({
           >
             <Download className="h-4 w-4" />
           </Button>
-          <Button
-            onClick={handleCopyImage}
-            variant="ghost"
-            size="icon"
-            title="Copy QR Code"
-          >
-            <Copy className="h-3 w-3" />
-          </Button>
         </div>
       </div>
 
@@ -544,7 +531,7 @@ export default function QRCodeDesigner({
 
       {/* Color Picker */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">QR Code Color</Label>
+        <Label className="text-sm">Color</Label>
         <div className="flex items-center gap-2">
           <ColorPicker
             color={formState.fgColor}
@@ -556,6 +543,25 @@ export default function QRCodeDesigner({
             onColorSelect={(color) => handleFormChange("fgColor", color)}
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm">Style</Label>
+        <Select
+          value={formState.dotStyle}
+          onValueChange={(value) => handleFormChange("dotStyle", value)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select dot type" />
+          </SelectTrigger>
+          <SelectContent>
+            {DOT_STYLE_OPTIONS.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Footer */}
