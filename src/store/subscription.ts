@@ -45,7 +45,15 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
       set({ isLoading: true, error: null });
 
       try {
-        const res = await fetch("/api/subscription/active", {
+        const checkoutId =
+          typeof window === "undefined"
+            ? null
+            : new URLSearchParams(window.location.search).get("checkoutId");
+        const subscriptionUrl = checkoutId
+          ? `/api/subscription/active?checkoutId=${encodeURIComponent(checkoutId)}`
+          : "/api/subscription/active";
+
+        const res = await fetch(subscriptionUrl, {
           credentials: "include",
         });
 

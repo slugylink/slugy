@@ -6,6 +6,7 @@ import {
   revalidateSubscriptionCache,
 } from "@/lib/subscription/limits-sync";
 import { polarClient } from "@/lib/polar";
+import { activateBasicEntitlement } from "@/lib/subscription/basic-entitlement";
 
 const LOG_PREFIX = "[Polar]";
 
@@ -30,6 +31,27 @@ type PolarSubscription = {
   cancel_at_period_end?: boolean;
   canceledAt?: string;
   canceled_at?: string;
+};
+
+type PolarOrder = {
+  id?: string;
+  status?: string;
+  paid?: boolean;
+  totalAmount?: number;
+  total_amount?: number;
+  customerId?: string;
+  customer_id?: string;
+  productId?: string;
+  product_id?: string;
+  subscriptionId?: string | null;
+  subscription_id?: string | null;
+  metadata?: { userId?: string };
+  customer?: { id?: string; externalId?: string; external_id?: string };
+  product?: { name?: string };
+  items?: {
+    productPriceId?: string | null;
+    product_price_id?: string | null;
+  }[];
 };
 
 function getPriceId(sub: PolarSubscription): string | null {
@@ -65,6 +87,66 @@ function getPlanTypeByProductName(name?: string): "basic" | "pro" | null {
   if (normalized.includes("basic")) return "basic";
   if (normalized.includes("pro")) return "pro";
   return null;
+}
+
+function getOrderUserId(order: PolarOrder): string | null {
+  return (
+    order.metadata?.userId ??
+    order.customer?.externalId ??
+    order.customer?.external_id ??
+    null
+  );
+}
+
+function getOrderCustomerId(order: PolarOrder): string | null {
+  return order.customerId ?? order.customer_id ?? order.customer?.id ?? null;
+}
+
+function getOrderPriceId(order: PolarOrder): string | null {
+  const item = order.items?.find(
+    (item) => item.productPriceId || item.product_price_id,
+  );
+  return item?.productPriceId ?? item?.product_price_id ?? null;
+}
+
+async function isBasicOrder(order: PolarOrder): Promise<boolean> {
+  if (getPlanTypeByProductName(order.product?.name) === "basic") return true;
+
+  const productId = order.productId ?? order.product_id;
+  const priceId = getOrderPriceId(order);
+  if (!productId && !priceId) return false;
+
+  const basicPlan = await db.plan.findFirst({
+    where: { planType: "basic" },
+    select: { monthlyPriceId: true, yearlyPriceId: true },
+  });
+
+  return (
+    Boolean(priceId) &&
+    (basicPlan?.monthlyPriceId === priceId ||
+      basicPlan?.yearlyPriceId === priceId)
+  );
+}
+
+async function activateBasicOrderEntitlement(order: PolarOrder) {
+  const userId = getOrderUserId(order);
+  const customerId = getOrderCustomerId(order);
+  const paid =
+    order.paid === true ||
+    order.status === "paid" ||
+    (order.totalAmount ?? order.total_amount) === 0;
+
+  if (!userId || !customerId || !paid || !(await isBasicOrder(order))) {
+    return false;
+  }
+
+  await activateBasicEntitlement({
+    userId,
+    customerId,
+    priceId: getOrderPriceId(order),
+  });
+  await revalidateSubscriptionCache();
+  return true;
 }
 
 async function syncPlanPriceIdsFromPolar(): Promise<void> {
@@ -230,19 +312,17 @@ const polarWebhookHandler = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET!,
 
   onOrderCreated: async (payload) => {
-    const order = payload.data as {
-      id?: string;
-      metadata?: { userId?: string };
-      customer_id?: string;
-    };
+    const order = payload.data as unknown as PolarOrder;
     console.log(`${LOG_PREFIX} order.created`, order?.id ?? "no-id");
     try {
-      const userId = order.metadata?.userId;
+      if (await activateBasicOrderEntitlement(order)) return;
+
+      const userId = getOrderUserId(order);
       if (!userId) {
         console.error(`${LOG_PREFIX} No user ID in order metadata`);
         return;
       }
-      const customerId = order.customer_id;
+      const customerId = getOrderCustomerId(order);
       if (customerId) {
         await db.user.update({
           where: { id: userId },
@@ -251,6 +331,17 @@ const polarWebhookHandler = Webhooks({
       }
     } catch (error) {
       console.error(`${LOG_PREFIX} Order created handler failed:`, error);
+    }
+  },
+
+  onOrderPaid: async (payload) => {
+    const order = payload.data as unknown as PolarOrder;
+    console.log(`${LOG_PREFIX} order.paid`, order?.id ?? "no-id");
+    try {
+      await activateBasicOrderEntitlement(order);
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Order paid handler failed:`, error);
+      throw error;
     }
   },
 

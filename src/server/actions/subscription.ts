@@ -3,72 +3,10 @@ import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
-
-async function activateBasicFromCustomerEntitlement(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { customerId: true },
-  });
-
-  if (!user?.customerId) return null;
-
-  const basicPlan = await db.plan.findFirst({
-    where: { planType: "basic" },
-    select: { id: true, monthlyPriceId: true, planType: true },
-  });
-
-  if (!basicPlan?.id) return null;
-
-  const periodStart = new Date();
-  const periodEnd = new Date(periodStart);
-  periodEnd.setFullYear(periodEnd.getFullYear() + 100);
-
-  const subscription = await db.subscription.upsert({
-    where: { referenceId: userId },
-    create: {
-      referenceId: userId,
-      planId: basicPlan.id,
-      customerId: user.customerId,
-      priceId: basicPlan.monthlyPriceId ?? undefined,
-      status: "active",
-      provider: "polar",
-      periodStart,
-      periodEnd,
-      billingInterval: "month",
-    },
-    update: {
-      planId: basicPlan.id,
-      customerId: user.customerId,
-      priceId: basicPlan.monthlyPriceId ?? undefined,
-      status: "active",
-      provider: "polar",
-      periodStart,
-      periodEnd,
-      billingInterval: "month",
-    },
-    select: {
-      id: true,
-      priceId: true,
-      customerId: true,
-      provider: true,
-      status: true,
-      periodStart: true,
-      periodEnd: true,
-      cancelAtPeriodEnd: true,
-      canceledAt: true,
-      plan: {
-        select: {
-          id: true,
-          name: true,
-          planType: true,
-        },
-      },
-    },
-  });
-
-  await syncUserLimits(userId, basicPlan.planType);
-  return subscription;
-}
+import {
+  activateBasicEntitlement,
+  activeSubscriptionSelect,
+} from "@/lib/subscription/basic-entitlement";
 
 export async function getActiveSubscription(userId: string) {
   try {
@@ -79,24 +17,7 @@ export async function getActiveSubscription(userId: string) {
           in: ["active", "trialing"],
         },
       },
-      select: {
-        id: true,
-        priceId: true,
-        customerId: true,
-        provider: true,
-        status: true,
-        periodStart: true,
-        periodEnd: true,
-        cancelAtPeriodEnd: true,
-        canceledAt: true,
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            planType: true,
-          },
-        },
-      },
+      select: activeSubscriptionSelect,
     });
 
     const isBasicPlan = subscription?.plan?.planType === "basic";
@@ -107,7 +28,7 @@ export async function getActiveSubscription(userId: string) {
 
     if (!subscription || needsCustomerBackedBasicRecovery) {
       subscription =
-        (await activateBasicFromCustomerEntitlement(userId)) ?? subscription;
+        (await activateBasicEntitlement({ userId })) ?? subscription;
     }
 
     if (!subscription) {
