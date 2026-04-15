@@ -88,8 +88,8 @@ const COLORS = [
 const DOT_STYLE_OPTIONS: ReadonlyArray<{ value: DotType; label: string }> = [
   { value: "square", label: "Square" },
   { value: "dots", label: "Dots" },
-  { value: "rounded", label: "Rounded" },
-  { value: "extra-rounded", label: "Extra Rounded" },
+  { value: "classy", label: "Classy" },
+  { value: "extra-rounded", label: "Rounded" },
 ] as const;
 
 const DEFAULT_QR_OPTIONS: Options = {
@@ -199,16 +199,16 @@ const ColorPicker = memo(
       <PopoverTrigger asChild>
         <div
           style={{ borderColor: color }}
-          className="flex items-center gap-0 overflow-hidden rounded-md border-2"
+          className="flex w-full items-center gap-0 overflow-hidden rounded-md border-2 sm:w-auto"
         >
           <div
-            className="h-[32px] w-[31px] cursor-pointer"
+            className="h-[32px] min-w-[31px] cursor-pointer"
             style={{ backgroundColor: color }}
           />
           <Input
             value={color}
             onChange={(e) => onChange(e.target.value)}
-            className="h-fit w-24 border-none focus:outline-none focus-visible:ring-0"
+            className="h-fit w-full min-w-0 border-none focus:outline-none focus-visible:ring-0 sm:w-[132px]"
           />
         </div>
       </PopoverTrigger>
@@ -230,7 +230,7 @@ const ColorButtons = memo(
     selectedColor: string;
     onColorSelect: (color: string) => void;
   }) => (
-    <div className="relative z-[2] flex gap-1.5 overflow-x-auto pb-1">
+    <div className="relative z-[2] flex w-full gap-1.5 overflow-x-auto pb-1">
       {colors.map((color) => (
         <button
           key={color}
@@ -292,7 +292,6 @@ export default function QRCodeDesigner({
       type: "square",
     },
   }));
-
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
@@ -510,7 +509,7 @@ export default function QRCodeDesigner({
   // ============================================================================
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center justify-between">
         <span className="">Preview</span>
@@ -537,7 +536,7 @@ export default function QRCodeDesigner({
             color={formState.fgColor}
             onChange={(color) => handleFormChange("fgColor", color)}
           />
-          <div className="overflow-x-auto">
+          <div className="w-full min-w-0">
             <ColorButtons
               colors={COLORS}
               selectedColor={formState.fgColor}
@@ -570,12 +569,17 @@ export default function QRCodeDesigner({
       <div className="flex justify-end gap-2 pt-4">
         <Button
           variant="outline"
+          className="w-fit"
           onClick={() => onOpenChange(false)}
           disabled={isSaving}
         >
           Cancel
         </Button>
-        <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
+        <Button
+          className="w-fit"
+          disabled={isSaving || !isFormDirty}
+          onClick={handleSave}
+        >
           {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
           Save
         </Button>

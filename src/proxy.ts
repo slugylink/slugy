@@ -113,6 +113,16 @@ const isKnownDomain = (hostname: string): boolean =>
   hostname === SUBDOMAINS.app ||
   hostname === SUBDOMAINS.admin;
 
+const isLocalSubdomain = (
+  hostname: string,
+  subdomain: "app" | "bio" | "admin" | "webhook",
+): boolean =>
+  !IS_PRODUCTION &&
+  (hostname === `${subdomain}.localhost` ||
+    hostname.startsWith(`${subdomain}.localhost:`) ||
+    hostname === `${subdomain}.127.0.0.1` ||
+    hostname.startsWith(`${subdomain}.127.0.0.1:`));
+
 const normalizeHostname = (host: string | null): string =>
   (() => {
     const normalized = host?.toLowerCase().trim() ?? "";
@@ -173,7 +183,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     const hostname = normalizeHostname(req.headers.get("host"));
 
     // Allow webhook subdomain to pass through untouched during local development
-    if (!IS_PRODUCTION && hostname === SUBDOMAINS.webhook) {
+    if (
+      hostname === SUBDOMAINS.webhook ||
+      isLocalSubdomain(hostname, "webhook")
+    ) {
       return NextResponse.next();
     }
 
@@ -199,6 +212,20 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       const httpsURL = new URL(req.url);
       httpsURL.protocol = "https:";
       return redirectTo(httpsURL.toString(), 308);
+    }
+
+    if (isLocalSubdomain(hostname, "bio")) {
+      const bioPath = resolveBioSubdomainPath(pathname);
+      return rewriteTo(`${bioPath}${url.search}`, req.url);
+    }
+
+    if (isLocalSubdomain(hostname, "app")) {
+      return handleAppSubdomain(url, req, req.url);
+    }
+
+    if (isLocalSubdomain(hostname, "admin")) {
+      const adminPath = pathname === "/" ? "/admin" : `/admin${pathname}`;
+      return rewriteTo(`${adminPath}${url.search}`, req.url);
     }
 
     switch (hostname) {
