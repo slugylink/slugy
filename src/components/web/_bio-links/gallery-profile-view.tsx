@@ -107,9 +107,9 @@ export default function GalleryProfileView({
   };
 
   return (
-    <div className={"relative rounded-2xl"}>
-      <div className="relative z-10 mx-auto w-full rounded-2xl bg-transparent md:max-w-lg">
-        <div className="relative w-full overflow-hidden rounded-2xl">
+    <div className={"relative rounded-[18px]"}>
+      <div className="relative z-10 mx-auto w-full rounded-[18px] bg-transparent md:max-w-lg">
+        <div className="relative w-full overflow-hidden rounded-[18px]">
           <div
             className={"relative z-0 h-[420px] overflow-hidden sm:h-[520px]"}
           >

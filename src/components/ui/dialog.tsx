@@ -64,7 +64,7 @@ function DialogContent({
         className={cn(
           "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)]",
           "-translate-x-1/2 -translate-y-1/2 gap-4",
-          "bg-background rounded-2xl border p-6 shadow-lg",
+          "bg-background rounded-[18px] border p-6 shadow-lg",
           "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
           "duration-200 outline-none sm:max-w-lg",
@@ -75,7 +75,7 @@ function DialogContent({
         {children}
 
         {showCloseButton && (
-          <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
+          <DialogPrimitive.Close className="focus:ring-ring absolute top-4 right-4 rounded-md opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
             <XIcon className="h-4 w-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

@@ -14,7 +14,7 @@ const AppLogo = ({ className }: { className?: string }) => {
         src="/icon.svg"
         alt="Slugy"
         fill
-        className="overflow-hidden rounded-2xl object-contain p-[2px]"
+        className="overflow-hidden rounded-[18px] object-contain p-[2px]"
         priority
         sizes={"(max-width: 768px) 100vw, 50vw"}
       />

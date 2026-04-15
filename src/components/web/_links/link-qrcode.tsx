@@ -79,7 +79,7 @@ const LinkQrCode = ({ domain, code, customization }: LinkQrCodeProps) => {
     return {
       ...DEFAULT_OPTIONS,
       ...custom,
-      data: `https://${domain}/${code}?ref=qr`,
+      data: `https://${domain}/${code}?via=qr`,
       width:
         typeof customObj.size === "number"
           ? customObj.size

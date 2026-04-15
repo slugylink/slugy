@@ -57,7 +57,7 @@ export default function VideoDemoSection() {
       >
         <div className="relative mx-auto max-w-5xl">
           <div
-            className="group relative cursor-pointer overflow-hidden rounded-2xl shadow-[0_20px_70px_-28px_rgba(255,170,64,0.55)]"
+            className="group relative cursor-pointer overflow-hidden rounded-[18px] shadow-[0_20px_70px_-28px_rgba(255,170,64,0.55)]"
             onClick={togglePlay}
             onMouseEnter={() => setShowButton(true)}
             onMouseLeave={() => setShowButton(false)}

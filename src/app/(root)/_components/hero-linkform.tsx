@@ -180,7 +180,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
       <LazyMotion features={domAnimation}>
         <m.form
           onSubmit={handleSubmit(onSubmit)}
-          className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-2xl border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
+          className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
@@ -190,7 +190,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
             ease: [0.25, 0.46, 0.45, 0.94],
           }}
         >
-          <div className="flex items-center gap-2 rounded-lg border bg-white p-1">
+          <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
             <Input
               type="text"
               placeholder="Enter a destination URL"
@@ -243,7 +243,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
       </LazyMotion>
 
       {/* CTA */}
-      <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-700">
+      <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-800">
         Want to claim your links, edit them, or view their analytics?{" "}
         <a
           href="https://app.slugy.co/login"

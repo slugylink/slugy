@@ -97,7 +97,7 @@ const UpgardePage = () => {
           <Card
             key={plan.name}
             className={cn(
-              "flex flex-col gap-6 rounded-2xl p-6 shadow-none md:p-8",
+              "flex flex-col gap-6 rounded-[18px] p-6 shadow-none md:p-8",
               plan.planType === "pro"
                 ? "border-2 border-[#ffaa40] bg-zinc-50 dark:bg-black/50"
                 : "bg-background dark:border-zinc-700",

@@ -38,7 +38,7 @@ export function PricingCard({
   return (
     <Card
       className={cn(
-        "flex flex-col gap-6 rounded-2xl p-6 shadow-none md:p-8",
+        "flex flex-col gap-6 rounded-[18px] p-6 shadow-none md:p-8",
         borderColor ? `border-2 ${borderColor}` : "",
         isRecommended
           ? "border-2 border-[#ffaa40] bg-zinc-50 dark:bg-black/50"

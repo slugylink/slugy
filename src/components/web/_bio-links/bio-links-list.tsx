@@ -135,7 +135,7 @@ export default function BioLinksList({ links, theme }: BioLinksProps) {
   if (!links.length) {
     return (
       <p
-        className={`min-h-[150px] rounded-2xl px-4 py-6 text-center backdrop-blur ${theme.textColor}`}
+        className={`min-h-[150px] rounded-[18px] px-4 py-6 text-center backdrop-blur ${theme.textColor}`}
       >
         No links available.
       </p>

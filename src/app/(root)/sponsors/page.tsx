@@ -60,7 +60,7 @@ export default function Sponsors() {
                   ease: "easeOut",
                   delay: 0.3 + index * 0.1,
                 }}
-                className="w-full max-w-sm rounded-2xl border bg-zinc-100/80 p-1"
+                className="w-full max-w-sm rounded-[18px] border bg-zinc-100/80 p-1"
               >
                 <Card className="h-full border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
                   <CardHeader className="">

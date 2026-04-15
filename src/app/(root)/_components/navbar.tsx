@@ -53,7 +53,7 @@ function NavbarLogo() {
       aria-label="Go to home page"
     >
       <div className="text-sidebar-primary-foreground flex aspect-square shrink-0 items-center justify-center rounded-lg">
-        <AppLogo className="rounded-md" />
+        <AppLogo className="rounded-lg" />
       </div>
       <div className="flex flex-col items-start leading-none">
         <span className="text-xl font-medium tracking-tight">Slugy</span>

@@ -18,7 +18,7 @@ const heroData = {
     text: (
       <>
         Not Backed by{" "}
-        <span className="mx-2 aspect-square size-5 bg-orange-500 p-[1px] text-center text-white">
+        <span className="mx-2 aspect-square size-5 bg-orange-500 p-[0px] text-center text-white">
           Y
         </span>{" "}
         Combinator
