@@ -15,6 +15,11 @@ export default function Pricing() {
             Choose the perfect plan for your needs and start optimizing your
             workflow today
           </p>
+          <p className="text-primary mx-auto mt-3 max-w-xl text-sm font-medium">
+            Use code{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
+            to get a free $1.
+          </p>
         </div>
         <div className="@container relative mt-12 md:mt-20">
           <Card className="relative mx-auto max-w-sm rounded-none @4xl:max-w-3xl">

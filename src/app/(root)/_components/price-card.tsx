@@ -55,6 +55,11 @@ export function PricingCard({
           )}
         </div>
         <p className="text-muted-foreground text-sm">{description}</p>
+        <p className="text-primary text-xs font-medium">
+          Use code{" "}
+          <span className="rounded bg-red-500/10 px-2 py-0.5">BETALAUNCH</span>{" "}
+          to get a free $1.
+        </p>
       </div>
       <div className="flex items-baseline gap-2">
         <div className="text-4xl font-bold">

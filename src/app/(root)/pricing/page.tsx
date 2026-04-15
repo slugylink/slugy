@@ -14,6 +14,11 @@ export default function PricingSection() {
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
+          <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
+            Use code{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
+            to get a free $1.
+          </p>
         </div>
 
         {/* Use PricingComparator instead of individual cards */}

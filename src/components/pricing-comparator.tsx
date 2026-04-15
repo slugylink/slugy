@@ -227,6 +227,11 @@ export default function PricingComparator({
   return (
     <section>
       <div className="mx-auto">
+        <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
+          Use code{" "}
+          <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span> to
+          get a free $1.
+        </p>
         <div className="mb-8 flex justify-end">
           <Tabs
             value={billingPeriod}
