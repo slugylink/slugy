@@ -267,7 +267,7 @@ export default function QRCodeDesigner({
   onOpenChange,
   onCustomizationSaved,
 }: QRCodeDesignerProps) {
-  const url = `https://${domain}/${code}?via=qr`;
+  const url = `https://${domain}/${code}?ref=qr`;
 
   // State
   const [isSaving, setIsSaving] = useState(false);
