@@ -22,15 +22,20 @@ function isLegacyFreePlan(planType: string | null, planName?: string | null) {
 
 function isLegacyUnpaidBasicSubscription(input: {
   planType: string | null;
+  customerId?: string | null;
   provider?: string | null;
   priceId?: string | null;
 }) {
   const normalizedType = (input.planType ?? "").toLowerCase();
   const normalizedProvider = (input.provider ?? "").toLowerCase();
+  const hasCustomerId = Boolean(
+    input.customerId && input.customerId.trim().length > 0,
+  );
   const hasPriceId = Boolean(input.priceId && input.priceId.trim().length > 0);
 
   return (
     normalizedType === "basic" &&
+    !hasCustomerId &&
     (normalizedProvider === "internal" || !hasPriceId)
   );
 }
@@ -79,6 +84,7 @@ export default function LegacyFreeUpgradePopup() {
       isLegacyFreePlan(planType, subscription?.plan?.name) ||
       isLegacyUnpaidBasicSubscription({
         planType,
+        customerId: subscription?.customerId,
         provider: subscription?.provider,
         priceId: subscription?.priceId,
       })
@@ -88,6 +94,7 @@ export default function LegacyFreeUpgradePopup() {
     isExemptPage,
     planType,
     subscription?.plan?.name,
+    subscription?.customerId,
     subscription?.provider,
     subscription?.priceId,
   ]);

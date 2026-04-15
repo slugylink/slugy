@@ -11,6 +11,7 @@ interface SubscriptionPlan {
 interface ActiveSubscription {
   id?: string;
   priceId?: string | null;
+  customerId?: string | null;
   provider?: string | null;
   status?: string;
   periodStart?: string | Date;
