@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { memo } from "react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import Sponsors from "./_components/sponsors";
@@ -12,6 +13,9 @@ const LOADING_HEIGHT = {
   pricing: "h-[500px]",
   openSource: "h-[300px]",
 } as const;
+
+const HERO_BG_IMAGE =
+  "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=1920&q=72";
 
 // Loading spinner component
 const LoadingSpinner = memo(function LoadingSpinner() {
@@ -95,16 +99,19 @@ export default function Home() {
   return (
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
       {/* Hero Section */}
-      <div
-        style={{
-          backgroundImage:
-            "url('https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?q=80&w=1176&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-        className="relative mx-auto w-[99%] rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16"
-      >
-        <div className="z-20 mx-auto max-w-6xl py-4">
+      <div className="relative mx-auto w-[99%] overflow-hidden rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16">
+        <Image
+          src={HERO_BG_IMAGE}
+          alt="Sand dunes in evening light"
+          fill
+          priority
+          quality={70}
+          sizes="(max-width: 640px) 100vw, (max-width: 1200px) 95vw, 1200px"
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-white/30" />
+
+        <div className="relative z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
       </div>
