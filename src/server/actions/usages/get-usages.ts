@@ -2,6 +2,7 @@
 
 import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 interface WorkspaceData {
   maxClicksLimit: number;
@@ -35,61 +36,36 @@ export async function getUsages({
     const { user } = authResult.session;
     const userId = user.id;
 
-    const [workspace, usage] = await Promise.all([
-      db.workspace.findFirst({
-        where: {
-          slug: workspaceslug,
-          OR: [
-            { userId },
-            {
-              members: {
-                some: {
-                  userId,
-                },
+    const workspace = await db.workspace.findFirst({
+      where: {
+        slug: workspaceslug,
+        OR: [
+          { userId },
+          {
+            members: {
+              some: {
+                userId,
               },
             },
-          ],
-        },
-        select: {
-          id: true,
-          maxClicksLimit: true,
-          maxLinksLimit: true,
-          maxUsers: true,
-        },
-      }),
-
-      db.usage.findFirst({
-        where: {
-          userId,
-          workspace: {
-            slug: workspaceslug,
-            OR: [
-              { userId },
-              {
-                members: {
-                  some: {
-                    userId,
-                  },
-                },
-              },
-            ],
           },
-          deletedAt: null,
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-          clicksTracked: true,
-          linksCreated: true,
-          addedUsers: true,
-          periodStart: true,
-          periodEnd: true,
-        },
-      }),
-    ]);
+        ],
+      },
+      select: {
+        id: true,
+        maxClicksLimit: true,
+        maxLinksLimit: true,
+        maxUsers: true,
+      },
+    });
 
     if (!workspace) {
       return { workspace: null, usage: null };
     }
+
+    const usage = await ensureCurrentUsageRecord(db, {
+      workspaceId: workspace.id,
+      userId,
+    });
 
     return { workspace, usage };
   } catch (error) {

@@ -11,6 +11,7 @@ import { waitUntil } from "@vercel/functions";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -300,17 +301,19 @@ export async function POST(
           tags = assignedTags.map((tag) => ({ tag }));
         }
 
+        const currentUsage = await ensureCurrentUsageRecord(tx, {
+          workspaceId: workspaceCheck.workspace.id,
+          userId: session.user.id,
+        });
+
         // Update workspace and usage stats
         await Promise.all([
           tx.workspace.update({
             where: { id: workspaceCheck.workspace.id },
             data: { linksUsage: { increment: 1 } },
           }),
-          tx.usage.updateMany({
-            where: {
-              workspaceId: workspaceCheck.workspace.id,
-              deletedAt: null,
-            },
+          tx.usage.update({
+            where: { id: currentUsage.id },
             data: { linksCreated: { increment: 1 } },
           }),
         ]);

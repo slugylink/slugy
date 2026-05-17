@@ -11,6 +11,7 @@ import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
 import { jsonWithETag } from "@/lib/http";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 export async function GET(
   req: Request,
@@ -682,16 +683,18 @@ export async function POST(
     // Update usage counters once at the end
     if (totalCreatedCount > 0) {
       await db.$transaction(async (tx) => {
+        const currentUsage = await ensureCurrentUsageRecord(tx, {
+          workspaceId: workspaceCheck.workspace.id,
+          userId: session.user.id,
+        });
+
         await Promise.all([
           tx.workspace.update({
             where: { id: workspaceCheck.workspace.id },
             data: { linksUsage: { increment: totalCreatedCount } },
           }),
-          tx.usage.updateMany({
-            where: {
-              workspaceId: workspaceCheck.workspace.id,
-              userId: session.user.id,
-            },
+          tx.usage.update({
+            where: { id: currentUsage.id },
             data: { linksCreated: { increment: totalCreatedCount } },
           }),
         ]);

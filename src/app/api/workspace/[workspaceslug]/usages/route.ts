@@ -1,6 +1,7 @@
 import { jsonWithETag } from "@/lib/http";
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 // ============================================================================
 // Types
@@ -43,22 +44,21 @@ async function getWorkspaceData(workspaceslug: string, userId: string) {
 }
 
 async function getUsageData(workspaceslug: string, userId: string) {
-  return db.usage.findFirst({
+  const workspace = await db.workspace.findFirst({
     where: {
-      workspace: {
-        slug: workspaceslug,
-        ...buildWorkspaceAccessFilter(userId),
-      },
-      deletedAt: null,
+      slug: workspaceslug,
+      ...buildWorkspaceAccessFilter(userId),
     },
-    orderBy: { createdAt: "desc" },
-    select: {
-      clicksTracked: true,
-      linksCreated: true,
-      addedUsers: true,
-      periodStart: true,
-      periodEnd: true,
-    },
+    select: { id: true },
+  });
+
+  if (!workspace) {
+    return null;
+  }
+
+  return ensureCurrentUsageRecord(db, {
+    workspaceId: workspace.id,
+    userId,
   });
 }
 

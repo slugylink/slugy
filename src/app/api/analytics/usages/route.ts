@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
 import { setWorkspaceLimitsCache } from "@/lib/cache-utils/workspace-cache";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 // Input validation schema
 const usagesSchema = z.object({
@@ -50,17 +51,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const [usageRecord, workspace] = await Promise.all([
-      db.usage.findFirst({
-        where: { workspaceId },
-        select: { id: true, clicksTracked: true },
-        orderBy: { createdAt: "desc" },
-      }),
-      db.workspace.findUnique({
-        where: { id: workspaceId },
-        select: { maxClicksLimit: true },
-      }),
-    ]);
+    const workspace = await db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { maxClicksLimit: true, userId: true },
+    });
+
+    if (!workspace) {
+      return NextResponse.json(
+        { error: "Workspace not found for workspaceId: " + workspaceId },
+        { status: 404 },
+      );
+    }
+
+    const usageRecord = await ensureCurrentUsageRecord(db, {
+      workspaceId,
+      userId: workspace.userId,
+    });
 
     if (!usageRecord) {
       return NextResponse.json(
@@ -71,7 +77,7 @@ export async function POST(req: NextRequest) {
 
     // Enforce monthly click limit per workspace (from subscription plan)
     if (
-      workspace?.maxClicksLimit != null &&
+      workspace.maxClicksLimit != null &&
       usageRecord.clicksTracked >= workspace.maxClicksLimit
     ) {
       return NextResponse.json(
@@ -122,7 +128,10 @@ export async function POST(req: NextRequest) {
     );
 
     // Update cache with fresh clicksTracked value for fast subsequent checks
-    if (workspace?.maxClicksLimit != null && updatedUsage.usageUpdate.clicksTracked != null) {
+    if (
+      workspace.maxClicksLimit != null &&
+      updatedUsage.usageUpdate.clicksTracked != null
+    ) {
       void setWorkspaceLimitsCache(workspaceId, {
         maxClicksLimit: workspace.maxClicksLimit,
         clicksTracked: updatedUsage.usageUpdate.clicksTracked,

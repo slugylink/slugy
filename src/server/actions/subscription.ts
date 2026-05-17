@@ -7,6 +7,10 @@ import {
   activateBasicEntitlement,
   activeSubscriptionSelect,
 } from "@/lib/subscription/basic-entitlement";
+import {
+  reconcileSubscriptionIfStale,
+  subscriptionWithPlanSelect,
+} from "@/lib/subscription/reconcile";
 
 export async function getActiveSubscription(userId: string) {
   try {
@@ -48,40 +52,16 @@ export async function getActiveSubscription(userId: string) {
 
 export async function getSubscriptionWithPlan(userId: string) {
   try {
-    const subscription = await db.subscription.findFirst({
+    const rawSubscription = await db.subscription.findFirst({
       where: {
         referenceId: userId,
         status: {
           in: ["active", "trialing"],
         },
       },
-      select: {
-        id: true,
-        customerId: true,
-        provider: true,
-        status: true,
-        periodStart: true,
-        periodEnd: true,
-        cancelAtPeriodEnd: true,
-        canceledAt: true,
-        billingInterval: true,
-        plan: {
-          select: {
-            id: true,
-            name: true,
-            planType: true,
-            maxWorkspaces: true,
-            maxLinksPerWorkspace: true,
-            maxClicksPerWorkspace: true,
-            maxUsers: true,
-            maxCustomDomains: true,
-            maxGalleries: true,
-            maxLinksPerBio: true,
-            maxTagsPerWorkspace: true,
-          },
-        },
-      },
+      select: subscriptionWithPlanSelect,
     });
+    const subscription = await reconcileSubscriptionIfStale(rawSubscription);
 
     if (!subscription) {
       return {

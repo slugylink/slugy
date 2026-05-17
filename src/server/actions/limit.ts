@@ -2,6 +2,7 @@
 import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
 import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 //* Optimized function to check workspace access and link limits in one query
 export async function checkWorkspaceAccessAndLimits(
@@ -73,8 +74,13 @@ export async function checkWorkspaceAccessAndLimits(
       };
     }
 
+    const currentUsageRecord = await ensureCurrentUsageRecord(db, {
+      workspaceId: workspace.id,
+      userId,
+    });
+
     const currentLinks =
-      workspace.usages?.[0]?.linksCreated ?? workspace._count.links;
+      currentUsageRecord.linksCreated ?? workspace._count.links;
     const canCreateLinks = currentLinks < maxLinks;
 
     return {
