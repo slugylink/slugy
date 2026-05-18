@@ -12,17 +12,15 @@ async function processBatch(workspaces: BatchWorkspace[]) {
 
   const workspaceIds = workspaces.map((w) => w.id);
 
-  const memberCountsRaw = await db.member.groupBy({
-    by: ["workspaceId"],
+  const members = await db.member.findMany({
     where: { workspaceId: { in: workspaceIds } },
-    _count: { id: true },
+    select: { workspaceId: true },
   });
 
   const memberCountMap = new Map<string, number>();
-  for (const m of memberCountsRaw) {
-    if (m.workspaceId) {
-      memberCountMap.set(m.workspaceId, m._count.id);
-    }
+  for (const member of members) {
+    const count = memberCountMap.get(member.workspaceId) ?? 0;
+    memberCountMap.set(member.workspaceId, count + 1);
   }
 
   const latestUsagesRaw = await db.usage.findMany({
@@ -42,43 +40,47 @@ async function processBatch(workspaces: BatchWorkspace[]) {
     }
   }
 
-  return db.$transaction(async (tx) => {
-    let resetCount = 0;
-    let processedCount = 0;
+  let resetCount = 0;
+  let processedCount = 0;
+  let failedCount = 0;
+  const failures: Array<{ workspaceId: string; error: string }> = [];
 
-    for (const workspace of workspaces) {
-      processedCount++;
-      const currentUsage = latestUsageMap.get(workspace.id);
-      const memberCount = memberCountMap.get(workspace.id) ?? 0;
+  for (const workspace of workspaces) {
+    processedCount++;
+    const currentUsage = latestUsageMap.get(workspace.id);
+    const memberCount = memberCountMap.get(workspace.id) ?? 0;
 
+    try {
       if (currentUsage && isUsagePeriodExpired(currentUsage.periodEnd, now)) {
-        await tx.usage.update({
-          where: { id: currentUsage.id },
-          data: { deletedAt: now },
-        });
+        await db.$transaction(async (tx) => {
+          await tx.usage.update({
+            where: { id: currentUsage.id },
+            data: { deletedAt: now },
+          });
 
-        const { periodStart, periodEnd } = calculateUsagePeriod(
-          currentUsage.periodEnd,
-          now,
-        );
+          const { periodStart, periodEnd } = calculateUsagePeriod(
+            currentUsage.periodEnd,
+            now,
+          );
 
-        await tx.usage.create({
-          data: {
-            userId: workspace.userId,
-            workspaceId: workspace.id,
-            linksCreated: 0,
-            clicksTracked: 0,
-            addedUsers: memberCount,
-            periodStart,
-            periodEnd,
-          },
+          await tx.usage.create({
+            data: {
+              userId: workspace.userId,
+              workspaceId: workspace.id,
+              linksCreated: 0,
+              clicksTracked: 0,
+              addedUsers: memberCount,
+              periodStart,
+              periodEnd,
+            },
+          });
         });
 
         resetCount++;
       } else if (!currentUsage) {
         const { periodStart, periodEnd } = calculateUsagePeriod(null, now);
 
-        await tx.usage.create({
+        await db.usage.create({
           data: {
             userId: workspace.userId,
             workspaceId: workspace.id,
@@ -92,10 +94,19 @@ async function processBatch(workspaces: BatchWorkspace[]) {
 
         resetCount++;
       }
+    } catch (error) {
+      failedCount++;
+      const message = error instanceof Error ? error.message : "Unknown error";
+      failures.push({ workspaceId: workspace.id, error: message });
+      console.error("[Usage Cron] Failed workspace:", {
+        workspaceId: workspace.id,
+        userId: workspace.userId,
+        error: message,
+      });
     }
+  }
 
-    return { resetCount, processedCount };
-  });
+  return { resetCount, processedCount, failedCount, failures };
 }
 
 async function handler() {
@@ -103,11 +114,16 @@ async function handler() {
     const totalWorkspaces = await db.workspace.count();
 
     if (totalWorkspaces === 0) {
-      return NextResponse.json({ message: "No workspaces found" }, { status: 200 });
+      return NextResponse.json(
+        { message: "No workspaces found" },
+        { status: 200 },
+      );
     }
 
     let processedTotal = 0;
     let resetTotal = 0;
+    let failedTotal = 0;
+    const failures: Array<{ workspaceId: string; error: string }> = [];
 
     for (let skip = 0; skip < totalWorkspaces; skip += BATCH_SIZE) {
       const batch = await db.workspace.findMany({
@@ -121,20 +137,37 @@ async function handler() {
 
       if (batch.length === 0) break;
 
-      const { resetCount, processedCount } = await processBatch(batch);
+      const {
+        resetCount,
+        processedCount,
+        failedCount,
+        failures: batchFailures,
+      } = await processBatch(batch);
       processedTotal += processedCount;
       resetTotal += resetCount;
+      failedTotal += failedCount;
+      failures.push(...batchFailures);
     }
 
-    return NextResponse.json({
-      message: "Usage cron job completed",
-      processed: processedTotal,
-      reset: resetTotal,
-      timestamp: new Date().toISOString(),
-    });
+    const hasFailures = failedTotal > 0;
+
+    return NextResponse.json(
+      {
+        message: "Usage cron job completed",
+        processed: processedTotal,
+        reset: resetTotal,
+        failed: failedTotal,
+        failures: failures.slice(0, 20),
+        timestamp: new Date().toISOString(),
+      },
+      { status: hasFailures ? 207 : 200 },
+    );
   } catch (error) {
     console.error("Error in usage cron job:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
