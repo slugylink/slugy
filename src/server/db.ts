@@ -6,7 +6,7 @@ import { readReplicas } from "@prisma/extension-read-replicas";
 
 // Neon WebSocket config for Node.js (once)
 neonConfig.webSocketConstructor = ws;
-neonConfig.poolQueryViaFetch = true;
+// neonConfig.poolQueryViaFetch = true;
 
 declare global {
   var prisma: PrismaClient | undefined;
@@ -20,8 +20,16 @@ function createPrismaClient(): PrismaClient {
   let client = new PrismaClient({ adapter, log: ["error"] });
 
   if (process.env.DATABASE_REPLICA_URL) {
+    const replicaAdapter = new PrismaNeon({
+      connectionString: process.env.DATABASE_REPLICA_URL,
+    });
+    const replicaClient = new PrismaClient({
+      adapter: replicaAdapter,
+      log: ["error"],
+    });
+
     client = client.$extends(
-      readReplicas({ url: process.env.DATABASE_REPLICA_URL! }),
+      readReplicas({ replicas: [replicaClient] }),
     ) as unknown as PrismaClient;
   }
 

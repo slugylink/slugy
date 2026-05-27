@@ -1,4 +1,4 @@
-import { sql } from "@/server/neon";
+import { primarySql, sql } from "@/server/neon";
 import { getLinkCache, setLinkCache } from "@/lib/cache-utils/link-cache";
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -65,8 +65,9 @@ const isValidSlug = (slug: string): boolean => {
 const fetchLinkFromDatabase = async (
   slug: string,
   domain: string,
+  client: typeof sql = sql,
 ): Promise<LinkCache | null> => {
-  const result = await sql`
+  const result = await client`
     SELECT 
       l.id, 
       l.url, 
@@ -153,6 +154,9 @@ export async function getLink(
     // Cache miss - fetch from database
     if (!link) {
       link = await fetchLinkFromDatabase(slug, domain);
+      if (!link && primarySql !== sql) {
+        link = await fetchLinkFromDatabase(slug, domain, primarySql);
+      }
 
       if (link) {
         // Set cache asynchronously (non-blocking)

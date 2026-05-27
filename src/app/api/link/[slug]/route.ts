@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { sql } from "@/server/neon";
+import { primarySql, sql } from "@/server/neon";
 import { jsonWithETag } from "@/lib/http";
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -50,9 +50,10 @@ const parseCookies = (cookieHeader: string | null): Record<string, string> => {
 const getCachedLink = async (
   slug: string,
   domain: string,
+  client: typeof sql = sql,
 ): Promise<LinkData | null> => {
   try {
-    const result = await sql`
+    const result = await client`
       SELECT id, url, "expiresAt", "expirationUrl", password, "workspaceId", domain
       FROM "links"
       WHERE slug = ${slug} AND domain = ${domain} AND "isArchived" = false
@@ -109,7 +110,10 @@ export async function GET(
     }
 
     // Fetch link
-    const link = await getCachedLink(slug, domain);
+    let link = await getCachedLink(slug, domain);
+    if (!link && primarySql !== sql) {
+      link = await getCachedLink(slug, domain, primarySql);
+    }
 
     if (!link) {
       return jsonWithETag(req, {
