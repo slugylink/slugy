@@ -137,12 +137,14 @@ export async function GET(
       const obj: Record<string, unknown> = {};
       columns.forEach((col) => {
         const dbField = columnMap[col];
-        const value = link[dbField];
+        const value = link[dbField] as unknown;
         if (
           (col === "createdAt" || col === "updatedAt") &&
           value instanceof Date
         ) {
           obj[col] = value.toISOString();
+        } else if (typeof value === "bigint") {
+          obj[col] = value.toString();
         } else if (col === "tags" && Array.isArray(value)) {
           obj[col] = value.join(",");
         } else {

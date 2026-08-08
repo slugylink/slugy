@@ -15,7 +15,8 @@ export function jsonWithETag(
   payload: unknown,
   init?: number | ResponseInit,
 ): NextResponse {
-  const etag = generateETag(payload);
+  const safePayload = toJsonSafe(payload);
+  const etag = generateETag(safePayload);
   const headers = buildHeaders(init, etag);
 
   // Return 304 if client has valid cached version
@@ -27,7 +28,7 @@ export function jsonWithETag(
   const responseInit: ResponseInit =
     typeof init === "number" ? { status: init, headers } : { ...init, headers };
 
-  return NextResponse.json(payload, responseInit);
+  return NextResponse.json(safePayload, responseInit);
 }
 
 // ─────────── Helpers ───────────
@@ -39,6 +40,31 @@ function generateETag(payload: unknown): string {
   const jsonString = JSON.stringify(payload);
   const hash = createHash("sha256").update(jsonString).digest("base64url");
   return `W/"${hash}"`;
+}
+
+export function toJsonSafe<T>(value: T): T {
+  if (typeof value === "bigint") {
+    return Number(value) as T;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toJsonSafe(item)) as T;
+  }
+
+  if (value instanceof Date || value === null || value === undefined) {
+    return value;
+  }
+
+  if (typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        toJsonSafe(nestedValue),
+      ]),
+    ) as T;
+  }
+
+  return value;
 }
 
 /**

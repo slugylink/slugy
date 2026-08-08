@@ -5,6 +5,7 @@ import { z } from "zod";
 import { headers } from "next/headers";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
+import { toJsonSafe } from "@/lib/http";
 
 export async function PATCH(
   req: Request,
@@ -108,7 +109,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         message: "Theme updated",
-        gallery: safeGallery,
+        gallery: toJsonSafe(safeGallery),
       },
       { status: 200 },
     );

@@ -360,7 +360,7 @@ model Link {
   metadesc       String?
   description    String?
   workspaceId    String
-  clicks         Int       @default(0)
+  clicks         BigInt    @default(0)
   lastClicked    DateTime?
   password       String?
   expiresAt      DateTime?
@@ -381,8 +381,8 @@ model Link {
   utm_term       String?
   video          String?
   expirationUrl  String?
-  conversions    Int       @default(0)
-  leads          Int       @default(0)
+  conversions    BigInt    @default(0)
+  leads          BigInt    @default(0)
   publicStats    Boolean   @default(false)
   customDomainId String?
   
