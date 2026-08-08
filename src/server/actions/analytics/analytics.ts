@@ -17,6 +17,22 @@ type AnalyticsMetric =
   | "referrers"
   | "destinations";
 
+const METRIC_FLAGS = {
+  totalClicks: 1 << 0,
+  clicksOverTime: 1 << 1,
+  links: 1 << 2,
+  cities: 1 << 3,
+  countries: 1 << 4,
+  continents: 1 << 5,
+  devices: 1 << 6,
+  browsers: 1 << 7,
+  oses: 1 << 8,
+  referrers: 1 << 9,
+  destinations: 1 << 10,
+} as const satisfies Record<AnalyticsMetric, number>;
+
+type MetricFlags = number;
+
 // Analytics data for a single link
 interface LinkAnalytics {
   slug: string;
@@ -61,6 +77,7 @@ interface AnalyticsRequestProps extends BaseAnalyticsProps {
 
 // Aggregation maps type for metrics
 interface AggregationMaps {
+  totalClicks?: number;
   clicksOverTime?: Map<string, number>;
   cities?: Map<string, { city: string; country: string; clicks: number }>;
   countries?: Map<string, number>;
@@ -80,6 +97,20 @@ const PERIODS: Record<Exclude<TimePeriod, "all">, Duration> = {
   "3m": { months: 3 },
   "12m": { months: 12 },
 };
+
+function getMetricFlags(metrics: AnalyticsMetric[]): MetricFlags {
+  let flags = 0;
+
+  for (const metric of metrics) {
+    flags |= METRIC_FLAGS[metric];
+  }
+
+  return flags;
+}
+
+function hasMetric(flags: MetricFlags, metric: AnalyticsMetric): boolean {
+  return (flags & METRIC_FLAGS[metric]) !== 0;
+}
 
 function roundToNearestHour(date: Date): Date {
   const rounded = new Date(date);
@@ -118,30 +149,61 @@ function processAnalyticsData(
   }>,
   timePeriod: TimePeriod,
   links: Array<{ id: string; slug: string; url: string }>,
-  metrics: AnalyticsMetric[]
+  metrics: AnalyticsMetric[],
 ): AggregationMaps {
-  const linkIdToUrl = new Map(links.map(link => [link.id, link.url]));
+  const metricFlags = getMetricFlags(metrics);
+  const linkIdToUrl = new Map(links.map((link) => [link.id, link.url]));
   // Only initialize maps for requested metrics
   const aggregationMaps: AggregationMaps = {};
-  if (metrics.includes("clicksOverTime")) aggregationMaps.clicksOverTime = new Map<string, number>();
-  if (metrics.includes("cities")) aggregationMaps.cities = new Map<string, { city: string; country: string; clicks: number }>();
-  if (metrics.includes("countries")) aggregationMaps.countries = new Map<string, number>();
-  if (metrics.includes("continents")) aggregationMaps.continents = new Map<string, number>();
-  if (metrics.includes("devices")) aggregationMaps.devices = new Map<string, number>();
-  if (metrics.includes("browsers")) aggregationMaps.browsers = new Map<string, number>();
-  if (metrics.includes("oses")) aggregationMaps.oses = new Map<string, number>();
-  if (metrics.includes("referrers")) aggregationMaps.referrers = new Map<string, number>();
-  if (metrics.includes("destinations")) aggregationMaps.destinations = new Map<string, number>();
+  if (hasMetric(metricFlags, "totalClicks")) aggregationMaps.totalClicks = 0;
+  if (hasMetric(metricFlags, "clicksOverTime")) {
+    aggregationMaps.clicksOverTime = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "cities")) {
+    aggregationMaps.cities = new Map<
+      string,
+      { city: string; country: string; clicks: number }
+    >();
+  }
+  if (hasMetric(metricFlags, "countries")) {
+    aggregationMaps.countries = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "continents")) {
+    aggregationMaps.continents = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "devices")) {
+    aggregationMaps.devices = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "browsers")) {
+    aggregationMaps.browsers = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "oses")) {
+    aggregationMaps.oses = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "referrers")) {
+    aggregationMaps.referrers = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "destinations")) {
+    aggregationMaps.destinations = new Map<string, number>();
+  }
 
   for (const record of analyticsData) {
-    if (metrics.includes("clicksOverTime") && aggregationMaps.clicksOverTime) {
+    if (aggregationMaps.totalClicks !== undefined) {
+      aggregationMaps.totalClicks += record._count;
+    }
+
+    if (aggregationMaps.clicksOverTime) {
       let timeKey: Date;
       if (timePeriod === "24h") {
         timeKey = roundToNearestHour(record.clickedAt);
       } else if (timePeriod === "7d" || timePeriod === "30d") {
         timeKey = roundToNearestDate(record.clickedAt);
       } else {
-        timeKey = new Date(record.clickedAt.getFullYear(), record.clickedAt.getMonth(), 1);
+        timeKey = new Date(
+          record.clickedAt.getFullYear(),
+          record.clickedAt.getMonth(),
+          1,
+        );
       }
       const timeKeyStr = timeKey.toISOString();
       aggregationMaps.clicksOverTime.set(
@@ -149,7 +211,7 @@ function processAnalyticsData(
         (aggregationMaps.clicksOverTime.get(timeKeyStr) ?? 0) + record._count,
       );
     }
-    if (metrics.includes("cities") && aggregationMaps.cities) {
+    if (aggregationMaps.cities) {
       const cityKey = `${record.city ?? "Unknown"}|${record.country ?? "Unknown"}`;
       const cityData = aggregationMaps.cities.get(cityKey) ?? {
         city: record.city ?? "Unknown",
@@ -159,16 +221,20 @@ function processAnalyticsData(
       cityData.clicks += record._count;
       aggregationMaps.cities.set(cityKey, cityData);
     }
-    const updateMetric = (map: Map<string, number> | undefined, key: string) => {
+    const updateMetric = (
+      map: Map<string, number> | undefined,
+      key: string,
+    ) => {
       if (map) map.set(key, (map.get(key) ?? 0) + record._count);
     };
-    if (metrics.includes("countries")) updateMetric(aggregationMaps.countries, record.country ?? "Unknown");
-    if (metrics.includes("continents")) updateMetric(aggregationMaps.continents, record.continent ?? "Unknown");
-    if (metrics.includes("devices")) updateMetric(aggregationMaps.devices, record.device ?? "Unknown");
-    if (metrics.includes("browsers")) updateMetric(aggregationMaps.browsers, record.browser ?? "Unknown");
-    if (metrics.includes("oses")) updateMetric(aggregationMaps.oses, record.os ?? "Unknown");
-    if (metrics.includes("referrers")) updateMetric(aggregationMaps.referrers, record.referer ?? "Unknown");
-    if (metrics.includes("destinations") && aggregationMaps.destinations) {
+    updateMetric(aggregationMaps.countries, record.country ?? "Unknown");
+    updateMetric(aggregationMaps.continents, record.continent ?? "Unknown");
+    updateMetric(aggregationMaps.devices, record.device ?? "Unknown");
+    updateMetric(aggregationMaps.browsers, record.browser ?? "Unknown");
+    updateMetric(aggregationMaps.oses, record.os ?? "Unknown");
+    updateMetric(aggregationMaps.referrers, record.referer ?? "Unknown");
+
+    if (aggregationMaps.destinations) {
       const url = linkIdToUrl.get(record.linkId) ?? "Unknown";
       updateMetric(aggregationMaps.destinations, url);
     }
@@ -184,61 +250,84 @@ function formatAnalyticsResponse(
   aggregationMaps: AggregationMaps,
   links: Array<{ id: string; slug: string; url: string }>,
   linkClicksMap: Map<string, number>,
-  metrics: AnalyticsMetric[]
+  metrics: AnalyticsMetric[],
 ): AnalyticsResponse {
+  const metricFlags = getMetricFlags(metrics);
   const response: AnalyticsResponse = {};
-  if (metrics.includes("totalClicks") && aggregationMaps.clicksOverTime) {
-    response.totalClicks = Array.from(aggregationMaps.clicksOverTime.values()).reduce((sum: number, clicks: number) => sum + clicks, 0);
+
+  if (hasMetric(metricFlags, "totalClicks")) {
+    response.totalClicks = aggregationMaps.totalClicks ?? 0;
   }
-  if (metrics.includes("clicksOverTime") && aggregationMaps.clicksOverTime) {
-    response.clicksOverTime = Array.from(aggregationMaps.clicksOverTime.entries())
-      .map(([time, clicks]: [string, number]) => ({ time: new Date(time), clicks }))
+
+  if (
+    hasMetric(metricFlags, "clicksOverTime") &&
+    aggregationMaps.clicksOverTime
+  ) {
+    response.clicksOverTime = Array.from(
+      aggregationMaps.clicksOverTime.entries(),
+    )
+      .map(([time, clicks]: [string, number]) => ({
+        time: new Date(time),
+        clicks,
+      }))
       .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
-  if (metrics.includes("links")) {
-    response.links = links.map(link => ({
+
+  if (hasMetric(metricFlags, "links")) {
+    response.links = links.map((link) => ({
       slug: link.slug,
       url: link.url,
       clicks: linkClicksMap.get(link.id) ?? 0,
     }));
   }
-  if (metrics.includes("cities") && aggregationMaps.cities) {
+
+  if (hasMetric(metricFlags, "cities") && aggregationMaps.cities) {
     response.cities = Array.from(aggregationMaps.cities.values());
   }
-  if (metrics.includes("countries") && aggregationMaps.countries) {
+
+  if (hasMetric(metricFlags, "countries") && aggregationMaps.countries) {
     response.countries = Array.from(aggregationMaps.countries.entries()).map(
-      ([country, clicks]: [string, number]) => ({ country, clicks })
+      ([country, clicks]: [string, number]) => ({ country, clicks }),
     );
   }
-  if (metrics.includes("continents") && aggregationMaps.continents) {
+
+  if (hasMetric(metricFlags, "continents") && aggregationMaps.continents) {
     response.continents = Array.from(aggregationMaps.continents.entries()).map(
-      ([continent, clicks]: [string, number]) => ({ continent, clicks })
+      ([continent, clicks]: [string, number]) => ({ continent, clicks }),
     );
   }
-  if (metrics.includes("devices") && aggregationMaps.devices) {
+
+  if (hasMetric(metricFlags, "devices") && aggregationMaps.devices) {
     response.devices = Array.from(aggregationMaps.devices.entries()).map(
-      ([device, clicks]: [string, number]) => ({ device, clicks })
+      ([device, clicks]: [string, number]) => ({ device, clicks }),
     );
   }
-  if (metrics.includes("browsers") && aggregationMaps.browsers) {
+
+  if (hasMetric(metricFlags, "browsers") && aggregationMaps.browsers) {
     response.browsers = Array.from(aggregationMaps.browsers.entries()).map(
-      ([browser, clicks]: [string, number]) => ({ browser, clicks })
+      ([browser, clicks]: [string, number]) => ({ browser, clicks }),
     );
   }
-  if (metrics.includes("oses") && aggregationMaps.oses) {
+
+  if (hasMetric(metricFlags, "oses") && aggregationMaps.oses) {
     response.oses = Array.from(aggregationMaps.oses.entries()).map(
-      ([os, clicks]: [string, number]) => ({ os, clicks })
+      ([os, clicks]: [string, number]) => ({ os, clicks }),
     );
   }
-  if (metrics.includes("referrers") && aggregationMaps.referrers) {
+
+  if (hasMetric(metricFlags, "referrers") && aggregationMaps.referrers) {
     response.referrers = Array.from(aggregationMaps.referrers.entries()).map(
-      ([referrer, clicks]: [string, number]) => ({ referrer, clicks })
+      ([referrer, clicks]: [string, number]) => ({ referrer, clicks }),
     );
   }
-  if (metrics.includes("destinations") && aggregationMaps.destinations) {
-    response.destinations = Array.from(aggregationMaps.destinations.entries()).map(
-      ([destination, clicks]: [string, number]) => ({ destination, clicks })
-    );
+
+  if (hasMetric(metricFlags, "destinations") && aggregationMaps.destinations) {
+    response.destinations = Array.from(
+      aggregationMaps.destinations.entries(),
+    ).map(([destination, clicks]: [string, number]) => ({
+      destination,
+      clicks,
+    }));
   }
   return response;
 }
@@ -256,6 +345,7 @@ export {
   roundToNearestHour,
   roundToNearestDate,
   getStartDate,
+  getMetricFlags,
   processAnalyticsData,
   formatAnalyticsResponse,
 };
