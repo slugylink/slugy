@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 import { jsonWithETag } from "@/lib/http";
+import { maskLinkPassword } from "@/lib/link-password";
 
 // Types for database queries
 type LinkWhereInput = {
@@ -247,10 +248,15 @@ export async function GET(
       adjustedOffset,
     );
 
+    const maskedLinks = links.map((link) => ({
+      ...link,
+      password: maskLinkPassword(link.password),
+    }));
+
     return jsonWithETag(
       request,
       {
-        links,
+        links: maskedLinks,
         totalLinks,
         ...paginationInfo,
       },

@@ -34,6 +34,7 @@ export default function LinkPassword({
   disabled = false,
   isFreePlan = false,
 }: LinkPasswordProps) {
+  const hasExistingPassword = Boolean(password);
   const {
     register,
     setValue,
@@ -43,7 +44,7 @@ export default function LinkPassword({
     trigger,
   } = useForm({
     resolver: zodResolver(formSchema),
-    defaultValues: { password: password || "" },
+    defaultValues: { password: "" },
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -51,10 +52,18 @@ export default function LinkPassword({
   const [localError, setLocalError] = useState<string | null>(null);
 
   useEffect(() => {
-    setValue("password", password || "");
-  }, [password, setValue]);
+    // Never put the API mask into the input — enter a new password to change
+    setValue("password", "");
+  }, [password, setValue, open]);
 
   const onSave = async () => {
+    const pwd = getValues("password");
+    if (!pwd && hasExistingPassword) {
+      // Keep existing (masked) password
+      setOpen(false);
+      setLocalError(null);
+      return;
+    }
     const valid = await trigger("password");
     if (!valid) {
       setLocalError(
@@ -62,7 +71,6 @@ export default function LinkPassword({
       );
       return;
     }
-    const pwd = getValues("password");
     setPassword(pwd);
     if (handlePasswordSave) handlePasswordSave(pwd);
     setOpen(false);
@@ -81,10 +89,7 @@ export default function LinkPassword({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          className={cn(
-            "text-xs",
-            disabled && "cursor-not-allowed opacity-60",
-          )}
+          className={cn("text-xs", disabled && "cursor-not-allowed opacity-60")}
           type="button"
           variant="outline"
           size="sm"
@@ -100,7 +105,7 @@ export default function LinkPassword({
           Password
         </Button>
       </DialogTrigger>
-      <DialogContent className=" sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-medium">Link Password</DialogTitle>
         </DialogHeader>
@@ -108,7 +113,11 @@ export default function LinkPassword({
           <div className="relative">
             <Input
               type={showPassword ? "text" : "password"}
-              placeholder="Enter password"
+              placeholder={
+                hasExistingPassword
+                  ? "Password set — enter new to change"
+                  : "Enter password"
+              }
               {...register("password")}
               className="w-full pr-10"
             />
@@ -127,13 +136,17 @@ export default function LinkPassword({
             </p>
           )}
           <DialogFooter className="flex w-full items-center sm:justify-between">
-            <button
-              type="button"
-              className="cursor-pointer text-xs"
-              onClick={handleRemovePassword}
-            >
-              Remove password
-            </button>
+            {hasExistingPassword ? (
+              <button
+                type="button"
+                className="cursor-pointer text-xs"
+                onClick={handleRemovePassword}
+              >
+                Remove password
+              </button>
+            ) : (
+              <span />
+            )}
             <div className="flex gap-2">
               <Button
                 variant="outline"
@@ -143,9 +156,7 @@ export default function LinkPassword({
                 Cancel
               </Button>
               <Button type="button" onClick={onSave} disabled={isFreePlan}>
-                {isFreePlan && (
-                  <Lock className="mr-1 h-3 w-3" />
-                )}
+                {isFreePlan && <Lock className="mr-1 h-3 w-3" />}
                 Save
               </Button>
             </div>

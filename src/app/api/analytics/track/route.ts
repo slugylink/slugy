@@ -29,27 +29,6 @@ const analyticsSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
-    const internalSecret = process.env.INTERNAL_ANALYTICS_SECRET;
-    if (!internalSecret) {
-      return jsonWithETag(
-        req,
-        apiErrorPayload(
-          "Analytics writer is not configured",
-          "SERVICE_UNAVAILABLE",
-        ),
-        { status: 503 },
-      );
-    }
-
-    const provided = req.headers.get("x-slugy-internal-secret");
-    if (!provided || provided !== internalSecret) {
-      return jsonWithETag(
-        req,
-        apiErrorPayload("Unauthorized", "UNAUTHORIZED"),
-        { status: 401 },
-      );
-    }
-
     const body = await req.json();
     const validationResult = analyticsSchema.safeParse(body);
 

@@ -4,23 +4,48 @@ import { jsonWithETag } from "@/lib/http";
 import { headers } from "next/headers";
 import { z } from "zod";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
-import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
+import {
+  invalidateLinkCache,
+  setLinkCache,
+} from "@/lib/cache-utils/link-cache";
 import { updateLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
+import {
+  hashLinkPassword,
+  isPasswordUnchanged,
+  maskLinkPassword,
+} from "@/lib/link-password";
+import { assertSafeDestinationUrl, isHttpUrl } from "@/lib/url-policy";
 
 const DEFAULT_DOMAIN = "slugy.co";
 const MAX_TAGS_PER_WORKSPACE = 5;
 
 const updateLinkSchema = z.object({
-  url: z.string().url().optional(),
+  url: z
+    .string()
+    .url()
+    .refine((value) => isHttpUrl(value), {
+      message: "Only http(s) URLs are allowed",
+    })
+    .optional(),
   slug: z.string().max(50).optional(),
   description: z.string().max(500).optional().nullable(),
   image: z.string().url().optional().nullable(),
   title: z.string().max(100).optional().nullable(),
   metadesc: z.string().max(500).optional().nullable(),
-  password: z.string().min(3).max(50).optional().nullable(),
+  password: z
+    .union([z.literal("********"), z.string().min(3).max(50)])
+    .optional()
+    .nullable(),
   expiresAt: z.string().datetime().optional().nullable(),
-  expirationUrl: z.string().url().optional().nullable(),
+  expirationUrl: z
+    .string()
+    .url()
+    .refine((value) => isHttpUrl(value), {
+      message: "Only http(s) expiration URLs are allowed",
+    })
+    .optional()
+    .nullable(),
   utm_source: z.string().optional().nullable(),
   utm_medium: z.string().optional().nullable(),
   utm_campaign: z.string().optional().nullable(),
@@ -135,19 +160,26 @@ export async function PATCH(
       }
     }
 
-    // Prevent recursive links: do not allow destination URL to be a slugy.co short link
+    // Prevent recursive / unsafe destinations
     if (typeof validatedData.url === "string") {
-      const ownDomainPattern =
-        /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
-      if (ownDomainPattern.test(validatedData.url)) {
-        return jsonWithETag(
-          req,
-          {
-            error:
-              "Recursive links are not allowed. You cannot shorten a slugy.co link.",
-          },
-          { status: 400 },
-        );
+      const urlCheck = await assertSafeDestinationUrl(validatedData.url, {
+        customDomains: customDomainName ? [customDomainName] : [link.domain],
+      });
+      if (!urlCheck.ok) {
+        return jsonWithETag(req, { error: urlCheck.message }, { status: 400 });
+      }
+    }
+
+    if (typeof validatedData.expirationUrl === "string") {
+      const expCheck = await assertSafeDestinationUrl(
+        validatedData.expirationUrl,
+        {
+          customDomains: customDomainName ? [customDomainName] : [link.domain],
+          skipSafetyScan: true,
+        },
+      );
+      if (!expCheck.ok) {
+        return jsonWithETag(req, { error: expCheck.message }, { status: 400 });
       }
     }
 
@@ -198,6 +230,17 @@ export async function PATCH(
         // If customDomainId is being updated, also update the domain field
         if (validatedData.customDomainId !== undefined) {
           updateData.domain = customDomainName || DEFAULT_DOMAIN;
+        }
+
+        // Password: mask = keep; null = clear; new string = hash
+        if (validatedData.password !== undefined) {
+          if (isPasswordUnchanged(validatedData.password)) {
+            delete updateData.password;
+          } else if (validatedData.password === null) {
+            updateData.password = null;
+          } else {
+            updateData.password = hashLinkPassword(validatedData.password);
+          }
         }
 
         // Update the link
@@ -337,26 +380,51 @@ export async function PATCH(
         return updatedLink;
       });
 
-      // Invalidate cache for the updated link
-      await invalidateLinkCache(
-        linkWithTags.slug!,
-        linkWithTags.domain || DEFAULT_DOMAIN,
-      );
+      const oldDomain = link.domain || DEFAULT_DOMAIN;
+      const newDomain = linkWithTags.domain || DEFAULT_DOMAIN;
+      const responseLink = {
+        ...linkWithTags,
+        password: maskLinkPassword(linkWithTags.password),
+      };
 
-      // Update link metadata in Tinybird
       waitUntil(
-        updateLink({
-          id: linkWithTags.id,
-          domain: linkWithTags.domain || DEFAULT_DOMAIN,
-          slug: linkWithTags.slug,
-          url: linkWithTags.url,
-          workspaceId: workspace.id,
-          createdAt: linkWithTags.createdAt,
-          tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
-        }),
+        (async () => {
+          // Drop stale keys if slug/domain changed
+          if (link.slug !== linkWithTags.slug || oldDomain !== newDomain) {
+            await invalidateLinkCache(link.slug!, oldDomain);
+          }
+          await setLinkCache(
+            linkWithTags.slug!,
+            {
+              id: linkWithTags.id,
+              url: linkWithTags.url,
+              expiresAt: linkWithTags.expiresAt
+                ? linkWithTags.expiresAt.toISOString()
+                : null,
+              expirationUrl: linkWithTags.expirationUrl,
+              password: linkWithTags.password ? "1" : null,
+              workspaceId: workspace.id,
+              domain: newDomain,
+              title: linkWithTags.title,
+              image: linkWithTags.image,
+              metadesc: linkWithTags.metadesc,
+              description: linkWithTags.description,
+            },
+            newDomain,
+          );
+          await updateLink({
+            id: linkWithTags.id,
+            domain: newDomain,
+            slug: linkWithTags.slug,
+            url: linkWithTags.url,
+            workspaceId: workspace.id,
+            createdAt: linkWithTags.createdAt,
+            tags: linkWithTags.tags.map((t) => ({ tagId: t.tag.id })),
+          });
+        })(),
       );
 
-      return jsonWithETag(req, linkWithTags, { status: 200 });
+      return jsonWithETag(req, responseLink, { status: 200 });
     } catch (error: unknown) {
       // Handle unique constraint violation
       if (

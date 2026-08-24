@@ -65,9 +65,7 @@ export const SUBDOMAINS = {
 } as const;
 
 export const FAST_API_PATTERNS = [
-  /^\/api\/link\/[^\/]+$/,
   /^\/api\/analytics\/track$/,
   /^\/api\/redirect\/[^\/]+$/,
   /^\/api\/metadata$/,
-  /^\/api\/rate-limit$/,
 ];

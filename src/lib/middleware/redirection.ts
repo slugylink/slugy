@@ -8,6 +8,7 @@ import {
   type CachedAnalyticsData,
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
+import { recordLinkClick } from "@/lib/analytics/record-click";
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
@@ -335,28 +336,13 @@ async function trackAnalytics(
           utm_content: utmParams.utm_content ?? "",
         }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
-        // Send to internal analytics API (signed)
-        fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(process.env.INTERNAL_ANALYTICS_SECRET
-              ? {
-                  "x-slugy-internal-secret":
-                    process.env.INTERNAL_ANALYTICS_SECRET,
-                }
-              : {}),
-          },
-          body: JSON.stringify({
-            linkId,
-            slug,
-            domain: finalDomain,
-            workspaceId,
-            analyticsData: analytics,
-            trigger,
-            timestamp,
-          }),
-        }).catch((err) => console.error("[Internal Analytics Error]", err)),
+        // Edge-safe click counters (no origin HTTP hop)
+        recordLinkClick({
+          linkId,
+          workspaceId,
+          slug,
+          domain: finalDomain,
+        }).catch((err) => console.error("[Click Counter Error]", err)),
 
         // Cache analytics event
         cacheAnalyticsEvent(cachedData),

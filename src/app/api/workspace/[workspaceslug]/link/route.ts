@@ -12,14 +12,14 @@ import { Prisma } from "@prisma/client";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
+import { hashLinkPassword, maskLinkPassword } from "@/lib/link-password";
+import { assertSafeDestinationUrl } from "@/lib/url-policy";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
   7,
 );
 
-const RECURSIVE_LINK_PATTERN =
-  /^https?:\/\/(www\.)?(slugy\.co)(:[0-9]+)?\/[a-zA-Z0-9_-]{1,50}$/;
 const DEFAULT_DOMAIN = "slugy.co";
 const MAX_TAGS_PER_WORKSPACE = 5;
 
@@ -236,18 +236,6 @@ export async function POST(
       );
     }
 
-    // Prevent recursive links
-    if (RECURSIVE_LINK_PATTERN.test(validatedData.url)) {
-      return jsonWithETag(
-        req,
-        apiErrorPayload(
-          "Recursive links are not allowed. You cannot shorten a slugy.co link.",
-          "BAD_REQUEST",
-        ),
-        { status: 400 },
-      );
-    }
-
     // Verify custom domain if provided
     let customDomainName: string | null = null;
     if (validatedData.customDomainId) {
@@ -264,9 +252,40 @@ export async function POST(
       }
     }
 
+    const urlCheck = await assertSafeDestinationUrl(validatedData.url, {
+      customDomains: customDomainName ? [customDomainName] : [],
+    });
+    if (!urlCheck.ok) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(urlCheck.message, "BAD_REQUEST"),
+        { status: 400 },
+      );
+    }
+
+    if (validatedData.expirationUrl) {
+      const expCheck = await assertSafeDestinationUrl(
+        validatedData.expirationUrl,
+        {
+          customDomains: customDomainName ? [customDomainName] : [],
+          skipSafetyScan: true,
+        },
+      );
+      if (!expCheck.ok) {
+        return jsonWithETag(
+          req,
+          apiErrorPayload(expCheck.message, "BAD_REQUEST"),
+          { status: 400 },
+        );
+      }
+    }
+
     // Generate or use provided slug
     const slug = validatedData.slug?.trim() || nanoid();
     const domain = customDomainName || DEFAULT_DOMAIN;
+    const storedPassword = validatedData.password
+      ? hashLinkPassword(validatedData.password)
+      : null;
 
     // Create the link first, then finish counters/side-effects off the critical path.
     // Interactive Prisma transactions on Neon serverless commonly add multiple seconds.
@@ -283,7 +302,7 @@ export async function POST(
           title: validatedData.title,
           description: validatedData.description,
           metadesc: validatedData.metadesc ?? null,
-          password: validatedData.password,
+          password: storedPassword,
           ...(validatedData.expiresAt && {
             expiresAt: new Date(validatedData.expiresAt),
           }),
@@ -330,6 +349,7 @@ export async function POST(
 
       result = {
         ...link,
+        password: maskLinkPassword(link.password),
         tags,
       };
     } catch (error: unknown) {
@@ -373,7 +393,7 @@ export async function POST(
                 ? result.expiresAt.toISOString()
                 : null,
               expirationUrl: result.expirationUrl,
-              password: result.password,
+              password: storedPassword ? "1" : null,
               workspaceId: workspaceCheck.workspace.id,
               domain,
               title: result.title,

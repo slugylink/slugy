@@ -4,6 +4,7 @@ import {
   setLinkCache,
   setNegativeLinkCache,
 } from "@/lib/cache-utils/link-cache";
+import { isPasswordVerifiedCookieValid } from "@/lib/link-password";
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 const MAX_SLUG_LENGTH = 50;
@@ -99,7 +100,7 @@ const fetchLinkFromDatabase = async (
     url: row.url,
     expiresAt: row.expiresAt ?? null,
     expirationUrl: row.expirationUrl ?? null,
-    password: row.password ?? null,
+    password: row.password ? "1" : null,
     workspaceId: row.workspaceId,
     domain: row.custom_domain || row.domain,
     title: row.title ?? null,
@@ -119,7 +120,11 @@ const isPasswordVerified = (
   domain: string,
   slug: string,
 ): boolean => {
-  return Boolean(cookies[`password_verified_${domain}_${slug}`]);
+  return isPasswordVerifiedCookieValid(
+    cookies[`password_verified_${domain}_${slug}`],
+    domain,
+    slug,
+  );
 };
 
 const errorResponse = (
