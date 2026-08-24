@@ -613,13 +613,17 @@ export const templates = {
 </html>
 `,
 
-  welcome: (params: { name: string; dashboardUrl: string }) => `
+  welcome: (params: {
+    name: string;
+    dashboardUrl: string;
+    workspaceName: string;
+  }) => `
     <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Welcome to slugy</title>
+    <title>Welcome to ${params.workspaceName}</title>
 
     <style>
       body {
@@ -775,7 +779,7 @@ export const templates = {
             <!-- Heading -->
             <tr>
               <td class="pb-16">
-                <h1 class="h1">Welcome ${params.name}!</h1>
+                <h1 class="h1">Welcome to ${params.workspaceName}</h1>
               </td>
             </tr>
 
@@ -783,8 +787,8 @@ export const templates = {
             <tr>
               <td class="pb-28">
                 <p class="p">
-                  Thank you for signing up for slugy! You can now start creating
-                  short links, track analytics, and explore bio links.
+                  Hi ${params.name}, your workspace is ready. You can now start
+                  creating short links, track analytics, and explore bio links.
                 </p>
               </td>
             </tr>
@@ -807,15 +811,12 @@ export const templates = {
             <tr>
               <td class="pb-20">
                 <p class="p-space">
-                  ◆ Create a
-                  <a href="#" class="link" style="color: #0a0a0a"
-                    >new workspace</a
-                  >
-                  and add your custom domain
+                  ◆ Add a custom domain to
+                  ${params.workspaceName}
                 </p>
                 <p class="p-space">
                   ◆ Create your first
-                  <a href="#" class="link" style="color: #0a0a0a">short link</a>
+                  <a href="${params.dashboardUrl}" class="link" style="color: #0a0a0a">short link</a>
                 </p>
                 <p class="p-space">
                   ◆ Track advanced analytics, try bio links, and manage all your
@@ -828,7 +829,7 @@ export const templates = {
             <tr>
               <td class="pb-32">
                 <a href="${params.dashboardUrl}" class="button" style="color: #ffffff"
-                  >Go to your dashboard</a
+                  >Open ${params.workspaceName}</a
                 >
               </td>
             </tr>

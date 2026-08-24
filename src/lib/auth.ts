@@ -10,7 +10,6 @@ import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { origins } from "@/constants/origins";
 import { templates } from "@/constants/email-templates";
-import { inngest } from "@/inngest/client";
 
 let _polarClientAuth: Polar | null = null;
 
@@ -97,27 +96,6 @@ export const auth = betterAuth({
         subject: "Verify Your Email",
         text: `Please click the following link to verify your email: ${verificationUrl}`,
         html: htmlTemplate,
-      });
-    },
-    afterEmailVerification: async (userData: { id: string; email: string }) => {
-      const userWithCreatedAt = await db.user.findUnique({
-        where: { id: userData.id },
-        select: {
-          emailVerified: true,
-          name: true,
-        },
-      });
-
-      if (!userWithCreatedAt) return;
-
-      // Send welcome shortly after verification. Inngest handles retries/background execution.
-      void inngest.send({
-        name: "app/user.welcome",
-        data: {
-          userId: userData.id,
-          email: userData.email,
-          name: userWithCreatedAt.name,
-        },
       });
     },
   },

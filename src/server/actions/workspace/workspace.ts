@@ -16,6 +16,7 @@ import {
   setWorkspaceValidationCache,
   invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
+import { inngest } from "@/inngest/client";
 
 // Revalidate all workspace-related cache tags
 async function revalidateWorkspaceTags() {
@@ -101,6 +102,21 @@ export async function createWorkspace({
               addedUsers: 1,
               periodStart,
               periodEnd,
+            },
+          });
+        })(),
+        (async () => {
+          const email = authResult.session.user.email;
+          if (!email) return;
+          await inngest.send({
+            name: "app/workspace.welcome",
+            data: {
+              userId,
+              email,
+              name: authResult.session.user.name,
+              workspaceId: workspace.id,
+              workspaceName: workspace.name,
+              workspaceSlug: workspace.slug,
             },
           });
         })(),

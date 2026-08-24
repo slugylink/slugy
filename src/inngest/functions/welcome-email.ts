@@ -6,6 +6,9 @@ type WelcomeEmailEventData = {
   userId: string;
   email: string;
   name?: string | null;
+  workspaceId?: string;
+  workspaceName?: string | null;
+  workspaceSlug?: string | null;
 };
 
 const getAppBaseUrl = () =>
@@ -14,10 +17,17 @@ const getAppBaseUrl = () =>
   process.env.NEXT_BASE_URL ||
   "http://localhost:3000";
 
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
 export const welcomeEmailFunction = inngest.createFunction(
   {
-    id: "user-welcome-email",
-    triggers: { event: "app/user.welcome" },
+    id: "workspace-welcome-email",
+    triggers: { event: "app/workspace.welcome" },
   },
   async ({ event, step }) => {
     const data = event.data as WelcomeEmailEventData;
@@ -25,25 +35,33 @@ export const welcomeEmailFunction = inngest.createFunction(
       throw new Error("Missing welcome-email event payload: email");
     }
 
-    const dashboardUrl = `${getAppBaseUrl()}/login`;
+    const workspaceName = data.workspaceName?.trim() || "your workspace";
+    const dashboardUrl = data.workspaceSlug
+      ? `${getAppBaseUrl()}/${data.workspaceSlug}`
+      : `${getAppBaseUrl()}/app`;
     const name = data.name || "there";
 
     const welcomeTemplate = templates["welcome"]({
-      name,
+      name: escapeHtml(name),
+      workspaceName: escapeHtml(workspaceName),
       dashboardUrl,
     });
 
-    const text = `Welcome to slugy! You can now start creating short links, track analytics, and explore bio links. Visit your dashboard at ${dashboardUrl}`;
+    const text = `Welcome to ${workspaceName} on slugy! You can now start creating short links, track analytics, and explore bio links. Open your workspace at ${dashboardUrl}`;
 
     return await step.run("send-welcome-email", async () => {
       await sendEmail({
         to: data.email,
-        subject: "Welcome to slugy!",
+        subject: `Welcome to ${workspaceName}`,
         text,
         html: welcomeTemplate,
       });
 
-      return { sent: true, userId: data.userId };
+      return {
+        sent: true,
+        userId: data.userId,
+        workspaceId: data.workspaceId,
+      };
     });
   },
 );
