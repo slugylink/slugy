@@ -57,6 +57,12 @@ enum ResourcePermission {
   write
 }
 
+enum ConversionEventType {
+  lead
+  sale
+  custom
+}
+
 // -------------User & Authentication--------------
 
 model User {
@@ -257,6 +263,9 @@ model Workspace {
   customDomains    CustomDomain[]
   usages           Usage[]
   apiKeys          WorkspaceApiKey[]
+  customers        Customer[]
+  conversionEvents ConversionEvent[]
+  trackedClicks    TrackedClick[]
 
   @@index([slug])
   @@index([userId, isDefault])
@@ -264,20 +273,21 @@ model Workspace {
 }
 
 model WorkspaceApiKey {
-  id                   String                @id @default(cuid())
-  name                 String
-  key                  String                @unique
-  workspaceId          String
-  createdBy            String
-  permissionLevel      ApiKeyPermissionLevel @default(restricted)
-  linksPermission      ResourcePermission    @default(none)
-  domainsPermission    ResourcePermission    @default(none)
-  workspacesPermission ResourcePermission    @default(none)
-  lastUsed             DateTime?
-  expiresAt            DateTime?
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  deletedAt            DateTime?
+  id                     String                @id @default(cuid())
+  name                   String
+  key                    String                @unique
+  workspaceId            String
+  createdBy              String
+  permissionLevel        ApiKeyPermissionLevel @default(restricted)
+  linksPermission        ResourcePermission    @default(none)
+  domainsPermission      ResourcePermission    @default(none)
+  workspacesPermission   ResourcePermission    @default(none)
+  conversionsPermission  ResourcePermission    @default(none)
+  lastUsed               DateTime?
+  expiresAt              DateTime?
+  createdAt              DateTime              @default(now())
+  updatedAt              DateTime              @updatedAt
+  deletedAt              DateTime?
   
   // Relations
   creator   User      @relation("CreatedApiKeys", fields: [createdBy], references: [id])
@@ -390,10 +400,13 @@ model Link {
   creator         User?            @relation(fields: [userId], references: [id])
   workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   customDomain    CustomDomain?    @relation(fields: [customDomainId], references: [id], onDelete: Cascade)
-  tags            LinkTag[]
-  analytics       Analytics[]
-  qrCode          QrCode?
-  SharedAnalytics SharedAnalytics?
+  tags             LinkTag[]
+  analytics        Analytics[]
+  qrCode           QrCode?
+  SharedAnalytics  SharedAnalytics?
+  customers        Customer[]
+  conversionEvents ConversionEvent[]
+  trackedClicks    TrackedClick[]
 
   @@unique([slug, domain])
   @@index([slug])
@@ -404,6 +417,77 @@ model Link {
   @@index([workspaceId, clicks])
   @@index([workspaceId, lastClicked])
   @@map("links")
+}
+
+// ---------- Conversion tracking (Dub-style) ----------
+
+model TrackedClick {
+  id          String   @id // clickId
+  linkId      String
+  workspaceId String
+  slug        String
+  url         String
+  domain      String
+  country     String?
+  createdAt   DateTime @default(now())
+
+  link      Link      @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([linkId])
+  @@map("tracked_clicks")
+}
+
+model Customer {
+  id         String   @id @default(cuid())
+  workspaceId String
+  externalId String
+  email      String?
+  name       String?
+  avatar     String?
+  clickId    String?
+  linkId     String?
+  country    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  link             Link?             @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  conversionEvents ConversionEvent[]
+
+  @@unique([workspaceId, externalId])
+  @@index([workspaceId])
+  @@index([clickId])
+  @@map("customers")
+}
+
+model ConversionEvent {
+  id                 String              @id @default(cuid())
+  workspaceId        String
+  linkId             String
+  clickId            String?
+  customerId         String?
+  customerExternalId String?
+  type               ConversionEventType
+  eventName          String
+  amount             Int? // cents
+  currency           String?
+  invoiceId          String?
+  paymentProcessor   String?
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  link      Link      @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  customer  Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, invoiceId])
+  @@index([workspaceId, customerExternalId, eventName, type])
+  @@index([workspaceId, createdAt])
+  @@index([linkId, createdAt])
+  @@index([clickId])
+  @@map("conversion_events")
 }
 
 model Analytics {

@@ -3,11 +3,14 @@ import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 import { apiErrors } from "@/lib/api-response";
+import { db } from "@/server/db";
+import { getStartDate } from "@/server/actions/analytics/analytics";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 type AnalyticsMetric =
   | "totalClicks"
+  | "totalLeads"
   | "clicksOverTime"
   | "links"
   | "cities"
@@ -22,6 +25,7 @@ type AnalyticsMetric =
 // Accept both singular and plural forms from client
 type ClientMetric =
   | "totalClicks"
+  | "totalLeads"
   | "clicksOverTime"
   | "links"
   | "cities"
@@ -56,6 +60,7 @@ const analyticsPropsSchema = z
       .array(
         z.enum([
           "totalClicks",
+          "totalLeads",
           "clicksOverTime",
           "links",
           "cities",
@@ -361,6 +366,7 @@ export async function GET(
     // Client only sends metrics when requesting a subset
     const requestedMetrics = props.metrics || [
       "totalClicks",
+      "totalLeads",
       "clicksOverTime",
       "links",
       "cities",
@@ -428,6 +434,30 @@ export async function GET(
       normalizedMetrics,
       props.timePeriod,
     );
+
+    // Conversion leads (Postgres) — lead-only v1
+    if (normalizedMetrics.includes("totalLeads")) {
+      const startDate = getStartDate(props.timePeriod);
+      const leadWhere: {
+        workspaceId: string;
+        type: "lead";
+        createdAt?: { gte: Date };
+        link?: { slug: string };
+      } = {
+        workspaceId,
+        type: "lead",
+      };
+      if (props.timePeriod !== "all") {
+        leadWhere.createdAt = { gte: startDate };
+      }
+      if (props.slug_key) {
+        leadWhere.link = { slug: props.slug_key };
+      }
+
+      analyticsData.totalLeads = await db.conversionEvent.count({
+        where: leadWhere,
+      });
+    }
 
     // Cache headers for better performance
     const cacheHeaders = {

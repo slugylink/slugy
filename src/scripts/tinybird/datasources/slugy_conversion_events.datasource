@@ -1,0 +1,22 @@
+# Conversion events attributed via click_id (Dub-style)
+
+SCHEMA >
+    `timestamp` DateTime64(3) `json:$.timestamp`,
+    `event_id` String `json:$.event_id`,
+    `click_id` Nullable(String) `json:$.click_id`,
+    `link_id` String `json:$.link_id`,
+    `workspace_id` String `json:$.workspace_id`,
+    `customer_id` Nullable(String) `json:$.customer_id`,
+    `customer_external_id` Nullable(String) `json:$.customer_external_id`,
+    `event_type` LowCardinality(String) `json:$.event_type`,
+    `event_name` String `json:$.event_name`,
+    `amount` Nullable(Int64) `json:$.amount`,
+    `currency` LowCardinality(String) `json:$.currency`,
+    `invoice_id` Nullable(String) `json:$.invoice_id`,
+    `payment_processor` LowCardinality(String) `json:$.payment_processor`,
+    `country` LowCardinality(String) `json:$.country`,
+    `metadata` String `json:$.metadata`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "timestamp, workspace_id, link_id, event_type"

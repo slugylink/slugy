@@ -7,6 +7,7 @@ export interface LinkClickEvent {
   timestamp?: string; // ISO string milliseconds
   link_id: string;
   workspace_id: string;
+  click_id?: string;
   slug: string;
   url: string;
   domain: string;
@@ -35,6 +36,7 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
     timestamp: event.timestamp ?? new Date().toISOString(),
     link_id: event.link_id,
     workspace_id: event.workspace_id,
+    click_id: event.click_id ?? "",
     slug: event.slug,
     url: event.url,
     domain: event.domain,

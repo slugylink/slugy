@@ -1,0 +1,52 @@
+DESCRIPTION >
+    Aggregate conversion events (leads, sales, custom) by workspace / link / time
+
+NODE conversion_events_filtered
+SQL >
+    %
+    SELECT
+        timestamp,
+        event_id,
+        click_id,
+        link_id,
+        workspace_id,
+        customer_id,
+        customer_external_id,
+        event_type,
+        event_name,
+        amount,
+        currency,
+        invoice_id,
+        payment_processor,
+        country
+    FROM slugy_conversion_events
+    WHERE
+        workspace_id = {{ String(workspace_id, required=True) }}
+        {% if defined(link_id) %}
+            AND link_id = {{ String(link_id) }}
+        {% end %}
+        {% if defined(event_type) %}
+            AND event_type = {{ String(event_type) }}
+        {% end %}
+        {% if defined(start) %}
+            AND timestamp >= {{ DateTime(start) }}
+        {% end %}
+        {% if defined(end) %}
+            AND timestamp <= {{ DateTime(end) }}
+        {% end %}
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        event_type,
+        count() AS events,
+        countIf(event_type = 'lead') AS leads,
+        countIf(event_type = 'sale') AS sales,
+        countIf(event_type = 'custom') AS custom_events,
+        sumIf(amount, event_type = 'sale') AS revenue_cents,
+        uniqExact(click_id) AS unique_clicks_converted,
+        uniqExact(customer_external_id) AS unique_customers
+    FROM conversion_events_filtered
+    GROUP BY event_type
+    ORDER BY event_type

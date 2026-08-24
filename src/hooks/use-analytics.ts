@@ -6,6 +6,7 @@ export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
 export interface AnalyticsData {
   totalClicks: number;
+  totalLeads: number;
   clicksOverTime: Array<{ time: Date; clicks: number }>;
   links: Array<{ slug: string; url: string; domain: string; clicks: number }>;
   cities: Array<{ city: string; country: string; clicks: number }>;
@@ -36,6 +37,7 @@ const SWR_ERROR_RETRY_INTERVAL = 3000;
 
 const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
   "totalClicks",
+  "totalLeads",
   "clicksOverTime",
   "links",
   "cities",
@@ -54,6 +56,7 @@ const METRIC_FALLBACKS: Record<
   AnalyticsData[keyof AnalyticsData]
 > = {
   totalClicks: 0,
+  totalLeads: 0,
   clicksOverTime: [],
   links: [],
   cities: [],

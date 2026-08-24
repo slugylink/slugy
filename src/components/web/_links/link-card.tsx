@@ -67,6 +67,7 @@ interface LinkData {
   url: string;
   slug: string;
   clicks: number;
+  leads?: number;
   description?: string | null;
   password?: string | null;
   createdAt?: Date | null;
@@ -357,7 +358,8 @@ export default function LinkCard({
         {/* Actions */}
         <div className="flex h-full w-auto items-center justify-end">
           <AnalyticsBadge
-            clicks={link.clicks}
+            clicks={Number(link.clicks)}
+            leads={Number(link.leads ?? 0)}
             isPublic={isPublic}
             pathname={pathname}
             slug={link.slug}

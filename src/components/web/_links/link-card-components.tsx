@@ -46,6 +46,7 @@ interface DescriptionTooltipProps {
 
 interface AnalyticsBadgeProps {
   clicks: number;
+  leads?: number;
   isPublic: boolean;
   pathname: string;
   slug: string;
@@ -153,6 +154,7 @@ export const DescriptionTooltip = ({
 // Analytics Badge Component
 export const AnalyticsBadge = ({
   clicks,
+  leads = 0,
   isPublic,
   pathname,
   slug,
@@ -169,6 +171,15 @@ export const AnalyticsBadge = ({
             <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""} />
             {formatNumber(clicks)}
             <span className="hidden sm:inline">clicks</span>
+            {leads > 0 && (
+              <>
+                <span className="text-muted-foreground">·</span>
+                <span className={leads > 0 ? "text-emerald-600" : undefined}>
+                  {formatNumber(Number(leads))}
+                </span>
+                <span className="hidden sm:inline">leads</span>
+              </>
+            )}
           </div>
         </Link>
       </TooltipTrigger>

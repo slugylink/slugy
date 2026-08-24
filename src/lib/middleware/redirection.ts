@@ -10,6 +10,13 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 import { recordLinkClick } from "@/lib/analytics/record-click";
+import { createClickId } from "@/lib/conversions/ids";
+import { storeClickAttribution } from "@/lib/conversions/click-attribution";
+import {
+  SLUGY_ID_COOKIE,
+  SLUGY_ID_COOKIE_MAX_AGE,
+  SLUGY_ID_PARAM,
+} from "@/lib/conversions/constants";
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
@@ -155,14 +162,38 @@ function extractUTMParams(urlString: string): UTMParams {
 }
 
 // Create safe redirect with fallback — only http(s) destinations
-function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
+function createSafeRedirect(
+  url: string,
+  fallbackUrl: string,
+  options?: { clickId?: string; cookieDomain?: string },
+): NextResponse {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       console.error(`Blocked non-http(s) redirect URL: ${url}`);
       return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
     }
-    return NextResponse.redirect(parsed, REDIRECT_STATUS);
+
+    if (options?.clickId) {
+      parsed.searchParams.set(SLUGY_ID_PARAM, options.clickId);
+    }
+
+    const response = NextResponse.redirect(parsed, REDIRECT_STATUS);
+
+    if (options?.clickId) {
+      const cookieParts = [
+        `${SLUGY_ID_COOKIE}=${encodeURIComponent(options.clickId)}`,
+        "Path=/",
+        `Max-Age=${SLUGY_ID_COOKIE_MAX_AGE}`,
+        "SameSite=Lax",
+      ];
+      if (options.cookieDomain) {
+        cookieParts.push(`Domain=${options.cookieDomain}`);
+      }
+      response.headers.append("Set-Cookie", cookieParts.join("; "));
+    }
+
+    return response;
   } catch (error) {
     console.error(`Invalid redirect URL: ${url}`, error);
     return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
@@ -288,6 +319,7 @@ async function trackAnalytics(
   workspaceId: string,
   domain: string | undefined,
   trigger: string,
+  clickId: string,
 ): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
@@ -317,6 +349,7 @@ async function trackAnalytics(
         timestamp,
         link_id: linkId,
         workspace_id: workspaceId,
+        click_id: clickId,
         slug,
         url,
         domain: finalDomain,
@@ -455,6 +488,10 @@ export async function URLRedirects(
       // waitUntil MUST be registered before the 302 returns — a bare void/async
       // after Redis will be frozen on Vercel and Tinybird events never land.
       if (!isBot && trigger !== "prefetch") {
+        const clickId = createClickId();
+        const cookieDomain =
+          domain && domain !== DEFAULT_DOMAIN ? domain : undefined;
+
         waitUntil(
           (async () => {
             const ipAddress = getIpAddress(req);
@@ -462,6 +499,24 @@ export async function URLRedirects(
               ipAddress,
               shortCode,
             );
+
+            const finalDomain = domain || DEFAULT_DOMAIN;
+            const timestamp = new Date().toISOString();
+            const geo = getGeoData(req);
+
+            // Always persist clickId attribution so track APIs can resolve it,
+            // even when click analytics are rate-limited.
+            await storeClickAttribution({
+              clickId,
+              linkId: linkData.linkId!,
+              workspaceId: linkData.workspaceId!,
+              slug: shortCode,
+              url: linkData.url!,
+              domain: finalDomain,
+              country: geo.country,
+              createdAt: timestamp,
+            }).catch((err) => console.error("[Click Attribution Error]", err));
+
             if (isRateLimited) return;
 
             await trackAnalytics(
@@ -472,9 +527,15 @@ export async function URLRedirects(
               linkData.workspaceId!,
               domain,
               trigger,
+              clickId,
             );
           })(),
         );
+
+        return createSafeRedirect(linkData.url, `${origin}/?status=error`, {
+          clickId,
+          cookieDomain,
+        });
       }
 
       return createSafeRedirect(linkData.url, `${origin}/?status=error`);

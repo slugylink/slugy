@@ -72,6 +72,7 @@ const VALID_FILTER_KEYS: readonly FilterKey[] = [
 
 const ANALYTICS_METRICS = [
   "totalClicks",
+  "totalLeads",
   "clicksOverTime",
   "links",
   "cities",
@@ -405,6 +406,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           {...sharedProps}
           data={chartData}
           totalClicks={res?.totalClicks}
+          totalLeads={res?.totalLeads}
           isRefreshing={chartRefreshing}
         />
 

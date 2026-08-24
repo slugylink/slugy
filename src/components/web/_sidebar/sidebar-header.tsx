@@ -7,6 +7,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 // Map last URL segments to human-friendly titles
 const PAGE_TITLES: Record<string, string> = {
   analytics: "Analytics",
+  leads: "Leads",
   "bio-links": "Bio Links",
   settings: "Settings",
   team: "Team",
@@ -15,6 +16,7 @@ const PAGE_TITLES: Record<string, string> = {
   library: "Library",
   domains: "Domains",
   upgrade: "Upgrade",
+  "api-keys": "API Keys",
 };
 
 function getPageTitle(pathname: string): string {
@@ -22,6 +24,8 @@ function getPageTitle(pathname: string): string {
   const lastPart = parts.at(-1) ?? "";
   const secondLastPart = parts.at(-2) ?? "";
 
+  if (lastPart === "leads" && secondLastPart === "analytics") return "Leads";
+  if (lastPart === "api-keys") return "API Keys";
   if (PAGE_TITLES[lastPart]) return PAGE_TITLES[lastPart];
 
   // Special handling when navigating deeper

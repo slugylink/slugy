@@ -36,6 +36,7 @@ const LINK_SELECT_FIELDS = {
   slug: true,
   url: true,
   clicks: true,
+  leads: true,
   description: true,
   password: true,
   expiresAt: true,

@@ -1,0 +1,19 @@
+DESCRIPTION >
+    Look up a single click by click_id for conversion attribution fallback
+
+NODE endpoint
+SQL >
+    %
+    SELECT
+        timestamp,
+        click_id,
+        link_id,
+        workspace_id,
+        slug,
+        url,
+        domain,
+        country
+    FROM slugy_click_events
+    WHERE click_id = {{ String(click_id, required=True) }}
+    ORDER BY timestamp DESC
+    LIMIT 1

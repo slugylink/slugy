@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, type FC } from "react";
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -17,6 +18,7 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
+import { usePathname } from "next/navigation";
 
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
@@ -34,6 +36,9 @@ interface ProcessedDataPoint {
 interface ChartProps {
   data?: ChartDataPoint[];
   totalClicks?: number;
+  totalLeads?: number;
+  /** "leads" = leads-focused page (primary metric is leads) */
+  mode?: "default" | "leads";
   timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
@@ -111,11 +116,28 @@ const getBucketTimestamp = (date: Date, timePeriod: TimePeriod): number => {
 const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
+  totalLeads: propTotalLeads,
+  mode = "default",
   timePeriod = "24h",
+  workspaceslug,
   isLoading,
   isRefreshing,
   error,
 }: ChartProps) => {
+  const pathname = usePathname();
+  const isLeadsMode = mode === "leads";
+  const metricLabel = isLeadsMode ? "Leads" : "Clicks";
+  const metricColor = isLeadsMode ? "#10b981" : CHART_THEME.primary;
+  const primaryValue = isLeadsMode
+    ? (propTotalLeads ?? 0)
+    : (propTotalClicks ?? 0);
+
+  const leadsHref = useMemo(() => {
+    if (pathname.endsWith("/analytics/leads")) return pathname;
+    if (pathname.endsWith("/analytics")) return `${pathname}/leads`;
+    return pathname.replace(/\/analytics(?:\/.*)?$/, "/analytics/leads");
+  }, [pathname]);
+
   const processedData = useMemo(() => {
     if (!propData) return [];
 
@@ -202,7 +224,7 @@ const AnalyticsChart = ({
         if (isNaN(date.getTime())) return null;
 
         const formattedDate = formatTime(label);
-        const clicks = payload[0]?.value;
+        const value = payload[0]?.value;
 
         return (
           <div
@@ -214,9 +236,12 @@ const AnalyticsChart = ({
             </p>
             <Separator className="my-1 px-0" />
             <div className="text-foreground m-0 flex items-center gap-2 px-3 text-sm">
-              <div className="h-2 w-2 bg-[#EA877E]" />
-              <span>Clicks:</span>
-              {formatNumber(clicks!)}
+              <div
+                className="h-2 w-2"
+                style={{ backgroundColor: metricColor }}
+              />
+              <span>{metricLabel}:</span>
+              {formatNumber(value!)}
             </div>
           </div>
         );
@@ -224,7 +249,7 @@ const AnalyticsChart = ({
         return null;
       }
     },
-    [formatTime],
+    [formatTime, metricLabel, metricColor],
   );
 
   const tickCount = CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
@@ -232,19 +257,55 @@ const AnalyticsChart = ({
   return (
     <Card className="w-full border p-0 shadow-none">
       <CardHeader className="grid grid-cols-2 gap-0 px-0 md:grid-cols-3">
-        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
-          <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
-            <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />
-            <span>Clicks</span>
-          </div>
-          <NumberFlow
-            value={propTotalClicks ?? 0}
-            format={{ maximumFractionDigits: 0 }}
-            className="text-2xl sm:text-3xl"
-          />
-        </CardTitle>
-        <div className="hidden h-full border-r border-b p-5 sm:block" />
-        <div className="hidden h-full border-b p-5 sm:block" />
+        {isLeadsMode ? (
+          <>
+            <CardTitle className="flex h-full w-full flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+                <div
+                  className="h-2.5 w-2.5 rounded-full sm:mb-1"
+                  style={{ backgroundColor: metricColor }}
+                />
+                <span>Leads</span>
+              </div>
+              <NumberFlow
+                value={primaryValue}
+                format={{ maximumFractionDigits: 0 }}
+                className="text-2xl sm:text-3xl"
+              />
+            </CardTitle>
+            <div className="hidden h-full border-r border-b p-5 sm:block" />
+            <div className="hidden h-full border-b p-5 sm:block" />
+          </>
+        ) : (
+          <>
+            <CardTitle className="flex h-full w-full flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+                <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />
+                <span>Clicks</span>
+              </div>
+              <NumberFlow
+                value={propTotalClicks ?? 0}
+                format={{ maximumFractionDigits: 0 }}
+                className="text-2xl sm:text-3xl"
+              />
+            </CardTitle>
+            <Link
+              href={leadsHref}
+              className="hover:bg-muted/40 flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium transition-colors sm:p-6"
+            >
+              <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+                <div className="h-2.5 w-2.5 rounded-full bg-emerald-500 sm:mb-1" />
+                <span>Leads</span>
+              </div>
+              <NumberFlow
+                value={propTotalLeads ?? 0}
+                format={{ maximumFractionDigits: 0 }}
+                className="text-2xl sm:text-3xl"
+              />
+            </Link>
+            <div className="hidden h-full border-b p-5 sm:block" />
+          </>
+        )}
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-4">
         <div className="relative h-[320px] w-full sm:h-[500px]">
@@ -275,20 +336,20 @@ const AnalyticsChart = ({
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
                     <stop
                       offset="0%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={metricColor}
                       stopOpacity={0.8}
                     />
                     <stop
                       offset="50%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={metricColor}
                       stopOpacity={0.3}
                     />
                     <stop
                       offset="100%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={metricColor}
                       stopOpacity={0}
                     />
                   </linearGradient>
@@ -325,14 +386,14 @@ const AnalyticsChart = ({
                 <Area
                   type="linear"
                   dataKey="clicks"
-                  stroke={CHART_THEME.primary}
-                  fill="url(#colorClicks)"
+                  stroke={metricColor}
+                  fill="url(#colorMetric)"
                   strokeWidth={1.5}
                   activeDot={{
                     r: 5,
                     strokeWidth: 1,
                     stroke: "#fff",
-                    fill: CHART_THEME.primary,
+                    fill: metricColor,
                   }}
                   isAnimationActive={
                     processedData.length < CHART_CONFIG.ANIMATION_THRESHOLD

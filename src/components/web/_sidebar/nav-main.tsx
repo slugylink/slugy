@@ -85,6 +85,7 @@ const SIDEBAR_DATA = {
         { title: "Billing", url: "/settings/billing" },
         { title: "Library", url: "/settings/library/tags" },
         { title: "Team", url: "/settings/team" },
+        { title: "API Keys", url: "/settings/api-keys" },
       ],
     },
   ] as NavItem[],
@@ -93,7 +94,7 @@ const SIDEBAR_DATA = {
 const NAV_ACCESS_CONTROL = {
   restrictedSubItems: {
     Billing: ["owner"] as const,
-    "API key": ["owner", "admin"] as const,
+    "API Keys": ["owner", "admin"] as const,
     General: ["owner", "admin"] as const,
   },
 } as const;
