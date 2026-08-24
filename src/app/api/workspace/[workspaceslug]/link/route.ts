@@ -6,12 +6,11 @@ import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
-import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { waitUntil } from "@vercel/functions";
-import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
+import { inngest } from "@/inngest/client";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -84,7 +83,7 @@ async function verifyCustomDomain(
 
 // Helper: Handle tag creation and assignment
 async function handleTags(
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | typeof db,
   linkId: string,
   workspaceId: string,
   tagNames: string[],
@@ -240,91 +239,71 @@ export async function POST(
     const slug = validatedData.slug?.trim() || nanoid();
     const domain = customDomainName || DEFAULT_DOMAIN;
 
-    // Create link in transaction
+    // Create the link first, then finish counters/side-effects off the critical path.
+    // Interactive Prisma transactions on Neon serverless commonly add multiple seconds.
     let result;
     try {
-      result = await db.$transaction(async (tx) => {
-        const link = await tx.link.create({
-          data: {
-            workspaceId: workspaceCheck.workspace.id,
-            userId: session.user.id,
-            url: validatedData.url,
-            slug,
-            domain,
-            image: validatedData.image,
-            title: validatedData.title,
-            description: validatedData.description,
-            metadesc: validatedData.metadesc ?? null,
-            password: validatedData.password,
-            ...(validatedData.expiresAt && {
-              expiresAt: new Date(validatedData.expiresAt),
-            }),
-            expirationUrl: validatedData.expirationUrl,
-            utm_source: validatedData.utm_source,
-            utm_medium: validatedData.utm_medium,
-            utm_campaign: validatedData.utm_campaign,
-            utm_content: validatedData.utm_content,
-            utm_term: validatedData.utm_term,
-            customDomainId: validatedData.customDomainId || null,
-          },
-          select: {
-            id: true,
-            url: true,
-            slug: true,
-            image: true,
-            title: true,
-            description: true,
-            metadesc: true,
-            password: true,
-            expiresAt: true,
-            expirationUrl: true,
-            utm_source: true,
-            utm_medium: true,
-            utm_campaign: true,
-            utm_content: true,
-            utm_term: true,
-            createdAt: true,
-          },
-        });
-
-        // Handle tags
-        let tags: Array<{
-          tag: { id: string; name: string; color: string | null };
-        }> = [];
-        if (validatedData.tags?.length) {
-          const assignedTags = await handleTags(
-            tx,
-            link.id,
-            workspaceCheck.workspace.id,
-            validatedData.tags,
-          );
-          tags = assignedTags.map((tag) => ({ tag }));
-        }
-
-        const currentUsage = await ensureCurrentUsageRecord(tx, {
+      const link = await db.link.create({
+        data: {
           workspaceId: workspaceCheck.workspace.id,
           userId: session.user.id,
-        });
-
-        // Update workspace and usage stats
-        await Promise.all([
-          tx.workspace.update({
-            where: { id: workspaceCheck.workspace.id },
-            data: { linksUsage: { increment: 1 } },
+          url: validatedData.url,
+          slug,
+          domain,
+          image: validatedData.image,
+          title: validatedData.title,
+          description: validatedData.description,
+          metadesc: validatedData.metadesc ?? null,
+          password: validatedData.password,
+          ...(validatedData.expiresAt && {
+            expiresAt: new Date(validatedData.expiresAt),
           }),
-          tx.usage.update({
-            where: { id: currentUsage.id },
-            data: { linksCreated: { increment: 1 } },
-          }),
-        ]);
-
-        return {
-          ...link,
-          tags,
-        };
+          expirationUrl: validatedData.expirationUrl,
+          utm_source: validatedData.utm_source,
+          utm_medium: validatedData.utm_medium,
+          utm_campaign: validatedData.utm_campaign,
+          utm_content: validatedData.utm_content,
+          utm_term: validatedData.utm_term,
+          customDomainId: validatedData.customDomainId || null,
+        },
+        select: {
+          id: true,
+          url: true,
+          slug: true,
+          image: true,
+          title: true,
+          description: true,
+          metadesc: true,
+          password: true,
+          expiresAt: true,
+          expirationUrl: true,
+          utm_source: true,
+          utm_medium: true,
+          utm_campaign: true,
+          utm_content: true,
+          utm_term: true,
+          createdAt: true,
+        },
       });
+
+      let tags: Array<{
+        tag: { id: string; name: string; color: string | null };
+      }> = [];
+      if (validatedData.tags?.length) {
+        const assignedTags = await handleTags(
+          db,
+          link.id,
+          workspaceCheck.workspace.id,
+          validatedData.tags,
+        );
+        tags = assignedTags.map((tag) => ({ tag }));
+      }
+
+      result = {
+        ...link,
+        tags,
+      };
     } catch (error: unknown) {
-      // Handle unique constraint violation
       if (
         error &&
         typeof error === "object" &&
@@ -340,20 +319,36 @@ export async function POST(
       throw error;
     }
 
-    // Invalidate cache and send metadata (non-blocking)
     waitUntil(
-      Promise.all([
-        invalidateLinkCache(result.slug, domain),
-        sendLinkMetadata({
-          link_id: result.id,
-          domain,
-          slug: result.slug,
-          url: result.url,
-          tag_ids: result.tags.map((t) => t.tag.id),
-          workspace_id: workspaceCheck.workspace.id,
-          created_at: result.createdAt.toISOString(),
-        }),
-      ]),
+      (async () => {
+        const currentUsage = await ensureCurrentUsageRecord(db, {
+          workspaceId: workspaceCheck.workspace.id,
+          userId: session.user.id,
+        });
+
+        await Promise.all([
+          db.workspace.update({
+            where: { id: workspaceCheck.workspace.id },
+            data: { linksUsage: { increment: 1 } },
+          }),
+          db.usage.update({
+            where: { id: currentUsage.id },
+            data: { linksCreated: { increment: 1 } },
+          }),
+          inngest.send({
+            name: "app/link.created",
+            data: {
+              linkId: result.id,
+              domain,
+              slug: result.slug,
+              url: result.url,
+              tagIds: result.tags.map((t) => t.tag.id),
+              workspaceId: workspaceCheck.workspace.id,
+              createdAt: result.createdAt.toISOString(),
+            },
+          }),
+        ]);
+      })(),
     );
 
     return jsonWithETag(req, apiSuccessPayload(result), {

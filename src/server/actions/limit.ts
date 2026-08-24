@@ -2,7 +2,6 @@
 import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
 import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
-import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 //* Optimized function to check workspace access and link limits in one query
 export async function checkWorkspaceAccessAndLimits(
@@ -13,18 +12,20 @@ export async function checkWorkspaceAccessAndLimits(
     id: true,
     name: true,
     slug: true,
-    _count: { select: { links: true } },
-    usages: {
-      where: { deletedAt: null },
-      orderBy: { createdAt: "desc" },
-      take: 1,
-      select: { linksCreated: true },
-    },
+    linksUsage: true,
   } as const;
 
   try {
-    // Get user's subscription with plan details
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    const [subscriptionResult, ownedWorkspace] = await Promise.all([
+      getSubscriptionWithPlan(userId),
+      db.workspace.findFirst({
+        where: {
+          slug: workspaceslug,
+          userId,
+        },
+        select: workspaceSelect,
+      }),
+    ]);
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
@@ -40,15 +41,7 @@ export async function checkWorkspaceAccessAndLimits(
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
 
-    // Optimized: Check ownership first (fast with userId index), then membership if needed
-    // This avoids the slow OR/EXISTS query pattern
-    let workspace = await db.workspace.findFirst({
-      where: {
-        slug: workspaceslug,
-        userId, // Check ownership first (uses userId index)
-      },
-      select: workspaceSelect,
-    });
+    let workspace = ownedWorkspace;
 
     // If not owner, check if user is a member
     if (!workspace) {
@@ -56,7 +49,7 @@ export async function checkWorkspaceAccessAndLimits(
         where: {
           slug: workspaceslug,
           members: {
-            some: { userId }, // Uses members.userId index
+            some: { userId },
           },
         },
         select: workspaceSelect,
@@ -74,13 +67,7 @@ export async function checkWorkspaceAccessAndLimits(
       };
     }
 
-    const currentUsageRecord = await ensureCurrentUsageRecord(db, {
-      workspaceId: workspace.id,
-      userId,
-    });
-
-    const currentLinks =
-      currentUsageRecord.linksCreated ?? workspace._count.links;
+    const currentLinks = workspace.linksUsage;
     const canCreateLinks = currentLinks < maxLinks;
 
     return {

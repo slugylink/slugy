@@ -32,17 +32,14 @@ export async function sendLinkMetadata(event: LinkMetadata) {
     timestamp: event.timestamp ?? new Date().toISOString(),
   };
 
-  const res = await fetch(
-    `${API_BASE}/events?name=${tb.links_metadata}&wait=true`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${TINYBIRD_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+  const res = await fetch(`${API_BASE}/events?name=${tb.links_metadata}`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${TINYBIRD_API_KEY}`,
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(payload),
+  });
 
   if (!res.ok) {
     const text = await res.text();

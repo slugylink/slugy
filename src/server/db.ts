@@ -6,7 +6,8 @@ import { readReplicas } from "@prisma/extension-read-replicas";
 
 // Neon WebSocket config for Node.js (once)
 neonConfig.webSocketConstructor = ws;
-// neonConfig.poolQueryViaFetch = true;
+// HTTP queries avoid a WebSocket handshake on each serverless invocation.
+neonConfig.poolQueryViaFetch = true;
 
 declare global {
   var prisma: PrismaClient | undefined;

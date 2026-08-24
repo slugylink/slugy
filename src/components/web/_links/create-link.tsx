@@ -25,7 +25,6 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import axios from "axios";
 import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
-import { useRouter } from "next/navigation";
 import { useSubscriptionStore } from "@/store/subscription";
 
 // Types
@@ -74,7 +73,6 @@ const useNanoid = () =>
 
 const CreateLinkForm = React.memo(
   ({ workspaceslug }: { workspaceslug: string }) => {
-    const router = useRouter();
     const nanoid = useNanoid();
 
     const { isPro, fetchSubscription } = useSubscriptionStore();
@@ -136,11 +134,8 @@ const CreateLinkForm = React.memo(
 
     // Memoized computed values
     const isSafeToSubmit = useMemo(
-      () =>
-        isValid &&
-        !urlSafetyStatus.isChecking &&
-        urlSafetyStatus.isValid === true,
-      [isValid, urlSafetyStatus.isChecking, urlSafetyStatus.isValid],
+      () => isValid && urlSafetyStatus.isValid !== false,
+      [isValid, urlSafetyStatus.isValid],
     );
 
     // Check if free plan user is trying to use premium features
@@ -239,7 +234,9 @@ const CreateLinkForm = React.memo(
           );
 
           if (response.status === 201) {
-            const created = response.data as { id: string };
+            const created = (response.data?.data ?? response.data) as {
+              id: string;
+            };
             // If user picked a file for preview image, upload now and patch link
             if (draftMetadata.selectedFile) {
               try {
@@ -265,17 +262,13 @@ const CreateLinkForm = React.memo(
             }
 
             toast.success("Link created successfully!");
-
-            // Optimistically update cache
-            await mutate(
+            resetForm();
+            handleClose();
+            void mutate(
               (key) => typeof key === "string" && key.includes("/link/get"),
               undefined,
               { revalidate: true },
             );
-
-            resetForm();
-            router.refresh();
-            handleClose();
           } else {
             const errorData = response.data as { message: string };
             toast.error(
@@ -328,7 +321,6 @@ const CreateLinkForm = React.memo(
         utmParams,
         resetForm,
         handleClose,
-        router,
         draftMetadata,
       ],
     );
