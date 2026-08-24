@@ -15,6 +15,7 @@ import { setLinkCache } from "@/lib/cache-utils/link-cache";
 import { hashLinkPassword, maskLinkPassword } from "@/lib/link-password";
 import { assertSafeDestinationUrl } from "@/lib/url-policy";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
+import { redis } from "@/lib/redis";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -414,7 +415,11 @@ export async function POST(
             tag_ids: result.tags.map((t) => t.tag.id),
             workspace_id: workspaceCheck.workspace.id,
             created_at: result.createdAt.toISOString(),
-          }),
+          }).then(() =>
+            redis
+              .set(`tb:meta:${result.id}`, "1", { ex: 60 * 60 * 24 * 30 })
+              .catch(() => undefined),
+          ),
           inngest.send({
             name: "app/link.created",
             data: {

@@ -28,7 +28,18 @@ SELECT
     ev.os,
     ev.referer
 FROM slugy_click_events_mv AS ev
-INNER JOIN slugy_links_metadata_latest AS meta
+-- FINAL: ReplacingMergeTree can hold multiple versions per link_id until merge.
+-- Without FINAL, INNER JOIN multiplies every click (2 metadata rows → 2x clicks).
+INNER JOIN (
+    SELECT
+        link_id,
+        workspace_id,
+        slug,
+        url,
+        deleted
+    FROM slugy_links_metadata_latest
+    FINAL
+) AS meta
     ON ev.link_id = meta.link_id
    AND ev.workspace_id = meta.workspace_id
 WHERE
