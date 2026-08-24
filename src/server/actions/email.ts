@@ -1,4 +1,5 @@
 import { resend } from "@/lib/resend";
+import { templates } from "@/constants/email-templates";
 
 // ============================================================================
 // Types
@@ -9,6 +10,13 @@ interface SendEmailParams {
   subject: string;
   text: string;
   html?: string;
+}
+
+interface SendWorkspaceWelcomeEmailParams {
+  to: string;
+  name?: string | null;
+  workspaceName: string;
+  workspaceSlug: string;
 }
 
 interface SendOrganizationInvitationParams {
@@ -24,6 +32,19 @@ interface SendOrganizationInvitationParams {
 // ============================================================================
 
 const INVITATION_EXPIRY_DAYS = 7;
+
+const getAppBaseUrl = () =>
+  process.env.NEXT_APP_URL ||
+  process.env.BETTER_AUTH_URL ||
+  process.env.NEXT_BASE_URL ||
+  "http://localhost:3000";
+
+const escapeHtml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 
 // ============================================================================
 // Email Templates
@@ -181,6 +202,32 @@ export async function sendEmail({
     console.error("Error sending email:", error);
     throw error;
   }
+}
+
+export async function sendWorkspaceWelcomeEmail({
+  to,
+  name,
+  workspaceName,
+  workspaceSlug,
+}: SendWorkspaceWelcomeEmailParams): Promise<void> {
+  const safeWorkspaceName = workspaceName.trim() || "your workspace";
+  const displayName = name?.trim() || "there";
+  const dashboardUrl = `${getAppBaseUrl()}/${workspaceSlug}`;
+
+  const html = templates.welcome({
+    name: escapeHtml(displayName),
+    workspaceName: escapeHtml(safeWorkspaceName),
+    dashboardUrl,
+  });
+
+  const text = `Welcome to ${safeWorkspaceName} on slugy! You can now start creating short links, track analytics, and explore bio links. Open your workspace at ${dashboardUrl}`;
+
+  await sendEmail({
+    to,
+    subject: `Welcome to ${safeWorkspaceName}`,
+    text,
+    html,
+  });
 }
 
 export async function sendOrganizationInvitation(

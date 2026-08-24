@@ -16,7 +16,7 @@ import {
   setWorkspaceValidationCache,
   invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
-import { inngest } from "@/inngest/client";
+import { sendWorkspaceWelcomeEmail } from "@/server/actions/email";
 
 // Revalidate all workspace-related cache tags
 async function revalidateWorkspaceTags() {
@@ -82,9 +82,9 @@ export async function createWorkspace({
     ]);
     revalidatePath(`/${workspace.slug}`);
 
-    // Background tasks
+    // Background tasks — isolated so one failure does not cancel the others
     waitUntil(
-      Promise.all([
+      Promise.allSettled([
         db.member.create({
           data: { userId, workspaceId: workspace.id, role: "owner" },
         }),
@@ -105,23 +105,25 @@ export async function createWorkspace({
             },
           });
         })(),
-        (async () => {
-          const email = authResult.session.user.email;
-          if (!email) return;
-          await inngest.send({
-            name: "app/workspace.welcome",
-            data: {
-              userId,
-              email,
-              name: authResult.session.user.name,
-              workspaceId: workspace.id,
-              workspaceName: workspace.name,
-              workspaceSlug: workspace.slug,
-            },
-          });
-        })(),
       ]),
     );
+
+    // Welcome email via Resend (same path as verify / magic-link).
+    // Awaited so it is not dropped by waitUntil / Inngest sync issues.
+    // Failures are logged and do not fail workspace creation.
+    const email = authResult.session.user.email;
+    if (email) {
+      try {
+        await sendWorkspaceWelcomeEmail({
+          to: email,
+          name: authResult.session.user.name,
+          workspaceName: workspace.name,
+          workspaceSlug: workspace.slug,
+        });
+      } catch (error) {
+        console.error("[workspace] Failed to send welcome email:", error);
+      }
+    }
 
     return { success: true, slug: workspace.slug };
   } catch (error) {
