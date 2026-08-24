@@ -19,6 +19,19 @@ const getAppBaseUrl = () =>
   process.env.NEXT_BASE_URL ||
   "http://localhost:3000";
 
+/** Parent cookie domain for app + marketing hosts (e.g. `.slugy.co`). */
+const getAuthCookieDomain = (): string | undefined => {
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim();
+  if (!root) return undefined;
+
+  const host = root.split(":")[0]?.toLowerCase();
+  if (!host || host === "localhost" || /^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+    return undefined;
+  }
+
+  return host.startsWith(".") ? host : `.${host}`;
+};
+
 const getPolarServer = () =>
   process.env.NODE_ENV === "production" ? "production" : "sandbox";
 
@@ -45,6 +58,9 @@ const getPolarClient = () => {
   }
   return _polarClientAuth;
 };
+
+const authCookieDomain = getAuthCookieDomain();
+const isProd = process.env.NODE_ENV === "production";
 
 export const auth = betterAuth({
   database: prismaAdapter(db, {
@@ -114,9 +130,24 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24, // 1 day
     freshAge: 60 * 60 * 24, // 1 day
   },
+  baseURL: process.env.BETTER_AUTH_URL,
   advanced: {
-    crossSubDomainCookies: {
-      enabled: true,
+    // Production cookies must be Secure + scoped to the parent domain so
+    // app.slugy.co and slugy.co share the session across tab reopens.
+    useSecureCookies: isProd,
+    ...(authCookieDomain
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: authCookieDomain,
+          },
+        }
+      : {}),
+    defaultCookieAttributes: {
+      sameSite: "lax" as const,
+      path: "/",
+      httpOnly: true,
+      ...(isProd ? { secure: true } : {}),
     },
     trustedOrigins: origins,
   },

@@ -274,6 +274,7 @@ export function LoginForm({
         {
           email,
           password,
+          rememberMe: true,
         },
         {
           onSuccess: () => {
