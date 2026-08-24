@@ -30,7 +30,6 @@ import {
 } from "@/components/ui/accordion";
 import { ListItem } from "./list-item";
 import { Button } from "@/components/ui/button";
-import { Session } from "@/lib/auth";
 
 type NavLink = (typeof NAV_LINKS)[number];
 
@@ -40,10 +39,6 @@ const VISIBLE_PATHS = new Set([
   "/pricing",
   "/sponsors",
 ]);
-
-interface NavbarProps {
-  session: Session | null;
-}
 
 function NavbarLogo() {
   return (
@@ -228,7 +223,7 @@ function MobileMenu() {
   );
 }
 
-export default function Navbar({ session: _session }: NavbarProps) {
+export default function Navbar() {
   const pathname = usePathname();
   const isVisible = VISIBLE_PATHS.has(pathname);
 

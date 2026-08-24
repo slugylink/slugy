@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import NumberFlow from "@number-flow/react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 
 type GetStartedButtonProps = {
   isGitVisible?: boolean;
@@ -54,74 +54,65 @@ export default function GetStartedButton({
   const loginUrl = `${appUrl}/login`;
   const signupUrl = `${appUrl}/signup`;
 
-  useEffect(() => {
-    fetch(appUrl, { method: "GET", mode: "no-cors" }).catch(() => {});
-  }, [appUrl]);
-
   const prefetch = useCallback(() => {
     fetch(appUrl, { method: "GET", mode: "no-cors" }).catch(() => {});
   }, [appUrl]);
 
   return (
-    <>
-      <link rel="preconnect" href={appUrl} />
-      <link rel="prefetch" href={appUrl} />
+    <div className={cn("flex gap-2", className)}>
+      {isGitVisible && (
+        <Link
+          href="https://github.com/slugylink/slugy"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="View Slugy on GitHub"
+        >
+          <Button variant="ghost">
+            <FaGithub className="h-5 w-5" />
+            <NumberFlow
+              value={isLoading ? 0 : stars}
+              format={{ notation: "compact", maximumFractionDigits: 1 }}
+              className="text-xs"
+            />
+          </Button>
+        </Link>
+      )}
 
-      <div className={cn("flex gap-2", className)}>
-        {isGitVisible && (
-          <Link
-            href="https://github.com/slugylink/slugy"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="View Slugy on GitHub"
+      {showAuthButtons && (
+        <>
+          <a
+            href={loginUrl}
+            onMouseEnter={prefetch}
+            onTouchStart={prefetch}
+            onClick={() => setNavigatingTo("login")}
           >
-            <Button variant="ghost">
-              <FaGithub className="h-5 w-5" />
-              <NumberFlow
-                value={isLoading ? 0 : stars}
-                format={{ notation: "compact", maximumFractionDigits: 1 }}
-                className="text-xs"
-              />
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={navigatingTo !== null}
+              className="w-full sm:w-fit"
+            >
+              Login
             </Button>
-          </Link>
-        )}
+          </a>
 
-        {showAuthButtons && (
-          <>
-            <a
-              href={loginUrl}
-              onMouseEnter={prefetch}
-              onTouchStart={prefetch}
-              onClick={() => setNavigatingTo("login")}
+          <a
+            href={signupUrl}
+            onMouseEnter={prefetch}
+            onTouchStart={prefetch}
+            onClick={() => setNavigatingTo("signup")}
+          >
+            <Button
+              variant="default"
+              size="sm"
+              disabled={navigatingTo !== null}
+              className="w-full sm:w-fit"
             >
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={navigatingTo !== null}
-                className="w-full sm:w-fit"
-              >
-                Login
-              </Button>
-            </a>
-
-            <a
-              href={signupUrl}
-              onMouseEnter={prefetch}
-              onTouchStart={prefetch}
-              onClick={() => setNavigatingTo("signup")}
-            >
-              <Button
-                variant="default"
-                size="sm"
-                disabled={navigatingTo !== null}
-                className="w-full sm:w-fit"
-              >
-                Sign up
-              </Button>
-            </a>
-          </>
-        )}
-      </div>
-    </>
+              Sign up
+            </Button>
+          </a>
+        </>
+      )}
+    </div>
   );
 }

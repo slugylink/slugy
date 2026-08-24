@@ -125,7 +125,9 @@
   h4,
   h5,
   h6 {
-    font-family: "Satoshi", sans-serif !important;
+    /* Inter first so text paints without waiting on Satoshi CDN */
+    font-family: "Satoshi", var(--font-inter), ui-sans-serif, system-ui,
+      sans-serif;
   }
 }
 

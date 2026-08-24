@@ -14,7 +14,7 @@ export default function CustomDomainLayout({
 }) {
   return (
     <>
-      <Navbar session={null} />
+      <Navbar />
       {children} <Footer />
     </>
   );
