@@ -27,6 +27,25 @@ interface SubscriptionStoreState {
   error: string | null;
   hasFetched: boolean;
   fetchSubscription: () => Promise<void>;
+  resetSubscription: () => void;
+}
+
+function applySubscription(
+  set: (partial: Partial<SubscriptionStoreState>) => void,
+  subscription: ActiveSubscription | null,
+) {
+  const planType =
+    (subscription?.plan?.planType as PlanType | undefined) ?? null;
+  const isPro = !!planType && planType.toString().toLowerCase() === "pro";
+
+  set({
+    subscription,
+    planType,
+    isPro,
+    hasFetched: true,
+    isLoading: false,
+    error: null,
+  });
 }
 
 export const useSubscriptionStore = create<SubscriptionStoreState>(
@@ -37,6 +56,17 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
     isLoading: false,
     error: null,
     hasFetched: false,
+
+    resetSubscription() {
+      set({
+        subscription: null,
+        planType: null,
+        isPro: false,
+        isLoading: false,
+        error: null,
+        hasFetched: false,
+      });
+    },
 
     async fetchSubscription() {
       const { hasFetched, isLoading } = get();
@@ -55,52 +85,39 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
 
         const res = await fetch(subscriptionUrl, {
           credentials: "include",
+          cache: "no-store",
         });
 
-        if (!res.ok) {
-          let message = "Failed to load subscription";
-          try {
-            const data = (await res.json()) as {
-              msg?: string;
-              message?: string;
-            };
-            message = data.msg || data.message || message;
-          } catch {
-            // ignore JSON parse errors
-          }
-
-          set({
-            subscription: null,
-            planType: "basic",
-            isPro: false,
-            hasFetched: true,
-            isLoading: false,
-            error: message,
+        if (res.status === 304) {
+          const retry = await fetch(subscriptionUrl, {
+            credentials: "include",
+            cache: "reload",
+            headers: { "Cache-Control": "no-cache" },
           });
+          if (!retry.ok) {
+            throw new Error("Failed to load subscription");
+          }
+          const retryData = (await retry.json()) as {
+            subscription?: ActiveSubscription | null;
+          };
+          applySubscription(set, retryData.subscription ?? null);
           return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Failed to load subscription");
         }
 
         const data = (await res.json()) as {
           subscription?: ActiveSubscription | null;
         };
 
-        const subscription = data.subscription ?? null;
-        const planType =
-          (subscription?.plan?.planType as PlanType | undefined) ?? null;
-        const isPro = !!planType && planType.toString().toLowerCase() === "pro";
-
-        set({
-          subscription,
-          planType,
-          isPro,
-          hasFetched: true,
-          isLoading: false,
-          error: null,
-        });
+        applySubscription(set, data.subscription ?? null);
       } catch {
+        // Do not default to "basic": the upgrade popup treats that as unpaid.
         set({
           subscription: null,
-          planType: "basic",
+          planType: null,
           isPro: false,
           hasFetched: true,
           isLoading: false,

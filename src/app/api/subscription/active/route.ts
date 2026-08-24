@@ -99,8 +99,12 @@ export async function GET(req: Request) {
         }
       : await getActiveSubscription(session.user.id);
 
-    // Always return 200 for easier client handling; use `status` flag in body.
-    return jsonWithETag(req, result, { status: 200 });
+    // Never 304 this payload: clients treat 304 as a failed fetch and the
+    // upgrade popup then assumes unpaid Basic.
+    return jsonWithETag(null, result, {
+      status: 200,
+      headers: { "Cache-Control": "private, no-store" },
+    });
   } catch (error) {
     console.error("Error fetching active subscription:", error);
     return jsonWithETag(

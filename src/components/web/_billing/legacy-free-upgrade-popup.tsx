@@ -20,23 +20,40 @@ function isLegacyFreePlan(planType: string | null, planName?: string | null) {
   return normalizedType === "free" || normalizedName === "free";
 }
 
+function isPaidPolarEntitlement(input: {
+  customerId?: string | null;
+  provider?: string | null;
+  priceId?: string | null;
+  status?: string | null;
+}) {
+  const provider = (input.provider ?? "").toLowerCase();
+  const status = (input.status ?? "").toLowerCase();
+  const hasCustomerId = Boolean(input.customerId?.trim());
+  const hasPriceId = Boolean(input.priceId?.trim());
+  const isActive = !status || ["active", "trialing"].includes(status);
+
+  return isActive && (provider === "polar" || hasCustomerId || hasPriceId);
+}
+
 function isLegacyUnpaidBasicSubscription(input: {
   planType: string | null;
   customerId?: string | null;
   provider?: string | null;
   priceId?: string | null;
+  status?: string | null;
+  hasSubscriptionRecord: boolean;
 }) {
+  if (!input.hasSubscriptionRecord) return false;
+  if (isPaidPolarEntitlement(input)) return false;
+
   const normalizedType = (input.planType ?? "").toLowerCase();
   const normalizedProvider = (input.provider ?? "").toLowerCase();
-  const hasCustomerId = Boolean(
-    input.customerId && input.customerId.trim().length > 0,
-  );
-  const hasPriceId = Boolean(input.priceId && input.priceId.trim().length > 0);
+  const hasCustomerId = Boolean(input.customerId?.trim());
 
   return (
     normalizedType === "basic" &&
     !hasCustomerId &&
-    (normalizedProvider === "internal" || !hasPriceId)
+    (normalizedProvider === "internal" || normalizedProvider === "")
   );
 }
 
@@ -80,6 +97,17 @@ export default function LegacyFreeUpgradePopup() {
   const shouldShow = useMemo(() => {
     if (!hasFetched) return false;
     if (isExemptPage) return false;
+    if (
+      isPaidPolarEntitlement({
+        customerId: subscription?.customerId,
+        provider: subscription?.provider,
+        priceId: subscription?.priceId,
+        status: subscription?.status,
+      })
+    ) {
+      return false;
+    }
+
     return (
       isLegacyFreePlan(planType, subscription?.plan?.name) ||
       isLegacyUnpaidBasicSubscription({
@@ -87,16 +115,20 @@ export default function LegacyFreeUpgradePopup() {
         customerId: subscription?.customerId,
         provider: subscription?.provider,
         priceId: subscription?.priceId,
+        status: subscription?.status,
+        hasSubscriptionRecord: Boolean(subscription?.id),
       })
     );
   }, [
     hasFetched,
     isExemptPage,
     planType,
+    subscription?.id,
     subscription?.plan?.name,
     subscription?.customerId,
     subscription?.provider,
     subscription?.priceId,
+    subscription?.status,
   ]);
 
   return (

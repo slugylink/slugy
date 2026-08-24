@@ -30,6 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
+import { useSubscriptionStore } from "@/store/subscription";
 
 // ─────────── Types ───────────
 
@@ -62,6 +63,7 @@ export const NavUser = () => {
 
   const handleSignOut = async () => {
     try {
+      useSubscriptionStore.getState().resetSubscription();
       await authClient.signOut();
       router.push("/login");
     } catch (error) {
