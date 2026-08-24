@@ -71,6 +71,7 @@
     "date-fns": "^4.1.0",
     "dymo-api": "^1.1.5",
     "framer-motion": "^12.18.1",
+    "inngest": "^4.18.1",
     "lucide-react": "^0.515.0",
     "motion": "^12.23.12",
     "next": "^16.1.6",

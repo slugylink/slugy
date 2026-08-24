@@ -10,6 +10,7 @@ import { polar, checkout } from "@polar-sh/better-auth";
 import { Polar } from "@polar-sh/sdk";
 import { origins } from "@/constants/origins";
 import { templates } from "@/constants/email-templates";
+import { inngest } from "@/inngest/client";
 
 let _polarClientAuth: Polar | null = null;
 
@@ -102,7 +103,6 @@ export const auth = betterAuth({
       const userWithCreatedAt = await db.user.findUnique({
         where: { id: userData.id },
         select: {
-          createdAt: true,
           emailVerified: true,
           name: true,
         },
@@ -110,22 +110,15 @@ export const auth = betterAuth({
 
       if (!userWithCreatedAt) return;
 
-      // If user was created within the last hour, send them a welcome email
-      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-      if (userWithCreatedAt.createdAt > oneHourAgo) {
-        const dashboardUrl = `${getAppBaseUrl()}/login`;
-        const welcomeTemplate = templates["welcome"]({
-          name: userWithCreatedAt.name || "there",
-          dashboardUrl,
-        });
-
-        await sendEmail({
-          to: userData.email,
-          subject: "Welcome to slugy!",
-          text: `Welcome to slugy! You can now start creating short links, track analytics, and explore bio links. Visit your dashboard at ${dashboardUrl}`,
-          html: welcomeTemplate,
-        });
-      }
+      // Send welcome shortly after verification. Inngest handles retries/background execution.
+      void inngest.send({
+        name: "app/user.welcome",
+        data: {
+          userId: userData.id,
+          email: userData.email,
+          name: userWithCreatedAt.name,
+        },
+      });
     },
   },
   socialProviders: {

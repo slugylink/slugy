@@ -341,18 +341,19 @@ export async function POST(
     }
 
     // Invalidate cache and send metadata (non-blocking)
-    await invalidateLinkCache(result.slug, domain);
-
     waitUntil(
-      sendLinkMetadata({
-        link_id: result.id,
-        domain,
-        slug: result.slug,
-        url: result.url,
-        tag_ids: result.tags.map((t) => t.tag.id),
-        workspace_id: workspaceCheck.workspace.id,
-        created_at: result.createdAt.toISOString(),
-      }),
+      Promise.all([
+        invalidateLinkCache(result.slug, domain),
+        sendLinkMetadata({
+          link_id: result.id,
+          domain,
+          slug: result.slug,
+          url: result.url,
+          tag_ids: result.tags.map((t) => t.tag.id),
+          workspace_id: workspaceCheck.workspace.id,
+          created_at: result.createdAt.toISOString(),
+        }),
+      ]),
     );
 
     return jsonWithETag(req, apiSuccessPayload(result), {

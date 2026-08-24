@@ -354,17 +354,16 @@ export async function POST(req: Request): Promise<NextResponse> {
 
     const usingGemini = Boolean(process.env.GEMINI_API_KEY);
 
-    const [urlExists, slug] = await Promise.all([
-      checkUrlExists(normalizedUrl),
-      usingGemini
-        ? generateSeoSlugWithGemini(normalizedUrl)
-        : generateSeoSlugFallback(normalizedUrl),
-    ]);
+    // The UI currently only uses `data.slug` (see `src/components/web/_links/link-form.tsx`).
+    // Avoid blocking on remote URL existence checks to keep this endpoint fast.
+    const slug = usingGemini
+      ? await generateSeoSlugWithGemini(normalizedUrl)
+      : generateSeoSlugFallback(normalizedUrl);
 
     return apiSuccess(
       {
         slug,
-        urlExists,
+        urlExists: false,
         seoOptimized: usingGemini,
         usingGemini,
       } as SlugGenerationResult,
