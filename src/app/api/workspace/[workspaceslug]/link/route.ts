@@ -293,75 +293,64 @@ export async function POST(
     // Interactive Prisma transactions on Neon serverless commonly add multiple seconds.
     let result;
     try {
-      const [link, assignedTags] = await Promise.all([
-        db.link.create({
-          data: {
-            workspaceId: workspaceCheck.workspace.id,
-            userId: session.user.id,
-            url: validatedData.url,
-            slug,
-            domain,
-            image: validatedData.image,
-            title: validatedData.title,
-            description: validatedData.description,
-            metadesc: validatedData.metadesc ?? null,
-            password: storedPassword,
-            ...(validatedData.expiresAt && {
-              expiresAt: new Date(validatedData.expiresAt),
-            }),
-            expirationUrl: validatedData.expirationUrl,
-            utm_source: validatedData.utm_source,
-            utm_medium: validatedData.utm_medium,
-            utm_campaign: validatedData.utm_campaign,
-            utm_content: validatedData.utm_content,
-            utm_term: validatedData.utm_term,
-            customDomainId: validatedData.customDomainId || null,
-          },
-          select: {
-            id: true,
-            url: true,
-            slug: true,
-            domain: true,
-            clicks: true,
-            isArchived: true,
-            image: true,
-            title: true,
-            description: true,
-            metadesc: true,
-            password: true,
-            expiresAt: true,
-            expirationUrl: true,
-            utm_source: true,
-            utm_medium: true,
-            utm_campaign: true,
-            utm_content: true,
-            utm_term: true,
-            createdAt: true,
-          },
-        }),
-        validatedData.tags?.length
-          ? resolveWorkspaceTags(
-              db,
-              workspaceCheck.workspace.id,
-              validatedData.tags,
-            )
-          : Promise.resolve([]),
-      ]);
+      const link = await db.link.create({
+        data: {
+          workspaceId: workspaceCheck.workspace.id,
+          userId: session.user.id,
+          url: validatedData.url,
+          slug,
+          domain,
+          image: validatedData.image,
+          title: validatedData.title,
+          description: validatedData.description,
+          metadesc: validatedData.metadesc ?? null,
+          password: storedPassword,
+          ...(validatedData.expiresAt && {
+            expiresAt: new Date(validatedData.expiresAt),
+          }),
+          expirationUrl: validatedData.expirationUrl,
+          utm_source: validatedData.utm_source,
+          utm_medium: validatedData.utm_medium,
+          utm_campaign: validatedData.utm_campaign,
+          utm_content: validatedData.utm_content,
+          utm_term: validatedData.utm_term,
+          customDomainId: validatedData.customDomainId || null,
+        },
+        select: {
+          id: true,
+          url: true,
+          slug: true,
+          domain: true,
+          clicks: true,
+          isArchived: true,
+          image: true,
+          title: true,
+          description: true,
+          metadesc: true,
+          password: true,
+          expiresAt: true,
+          expirationUrl: true,
+          utm_source: true,
+          utm_medium: true,
+          utm_campaign: true,
+          utm_content: true,
+          utm_term: true,
+          createdAt: true,
+        },
+      });
 
-      if (assignedTags.length > 0) {
-        await db.linkTag.createMany({
-          data: assignedTags.map((tag) => ({
-            linkId: link.id,
-            tagId: tag.id,
-          })),
-          skipDuplicates: true,
-        });
-      }
+      // Tags resolve in waitUntil; return provisional names so the UI can paint immediately.
+      const provisionalTags = (validatedData.tags ?? [])
+        .map((name) => name.trim())
+        .filter(Boolean)
+        .map((name) => ({
+          tag: { id: `pending:${name}`, name, color: null as string | null },
+        }));
 
       result = {
         ...link,
         password: maskLinkPassword(link.password),
-        tags: assignedTags.map((tag) => ({ tag })),
+        tags: provisionalTags,
         qrCode: { id: "", customization: "" },
         lastClicked: null,
         creator: {
@@ -387,6 +376,26 @@ export async function POST(
 
     waitUntil(
       (async () => {
+        const assignedTags = validatedData.tags?.length
+          ? await resolveWorkspaceTags(
+              db,
+              workspaceCheck.workspace.id,
+              validatedData.tags,
+            )
+          : [];
+
+        if (assignedTags.length > 0) {
+          await db.linkTag.createMany({
+            data: assignedTags.map((tag) => ({
+              linkId: result.id,
+              tagId: tag.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        const tagIds = assignedTags.map((tag) => tag.id);
+
         const currentUsage = await ensureCurrentUsageRecord(db, {
           workspaceId: workspaceCheck.workspace.id,
           userId: session.user.id,
@@ -427,7 +436,7 @@ export async function POST(
             domain,
             slug: result.slug,
             url: result.url,
-            tag_ids: result.tags.map((t) => t.tag.id),
+            tag_ids: tagIds,
             workspace_id: workspaceCheck.workspace.id,
             created_at: result.createdAt.toISOString(),
           }).then(() =>
@@ -442,7 +451,7 @@ export async function POST(
               domain,
               slug: result.slug,
               url: result.url,
-              tagIds: result.tags.map((t) => t.tag.id),
+              tagIds,
               workspaceId: workspaceCheck.workspace.id,
               createdAt: result.createdAt.toISOString(),
             },

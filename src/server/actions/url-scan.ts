@@ -56,7 +56,8 @@ const SAFE_BROWSING_API_BASE =
   "https://safebrowsing.googleapis.com/v4/threatMatches:find";
 const CLIENT_VERSION = "1.0";
 const SAFETY_CACHE_TTL_SECONDS = 3600;
-const REQUEST_TIMEOUT_MS = 1500;
+/** Create-path budget: fail-open if Google is slow (form already scanned + Redis cache). */
+const REQUEST_TIMEOUT_MS = 300;
 const ENV_CACHE_TTL = 300000;
 
 const THREAT_TYPES = [
