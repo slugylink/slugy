@@ -28,7 +28,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { authClient } from "@/lib/auth-client";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 import { useSubscriptionStore } from "@/store/subscription";
 
@@ -62,13 +62,8 @@ export const NavUser = () => {
   }, [isPending, session, router]);
 
   const handleSignOut = async () => {
-    try {
-      useSubscriptionStore.getState().resetSubscription();
-      await authClient.signOut();
-      router.push("/login");
-    } catch (error) {
-      console.error("Sign out failed:", error);
-    }
+    useSubscriptionStore.getState().resetSubscription();
+    await signOutAndRedirect("/login");
   };
 
   if (isPending) return <LoadingSkeleton />;

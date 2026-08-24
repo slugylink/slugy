@@ -13,9 +13,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { redirect, useRouter } from "next/navigation";
+import { redirect } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { authClient } from "@/lib/auth-client";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { createAuthClient } from "better-auth/react";
 const { useSession } = createAuthClient();
 
@@ -39,7 +39,6 @@ type MenuGroup = {
 };
 
 export function ProfileDropdown() {
-  const router = useRouter();
   const { data: session, isPending } = useSession();
 
   if (isPending) return loadingSkeleton;
@@ -61,14 +60,7 @@ export function ProfileDropdown() {
           icon: <LogOut className="mr-2 size-4" />,
           label: "Log out",
           onClick: async () => {
-            await authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.push("/login"); // redirect to login page
-                  router.refresh();
-                },
-              },
-            });
+            await signOutAndRedirect("/login");
           },
         },
       ],

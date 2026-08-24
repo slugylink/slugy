@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useReducer } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   useForm,
@@ -14,7 +13,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkUserExists, authClient } from "@/lib/auth-client";
+import {
+  checkUserExists,
+  authClient,
+  hardNavigate,
+  POST_LOGIN_PATH,
+} from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
@@ -145,7 +149,6 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
-  const router = useRouter();
   const [state, dispatch] = useReducer(loginUiReducer, initialUiState);
   const {
     showPassword,
@@ -191,80 +194,42 @@ export function LoginForm({
   const handleGoogleLogin = async () => {
     dispatch({ type: "SET_GOOGLE_LOADING", payload: true });
     try {
-      await authClient.signIn.social(
-        {
-          provider: "google",
-        },
-        {
-          onSuccess: () => {
-            // Save last used provider
-            try {
-              localStorage.setItem("lastUsedProvider", "google");
-            } catch (error) {
-              // localStorage might not be available
-            }
-            dispatch({ type: "SET_LAST_PROVIDER", payload: "google" });
-            dispatch({ type: "SET_REDIRECTING", payload: true });
-            router.push("/");
-            router.refresh();
-          },
-          onError: (err) => {
-            dispatch({ type: "SET_REDIRECTING", payload: false });
-            toast.error(
-              err instanceof Error
-                ? err.message
-                : "Failed to log in with Google",
-            );
-          },
-        },
-      );
+      await authClient.signIn.social({
+        provider: "google",
+        callbackURL: POST_LOGIN_PATH,
+      });
+      try {
+        localStorage.setItem("lastUsedProvider", "google");
+      } catch {
+        // ignore
+      }
+      // OAuth redirects the browser; if we return without redirect, stay loading.
     } catch (err) {
-      dispatch({ type: "SET_REDIRECTING", payload: false });
+      dispatch({ type: "SET_GOOGLE_LOADING", payload: false });
       toast.error("An unexpected error occurred during Google login");
       console.error("Google login error:", err);
     }
-    dispatch({ type: "SET_GOOGLE_LOADING", payload: false });
   };
 
   const handleGithubLogin = async () => {
     dispatch({ type: "SET_GITHUB_LOADING", payload: true });
     try {
-      await authClient.signIn.social(
-        {
-          provider: "github",
-        },
-        {
-          onSuccess: () => {
-            // Save last used provider
-            try {
-              localStorage.setItem("lastUsedProvider", "github");
-            } catch (error) {
-              // localStorage might not be available
-            }
-            dispatch({ type: "SET_LAST_PROVIDER", payload: "github" });
-            dispatch({ type: "SET_REDIRECTING", payload: true });
-            router.push("/");
-            router.refresh();
-          },
-          onError: (err) => {
-            dispatch({ type: "SET_REDIRECTING", payload: false });
-            console.error("GitHub login error details:", err);
-            toast.error(
-              err instanceof Error
-                ? err.message
-                : "Failed to log in with GitHub. Please check your GitHub OAuth configuration.",
-            );
-          },
-        },
-      );
+      await authClient.signIn.social({
+        provider: "github",
+        callbackURL: POST_LOGIN_PATH,
+      });
+      try {
+        localStorage.setItem("lastUsedProvider", "github");
+      } catch {
+        // ignore
+      }
     } catch (err) {
-      dispatch({ type: "SET_REDIRECTING", payload: false });
+      dispatch({ type: "SET_GITHUB_LOADING", payload: false });
       console.error("GitHub login error:", err);
       toast.error(
         "An unexpected error occurred during GitHub login. Please try again.",
       );
     }
-    dispatch({ type: "SET_GITHUB_LOADING", payload: false });
   };
 
   const handlePasswordLogin = async (email: string, password: string) => {
@@ -278,18 +243,17 @@ export function LoginForm({
         },
         {
           onSuccess: () => {
-            // Save last used provider
             try {
               localStorage.setItem("lastUsedProvider", "credential");
-            } catch (error) {
-              // localStorage might not be available
+            } catch {
+              // ignore
             }
             dispatch({ type: "SET_LAST_PROVIDER", payload: "credential" });
             dispatch({ type: "SET_REDIRECTING", payload: true });
-            router.push("/");
-            router.refresh();
+            hardNavigate(POST_LOGIN_PATH);
           },
           onError: (err) => {
+            dispatch({ type: "SET_LOADING", payload: false });
             dispatch({ type: "SET_REDIRECTING", payload: false });
             toast.error(
               err instanceof Error ? err.message : "Invalid email or password",
@@ -298,11 +262,11 @@ export function LoginForm({
         },
       );
     } catch (err) {
+      dispatch({ type: "SET_LOADING", payload: false });
       dispatch({ type: "SET_REDIRECTING", payload: false });
       toast.error("An unexpected error occurred during login");
       console.error("Login error:", err);
     }
-    dispatch({ type: "SET_LOADING", payload: false });
   };
 
   const handleResendVerification = async (email: string) => {

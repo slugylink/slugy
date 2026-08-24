@@ -4,13 +4,40 @@ import { magicLinkClient } from "better-auth/client/plugins";
 import { adminClient } from "better-auth/client/plugins";
 import { organizationClient } from "better-auth/client/plugins";
 
+// Prefer same-origin so the browser always hits app.slugy.co/api/auth.
+// BETTER_AUTH_URL is not available in the client bundle (not NEXT_PUBLIC_*).
+const authBaseURL =
+  typeof window !== "undefined"
+    ? window.location.origin
+    : process.env.BETTER_AUTH_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      undefined;
+
 export const authClient = createAuthClient({
-  baseURL: process.env.BETTER_AUTH_URL!,
+  ...(authBaseURL ? { baseURL: authBaseURL } : {}),
   trustedOrigins: origins,
   plugins: [magicLinkClient(), adminClient(), organizationClient()],
 });
 
 export const { signUp, signIn, signOut, useSession } = authClient;
+
+export const POST_LOGIN_PATH = "/";
+
+/** Hard navigation so cookies from Set-Cookie are applied before the next page. */
+export function hardNavigate(path: string) {
+  if (typeof window === "undefined") return;
+  window.location.assign(path);
+}
+
+export async function signOutAndRedirect(to = "/login") {
+  try {
+    await authClient.signOut();
+  } catch (error) {
+    console.error("Sign out failed:", error);
+  } finally {
+    hardNavigate(to);
+  }
+}
 
 export const checkUserExists = async (email: string) => {
   const response = await fetch(
@@ -21,33 +48,29 @@ export const checkUserExists = async (email: string) => {
 };
 
 export const signInWithGithub = async () => {
-  const data = await authClient.signIn.social({
+  return authClient.signIn.social({
     provider: "github",
-    callbackURL: "/",
+    callbackURL: POST_LOGIN_PATH,
   });
-  return data;
 };
 
 export const signInWithGoogle = async () => {
-  const data = await authClient.signIn.social({
+  return authClient.signIn.social({
     provider: "google",
-    callbackURL: "/",
+    callbackURL: POST_LOGIN_PATH,
   });
-  return data;
 };
 
 export const signInWithMagicLink = async (email: string) => {
-  const data = await authClient.signIn.magicLink({
+  return authClient.signIn.magicLink({
     email,
-    callbackURL: "/",
+    callbackURL: POST_LOGIN_PATH,
   });
-  return data;
 };
 
 export const signUpWithMagicLink = async (email: string) => {
-  const data = await authClient.signIn.magicLink({
+  return authClient.signIn.magicLink({
     email,
-    callbackURL: "/",
+    callbackURL: POST_LOGIN_PATH,
   });
-  return data;
 };

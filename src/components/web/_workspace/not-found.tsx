@@ -1,31 +1,16 @@
 "use client";
 import { Button } from "@/components/ui/button";
 import AppLogo from "../app-logo";
-import { authClient } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import React from "react";
 
 export default function WorkspaceNotFound() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
 
   const handleSignout = async () => {
-    try {
-      await authClient.signOut({
-        fetchOptions: {
-          onSuccess: () => {
-            router.push("/login"); // redirect to login page
-            router.refresh();
-          },
-          onRequest: () => {
-            setIsLoading(true);
-          },
-        },
-      });
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
+    setIsLoading(true);
+    await signOutAndRedirect("/login");
   };
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-transparent">

@@ -241,12 +241,13 @@ export async function getCachedRootSession(): Promise<Session | null> {
 
 // Cached session for authenticated routes
 export async function getAuthSession(): Promise<
-  { success: true; session: Session } | { success: false; redirectTo: "/login" }
+  { success: true; session: Session } | { success: false; redirectTo: string }
 > {
   const session = await getCachedSession();
 
   if (!session?.user?.id) {
-    return { success: false, redirectTo: "/login" } as const;
+    // Clear stale cookies before showing login (avoids /login ↔ / redirect loops).
+    return { success: false, redirectTo: "/api/auth/session-cleanup" } as const;
   }
 
   return { success: true, session } as const;

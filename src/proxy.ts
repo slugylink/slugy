@@ -320,12 +320,10 @@ async function handleAppSubdomain(
     }
 
     if (token && (pathname === "/login" || pathname === "/signup")) {
-      // Cookie presence alone is not proof of a live session. After account
-      // deletion the HttpOnly cookie can linger and cause:
-      // /login → / → /app → /login (ERR_TOO_MANY_REDIRECTS).
-      // Stay on the auth page; pages that need a real session use getAuthSession.
+      // Logged-in users should leave auth pages (OAuth often returns to /login).
+      // Dead-cookie loops are broken by /api/auth/session-cleanup.
       return addSecurityHeaders(
-        NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
+        NextResponse.redirect(new URL("/", baseUrl), authRedirectStatus),
       );
     }
 
