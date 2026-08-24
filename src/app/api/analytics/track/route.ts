@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
 import { jsonWithETag } from "@/lib/http";
-import { apiSuccessPayload, apiErrorPayload, apiErrors } from "@/lib/api-response";
+import {
+  apiSuccessPayload,
+  apiErrorPayload,
+  apiErrors,
+} from "@/lib/api-response";
 
 // Input validation schema
 const analyticsSchema = z.object({
@@ -25,6 +29,27 @@ const analyticsSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const internalSecret = process.env.INTERNAL_ANALYTICS_SECRET;
+    if (!internalSecret) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(
+          "Analytics writer is not configured",
+          "SERVICE_UNAVAILABLE",
+        ),
+        { status: 503 },
+      );
+    }
+
+    const provided = req.headers.get("x-slugy-internal-secret");
+    if (!provided || provided !== internalSecret) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload("Unauthorized", "UNAUTHORIZED"),
+        { status: 401 },
+      );
+    }
+
     const body = await req.json();
     const validationResult = analyticsSchema.safeParse(body);
 
@@ -44,7 +69,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { linkId, slug, domain, workspaceId, analyticsData } = validationResult.data;
+    const { linkId, slug, domain, workspaceId, analyticsData } =
+      validationResult.data;
 
     // Verify the link exists and belongs to the workspace
     const link = await db.link.findFirst({
@@ -68,7 +94,9 @@ export async function POST(req: NextRequest) {
     });
 
     if (!usageRecord) {
-      return apiErrors.notFound("Usage record not found for workspaceId: " + workspaceId);
+      return apiErrors.notFound(
+        "Usage record not found for workspaceId: " + workspaceId,
+      );
     }
 
     await db.$transaction(
@@ -129,7 +157,7 @@ export async function POST(req: NextRequest) {
     const response = jsonWithETag(
       req,
       apiSuccessPayload(null, "Analytics tracked successfully"),
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     );
     return response;
   } catch (error) {
@@ -144,6 +172,14 @@ export async function POST(req: NextRequest) {
 
     console.error("Analytics error details:", errorDetails);
 
-    return jsonWithETag(req, apiErrorPayload("Failed to track analytics", "INTERNAL_ERROR", errorDetails), { status: 500 });
+    return jsonWithETag(
+      req,
+      apiErrorPayload(
+        "Failed to track analytics",
+        "INTERNAL_ERROR",
+        errorDetails,
+      ),
+      { status: 500 },
+    );
   }
 }

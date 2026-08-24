@@ -11,6 +11,7 @@ import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { inngest } from "@/inngest/client";
+import { setLinkCache } from "@/lib/cache-utils/link-cache";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -24,7 +25,20 @@ const MAX_TAGS_PER_WORKSPACE = 5;
 
 // Input validation schema
 const createLinkSchema = z.object({
-  url: z.string().url(),
+  url: z
+    .string()
+    .url()
+    .refine(
+      (value) => {
+        try {
+          const protocol = new URL(value).protocol;
+          return protocol === "http:" || protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      { message: "Only http(s) URLs are allowed" },
+    ),
   slug: z
     .string()
     .max(50)
@@ -38,7 +52,22 @@ const createLinkSchema = z.object({
   metadesc: z.string().max(500).optional().nullable(),
   password: z.string().min(3).max(50).optional().nullable(),
   expiresAt: z.string().datetime().optional().nullable(),
-  expirationUrl: z.string().url().optional().nullable(),
+  expirationUrl: z
+    .string()
+    .url()
+    .refine(
+      (value) => {
+        try {
+          const protocol = new URL(value).protocol;
+          return protocol === "http:" || protocol === "https:";
+        } catch {
+          return false;
+        }
+      },
+      { message: "Only http(s) expiration URLs are allowed" },
+    )
+    .optional()
+    .nullable(),
   utm_source: z.string().optional().nullable(),
   utm_medium: z.string().optional().nullable(),
   utm_campaign: z.string().optional().nullable(),
@@ -335,6 +364,25 @@ export async function POST(
             where: { id: currentUsage.id },
             data: { linksCreated: { increment: 1 } },
           }),
+          setLinkCache(
+            result.slug,
+            {
+              id: result.id,
+              url: result.url,
+              expiresAt: result.expiresAt
+                ? result.expiresAt.toISOString()
+                : null,
+              expirationUrl: result.expirationUrl,
+              password: result.password,
+              workspaceId: workspaceCheck.workspace.id,
+              domain,
+              title: result.title,
+              image: result.image,
+              metadesc: result.metadesc,
+              description: result.description,
+            },
+            domain,
+          ),
           inngest.send({
             name: "app/link.created",
             data: {
@@ -353,11 +401,6 @@ export async function POST(
 
     return jsonWithETag(req, apiSuccessPayload(result), {
       status: 201,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-      },
     });
   } catch (error) {
     console.error("Error creating link:", error);

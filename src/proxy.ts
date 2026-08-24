@@ -7,6 +7,7 @@ import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 import {
   checkRateLimit,
   checkFastRateLimit,
+  checkRedirectRateLimit,
   normalizeIp,
 } from "@/lib/middleware/rate-limit";
 
@@ -62,12 +63,26 @@ const addSecurityHeaders = (res: NextResponse): NextResponse => {
   return res;
 };
 
+/**
+ * Prefer platform-injected IPs. Never prefer client-spoofable `cf-connecting-ip`
+ * unless Cloudflare is known to sit in front (CF-Ray present).
+ * On Vercel, `x-real-ip` / the rightmost `x-forwarded-for` hop is trustworthy.
+ */
 const getClientIP = (req: NextRequest): string => {
+  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
+  const forwarded = req.headers.get("x-forwarded-for");
+  const forwardedHops = forwarded
+    ?.split(",")
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+
   const ip =
-    req.headers.get("cf-connecting-ip") ||
+    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
     req.headers.get("x-real-ip") ||
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    forwardedHops?.[forwardedHops.length - 1] ||
     "unknown";
+
   return normalizeIp(ip);
 };
 
@@ -196,7 +211,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
       if (process.env.NODE_ENV !== "development" && isKnownDomain(hostname)) {
         const limitResult = isFastUser
-          ? checkFastRateLimit(clientIP)
+          ? await checkFastRateLimit(clientIP)
           : await checkRateLimit(clientIP);
 
         if (!limitResult.success) {
@@ -367,6 +382,13 @@ async function handleRootDomain(
   }
 
   if (!isPublicPath(pathname) && pathname !== "/" && shortCode.length > 0) {
+    if (process.env.NODE_ENV !== "development") {
+      const redirectLimit = await checkRedirectRateLimit(getClientIP(req));
+      if (!redirectLimit.success) {
+        return rateLimitExceededResponse(redirectLimit);
+      }
+    }
+
     if (shortCode.endsWith("&c")) {
       const tempRedirect = await handleTempRedirect(req, shortCode);
       if (tempRedirect) return tempRedirect;

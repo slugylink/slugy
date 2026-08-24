@@ -60,18 +60,15 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
   const timeoutId = setTimeout(() => controller.abort(), TINYBIRD_TIMEOUT_MS);
 
   try {
-    const res = await fetch(
-      `${API_BASE}/events?name=${tb.link_click_events}&wait=true`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${TINYBIRD_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
+    const res = await fetch(`${API_BASE}/events?name=${tb.link_click_events}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TINYBIRD_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
 
     if (!res.ok) {
       const text = await res.text();

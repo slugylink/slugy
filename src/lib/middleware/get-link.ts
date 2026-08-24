@@ -1,5 +1,9 @@
 import { primarySql, sql } from "@/server/neon";
-import { getLinkCache, setLinkCache } from "@/lib/cache-utils/link-cache";
+import {
+  getLinkCache,
+  setLinkCache,
+  setNegativeLinkCache,
+} from "@/lib/cache-utils/link-cache";
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 const MAX_SLUG_LENGTH = 50;
@@ -33,7 +37,6 @@ interface LinkCache {
   description: string | null;
 }
 
-// Parse cookies from header string
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
 
@@ -51,7 +54,6 @@ const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   }
 };
 
-// Validate slug format
 const isValidSlug = (slug: string): boolean => {
   return Boolean(
     slug &&
@@ -61,7 +63,6 @@ const isValidSlug = (slug: string): boolean => {
   );
 };
 
-// Fetch link from database
 const fetchLinkFromDatabase = async (
   slug: string,
   domain: string,
@@ -86,6 +87,7 @@ const fetchLinkFromDatabase = async (
     WHERE l.slug = ${slug} 
       AND (l.domain = ${domain} OR cd.domain = ${domain})
       AND l."isArchived" = false
+      AND l."deletedAt" IS NULL
     LIMIT 1
   `;
 
@@ -107,13 +109,11 @@ const fetchLinkFromDatabase = async (
   };
 };
 
-// Check if link has expired
 const isLinkExpired = (expiresAt: string | null): boolean => {
   if (!expiresAt) return false;
   return new Date(expiresAt) < new Date();
 };
 
-// Verify password from cookies
 const isPasswordVerified = (
   cookies: Record<string, string>,
   domain: string,
@@ -122,7 +122,6 @@ const isPasswordVerified = (
   return Boolean(cookies[`password_verified_${domain}_${slug}`]);
 };
 
-// Build error response
 const errorResponse = (
   url: string | undefined,
   error: string,
@@ -139,7 +138,6 @@ export async function getLink(
   origin?: string,
   domain: string = DEFAULT_DOMAIN,
 ): Promise<GetLinkResult> {
-  // Validate slug
   if (!isValidSlug(slug)) {
     return errorResponse(
       origin ? `${origin}/?status=invalid` : undefined,
@@ -148,10 +146,19 @@ export async function getLink(
   }
 
   try {
-    // Try to get link from cache
-    let link = await getLinkCache(slug, domain).catch(() => null);
+    const cached = await getLinkCache(slug, domain).catch(() => null);
 
-    // Cache miss - fetch from database
+    if (cached === "missing") {
+      return errorResponse(
+        origin ? `${origin}/?status=not-found` : undefined,
+        "Link not found",
+        true,
+      );
+    }
+
+    let link: LinkCache | null =
+      cached && typeof cached === "object" ? cached : null;
+
     if (!link) {
       link = await fetchLinkFromDatabase(slug, domain);
       if (!link && primarySql !== sql) {
@@ -159,12 +166,12 @@ export async function getLink(
       }
 
       if (link) {
-        // Set cache asynchronously (non-blocking)
         setLinkCache(slug, link, domain).catch(console.error);
+      } else {
+        setNegativeLinkCache(slug, domain).catch(console.error);
       }
     }
 
-    // Link not found
     if (!link) {
       return errorResponse(
         origin ? `${origin}/?status=not-found` : undefined,
@@ -173,7 +180,6 @@ export async function getLink(
       );
     }
 
-    // Check expiration
     if (isLinkExpired(link.expiresAt)) {
       return {
         success: true,
@@ -185,7 +191,6 @@ export async function getLink(
       };
     }
 
-    // Check password protection
     if (link.password) {
       const cookies = parseCookies(cookieHeader ?? null);
 
@@ -199,7 +204,6 @@ export async function getLink(
       }
     }
 
-    // Return successful link
     return {
       success: true,
       url: link.url,

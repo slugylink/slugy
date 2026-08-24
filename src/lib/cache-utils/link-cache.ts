@@ -1,6 +1,6 @@
-import { redis, CACHE_BASE_TTL, CACHE_TTL_JITTER } from "@/lib/redis";
+import { redis, CACHE_BASE_TTL } from "@/lib/redis";
 
-type LinkCacheType = {
+export type LinkCacheType = {
   id: string;
   url: string;
   expiresAt: string | null;
@@ -14,27 +14,46 @@ type LinkCacheType = {
   description: string | null;
 } | null;
 
-// Invalidate link cache
-export async function invalidateLinkCache(slug: string, domain: string = "slugy.co"): Promise<void> {
-  const cacheKey = `link:${domain}:${slug}`;
+const NEGATIVE_CACHE_TTL_SECONDS = 30;
+const NEGATIVE_CACHE_VALUE = "__missing__";
+
+function cacheKey(slug: string, domain: string): string {
+  return `link:${domain}:${slug}`;
+}
+
+function negativeCacheKey(slug: string, domain: string): string {
+  return `link-miss:${domain}:${slug}`;
+}
+
+function linkCacheTtl(): number {
+  // Jitter per write so isolates don't expire in lockstep
+  return CACHE_BASE_TTL + Math.floor(Math.random() * 10) * 60;
+}
+
+// Invalidate link cache (+ negative miss marker)
+export async function invalidateLinkCache(
+  slug: string,
+  domain: string = "slugy.co",
+): Promise<void> {
   try {
-    await redis.del(cacheKey);
-    // console.log(`Cache invalidated for key ⚡: ${cacheKey}`);
+    await redis.del(cacheKey(slug, domain), negativeCacheKey(slug, domain));
   } catch (error) {
-    console.error(`Failed to invalidate cache for key ${cacheKey}:`, error);
+    console.error(`Failed to invalidate cache for ${domain}/${slug}:`, error);
   }
 }
 
-// Invalidate multiple link caches
-export async function invalidateLinkCacheBatch(slugs: string[], domain: string = "slugy.co"): Promise<void> {
+export async function invalidateLinkCacheBatch(
+  slugs: string[],
+  domain: string = "slugy.co",
+): Promise<void> {
   await Promise.all(slugs.map((slug) => invalidateLinkCache(slug, domain)));
 }
 
-function isLinkCacheType(obj: unknown): obj is LinkCacheType {
+function isLinkCacheType(obj: unknown): obj is NonNullable<LinkCacheType> {
   if (!obj || typeof obj !== "object") return false;
-  
+
   const o = obj as Record<string, unknown>;
-  
+
   return (
     typeof o.id === "string" &&
     typeof o.url === "string" &&
@@ -49,31 +68,57 @@ function isLinkCacheType(obj: unknown): obj is LinkCacheType {
   );
 }
 
-// Get link cache
-export async function getLinkCache(slug: string, domain: string = "slugy.co"): Promise<LinkCacheType> {
-  const cacheKey = `link:${domain}:${slug}`;
+export async function getLinkCache(
+  slug: string,
+  domain: string = "slugy.co",
+): Promise<LinkCacheType | "missing"> {
   try {
-    const cached = await redis.get(cacheKey);
+    const miss = await redis.get(negativeCacheKey(slug, domain));
+    if (miss === NEGATIVE_CACHE_VALUE || miss === "1") {
+      return "missing";
+    }
+
+    const cached = await redis.get(cacheKey(slug, domain));
     const parsed = cached
       ? typeof cached === "string"
         ? JSON.parse(cached)
         : cached
       : null;
     if (isLinkCacheType(parsed)) return parsed;
-  } catch {}
+  } catch {
+    // ignore
+  }
   return null;
 }
 
-// Set link cache
 export async function setLinkCache(
   slug: string,
   data: LinkCacheType,
   domain: string = "slugy.co",
 ): Promise<void> {
-  const cacheKey = `link:${domain}:${slug}`;
+  if (!data) return;
   try {
-    await redis.set(cacheKey, JSON.stringify(data), {
-      ex: CACHE_BASE_TTL + CACHE_TTL_JITTER,
+    const pipeline = redis.pipeline();
+    pipeline.set(cacheKey(slug, domain), JSON.stringify(data), {
+      ex: linkCacheTtl(),
     });
-  } catch {}
+    pipeline.del(negativeCacheKey(slug, domain));
+    await pipeline.exec();
+  } catch {
+    // ignore
+  }
+}
+
+/** Cache a miss briefly so random-slug floods don't hammer Neon. */
+export async function setNegativeLinkCache(
+  slug: string,
+  domain: string = "slugy.co",
+): Promise<void> {
+  try {
+    await redis.set(negativeCacheKey(slug, domain), NEGATIVE_CACHE_VALUE, {
+      ex: NEGATIVE_CACHE_TTL_SECONDS,
+    });
+  } catch {
+    // ignore
+  }
 }

@@ -152,10 +152,15 @@ function extractUTMParams(urlString: string): UTMParams {
   }
 }
 
-// Create safe redirect with fallback
+// Create safe redirect with fallback — only http(s) destinations
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   try {
-    return NextResponse.redirect(new URL(url), REDIRECT_STATUS);
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      console.error(`Blocked non-http(s) redirect URL: ${url}`);
+      return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
+    }
+    return NextResponse.redirect(parsed, REDIRECT_STATUS);
   } catch (error) {
     console.error(`Invalid redirect URL: ${url}`, error);
     return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
@@ -233,11 +238,22 @@ async function checkAnalyticsRateLimit(
   }
 }
 
-// Extract IP address from headers
+// Extract IP address from headers (platform-trusted)
 function getIpAddress(req: NextRequest): string {
-  const xri = req.headers.get("x-real-ip");
-  const xff = req.headers.get("x-forwarded-for");
-  return xri || xff?.split(",")[0]?.trim() || UNKNOWN_VALUE;
+  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
+  const forwarded = req.headers.get("x-forwarded-for");
+  const hops = forwarded
+    ?.split(",")
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+
+  return (
+    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    hops?.[hops.length - 1] ||
+    UNKNOWN_VALUE
+  );
 }
 
 // Build analytics data from request
@@ -319,10 +335,18 @@ async function trackAnalytics(
           utm_content: utmParams.utm_content ?? "",
         }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
-        // Send to internal analytics API
+        // Send to internal analytics API (signed)
         fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(process.env.INTERNAL_ANALYTICS_SECRET
+              ? {
+                  "x-slugy-internal-secret":
+                    process.env.INTERNAL_ANALYTICS_SECRET,
+                }
+              : {}),
+          },
           body: JSON.stringify({
             linkId,
             slug,
@@ -397,25 +421,27 @@ export async function URLRedirects(
         return serveLinkPreview(req, shortCode, linkData);
       }
 
-      // Track analytics for non-bot users
-      if (!isBot) {
-        const ipAddress = getIpAddress(req);
-        const isRateLimited = await checkAnalyticsRateLimit(
-          ipAddress,
-          shortCode,
-        );
-
-        if (!isRateLimited) {
-          void trackAnalytics(
-            req,
-            linkData.linkId,
+      // Track analytics for humans only (skip bots + browser prefetch)
+      if (!isBot && trigger !== "prefetch") {
+        // Never await Redis on the 302 path — fire-and-forget with dedupe inside
+        void (async () => {
+          const ipAddress = getIpAddress(req);
+          const isRateLimited = await checkAnalyticsRateLimit(
+            ipAddress,
             shortCode,
-            linkData.url,
-            linkData.workspaceId,
+          );
+          if (isRateLimited) return;
+
+          await trackAnalytics(
+            req,
+            linkData.linkId!,
+            shortCode,
+            linkData.url!,
+            linkData.workspaceId!,
             domain,
             trigger,
           );
-        }
+        })();
       }
 
       return createSafeRedirect(linkData.url, `${origin}/?status=error`);

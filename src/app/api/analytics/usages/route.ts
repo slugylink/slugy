@@ -14,6 +14,22 @@ const usagesSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    const internalSecret = process.env.INTERNAL_ANALYTICS_SECRET;
+    if (!internalSecret) {
+      console.error(
+        "[Analytics] INTERNAL_ANALYTICS_SECRET is not configured — rejecting write",
+      );
+      return NextResponse.json(
+        { error: "Analytics writer is not configured" },
+        { status: 503 },
+      );
+    }
+
+    const provided = req.headers.get("x-slugy-internal-secret");
+    if (!provided || provided !== internalSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
     const validationResult = usagesSchema.safeParse(body);
 

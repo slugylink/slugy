@@ -8,224 +8,112 @@ const redis = new Redis({
 // ─────────── Constants ───────────
 
 const RATE_LIMITS = {
-  STANDARD: { limit: 80, window: 60, burstMultiplier: 2, burstWindow: 10 },
-  FAST: { limit: 1000, window: 60, burstMultiplier: 1.5, burstWindow: 10 },
+  STANDARD: { limit: 80, window: 60 },
+  FAST: { limit: 300, window: 60 },
+  REDIRECT: { limit: 120, window: 60 },
+  REDIRECT_MISS: { limit: 30, window: 60 },
   TEMP_LINK: { limit: 1, window: 20 * 60 },
-} as const;
-
-const CACHE_CONFIG = {
-  MAX_SIZE: 1000,
-  CLEANUP_INTERVAL: 5 * 60 * 1000, // 5 minutes
-  MAX_AGE: 5 * 60 * 1000, // 5 minutes
 } as const;
 
 // ─────────── Types ───────────
 
-type CacheEntry = {
-  count: number;
-  reset: number;
-  ttl: number;
-  lastAccess: number;
-};
-
-type RateLimitResult = {
+export type RateLimitResult = {
   success: boolean;
   limit: number;
   reset: number;
   remaining: number;
-  burstMode?: boolean;
 };
-
-// ─────────── Cache ───────────
-
-const rateLimitCache = new Map<string, CacheEntry>();
-
-const cleanupCache = (): void => {
-  const now = Date.now();
-
-  for (const [key, value] of rateLimitCache.entries()) {
-    if (now > value.reset || now - value.lastAccess > CACHE_CONFIG.MAX_AGE) {
-      rateLimitCache.delete(key);
-    }
-  }
-};
-
-const shouldCleanupCache = (): boolean =>
-  rateLimitCache.size > CACHE_CONFIG.MAX_SIZE;
 
 // ─────────── Helpers ───────────
 
 export const normalizeIp = (ip: string): string => {
-  // IPv6 - use first 4 segments for rate limiting
   if (ip.includes(":")) {
     return ip.split(":").slice(0, 4).join(":");
   }
   return ip;
 };
 
-const isBurstMode = (lastAccess: number, burstWindow: number): boolean =>
-  Date.now() - lastAccess < burstWindow * 1000;
-
-const calculateEffectiveLimit = (
-  baseLimit: number,
-  burst: boolean,
-  multiplier: number,
-): number => (burst ? Math.floor(baseLimit * multiplier) : baseLimit);
-
 const createResult = (
   success: boolean,
   limit: number,
   reset: number,
   count: number,
-  burst = false,
 ): RateLimitResult => ({
   success,
   limit,
   reset,
   remaining: Math.max(0, limit - count),
-  burstMode: burst,
 });
 
-// ─────────── Cached Rate Limit Check ───────────
-
-const checkCachedLimit = (
-  key: string,
-  baseLimit: number,
-  burstMultiplier: number,
-  burstWindow: number,
-): RateLimitResult | null => {
-  const cached = rateLimitCache.get(key);
-  const now = Date.now();
-
-  if (!cached || now >= cached.reset) {
-    return null;
-  }
-
-  const burst = isBurstMode(cached.lastAccess, burstWindow);
-  const effectiveLimit = calculateEffectiveLimit(
-    baseLimit,
-    burst,
-    burstMultiplier,
-  );
-
-  return createResult(
-    cached.count <= effectiveLimit,
-    effectiveLimit,
-    cached.reset,
-    cached.count,
-    burst,
-  );
-};
-
-// ─────────── Redis Rate Limit ───────────
-
+/**
+ * Atomic INCR + EXPIRE via a single Redis pipeline.
+ * Always hits Redis — never skip via a local cache (that was a bypass).
+ */
 const checkRedisLimit = async (
   key: string,
   limit: number,
-  window: number,
+  windowSeconds: number,
 ): Promise<RateLimitResult> => {
   const now = Date.now();
 
-  const current = await redis.incr(key);
-  if (current === 1) {
-    await redis.expire(key, window);
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.incr(key);
+    pipeline.ttl(key);
+    const results = await pipeline.exec<[number, number]>();
+
+    const current = Number(results[0] ?? 0);
+    let ttl = Number(results[1] ?? -1);
+
+    // Key had no TTL (new key or crash between incr/expire previously)
+    if (current === 1 || ttl < 0) {
+      await redis.expire(key, windowSeconds);
+      ttl = windowSeconds;
+    }
+
+    const reset = now + Math.max(ttl, 1) * 1000;
+    return createResult(current <= limit, limit, reset, current);
+  } catch (error) {
+    console.error("[Rate Limit] Redis error:", error);
+    // Fail open for authenticated API traffic so Redis outages don't take the app down.
+    return createResult(true, limit, now + windowSeconds * 1000, 0);
   }
-
-  const ttl = await redis.ttl(key);
-  const reset = now + ttl * 1000;
-
-  // Update cache
-  rateLimitCache.set(key, {
-    count: current,
-    reset,
-    ttl,
-    lastAccess: now,
-  });
-
-  if (shouldCleanupCache()) {
-    cleanupCache();
-  }
-
-  return createResult(current <= limit, limit, reset, current);
 };
 
 // ─────────── Public API ───────────
 
 export const checkRateLimit = async (ip: string): Promise<RateLimitResult> => {
-  const key = `rate-limit:${ip}`;
-  const { limit, window, burstMultiplier, burstWindow } = RATE_LIMITS.STANDARD;
-
-  // Check cache first
-  const cached = checkCachedLimit(key, limit, burstMultiplier, burstWindow);
-  if (cached) return cached;
-
-  // Fallback to Redis
-  return checkRedisLimit(key, limit, window);
+  const { limit, window } = RATE_LIMITS.STANDARD;
+  return checkRedisLimit(`rate-limit:${ip}`, limit, window);
 };
 
-export const checkFastRateLimit = (ip: string): RateLimitResult => {
-  const key = `fast-rate-limit:${ip}`;
-  const { limit, window, burstMultiplier, burstWindow } = RATE_LIMITS.FAST;
-  const now = Date.now();
+/** Shared Redis limiter for previously "fast" routes (was in-memory only — useless across instances). */
+export const checkFastRateLimit = async (
+  ip: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.FAST;
+  return checkRedisLimit(`fast-rate-limit:${ip}`, limit, window);
+};
 
-  const cached = rateLimitCache.get(key);
+/** Per-IP throttle for short-link redirects (cache hits included). */
+export const checkRedirectRateLimit = async (
+  ip: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.REDIRECT;
+  return checkRedisLimit(`redirect-rate-limit:${ip}`, limit, window);
+};
 
-  // Check existing cache
-  if (cached && now < cached.reset) {
-    const burst = isBurstMode(cached.lastAccess, burstWindow);
-    const effectiveLimit = calculateEffectiveLimit(
-      limit,
-      burst,
-      burstMultiplier,
-    );
-
-    return createResult(
-      cached.count <= effectiveLimit,
-      effectiveLimit,
-      cached.reset,
-      cached.count,
-      burst,
-    );
-  }
-
-  // Create new entry
-  const current = (cached?.count || 0) + 1;
-  const reset = now + window * 1000;
-
-  rateLimitCache.set(key, {
-    count: current,
-    reset,
-    ttl: window,
-    lastAccess: now,
-  });
-
-  if (shouldCleanupCache()) {
-    cleanupCache();
-  }
-
-  return createResult(current <= limit, limit, reset, current);
+/** Stricter per-IP throttle when a slug misses cache / DB (anti scan / DDoS). */
+export const checkRedirectMissRateLimit = async (
+  ip: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.REDIRECT_MISS;
+  return checkRedisLimit(`redirect-miss-rate-limit:${ip}`, limit, window);
 };
 
 export const checkTempLinkRateLimit = async (
   ip: string,
 ): Promise<RateLimitResult> => {
-  const key = `temp-link-limit:${ip}`;
   const { limit, window } = RATE_LIMITS.TEMP_LINK;
-  const now = Date.now();
-
-  const current = await redis.incr(key);
-  if (current === 1) {
-    await redis.expire(key, window);
-  }
-
-  const ttl = await redis.ttl(key);
-  const reset = now + ttl * 1000;
-
-  return createResult(current <= limit, limit, reset, current);
+  return checkRedisLimit(`temp-link-limit:${ip}`, limit, window);
 };
-
-// ─────────── Periodic Cleanup ───────────
-
-if (typeof window === "undefined" && process.env.NODE_ENV !== "test") {
-  setInterval(cleanupCache, CACHE_CONFIG.CLEANUP_INTERVAL);
-}

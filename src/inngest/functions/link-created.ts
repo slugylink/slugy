@@ -1,5 +1,4 @@
 import { inngest } from "../client";
-import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 
 type LinkCreatedEventData = {
@@ -20,10 +19,7 @@ export const linkCreatedFunction = inngest.createFunction(
   async ({ event, step }) => {
     const data = event.data as LinkCreatedEventData;
 
-    await step.run("invalidate-link-cache", async () => {
-      await invalidateLinkCache(data.slug, data.domain);
-    });
-
+    // Cache is warmed on create — do not invalidate here (that forced a cold first click).
     await step.run("send-link-metadata", async () => {
       await sendLinkMetadata({
         link_id: data.linkId,
