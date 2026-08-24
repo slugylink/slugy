@@ -3,7 +3,6 @@ import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 import { apiErrors } from "@/lib/api-response";
-import { buildAnalyticsSql } from "@/lib/tinybird/analytics-sql";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -84,10 +83,8 @@ interface TinybirdResponse {
     link_id: string;
     day: string;
     clicks: number;
-    "meta.slug"?: string;
-    "meta.url"?: string;
-    slug?: string;
-    url?: string;
+    "meta.slug": string;
+    "meta.url": string;
     domain: string;
     country: string;
     city: string;
@@ -170,8 +167,6 @@ function transformTinybirdData(
 
   for (const item of tinybirdData) {
     const clicks = item.clicks;
-    const itemSlug = item["meta.slug"] ?? item.slug ?? "";
-    const itemUrl = item["meta.url"] ?? item.url ?? "";
     if (metricSet.has("totalClicks")) totalClicks += clicks;
 
     if (timeMap) {
@@ -180,13 +175,13 @@ function transformTinybirdData(
     }
 
     if (linksMap) {
-      const key = `${itemSlug}-${itemUrl}-${item.domain || "slugy.co"}`;
+      const key = `${item["meta.slug"]}-${item["meta.url"]}-${item.domain || "slugy.co"}`;
       const existing = linksMap.get(key);
       if (existing) existing.clicks += clicks;
       else {
         linksMap.set(key, {
-          slug: itemSlug,
-          url: itemUrl,
+          slug: item["meta.slug"],
+          url: item["meta.url"],
           domain: item.domain || "slugy.co",
           clicks,
         });
@@ -245,12 +240,12 @@ function transformTinybirdData(
       else referrersMap.set(item.referer, { referrer: item.referer, clicks });
     }
 
-    if (destinationsMap && itemUrl) {
-      const existing = destinationsMap.get(itemUrl);
+    if (destinationsMap && item["meta.url"]) {
+      const existing = destinationsMap.get(item["meta.url"]);
       if (existing) existing.clicks += clicks;
       else
-        destinationsMap.set(itemUrl, {
-          destination: itemUrl,
+        destinationsMap.set(item["meta.url"], {
+          destination: item["meta.url"],
           clicks,
         });
     }
@@ -389,11 +384,10 @@ export async function GET(
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
 
-    // Query Tinybird SQL with FINAL on metadata — avoids 2x clicks when
-    // ReplacingMergeTree still has duplicate link_id versions.
-    const analyticsQuery = buildAnalyticsSql({
-      workspaceId,
-      dateRange: props.timePeriod,
+    // Build Tinybird pipe query (SQL API is not available on this token — 403)
+    const tinybirdParams: Record<string, string> = {
+      workspace_id: workspaceId,
+      date_range: props.timePeriod,
       slug: props.slug_key || "",
       url: props.destination_key || "",
       country: props.country_key || "",
@@ -404,9 +398,10 @@ export async function GET(
       referer: props.referrer_key || "",
       device: props.device_key || "",
       domain: props.domain_key || "",
-    });
+    };
 
-    const tinybirdEndpoint = `https://api.us-east.aws.tinybird.co/v0/sql?q=${encodeURIComponent(analyticsQuery)}`;
+    const queryString = new URLSearchParams(tinybirdParams).toString();
+    const tinybirdEndpoint = `https://api.us-east.aws.tinybird.co/v0/pipes/analytics_pipe.json?${queryString}`;
 
     const tinybirdFetchResponse = await fetch(tinybirdEndpoint, {
       headers: {
@@ -417,7 +412,7 @@ export async function GET(
     if (!tinybirdFetchResponse.ok) {
       const errorText = await tinybirdFetchResponse.text().catch(() => "");
       console.error(
-        `Tinybird SQL error: ${tinybirdFetchResponse.status} ${tinybirdFetchResponse.statusText}`,
+        `Tinybird pipe error: ${tinybirdFetchResponse.status} ${tinybirdFetchResponse.statusText}`,
         errorText,
       );
       return apiErrors.serviceUnavailable(
@@ -440,11 +435,8 @@ export async function GET(
       "X-Analytics-Metrics": normalizedMetrics.join(","),
       "X-Analytics-Period": props.timePeriod,
       "X-Analytics-Cache": `${CACHE_DURATION}s`,
-      "X-Tinybird-Rows": String(
-        tinybirdResponse.rows ?? tinybirdResponse.data?.length ?? 0,
-      ),
-      "X-Tinybird-Elapsed": String(tinybirdResponse.statistics?.elapsed ?? 0),
-      "X-Analytics-Source": "tinybird-sql-final",
+      "X-Tinybird-Rows": tinybirdResponse.rows.toString(),
+      "X-Tinybird-Elapsed": tinybirdResponse.statistics.elapsed.toString(),
     };
 
     // Return analytics data directly (not wrapped) for frontend compatibility
