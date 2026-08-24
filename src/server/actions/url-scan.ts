@@ -1,6 +1,7 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
+import { createHash } from "crypto";
+import { redis } from "@/lib/redis";
 
 // ============================================================================
 // Types
@@ -54,8 +55,7 @@ interface ValidationResult {
 const SAFE_BROWSING_API_BASE =
   "https://safebrowsing.googleapis.com/v4/threatMatches:find";
 const CLIENT_VERSION = "1.0";
-const CACHE_REVALIDATE_SECONDS = 3600;
-const CACHE_TAG = "scan-url-safety";
+const SAFETY_CACHE_TTL_SECONDS = 3600;
 const REQUEST_TIMEOUT_MS = 1500;
 const ENV_CACHE_TTL = 300000;
 
@@ -273,25 +273,47 @@ async function fetchUrlSafety(url: string): Promise<UrlScanResult> {
 }
 
 // ============================================================================
-// Cached Scanning
+// Cached Scanning (Redis — shared across form debounce + create API)
 // ============================================================================
 
-const cachedScanUrlSafety = unstable_cache(
-  async (url: string) => fetchUrlSafety(url),
-  [CACHE_TAG],
-  {
-    revalidate: CACHE_REVALIDATE_SECONDS,
-    tags: [CACHE_TAG],
-  },
-);
+function safetyCacheKey(url: string): string {
+  const digest = createHash("sha256").update(url).digest("hex").slice(0, 40);
+  return `url-safe:${digest}`;
+}
 
 export async function scanUrlSafety(url: string): Promise<UrlScanResult> {
+  const cacheKey = safetyCacheKey(url);
+
   try {
-    return await cachedScanUrlSafety(url);
+    const cached = await redis.get<UrlScanResult>(cacheKey);
+    if (
+      cached &&
+      typeof cached.isSafe === "boolean" &&
+      Array.isArray(cached.threats) &&
+      !cached.error
+    ) {
+      return cached;
+    }
   } catch (error) {
-    console.error("Cache error in scanUrlSafety:", error);
-    return fetchUrlSafety(url);
+    console.warn("URL safety cache read failed:", error);
   }
+
+  const result = await fetchUrlSafety(url);
+
+  // Do not cache timeouts / infra errors (those fail open as "safe")
+  if (!result.error) {
+    try {
+      await redis.set(
+        cacheKey,
+        { isSafe: result.isSafe, threats: result.threats },
+        { ex: SAFETY_CACHE_TTL_SECONDS },
+      );
+    } catch (error) {
+      console.warn("URL safety cache write failed:", error);
+    }
+  }
+
+  return result;
 }
 
 // ============================================================================

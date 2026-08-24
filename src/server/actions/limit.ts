@@ -16,12 +16,12 @@ export async function checkWorkspaceAccessAndLimits(
   } as const;
 
   try {
-    const [subscriptionResult, ownedWorkspace] = await Promise.all([
+    const [subscriptionResult, workspace] = await Promise.all([
       getSubscriptionWithPlan(userId),
       db.workspace.findFirst({
         where: {
           slug: workspaceslug,
-          userId,
+          OR: [{ userId }, { members: { some: { userId } } }],
         },
         select: workspaceSelect,
       }),
@@ -40,21 +40,6 @@ export async function checkWorkspaceAccessAndLimits(
 
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
-
-    let workspace = ownedWorkspace;
-
-    // If not owner, check if user is a member
-    if (!workspace) {
-      workspace = await db.workspace.findFirst({
-        where: {
-          slug: workspaceslug,
-          members: {
-            some: { userId },
-          },
-        },
-        select: workspaceSelect,
-      });
-    }
 
     if (!workspace) {
       return {

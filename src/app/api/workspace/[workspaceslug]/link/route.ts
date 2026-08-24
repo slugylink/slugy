@@ -13,7 +13,11 @@ import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
 import { hashLinkPassword, maskLinkPassword } from "@/lib/link-password";
-import { assertSafeDestinationUrl } from "@/lib/url-policy";
+import {
+  assertSafeDestinationUrl,
+  isRecursiveShortLink,
+} from "@/lib/url-policy";
+import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { redis } from "@/lib/redis";
 
@@ -95,27 +99,19 @@ function preprocessEmptyStrings(body: CreateLinkRequest): CreateLinkRequest {
   };
 }
 
-// Helper: Verify and get custom domain
-async function verifyCustomDomain(
-  customDomainId: string,
-  workspaceId: string,
-): Promise<string | null> {
-  const customDomain = await db.customDomain.findFirst({
+async function findVerifiedCustomDomain(customDomainId: string) {
+  return db.customDomain.findFirst({
     where: {
       id: customDomainId,
-      workspaceId,
       verified: true,
       dnsConfigured: true,
     },
-    select: { domain: true },
+    select: { domain: true, workspaceId: true },
   });
-  return customDomain?.domain || null;
 }
 
-// Helper: Handle tag creation and assignment
-async function handleTags(
+async function resolveWorkspaceTags(
   tx: Prisma.TransactionClient | typeof db,
-  linkId: string,
   workspaceId: string,
   tagNames: string[],
 ): Promise<Array<{ id: string; name: string; color: string | null }>> {
@@ -127,7 +123,6 @@ async function handleTags(
 
   if (!normalizedTagNames.length) return [];
 
-  // Fetch existing tags in one query
   const existingTags = await tx.tag.findMany({
     where: {
       workspaceId,
@@ -146,7 +141,6 @@ async function handleTags(
     ...existingTags,
   ];
 
-  // Create new tags if needed and within limit
   if (newTagNames.length > 0) {
     const currentTagCount = await tx.tag.count({
       where: { workspaceId, deletedAt: null },
@@ -181,14 +175,6 @@ async function handleTags(
     }
   }
 
-  // Create link-tag relationships
-  if (allTags.length > 0) {
-    await tx.linkTag.createMany({
-      data: allTags.map((tag) => ({ linkId, tagId: tag.id })),
-      skipDuplicates: true,
-    });
-  }
-
   return allTags;
 }
 
@@ -197,8 +183,12 @@ export async function POST(
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
-    // Authentication
-    const session = await auth.api.getSession({ headers: await headers() });
+    const [headersList, context] = await Promise.all([headers(), params]);
+    const [session, body] = await Promise.all([
+      auth.api.getSession({ headers: headersList }),
+      req.json() as Promise<CreateLinkRequest>,
+    ]);
+
     if (!session) {
       return jsonWithETag(
         req,
@@ -207,16 +197,15 @@ export async function POST(
       );
     }
 
-    // Parse and validate input
-    const body = (await req.json()) as CreateLinkRequest;
     const validatedData = createLinkSchema.parse(preprocessEmptyStrings(body));
 
-    // Check workspace access and limits
-    const context = await params;
-    const workspaceCheck = await checkWorkspaceAccessAndLimits(
-      session.user.id,
-      context.workspaceslug,
-    );
+    const [workspaceCheck, customDomainRow, safetyResult] = await Promise.all([
+      checkWorkspaceAccessAndLimits(session.user.id, context.workspaceslug),
+      validatedData.customDomainId
+        ? findVerifiedCustomDomain(validatedData.customDomainId)
+        : Promise.resolve(null),
+      validateUrlSafety(validatedData.url),
+    ]);
 
     if (!workspaceCheck.success || !workspaceCheck.workspace) {
       return jsonWithETag(
@@ -238,29 +227,41 @@ export async function POST(
       );
     }
 
-    // Verify custom domain if provided
     let customDomainName: string | null = null;
     if (validatedData.customDomainId) {
-      customDomainName = await verifyCustomDomain(
-        validatedData.customDomainId,
-        workspaceCheck.workspace.id,
-      );
-      if (!customDomainName) {
+      if (
+        !customDomainRow ||
+        customDomainRow.workspaceId !== workspaceCheck.workspace.id
+      ) {
         return jsonWithETag(
           req,
           apiErrorPayload("Invalid or unverified custom domain", "BAD_REQUEST"),
           { status: 400 },
         );
       }
+      customDomainName = customDomainRow.domain;
     }
 
-    const urlCheck = await assertSafeDestinationUrl(validatedData.url, {
-      customDomains: customDomainName ? [customDomainName] : [],
-    });
-    if (!urlCheck.ok) {
+    const customDomains = customDomainName ? [customDomainName] : [];
+    if (isRecursiveShortLink(validatedData.url, customDomains)) {
       return jsonWithETag(
         req,
-        apiErrorPayload(urlCheck.message, "BAD_REQUEST"),
+        apiErrorPayload(
+          "Recursive links are not allowed. You cannot shorten a Slugy or custom-domain short link.",
+          "BAD_REQUEST",
+        ),
+        { status: 400 },
+      );
+    }
+
+    if (!safetyResult.isValid) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(
+          safetyResult.message ||
+            "This URL failed the safety check and cannot be shortened.",
+          "BAD_REQUEST",
+        ),
         { status: 400 },
       );
     }
@@ -269,7 +270,7 @@ export async function POST(
       const expCheck = await assertSafeDestinationUrl(
         validatedData.expirationUrl,
         {
-          customDomains: customDomainName ? [customDomainName] : [],
+          customDomains,
           skipSafetyScan: true,
         },
       );
@@ -282,7 +283,6 @@ export async function POST(
       }
     }
 
-    // Generate or use provided slug
     const slug = validatedData.slug?.trim() || nanoid();
     const domain = customDomainName || DEFAULT_DOMAIN;
     const storedPassword = validatedData.password
@@ -293,66 +293,81 @@ export async function POST(
     // Interactive Prisma transactions on Neon serverless commonly add multiple seconds.
     let result;
     try {
-      const link = await db.link.create({
-        data: {
-          workspaceId: workspaceCheck.workspace.id,
-          userId: session.user.id,
-          url: validatedData.url,
-          slug,
-          domain,
-          image: validatedData.image,
-          title: validatedData.title,
-          description: validatedData.description,
-          metadesc: validatedData.metadesc ?? null,
-          password: storedPassword,
-          ...(validatedData.expiresAt && {
-            expiresAt: new Date(validatedData.expiresAt),
-          }),
-          expirationUrl: validatedData.expirationUrl,
-          utm_source: validatedData.utm_source,
-          utm_medium: validatedData.utm_medium,
-          utm_campaign: validatedData.utm_campaign,
-          utm_content: validatedData.utm_content,
-          utm_term: validatedData.utm_term,
-          customDomainId: validatedData.customDomainId || null,
-        },
-        select: {
-          id: true,
-          url: true,
-          slug: true,
-          image: true,
-          title: true,
-          description: true,
-          metadesc: true,
-          password: true,
-          expiresAt: true,
-          expirationUrl: true,
-          utm_source: true,
-          utm_medium: true,
-          utm_campaign: true,
-          utm_content: true,
-          utm_term: true,
-          createdAt: true,
-        },
-      });
+      const [link, assignedTags] = await Promise.all([
+        db.link.create({
+          data: {
+            workspaceId: workspaceCheck.workspace.id,
+            userId: session.user.id,
+            url: validatedData.url,
+            slug,
+            domain,
+            image: validatedData.image,
+            title: validatedData.title,
+            description: validatedData.description,
+            metadesc: validatedData.metadesc ?? null,
+            password: storedPassword,
+            ...(validatedData.expiresAt && {
+              expiresAt: new Date(validatedData.expiresAt),
+            }),
+            expirationUrl: validatedData.expirationUrl,
+            utm_source: validatedData.utm_source,
+            utm_medium: validatedData.utm_medium,
+            utm_campaign: validatedData.utm_campaign,
+            utm_content: validatedData.utm_content,
+            utm_term: validatedData.utm_term,
+            customDomainId: validatedData.customDomainId || null,
+          },
+          select: {
+            id: true,
+            url: true,
+            slug: true,
+            domain: true,
+            clicks: true,
+            isArchived: true,
+            image: true,
+            title: true,
+            description: true,
+            metadesc: true,
+            password: true,
+            expiresAt: true,
+            expirationUrl: true,
+            utm_source: true,
+            utm_medium: true,
+            utm_campaign: true,
+            utm_content: true,
+            utm_term: true,
+            createdAt: true,
+          },
+        }),
+        validatedData.tags?.length
+          ? resolveWorkspaceTags(
+              db,
+              workspaceCheck.workspace.id,
+              validatedData.tags,
+            )
+          : Promise.resolve([]),
+      ]);
 
-      let tags: Array<{
-        tag: { id: string; name: string; color: string | null };
-      }> = [];
-      if (validatedData.tags?.length) {
-        const assignedTags = await handleTags(
-          db,
-          link.id,
-          workspaceCheck.workspace.id,
-          validatedData.tags,
-        );
-        tags = assignedTags.map((tag) => ({ tag }));
+      if (assignedTags.length > 0) {
+        await db.linkTag.createMany({
+          data: assignedTags.map((tag) => ({
+            linkId: link.id,
+            tagId: tag.id,
+          })),
+          skipDuplicates: true,
+        });
       }
 
       result = {
         ...link,
         password: maskLinkPassword(link.password),
-        tags,
+        tags: assignedTags.map((tag) => ({ tag })),
+        qrCode: { id: "", customization: "" },
+        lastClicked: null,
+        creator: {
+          name: session.user.name ?? null,
+          image: session.user.image ?? null,
+        },
       };
     } catch (error: unknown) {
       if (

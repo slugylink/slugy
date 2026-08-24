@@ -51,6 +51,81 @@ interface UrlSafetyStatus {
   message: string;
 }
 
+interface CreatedLink {
+  id: string;
+  url: string;
+  slug: string;
+  domain?: string | null;
+  clicks?: number;
+  description?: string | null;
+  password?: string | null;
+  expiresAt?: string | Date | null;
+  expirationUrl?: string | null;
+  isArchived?: boolean;
+  image?: string | null;
+  title?: string | null;
+  metadesc?: string | null;
+  utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
+  utm_content?: string | null;
+  utm_term?: string | null;
+  createdAt?: string | Date;
+  tags?: Array<{
+    tag: { id: string; name: string; color: string | null };
+  }>;
+  qrCode?: { id: string; customization?: string };
+  lastClicked?: string | Date | null;
+  creator?: { name: string | null; image: string | null } | null;
+}
+
+interface SWRLinksList {
+  links: CreatedLink[];
+  totalLinks?: number;
+  [key: string]: unknown;
+}
+
+function toListLink(created: CreatedLink): CreatedLink {
+  return {
+    ...created,
+    clicks: created.clicks ?? 0,
+    isArchived: created.isArchived ?? false,
+    domain: created.domain ?? DEFAULT_DOMAIN,
+    qrCode: created.qrCode ?? { id: "", customization: "" },
+    lastClicked: created.lastClicked ?? null,
+    tags: created.tags ?? [],
+  };
+}
+
+function insertCreatedLink(
+  currentData: SWRLinksList | undefined,
+  created: CreatedLink,
+): SWRLinksList | undefined {
+  if (!currentData?.links) return currentData;
+  if (currentData.links.some((link) => link.id === created.id)) {
+    return currentData;
+  }
+  return {
+    ...currentData,
+    links: [toListLink(created), ...currentData.links],
+    totalLinks: (currentData.totalLinks ?? currentData.links.length) + 1,
+  };
+}
+
+function patchCreatedLinkImage(
+  currentData: SWRLinksList | undefined,
+  linkId: string,
+  image: string,
+): SWRLinksList | undefined {
+  if (!currentData?.links) return currentData;
+  return {
+    ...currentData,
+    links: currentData.links.map((link) =>
+      link.id === linkId ? { ...link, image } : link,
+    ),
+  };
+}
+
 // Constants
 const NANOID_ALPHABET =
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -234,41 +309,51 @@ const CreateLinkForm = React.memo(
           );
 
           if (response.status === 201) {
-            const created = (response.data?.data ?? response.data) as {
-              id: string;
-            };
-            // If user picked a file for preview image, upload now and patch link
-            if (draftMetadata.selectedFile) {
-              try {
-                const formData = new FormData();
-                formData.append("file", draftMetadata.selectedFile);
-                const uploadRes = await axios.post(
-                  `/api/workspace/${workspaceslug}/link/${created.id}/upload-image`,
-                  formData,
-                  { headers: { "Content-Type": "multipart/form-data" } },
-                );
-                const imageUrl = uploadRes.data.url as string;
-                await axios.patch(
-                  `/api/workspace/${workspaceslug}/link/${created.id}/update`,
-                  { image: imageUrl },
-                );
-              } catch (e) {
-                // Non-blocking: creation succeeded; notify upload failure only
-                console.error("Preview image upload failed:", e);
-                toast.error(
-                  "Preview image upload failed. You can try editing later.",
-                );
-              }
-            }
+            const created = (response.data?.data ??
+              response.data) as CreatedLink;
+            const previewFile = draftMetadata.selectedFile;
 
             toast.success("Link created successfully!");
             resetForm();
             handleClose();
             void mutate(
               (key) => typeof key === "string" && key.includes("/link/get"),
-              undefined,
+              (currentData: SWRLinksList | undefined) =>
+                insertCreatedLink(currentData, created),
               { revalidate: true },
             );
+
+            // File lives in the browser — upload after close. Inngest cannot receive the File.
+            if (previewFile) {
+              void (async () => {
+                try {
+                  const formData = new FormData();
+                  formData.append("file", previewFile);
+                  const uploadRes = await axios.post(
+                    `/api/workspace/${workspaceslug}/link/${created.id}/upload-image`,
+                    formData,
+                    { headers: { "Content-Type": "multipart/form-data" } },
+                  );
+                  const imageUrl = uploadRes.data.url as string;
+                  await axios.patch(
+                    `/api/workspace/${workspaceslug}/link/${created.id}/update`,
+                    { image: imageUrl },
+                  );
+                  void mutate(
+                    (key) =>
+                      typeof key === "string" && key.includes("/link/get"),
+                    (currentData: SWRLinksList | undefined) =>
+                      patchCreatedLinkImage(currentData, created.id, imageUrl),
+                    { revalidate: false },
+                  );
+                } catch (e) {
+                  console.error("Preview image upload failed:", e);
+                  toast.error(
+                    "Preview image upload failed. You can try editing later.",
+                  );
+                }
+              })();
+            }
           } else {
             const errorData = response.data as { message: string };
             toast.error(
