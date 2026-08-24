@@ -3,6 +3,7 @@ import { NextRequest, NextResponse, userAgent } from "next/server";
 import { getLink } from "./get-link";
 import { detectTrigger } from "./detect-trigger";
 import { sendLinkClickEvent } from "@/lib/tinybird/slugy_click_events";
+import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import {
   cacheAnalyticsEvent,
   type CachedAnalyticsData,
@@ -309,47 +310,90 @@ async function trackAnalytics(
       utm_content: utmParams.utm_content ?? undefined,
     };
 
-    waitUntil(
-      Promise.allSettled([
-        // Send to Tinybird
-        sendLinkClickEvent({
-          timestamp,
-          link_id: linkId,
-          workspace_id: workspaceId,
-          slug,
-          url,
-          domain: finalDomain,
-          ip: analytics.ipAddress,
-          country: analytics.country,
-          city: analytics.city,
-          continent: analytics.continent,
-          device: analytics.device,
-          browser: analytics.browser,
-          os: analytics.os,
-          ua: req.headers.get("user-agent") ?? "",
-          referer: analytics.referer,
-          trigger: analytics.trigger,
-          utm_source: utmParams.utm_source ?? "",
-          utm_medium: utmParams.utm_medium ?? "",
-          utm_campaign: utmParams.utm_campaign ?? "",
-          utm_term: utmParams.utm_term ?? "",
-          utm_content: utmParams.utm_content ?? "",
-        }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
+    // Caller must wrap this in waitUntil — do not nest waitUntil after awaits.
+    await Promise.allSettled([
+      // Tinybird click events (dashboard source)
+      sendLinkClickEvent({
+        timestamp,
+        link_id: linkId,
+        workspace_id: workspaceId,
+        slug,
+        url,
+        domain: finalDomain,
+        ip: analytics.ipAddress,
+        country: analytics.country,
+        city: analytics.city,
+        continent: analytics.continent,
+        device: analytics.device,
+        browser: analytics.browser,
+        os: analytics.os,
+        ua: req.headers.get("user-agent") ?? "",
+        referer: analytics.referer,
+        trigger: analytics.trigger,
+        utm_source: utmParams.utm_source ?? "",
+        utm_medium: utmParams.utm_medium ?? "",
+        utm_campaign: utmParams.utm_campaign ?? "",
+        utm_term: utmParams.utm_term ?? "",
+        utm_content: utmParams.utm_content ?? "",
+      }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
-        // Edge-safe click counters (no origin HTTP hop)
-        recordLinkClick({
-          linkId,
-          workspaceId,
-          slug,
-          domain: finalDomain,
-        }).catch((err) => console.error("[Click Counter Error]", err)),
+      // Ensure link exists in Tinybird metadata (analytics_pipe INNER JOINs on it)
+      ensureTinybirdLinkMetadata({
+        linkId,
+        workspaceId,
+        slug,
+        url,
+        domain: finalDomain,
+        createdAt: timestamp,
+      }).catch((err) => console.error("[Tinybird Metadata Error]", err)),
 
-        // Cache analytics event
-        cacheAnalyticsEvent(cachedData),
-      ]),
-    );
+      // Edge-safe click counters (Neon)
+      recordLinkClick({
+        linkId,
+        workspaceId,
+        slug,
+        domain: finalDomain,
+      }).catch((err) => console.error("[Click Counter Error]", err)),
+
+      // Redis batch cache (Prisma analytics backfill)
+      cacheAnalyticsEvent(cachedData),
+    ]);
   } catch (err) {
     console.error("[Analytics Error]", err);
+  }
+}
+
+/** Once per link (Redis) so analytics_pipe INNER JOIN has metadata. */
+async function ensureTinybirdLinkMetadata(input: {
+  linkId: string;
+  workspaceId: string;
+  slug: string;
+  url: string;
+  domain: string;
+  createdAt: string;
+}): Promise<void> {
+  const key = `tb:meta:${input.linkId}`;
+  try {
+    const exists = await redis.get(key);
+    if (exists) return;
+  } catch {
+    // Redis down — still attempt Tinybird write
+  }
+
+  await sendLinkMetadata({
+    link_id: input.linkId,
+    domain: input.domain,
+    slug: input.slug,
+    url: input.url,
+    tag_ids: [],
+    workspace_id: input.workspaceId,
+    created_at: input.createdAt,
+  });
+
+  try {
+    await redis.set(key, "1", { ex: 60 * 60 * 24 * 30 });
+  } catch {
+    // ignore
   }
 }
 
@@ -407,27 +451,30 @@ export async function URLRedirects(
         return serveLinkPreview(req, shortCode, linkData);
       }
 
-      // Track analytics for humans only (skip bots + browser prefetch)
+      // Track analytics for humans only (skip bots + browser prefetch).
+      // waitUntil MUST be registered before the 302 returns — a bare void/async
+      // after Redis will be frozen on Vercel and Tinybird events never land.
       if (!isBot && trigger !== "prefetch") {
-        // Never await Redis on the 302 path — fire-and-forget with dedupe inside
-        void (async () => {
-          const ipAddress = getIpAddress(req);
-          const isRateLimited = await checkAnalyticsRateLimit(
-            ipAddress,
-            shortCode,
-          );
-          if (isRateLimited) return;
+        waitUntil(
+          (async () => {
+            const ipAddress = getIpAddress(req);
+            const isRateLimited = await checkAnalyticsRateLimit(
+              ipAddress,
+              shortCode,
+            );
+            if (isRateLimited) return;
 
-          await trackAnalytics(
-            req,
-            linkData.linkId!,
-            shortCode,
-            linkData.url!,
-            linkData.workspaceId!,
-            domain,
-            trigger,
-          );
-        })();
+            await trackAnalytics(
+              req,
+              linkData.linkId!,
+              shortCode,
+              linkData.url!,
+              linkData.workspaceId!,
+              domain,
+              trigger,
+            );
+          })(),
+        );
       }
 
       return createSafeRedirect(linkData.url, `${origin}/?status=error`);

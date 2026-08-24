@@ -14,6 +14,7 @@ import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
 import { hashLinkPassword, maskLinkPassword } from "@/lib/link-password";
 import { assertSafeDestinationUrl } from "@/lib/url-policy";
+import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -403,6 +404,17 @@ export async function POST(
             },
             domain,
           ),
+          // Direct Tinybird metadata write (don't rely only on Inngest —
+          // analytics_pipe INNER JOINs metadata; missing rows → 0 clicks UI)
+          sendLinkMetadata({
+            link_id: result.id,
+            domain,
+            slug: result.slug,
+            url: result.url,
+            tag_ids: result.tags.map((t) => t.tag.id),
+            workspace_id: workspaceCheck.workspace.id,
+            created_at: result.createdAt.toISOString(),
+          }),
           inngest.send({
             name: "app/link.created",
             data: {
