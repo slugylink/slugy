@@ -21,7 +21,7 @@ export function hashKey(input: string): string {
   let hash = 5381;
   for (let i = 0; i < input.length; i++) {
     // hash * 33 + charCode
-    hash = ((hash << 5) + hash) + input.charCodeAt(i);
+    hash = (hash << 5) + hash + input.charCodeAt(i);
     // Force to 32-bit int
     hash = hash | 0;
   }
@@ -53,6 +53,14 @@ export async function getTemporarySession<T = unknown>(
   }
 }
 
+export async function deleteTemporarySession(key: string): Promise<void> {
+  try {
+    await redis.del(key);
+  } catch (err) {
+    console.warn(`Redis cache delete failed for key ${key}:`, err);
+  }
+}
+
 // Batch operations for better performance
 export async function getMultipleSessions<T = unknown>(
   keys: string[],
@@ -60,7 +68,7 @@ export async function getMultipleSessions<T = unknown>(
   try {
     if (keys.length === 0) return [];
     const results = await redis.mget(keys);
-    return results.map(result => result as T | null);
+    return results.map((result) => result as T | null);
   } catch (err) {
     console.warn(`Redis batch get failed:`, err);
     return keys.map(() => null);

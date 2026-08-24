@@ -8,6 +8,7 @@ import { invalidateWorkspaceCache } from "@/lib/cache-utils/workspace-cache";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
 import { apiSuccess, apiErrors } from "@/lib/api-response";
 import { polarClient } from "@/lib/polar";
+import { invalidateSessionPresenceCache } from "@/lib/middleware/get-session";
 
 // Constants
 const CACHE_REVALIDATION_MODE = "max";
@@ -37,6 +38,8 @@ const KNOWN_AUTH_COOKIES = [
   "better-auth.session_token",
   "__Secure-better-auth.session_token",
   "__Host-better-auth.session_token",
+  "better-auth.session_data",
+  "__Secure-better-auth.session_data",
 ];
 
 // Utility functions
@@ -68,29 +71,38 @@ const getRootDomain = (hostHeader: string | null): string | null => {
   return `.${parts.slice(-2).join(".")}`;
 };
 
+/**
+ * Clear auth cookies in a way browsers will accept.
+ * Must match original cookie Path/Domain/Secure/HttpSameSite or the cookie stays.
+ * crossSubDomainCookies means Domain=.slugy.co — clear both host-only and root domain.
+ */
 const buildCookieClearHeaders = (req: Request): Headers => {
   const responseHeaders = new Headers();
   const secure = new URL(req.url).protocol === "https:";
   const requestCookieNames = getRequestCookieNames(req);
   const cookieNames = new Set([...requestCookieNames, ...KNOWN_AUTH_COOKIES]);
   const rootDomain = getRootDomain(req.headers.get("host"));
-  const commonAttrs = [
-    "Path=/",
-    "Max-Age=0",
-    "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
-    "SameSite=Lax",
-    secure ? "Secure" : "",
-  ]
-    .filter(Boolean)
-    .join("; ");
+
+  const appendClear = (cookieName: string, domain?: string) => {
+    const parts = [
+      `${cookieName}=`,
+      "Path=/",
+      "Max-Age=0",
+      "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
+      "SameSite=Lax",
+      "HttpOnly",
+    ];
+    if (secure) parts.push("Secure");
+    if (domain) parts.push(`Domain=${domain}`);
+    responseHeaders.append("Set-Cookie", parts.join("; "));
+  };
 
   for (const cookieName of cookieNames) {
-    responseHeaders.append("Set-Cookie", `${cookieName}=; ${commonAttrs}`);
-    if (rootDomain) {
-      responseHeaders.append(
-        "Set-Cookie",
-        `${cookieName}=; ${commonAttrs}; Domain=${rootDomain}`,
-      );
+    // Host-only clear
+    appendClear(cookieName);
+    // Cross-subdomain clear (better-auth advanced.crossSubDomainCookies)
+    if (rootDomain && !cookieName.startsWith("__Host-")) {
+      appendClear(cookieName, rootDomain);
     }
   }
 
@@ -195,14 +207,17 @@ export async function DELETE(req: Request, { params }: RouteParams) {
       await deletePolarCustomer(user.customerId);
     }
 
-    // Sign out user
+    // Sign out user (best-effort; Set-Cookie from this call is not returned)
     await signOutUser();
 
     // Delete user and related data
     await deleteUserAndRelatedData(accountId);
 
     // Invalidate caches
-    await invalidateAccountCaches(accountId);
+    await Promise.all([
+      invalidateAccountCaches(accountId),
+      invalidateSessionPresenceCache(req.headers.get("cookie")),
+    ]);
 
     // Clear all cookies for this request host + root domain fallback.
     return apiSuccess(
@@ -222,6 +237,7 @@ export async function DELETE(req: Request, { params }: RouteParams) {
           console.log(
             "[Account Delete] User successfully deleted despite cascade errors",
           );
+          await invalidateSessionPresenceCache(req.headers.get("cookie"));
           return apiSuccess(
             null,
             "Account deleted successfully",

@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
-import { getTemporarySession, setTemporarySession, hashKey } from "@/lib/redis";
+import {
+  getTemporarySession,
+  setTemporarySession,
+  deleteTemporarySession,
+  hashKey,
+} from "@/lib/redis";
 
 export interface SessionResult {
   isAuthenticated: boolean;
@@ -20,7 +25,9 @@ const SESSION_TOKEN_COOKIE = "better-auth.session_token=";
 // ─────────── Helpers ───────────
 
 const hasSessionCookie = (cookieHeader: string): boolean =>
-  cookieHeader.includes(SESSION_TOKEN_COOKIE);
+  cookieHeader.includes(SESSION_TOKEN_COOKIE) ||
+  cookieHeader.includes("__Secure-better-auth.session_token=") ||
+  cookieHeader.includes("__Host-better-auth.session_token=");
 
 const getCacheTTL = (isAuthenticated: boolean): number =>
   isAuthenticated ? CACHE_TTL.AUTHENTICATED : CACHE_TTL.UNAUTHENTICATED;
@@ -30,12 +37,23 @@ const createSessionResult = (isAuthenticated: boolean): SessionResult => ({
   token: isAuthenticated,
 });
 
+const presenceCacheKey = (cookieHeader: string) =>
+  `${SESSION_PRESENCE_PREFIX}${hashKey(cookieHeader)}`;
+
+/** Drop middleware auth-presence cache so a deleted user is not treated as logged in. */
+export async function invalidateSessionPresenceCache(
+  cookieHeader: string | null,
+): Promise<void> {
+  if (!cookieHeader) return;
+  await deleteTemporarySession(presenceCacheKey(cookieHeader));
+}
+
 // ─────────── Main Function ───────────
 
 /**
  * Optimized session presence check for middleware.
  * Uses Redis to cache authentication status, avoiding database calls.
- * 
+ *
  * Flow:
  * 1. Check for cookies (early return if none)
  * 2. Check Redis cache
@@ -53,7 +71,7 @@ export async function getCachedSession(
   }
 
   // Check Redis cache
-  const cacheKey = `${SESSION_PRESENCE_PREFIX}${hashKey(cookieHeader)}`;
+  const cacheKey = presenceCacheKey(cookieHeader);
   const cachedPresence = await getTemporarySession<boolean>(cacheKey);
 
   if (cachedPresence !== null) {
@@ -64,7 +82,11 @@ export async function getCachedSession(
   const isAuthenticated = await verifySessionCookie(req, cookieHeader);
 
   // Cache the result
-  await setTemporarySession(cacheKey, isAuthenticated, getCacheTTL(isAuthenticated));
+  await setTemporarySession(
+    cacheKey,
+    isAuthenticated,
+    getCacheTTL(isAuthenticated),
+  );
 
   return createSessionResult(isAuthenticated);
 }

@@ -320,7 +320,13 @@ async function handleAppSubdomain(
     }
 
     if (token && (pathname === "/login" || pathname === "/signup")) {
-      return addSecurityHeaders(NextResponse.redirect(new URL("/", baseUrl)));
+      // Cookie presence alone is not proof of a live session. After account
+      // deletion the HttpOnly cookie can linger and cause:
+      // /login → / → /app → /login (ERR_TOO_MANY_REDIRECTS).
+      // Stay on the auth page; pages that need a real session use getAuthSession.
+      return addSecurityHeaders(
+        NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
+      );
     }
 
     if (!isAlreadyInApp) {

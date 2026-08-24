@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import axios from "axios";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { useSubscriptionStore } from "@/store/subscription";
 
 const CONFIRMATION_TEXT = "DELETE";
 
@@ -25,7 +25,6 @@ interface AlertDialogBoxProps {
 }
 
 export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmationText, setConfirmationText] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -37,12 +36,7 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
 
   const clearClientState = useCallback(() => {
     try {
-      const cookies = document.cookie ? document.cookie.split(";") : [];
-      for (const cookie of cookies) {
-        const name = cookie.split("=")[0]?.trim();
-        if (!name) continue;
-        document.cookie = `${name}=; Max-Age=0; Path=/`;
-      }
+      useSubscriptionStore.getState().resetSubscription();
       localStorage.clear();
       sessionStorage.clear();
     } catch (error) {
@@ -66,8 +60,9 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
       const response = await axios.delete(`/api/account/${accountId}`);
       if (response.status === 200) {
         clearClientState();
-        router.replace("/login");
-        router.refresh();
+        // Hard navigation so Set-Cookie clears from the delete response apply
+        // before the next document load (router.replace can race middleware).
+        window.location.assign("/login");
         return;
       }
       toast.error("Failed to delete account. Please try again.");
@@ -77,7 +72,7 @@ export function AlertDialogBox({ accountId }: AlertDialogBoxProps) {
       toast.error("Failed to delete account. Please try again.");
       setIsLoading(false);
     }
-  }, [confirmationText, accountId, clearClientState, router]);
+  }, [confirmationText, accountId, clearClientState]);
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
