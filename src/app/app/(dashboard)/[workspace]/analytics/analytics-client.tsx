@@ -13,6 +13,10 @@ import FilterActions, {
   type FilterCategory,
 } from "@/components/web/_analytics/filter";
 import {
+  getLeadsDemoData,
+  parseAnalyticsEvent,
+} from "@/components/web/_analytics/leads-demo-data";
+import {
   Box,
   Chrome,
   Flag,
@@ -221,10 +225,18 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     return isValidTimePeriod(period) ? period : DEFAULT_TIME_PERIOD;
   }, [searchParams]);
 
+  const event = useMemo(
+    () => parseAnalyticsEvent(searchParams.get("event")),
+    [searchParams],
+  );
+  const isLeads = event === "leads";
+
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
     [searchParams],
   );
+
+  const leadsDemo = useMemo(() => getLeadsDemoData(timePeriod), [timePeriod]);
 
   const {
     data: res,
@@ -240,7 +252,6 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     error,
     isLoading,
     isValidating,
-    mutate,
   } = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
@@ -248,8 +259,22 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     metrics: ANALYTICS_METRICS,
   });
 
-  const filterSource = useMemo<FilterSource>(
-    () => ({
+  const filterSource = useMemo<FilterSource>(() => {
+    if (isLeads) {
+      return {
+        links: leadsDemo.links,
+        countries: leadsDemo.countries,
+        cities: leadsDemo.cities,
+        continents: leadsDemo.continents,
+        browsers: leadsDemo.browsers,
+        oses: leadsDemo.oses,
+        devices: leadsDemo.devices,
+        referrers: leadsDemo.referrers,
+        destinations: leadsDemo.destinations,
+      };
+    }
+
+    return {
       links,
       countries,
       cities,
@@ -259,33 +284,35 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       devices,
       referrers,
       destinations,
-    }),
-    [
-      links,
-      countries,
-      cities,
-      continents,
-      browsers,
-      oses,
-      devices,
-      referrers,
-      destinations,
-    ],
-  );
+    };
+  }, [
+    isLeads,
+    leadsDemo,
+    links,
+    countries,
+    cities,
+    continents,
+    browsers,
+    oses,
+    devices,
+    referrers,
+    destinations,
+  ]);
 
   const filterCategories = useMemo(
     () => buildFilterCategories(filterSource),
     [filterSource],
   );
 
-  const chartData = useMemo(
-    () => normalizeChartData(res?.clicksOverTime),
-    [res?.clicksOverTime],
-  );
+  const chartData = useMemo(() => {
+    if (isLeads) return leadsDemo.leadsOverTime;
+    return normalizeChartData(res?.clicksOverTime);
+  }, [isLeads, leadsDemo.leadsOverTime, res?.clicksOverTime]);
 
   const hasResolvedData = Boolean(res);
-  const showInitialLoadingState = isLoading && !hasResolvedData && !error;
-  const chartRefreshing = isValidating && hasResolvedData;
+  const showInitialLoadingState =
+    !isLeads && isLoading && !hasResolvedData && !error;
+  const chartRefreshing = !isLeads && isValidating && hasResolvedData;
 
   const sharedProps = useMemo(
     () => ({
@@ -309,29 +336,33 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           {...sharedProps}
           data={chartData}
           totalClicks={res?.totalClicks ?? 0}
+          totalLeads={leadsDemo.totalLeads}
           isRefreshing={chartRefreshing}
-          error={error ?? undefined}
+          error={isLeads ? undefined : (error ?? undefined)}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <UrlClicks
             {...sharedProps}
-            linksData={links}
-            destinationsData={destinations}
+            linksData={filterSource.links}
+            destinationsData={filterSource.destinations}
           />
           <GeoClicks
             {...sharedProps}
-            citiesData={cities}
-            countriesData={countries}
-            continentsData={continents}
+            citiesData={filterSource.cities}
+            countriesData={filterSource.countries}
+            continentsData={filterSource.continents}
           />
           <DeviceClicks
             {...sharedProps}
-            devicesData={devices}
-            browsersData={browsers}
-            osesData={oses}
+            devicesData={filterSource.devices}
+            browsersData={filterSource.browsers}
+            osesData={filterSource.oses}
           />
-          <ReferrerClicks {...sharedProps} referrersData={referrers} />
+          <ReferrerClicks
+            {...sharedProps}
+            referrersData={filterSource.referrers}
+          />
         </div>
       </div>
     </section>
