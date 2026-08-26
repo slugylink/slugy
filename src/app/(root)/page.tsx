@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/" },
+};
 
 const LOADING_HEIGHT = {
   features: "h-[400px]",

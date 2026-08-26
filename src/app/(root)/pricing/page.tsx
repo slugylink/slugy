@@ -1,31 +1,24 @@
-"use client";
+import type { Metadata } from "next";
+import PricingPageClient from "./page-client";
 
-import { plans } from "@/constants/data/price";
-import MaxWidthContainer from "@/components/max-width-container";
-import PricingComparator from "@/components/pricing-comparator";
-export default function PricingSection() {
-  return (
-    <section className="!mt-[165px] pb-14 sm:pb-20">
-      <MaxWidthContainer>
-        <div className="mb-20 text-center">
-          <h2 className="text-2xl font-medium text-balance sm:text-4xl">
-            Flexible Pricing for Everyone
-          </h2>
-          <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
-            Pick a plan that fits your needs. Upgrade anytime.
-          </p>
-          <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-            Use code{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
-            to get a free $1.
-          </p>
-        </div>
+export const metadata: Metadata = {
+  title: "Pricing",
+  description:
+    "Simple pricing for Slugy — URL shortener plans with analytics, bio links, custom domains, and team collaboration. Start free.",
+  alternates: { canonical: "/pricing" },
+  openGraph: {
+    title: "Pricing | Slugy",
+    description:
+      "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
+    url: "/pricing",
+  },
+  twitter: {
+    title: "Pricing | Slugy",
+    description:
+      "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
+  },
+};
 
-        {/* Use PricingComparator instead of individual cards */}
-        <div className="mx-auto max-w-6xl">
-          <PricingComparator />
-        </div>
-      </MaxWidthContainer>
-    </section>
-  );
+export default function PricingPage() {
+  return <PricingPageClient />;
 }

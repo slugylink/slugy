@@ -81,25 +81,24 @@ const Hero = memo(function Hero() {
               </div>
             </m.div>
 
-            <div className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]">
-              <m.h2
+            <h1 className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]">
+              <m.span
+                className="block"
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.65, ease: easeOutExpo, delay: 0.12 }}
               >
                 <span className="text-balance">{heroData.heading1}</span>
-              </m.h2>
-              {/* Animate wrapper so bg-clip-text gradient doesn't stutter */}
-              <m.div
+              </m.span>
+              <m.span
+                className={cn(heroData.heading2Gradient, "block font-medium")}
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.65, ease: easeOutExpo, delay: 0.22 }}
               >
-                <h2 className={cn(heroData.heading2Gradient, "font-medium")}>
-                  {heroData.heading2}
-                </h2>
-              </m.div>
-            </div>
+                {heroData.heading2}
+              </m.span>
+            </h1>
 
             <div className="mx-auto max-w-2xl text-zinc-700">
               <m.p

@@ -6,7 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const currentDate = new Date();
   const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  const staticPages: MetadataRoute.Sitemap = [
+  return [
     {
       url: baseUrl,
       lastModified: currentDate,
@@ -20,18 +20,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${baseUrl}/blogs`,
-      lastModified: lastWeek,
-      changeFrequency: "weekly",
-      priority: 0.8,
-    },
-    {
       url: `${baseUrl}/sponsors`,
       lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.5,
     },
   ];
-
-  return [...staticPages];
 }

@@ -68,12 +68,8 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/manifest.webmanifest",
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
-    url: BASE_URL,
     siteName: "Slugy",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
@@ -82,6 +78,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: OG_IMAGE_URL,
+        width: 1200,
+        height: 630,
         alt: "Slugy - Open Source URL Shortener",
       },
     ],
