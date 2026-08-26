@@ -25,7 +25,6 @@ interface UseAnalyticsParams {
   enabled?: boolean;
   metrics?: readonly (keyof AnalyticsData)[];
   useTinybird?: boolean;
-  fallbackData?: Partial<AnalyticsData>;
 }
 
 // Constants
@@ -184,7 +183,6 @@ export function useAnalytics({
   enabled = true,
   metrics = DEFAULT_METRICS,
   useTinybird = true,
-  fallbackData,
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
@@ -200,17 +198,19 @@ export function useAnalytics({
 
   const swrKey = useMemo(() => {
     if (!shouldFetch) return null;
+    // Serialize search params to ensure stable key
     const serializedParams = JSON.stringify(
       Object.keys(debouncedSearchParams)
         .sort()
         .reduce(
           (acc, key) => {
-            acc[key] = debouncedSearchParams[key]!;
+            acc[key] = debouncedSearchParams[key];
             return acc;
           },
           {} as Record<string, string>,
         ),
     );
+    // Sort metrics for consistent key generation
     const sortedMetrics = [...metrics].sort().join(",");
     return [
       useTinybird ? "analytics-tinybird" : "analytics",
@@ -237,9 +237,6 @@ export function useAnalytics({
       errorRetryCount: SWR_ERROR_RETRY_COUNT,
       errorRetryInterval: SWR_ERROR_RETRY_INTERVAL,
       keepPreviousData: true,
-      revalidateOnFocus: true,
-      revalidateOnMount: !fallbackData,
-      fallbackData,
     },
   );
 
