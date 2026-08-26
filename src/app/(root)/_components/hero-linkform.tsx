@@ -176,51 +176,41 @@ const HeroLinkForm = memo(function HeroLinkForm() {
 
   return (
     <div>
-      {/* Form */}
-      <LazyMotion features={domAnimation}>
-        <m.form
-          onSubmit={handleSubmit(onSubmit)}
-          className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100/60 p-2 backdrop-blur-md sm:p-2.5"
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{
-            duration: 0.4,
-            delay: 0.1,
-            ease: [0.25, 0.46, 0.45, 0.94],
-          }}
-        >
-          <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
-            <Input
-              type="text"
-              placeholder="Enter a destination URL"
-              disabled={isFormDisabled}
-              autoComplete="off"
-              {...register("url")}
-              className="w-full border-none focus-visible:ring-0"
-              required
+      <form
+        onSubmit={handleSubmit(onSubmit)}
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100/70 p-2 shadow-sm backdrop-blur-md sm:p-2.5"
+      >
+        <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
+          <Input
+            type="text"
+            placeholder="Enter a destination URL"
+            disabled={isFormDisabled}
+            autoComplete="off"
+            {...register("url")}
+            className="w-full border-none focus-visible:ring-0"
+            required
+          />
+          <Button
+            type="submit"
+            disabled={isFormDisabled}
+            className="rounded-lg bg-orange-500 text-sm transition-colors hover:bg-orange-600 disabled:opacity-50"
+          >
+            {isSubmitting && (
+              <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
+            )}
+            Shorten{" "}
+            <Image
+              src="/icons/star.svg"
+              alt=""
+              width={16}
+              height={16}
+              priority
+              sizes="16px"
             />
-            <Button
-              type="submit"
-              disabled={isFormDisabled}
-              className="rounded-lg bg-orange-500 text-sm hover:bg-orange-600 disabled:opacity-50"
-            >
-              {isSubmitting && (
-                <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
-              )}
-              Shorten{" "}
-              <Image
-                src="/icons/star.svg"
-                alt=""
-                width={16}
-                height={16}
-                priority
-                sizes="16px"
-              />
-            </Button>
-          </div>
-          {/* Links */}
-          <div className="mx-auto mt-4 max-w-[580px] space-y-2">
+          </Button>
+        </div>
+        <div className="mx-auto mt-4 max-w-[580px] space-y-2">
+          <LazyMotion features={domAnimation}>
             <AnimatePresence initial={false}>
               {links.map((link) => (
                 <m.div
@@ -229,18 +219,17 @@ const HeroLinkForm = memo(function HeroLinkForm() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{
-                    duration: 0.25,
+                    duration: 0.22,
                     ease: [0.25, 0.46, 0.45, 0.94],
                   }}
-                  layout
                 >
                   <HeroLinkCard link={link} />
                 </m.div>
               ))}
             </AnimatePresence>
-          </div>
-        </m.form>
-      </LazyMotion>
+          </LazyMotion>
+        </div>
+      </form>
 
       {/* CTA */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-800">

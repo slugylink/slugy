@@ -308,6 +308,58 @@
   animation: shiny-text 1.8s ease-in-out infinite;
 }
 
+/* Landing page — dub-like light hero + CSS entrance */
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-landing-fade-up {
+  animation: landing-fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+.animate-landing-fade-up-done {
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-landing-fade-up {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+}
+
+.landing-hero-shell {
+  background:
+    radial-gradient(
+      120% 80% at 50% -10%,
+      rgba(255, 170, 64, 0.14),
+      transparent 55%
+    ),
+    radial-gradient(
+      90% 60% at 100% 20%,
+      rgba(156, 64, 255, 0.08),
+      transparent 50%
+    ),
+    linear-gradient(180deg, #f7f5f2 0%, #faf8f6 45%, #ffffff 100%);
+}
+
+.landing-hero-glow {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.55), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(255, 170, 64, 0.08), transparent 35%);
+  opacity: 0.9;
+}
+
 
 html::-webkit-scrollbar {
   width: 4px !important;

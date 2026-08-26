@@ -23,7 +23,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn(inter.variable)}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn(inter.variable, "scroll-smooth")}
+    >
       <head>
         <link rel="preconnect" href="https://fonts.cdnfonts.com" />
         <link

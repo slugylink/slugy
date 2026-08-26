@@ -1,14 +1,8 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ExternalLinkIcon } from "lucide-react";
-import { motion } from "motion/react";
 import Image from "next/image";
 
 const sponsors = [
@@ -25,13 +19,7 @@ export default function Sponsors() {
   return (
     <div className="mt-4 bg-transparent dark:bg-[#121212]">
       <div className="mx-auto max-w-6xl px-4 py-16">
-        {/* Header Section */}
-        <motion.div
-          className="mb-16 text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut" }}
-        >
+        <div className="mb-16 text-center">
           <h1 className="text-2xl font-medium text-balance sm:text-4xl">
             Our Sponsors & Supporters
           </h1>
@@ -40,26 +28,13 @@ export default function Sponsors() {
             support the development of Slugy and help us build better tools for
             everyone.
           </p>
-        </motion.div>
+        </div>
 
-        {/* Sponsors Section */}
-        <motion.div
-          className="flex items-center justify-center"
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.2 }}
-        >
-          {sponsors.map((sponsor, index) => (
-            <motion.div
+        <div className="flex items-center justify-center">
+          {sponsors.map((sponsor) => (
+            <div
               key={sponsor.name}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: 0.5,
-                ease: "easeOut",
-                delay: 0.3 + index * 0.1,
-              }}
-              className="w-full max-w-sm rounded-[18px] border bg-zinc-100/80 p-1"
+              className="w-full max-w-sm rounded-[18px] border bg-zinc-100/80 p-1 transition-transform duration-200 hover:scale-[1.01]"
             >
               <div className="relative mx-auto aspect-video w-[30%]">
                 <Image
@@ -93,9 +68,9 @@ export default function Sponsors() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </div>
   );

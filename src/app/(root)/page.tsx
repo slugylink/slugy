@@ -1,6 +1,5 @@
 import dynamic from "next/dynamic";
-import Image from "next/image";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import Hero from "./_components/hero";
 
 const LOADING_HEIGHT = {
   features: "h-[400px]",
@@ -11,92 +10,43 @@ const LOADING_HEIGHT = {
   sponsors: "h-[280px]",
 } as const;
 
-const HERO_BG_IMAGE =
-  "https://images.unsplash.com/photo-1465146344425-f00d5f5c8f07?auto=format&fit=crop&w=1920&q=72";
-
-function LoadingSpinner() {
-  return (
-    <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-  );
+function SectionPlaceholder({ height }: { height: string }) {
+  return <div className={`${height} w-full`} aria-hidden />;
 }
 
-function LoadingSection({ height = "h-[200px]" }: { height?: string }) {
-  return (
-    <div className={`flex w-full items-center justify-center ${height}`}>
-      <LoadingSpinner />
-    </div>
-  );
-}
-
-function HeroSkeleton() {
-  return (
-    <section className="mx-auto max-w-6xl overflow-x-hidden px-4">
-      <div className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12">
-        <div className="bg-muted/50 h-8 w-48 animate-pulse rounded-full" />
-      </div>
-      <div className="space-y-2 text-center">
-        <div className="bg-muted/50 mx-auto h-12 w-64 animate-pulse rounded sm:h-16 sm:w-80 md:h-20 md:w-96" />
-        <div className="bg-muted/50 mx-auto h-12 w-56 animate-pulse rounded sm:h-16 sm:w-72 md:h-20 md:w-80" />
-      </div>
-      <div className="mx-auto mt-6 max-w-2xl">
-        <div className="bg-muted/50 h-4 w-full animate-pulse rounded sm:h-5" />
-        <div className="bg-muted/50 mx-auto mt-2 h-4 w-3/4 animate-pulse rounded sm:h-5" />
-      </div>
-      <div className="mt-8 flex justify-center">
-        <div className="bg-muted/50 h-32 w-full max-w-md animate-pulse rounded-lg" />
-      </div>
-    </section>
-  );
-}
-
-// Above-the-fold: SSR for fast first paint
-const Hero = dynamic(() => import("./_components/hero"), {
-  loading: () => <HeroSkeleton />,
-});
-
-// Below-the-fold: defer JS; keep SSR HTML for SEO where useful
+// Below-the-fold: defer JS; reserved height avoids layout jump
 const Features = dynamic(() => import("./_components/feature"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.features} />,
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.features} />,
 });
 
 const VideoDemoSection = dynamic(() => import("./_components/video-demo"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.video} />,
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.video} />,
 });
 
 const PricingSection = dynamic(
   () => import("@/components/web/_pricing/pricing-section"),
   {
-    loading: () => <LoadingSection height={LOADING_HEIGHT.pricing} />,
+    loading: () => <SectionPlaceholder height={LOADING_HEIGHT.pricing} />,
   },
 );
 
 const Stats = dynamic(() => import("./_components/stats"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.stats} />,
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.stats} />,
 });
 
 const Sponsors = dynamic(() => import("./_components/sponsors"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.sponsors} />,
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.sponsors} />,
 });
 
 const OpenSource = dynamic(() => import("./_components/open-source"), {
-  loading: () => <LoadingSection height={LOADING_HEIGHT.openSource} />,
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.openSource} />,
 });
 
 export default function Home() {
   return (
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
-      <div className="relative mx-auto w-[99%] overflow-hidden rounded-3xl border bg-gradient-to-br from-[#e8eaf7]/70 via-[#f6efe2]/60 to-[#f7f2ef]/70 py-8 pb-16">
-        <Image
-          src={HERO_BG_IMAGE}
-          alt="Sand dunes in evening light"
-          fill
-          priority
-          quality={60}
-          sizes="(max-width: 640px) 100vw, (max-width: 1200px) 95vw, 1200px"
-          className="object-cover object-center"
-        />
-        <div className="absolute inset-0 bg-white/30" />
-
+      <div className="landing-hero-shell relative mx-auto w-[99%] overflow-hidden rounded-3xl border py-8 pb-16">
+        <div className="landing-hero-glow pointer-events-none absolute inset-0" />
         <div className="relative z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>
