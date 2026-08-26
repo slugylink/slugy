@@ -25,6 +25,7 @@ interface UseAnalyticsParams {
   enabled?: boolean;
   metrics?: readonly (keyof AnalyticsData)[];
   useTinybird?: boolean;
+  fallbackData?: Partial<AnalyticsData>;
 }
 
 // Constants
@@ -131,10 +132,19 @@ const fetchAnalyticsData = async (
   const response = await fetch(url);
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(
-      `Failed to fetch analytics data: ${response.status} ${response.statusText}${errorText ? ` - ${errorText}` : ""}`,
-    );
+    const errorText = await response.text().catch(() => "");
+    let message = "Analytics service temporarily unavailable";
+    try {
+      const body = JSON.parse(errorText) as {
+        error?: string;
+        message?: string;
+      };
+      if (body.error?.trim()) message = body.error.trim();
+      else if (body.message?.trim()) message = body.message.trim();
+    } catch {
+      // keep friendly default
+    }
+    throw new Error(message);
   }
 
   const data = await response.json();
@@ -174,6 +184,7 @@ export function useAnalytics({
   enabled = true,
   metrics = DEFAULT_METRICS,
   useTinybird = true,
+  fallbackData,
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
@@ -189,19 +200,17 @@ export function useAnalytics({
 
   const swrKey = useMemo(() => {
     if (!shouldFetch) return null;
-    // Serialize search params to ensure stable key
     const serializedParams = JSON.stringify(
       Object.keys(debouncedSearchParams)
         .sort()
         .reduce(
           (acc, key) => {
-            acc[key] = debouncedSearchParams[key];
+            acc[key] = debouncedSearchParams[key]!;
             return acc;
           },
           {} as Record<string, string>,
         ),
     );
-    // Sort metrics for consistent key generation
     const sortedMetrics = [...metrics].sort().join(",");
     return [
       useTinybird ? "analytics-tinybird" : "analytics",
@@ -228,6 +237,9 @@ export function useAnalytics({
       errorRetryCount: SWR_ERROR_RETRY_COUNT,
       errorRetryInterval: SWR_ERROR_RETRY_INTERVAL,
       keepPreviousData: true,
+      revalidateOnFocus: true,
+      revalidateOnMount: !fallbackData,
+      fallbackData,
     },
   );
 

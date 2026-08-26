@@ -259,11 +259,11 @@ const AnalyticsChart = ({
             </div>
           )}
           {error && (
-            <div className="bg-background/10 absolute inset-0 z-10 flex items-center justify-center">
+            <div className="bg-background/40 absolute inset-0 z-10 flex items-center justify-center backdrop-blur-[1px]">
               <div className="text-center">
                 <TriangleAlert className="text-muted-foreground mx-auto mb-2 h-8 w-8" />
                 <p className="text-muted-foreground text-sm">
-                  Failed to load chart data
+                  {error.message || "Failed to load chart data"}
                 </p>
               </div>
             </div>

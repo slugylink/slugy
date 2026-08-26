@@ -112,7 +112,7 @@ const LinksTable = ({ workspaceslug, fallbackData }: LinksTableProps) => {
     fetcher,
     {
       dedupingInterval: SWR_DEDUPING_INTERVAL,
-      revalidateOnFocus: false,
+      revalidateOnFocus: true,
       keepPreviousData: true,
       // Server prefetch matches current URL searchParams on first paint
       fallbackData: fallbackData ?? undefined,
