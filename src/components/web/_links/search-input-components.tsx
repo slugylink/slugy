@@ -35,7 +35,7 @@ export const ViewModeSelector = ({
   currentLayout: LayoutOption;
   onLayoutChange: (layout: LayoutOption) => void;
 }) => (
-  <div className="grid grid-cols-2 gap-1">
+  <div className="mb-2 grid grid-cols-2 gap-1">
     {LAYOUT_OPTIONS.map(({ value, icon: Icon, label }) => (
       <button
         key={value}
@@ -65,7 +65,7 @@ export const SortSelector = ({
   const currentSortOption = SORT_OPTIONS.find((opt) => opt.value === sortBy);
 
   return (
-    <div className="flex items-center justify-between border-t border-b px-2 py-2.5">
+    <div className="flex items-center justify-between border-t border-b px-2 py-2">
       <div className="flex items-center gap-2">
         <ArrowUpDown size={16} aria-hidden="true" />
         <span className="font-normal">Ordering</span>
@@ -147,7 +147,7 @@ export const TagsFilter = ({
         : `${selectedCount} selected`;
 
   return (
-    <div className="flex items-center justify-between border-t px-2 py-2.5">
+    <div className="flex items-center justify-between border-b px-2 pt-1 pb-2">
       <div className="flex items-center gap-2">
         <Tag size={16} aria-hidden="true" />
         <span className="font-normal">Tags</span>
@@ -190,7 +190,7 @@ export const TagsFilter = ({
                   }}
                   className="text-muted-foreground cursor-pointer border-t"
                 >
-                  Clear filters
+                  Clear
                 </DropdownMenuItem>
               )}
             </>
@@ -283,7 +283,7 @@ export const DisplayOptionsDropdown = ({
         onLayoutChange={onLayoutChange}
       />
       <SortSelector sortBy={sortBy} onSortChange={onSortChange} />
-      <ArchiveToggle checked={showArchived} onToggle={onToggleArchived} />
+
       <TagsFilter
         tags={tags}
         selectedTagIds={selectedTagIds}
@@ -291,6 +291,7 @@ export const DisplayOptionsDropdown = ({
         onClearTags={onClearTags}
         isLoading={tagsLoading}
       />
+      <ArchiveToggle checked={showArchived} onToggle={onToggleArchived} />
     </DropdownMenuContent>
   </DropdownMenu>
 );
