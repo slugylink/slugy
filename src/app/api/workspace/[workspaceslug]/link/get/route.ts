@@ -3,118 +3,14 @@ import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 import { jsonWithETag } from "@/lib/http";
-import { parseGeoFromCache } from "@/lib/link-targeting";
-import { maskLinkPassword } from "@/lib/link-password";
+import {
+  queryWorkspaceLinks,
+  VALID_LINK_SORT_OPTIONS,
+} from "@/lib/links/query-workspace-links";
 
-// Types for database queries
-type LinkWhereInput = {
-  workspaceId: string;
-  OR?: Array<{
-    slug?: { contains: string; mode: "insensitive" };
-    url?: { contains: string; mode: "insensitive" };
-  }>;
-  isArchived?: boolean;
-  tags?: {
-    some: {
-      tagId: { in: string[] };
-    };
-  };
-};
-
-type LinkOrderByInput =
-  | { clicks: "desc" }
-  | Array<{ lastClicked: { sort: "desc"; nulls: "last" } }>
-  | { createdAt: "desc" };
-
-// Constants for better maintainability
-const VALID_SORT_OPTIONS = [
-  "date-created",
-  "total-clicks",
-  "last-clicked",
-] as const;
 const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
-
-// Link select fields for database queries
-const LINK_SELECT_FIELDS = {
-  id: true,
-  slug: true,
-  url: true,
-  clicks: true,
-  description: true,
-  password: true,
-  expiresAt: true,
-  isArchived: true,
-  domain: true,
-  image: true,
-  title: true,
-  qrCode: {
-    select: {
-      id: true,
-      customization: true,
-    },
-  },
-  lastClicked: true,
-  createdAt: true,
-  expirationUrl: true,
-  geo: true,
-  tags: {
-    select: {
-      tag: {
-        select: { id: true, name: true, color: true },
-      },
-    },
-  },
-  creator: {
-    select: {
-      name: true,
-      image: true,
-    },
-  },
-} as const;
-
-const getSearchConditions = (
-  search: string,
-): NonNullable<LinkWhereInput["OR"]> => {
-  const trimmedSearch = search.trim();
-  if (!trimmedSearch) return [];
-
-  return [
-    { slug: { contains: trimmedSearch, mode: "insensitive" } },
-    { url: { contains: trimmedSearch, mode: "insensitive" } },
-  ];
-};
-
-const getOrderConditions = (sortBy: string): LinkOrderByInput => {
-  switch (sortBy) {
-    case "total-clicks":
-      return { clicks: "desc" };
-    case "last-clicked":
-      return [{ lastClicked: { sort: "desc", nulls: "last" } }];
-    case "date-created":
-    default:
-      return { createdAt: "desc" };
-  }
-};
-
-const calculatePaginationInfo = (
-  totalLinks: number,
-  limit: number,
-  offset: number,
-) => {
-  const totalPages = Math.ceil(totalLinks / limit);
-  const currentPage = Math.floor(offset / limit) + 1;
-  const hasNextPage = currentPage < totalPages;
-  const hasPreviousPage = currentPage > 1;
-
-  return {
-    totalPages,
-    currentPage,
-    hasNextPage,
-    hasPreviousPage,
-  };
-};
 
 export async function GET(
   request: NextRequest,
@@ -142,9 +38,8 @@ export async function GET(
 
     const searchParams = request.nextUrl.searchParams;
 
-    // Apply defaults at API level - client only sends non-default values
     const search = searchParams.get("search")?.trim() ?? "";
-    const showArchived = searchParams.get("showArchived") === "true"; // defaults to false
+    const showArchived = searchParams.get("showArchived") === "true";
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset");
     const limitParam = searchParams.get("limit");
@@ -157,21 +52,19 @@ export async function GET(
       ),
     ];
 
-    // Use defaults if not provided
     const offset = offsetParam ? parseInt(offsetParam, 10) : DEFAULT_OFFSET;
     const limit = limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT;
 
-    // Validate parsed parameters
     const errors: string[] = [];
 
     if (
       sortBy &&
-      !VALID_SORT_OPTIONS.includes(
-        sortBy as (typeof VALID_SORT_OPTIONS)[number],
+      !VALID_LINK_SORT_OPTIONS.includes(
+        sortBy as (typeof VALID_LINK_SORT_OPTIONS)[number],
       )
     ) {
       errors.push(
-        `Invalid sortBy parameter. Must be one of: ${VALID_SORT_OPTIONS.join(", ")}`,
+        `Invalid sortBy parameter. Must be one of: ${VALID_LINK_SORT_OPTIONS.join(", ")}`,
       );
     }
 
@@ -194,8 +87,6 @@ export async function GET(
       );
     }
 
-    // Fetch workspace by unique slug first, then authorize via owner or member.
-    // Membership lookup uses the (workspaceId, userId) unique index.
     const workspace = await db.workspace.findUnique({
       where: { slug: workspaceslug },
       select: { id: true, userId: true },
@@ -233,58 +124,17 @@ export async function GET(
       }
     }
 
-    const searchConditions = getSearchConditions(search);
-    const conditions: LinkWhereInput = {
+    const result = await queryWorkspaceLinks({
       workspaceId: workspace.id,
-      ...(searchConditions.length > 0 && { OR: searchConditions }),
-      ...(!showArchived && { isArchived: false }),
-      ...(tagIds.length > 0 && {
-        tags: {
-          some: {
-            tagId: { in: tagIds },
-          },
-        },
-      }),
-    };
-
-    const orderBy = getOrderConditions(sortBy);
-
-    // First, get the total count to check if offset needs adjustment
-    const totalLinks = await db.link.count({ where: conditions });
-
-    // Adjust offset if it exceeds total links
-    const adjustedOffset = offset >= totalLinks && totalLinks > 0 ? 0 : offset;
-
-    // Fetch links with the correct offset
-    const links = await db.link.findMany({
-      where: conditions,
-      select: LINK_SELECT_FIELDS,
-      orderBy,
-      skip: adjustedOffset,
-      take: limit,
+      search,
+      showArchived,
+      sortBy,
+      offset,
+      limit,
+      tagIds,
     });
 
-    const paginationInfo = calculatePaginationInfo(
-      totalLinks,
-      limit,
-      adjustedOffset,
-    );
-
-    const maskedLinks = links.map((link) => ({
-      ...link,
-      password: maskLinkPassword(link.password),
-      geo: parseGeoFromCache(link.geo),
-    }));
-
-    return jsonWithETag(
-      request,
-      {
-        links: maskedLinks,
-        totalLinks,
-        ...paginationInfo,
-      },
-      { status: 200 },
-    );
+    return jsonWithETag(request, result, { status: 200 });
   } catch (error) {
     console.error("Error fetching links:", error);
 

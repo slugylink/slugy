@@ -35,17 +35,15 @@ import {
 } from "./table-links-components";
 import { useBulkOperation, useLayoutPreference } from "./table-links-hooks";
 
-// Constants
 const SWR_DEDUPING_INTERVAL = 3000;
 const DEFAULT_SORT = "date-created";
 const DEFAULT_PAGE = 1;
 
-// Types
 interface LinksTableProps {
   workspaceslug: string;
+  fallbackData?: ApiResponse | null;
 }
 
-// Utility functions
 const buildSearchConfig = (
   searchParams: URLSearchParams | null,
 ): SearchConfig => {
@@ -70,7 +68,6 @@ const buildSearchConfig = (
 const buildApiUrl = (workspaceslug: string, config: SearchConfig): string => {
   const params = new URLSearchParams();
 
-  // Only add non-default parameters to reduce URL size
   if (config.search) params.set("search", config.search);
   if (config.showArchived === "true") params.set("showArchived", "true");
   if (config.sortBy !== DEFAULT_SORT) params.set("sortBy", config.sortBy);
@@ -87,46 +84,44 @@ const normalizeLinks = (links: Link[]): Link[] =>
     qrCode: link.qrCode ?? { id: "", customization: "" },
   }));
 
-// Main component
-const LinksTable = ({ workspaceslug }: LinksTableProps) => {
+const LinksTable = ({ workspaceslug, fallbackData }: LinksTableProps) => {
   const searchParams = useSearchParams();
   const { setworkspaceslug } = useWorkspaceStore();
 
   const [isSelectModeOn, setIsSelectModeOn] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
 
-  // Set workspace slug on mount
   useLayoutEffect(() => {
     if (workspaceslug) {
       setworkspaceslug(workspaceslug);
     }
   }, [workspaceslug, setworkspaceslug]);
 
-  // Build search configuration from URL params
   const searchConfig = useMemo(
     () => buildSearchConfig(searchParams),
     [searchParams],
   );
 
-  // Build API URL
   const apiUrl = useMemo(
     () => buildApiUrl(workspaceslug, searchConfig),
     [searchConfig, workspaceslug],
   );
 
-  // Fetch data
-  const { data, error, isLoading, mutate } = useSWR<ApiResponse>(
+  const { data, error, isLoading, isValidating, mutate } = useSWR<ApiResponse>(
     apiUrl,
     fetcher,
     {
       dedupingInterval: SWR_DEDUPING_INTERVAL,
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+      // Server prefetch matches current URL searchParams on first paint
+      fallbackData: fallbackData ?? undefined,
     },
   );
 
   const { links = [], totalLinks = 0, totalPages = 0 } = data ?? {};
   const linksWithQrCode = useMemo(() => normalizeLinks(links), [links]);
 
-  // Selection handlers
   const handleSelectLink = useCallback((linkId: string) => {
     setSelectedLinks((prev) => {
       const newSet = new Set(prev);
@@ -154,11 +149,9 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
     setIsSelectModeOn(false);
   }, []);
 
-  // Layout and bulk operations
   const { layout, setLayout } = useLayoutPreference();
   const { isProcessing, executeOperation } = useBulkOperation(workspaceslug);
 
-  // Listen for layout changes from other sources
   useEffect(() => {
     const handleLayoutChange = () => {
       if (typeof window === "undefined") return;
@@ -179,7 +172,6 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
     return () => window.removeEventListener("layoutChange", handleLayoutChange);
   }, [layout, setLayout]);
 
-  // Bulk operation handlers
   const handleArchive = useCallback(
     (linkIds: string[]) => executeOperation("archive", linkIds),
     [executeOperation],
@@ -190,7 +182,6 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
     [executeOperation],
   );
 
-  // Pagination data
   const pagination: PaginationData = {
     total_pages: totalPages,
     limit: DEFAULT_LIMIT,
@@ -198,30 +189,37 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
   };
 
   const isGridLayout = layout === "grid-cols-2";
+  const showInitialSkeleton = isLoading && !data && links.length === 0;
 
   return (
     <section>
-      {/* Header Actions */}
       <div className="flex w-full items-center justify-between gap-4 pb-8">
         <SearchInput />
         <LinkActions totalLinks={totalLinks} workspaceslug={workspaceslug} />
       </div>
 
-      {/* Content: Loading / Error / Data */}
-      {isLoading && links.length === 0 ? (
+      {showInitialSkeleton ? (
         <LinkCardSkeleton />
-      ) : error ? (
+      ) : error && !data ? (
         <ErrorState error={error as Error} onRetry={() => mutate()} />
       ) : links.length > 0 ? (
-        <LinkList
-          key={`layout-${isGridLayout ? "grid" : "list"}`}
-          links={linksWithQrCode}
-          isGridLayout={isGridLayout}
-          isLoading={isLoading}
-          isSelectModeOn={isSelectModeOn}
-          selectedLinks={selectedLinks}
-          onSelect={handleSelectLink}
-        />
+        <div
+          className={
+            isValidating && isLoading
+              ? "opacity-70 transition-opacity"
+              : undefined
+          }
+        >
+          <LinkList
+            key={`layout-${isGridLayout ? "grid" : "list"}`}
+            links={linksWithQrCode}
+            isGridLayout={isGridLayout}
+            isLoading={isLoading}
+            isSelectModeOn={isSelectModeOn}
+            selectedLinks={selectedLinks}
+            onSelect={handleSelectLink}
+          />
+        </div>
       ) : (
         <EmptyState
           searchQuery={searchConfig.search}
@@ -229,7 +227,6 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
         />
       )}
 
-      {/* Pagination + Bulk Actions */}
       <LinkPagination
         isSelectModeOn={isSelectModeOn}
         setIsSelectModeOn={setIsSelectModeOn}
