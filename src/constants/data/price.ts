@@ -22,6 +22,7 @@ export interface Plan {
   maxUTM: number;
   linkExp: boolean;
   linkPassword: boolean;
+  linkGeoTargeting: boolean;
   analyticsRetention: string;
   customizeLinkPreview: boolean;
   features: string[];
@@ -53,6 +54,7 @@ const PRO_PLAN: Plan = {
   maxUTM: 15,
   linkExp: true,
   linkPassword: true,
+  linkGeoTargeting: true,
   analyticsRetention: "12 months",
   customizeLinkPreview: true,
   features: [
@@ -62,6 +64,7 @@ const PRO_PLAN: Plan = {
     "Custom link preview",
     "Link expiration",
     "Password protection",
+    "Geo targeting",
     "15 links/bio links",
     "Up to 3 team members",
     "15 link tags",
@@ -96,6 +99,7 @@ const BASIC_PLAN: Plan = {
   maxUTM: 5,
   linkExp: false,
   linkPassword: false,
+  linkGeoTargeting: false,
   analyticsRetention: "30 days",
   customizeLinkPreview: false,
   features: [

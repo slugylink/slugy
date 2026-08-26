@@ -18,6 +18,7 @@ import { linkFormSchema, LinkFormValues, LinkData } from "@/types/link-form";
 import axios from "axios";
 import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
+import LinkGeoTargeting from "./link-geo-targeting";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import UrlAvatar from "../url-avatar";
 import { CornerDownLeft } from "lucide-react";
@@ -26,6 +27,7 @@ import { useSubscriptionStore } from "@/store/subscription";
 import { mutate } from "swr";
 import { customAlphabet } from "nanoid";
 import Image from "next/image";
+import { type GeoTargetMap } from "@/lib/link-targeting";
 
 interface EditLinkFormProps {
   initialData: LinkData;
@@ -52,6 +54,7 @@ interface LinkSettings {
   expiresAt: string | null;
   password: string | null;
   expirationUrl: string | null;
+  geo: GeoTargetMap | null;
 }
 
 interface UrlSafetyStatus {
@@ -95,6 +98,7 @@ const EditLinkForm = memo(
     const { workspaceslug } = useWorkspaceStore();
     const { isPro, fetchSubscription } = useSubscriptionStore();
     const isFreePlan = !isPro;
+    const geoLocked = !isPro;
 
     useEffect(() => {
       void fetchSubscription();
@@ -111,6 +115,7 @@ const EditLinkForm = memo(
       expiresAt: initialData.expiresAt || null,
       password: initialData.password || null,
       expirationUrl: initialData.expirationUrl || null,
+      geo: initialData.geo || null,
     });
 
     const [draftMetadata, setDraftMetadata] = useState<{
@@ -144,6 +149,7 @@ const EditLinkForm = memo(
         expiresAt: initialData.expiresAt || null,
         password: initialData.password || null,
         expirationUrl: initialData.expirationUrl || null,
+        geo: initialData.geo || null,
       }),
       [initialData],
     );
@@ -197,7 +203,9 @@ const EditLinkForm = memo(
       () =>
         linkSettings.expiresAt !== initialLinkSettings.expiresAt ||
         linkSettings.password !== initialLinkSettings.password ||
-        linkSettings.expirationUrl !== initialLinkSettings.expirationUrl,
+        linkSettings.expirationUrl !== initialLinkSettings.expirationUrl ||
+        JSON.stringify(linkSettings.geo) !==
+          JSON.stringify(initialLinkSettings.geo),
       [linkSettings, initialLinkSettings],
     );
 
@@ -238,8 +246,13 @@ const EditLinkForm = memo(
 
     // Check if free plan user is trying to use premium features
     const hasPremiumFeatures = useMemo(
-      () => !!(linkSettings.expiresAt || linkSettings.password),
-      [linkSettings.expiresAt, linkSettings.password],
+      () =>
+        !!(
+          linkSettings.expiresAt ||
+          linkSettings.password ||
+          (geoLocked && linkSettings.geo)
+        ),
+      [linkSettings, geoLocked],
     );
 
     const shouldDisableSubmit = useMemo(
@@ -290,7 +303,6 @@ const EditLinkForm = memo(
           }
 
           const normalizedSettings = {
-            ...linkSettings,
             expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
             expirationUrl: linkSettings.expirationUrl || null,
             password: linkSettings.password || null,
@@ -304,6 +316,10 @@ const EditLinkForm = memo(
             utm_term: utmParams.term || null,
           };
 
+          const geoDirty =
+            JSON.stringify(linkSettings.geo) !==
+            JSON.stringify(initialLinkSettings.geo);
+
           const response = await axios.patch(
             `/api/workspace/${workspaceslug}/link/${initialData.id}${UPDATE_ENDPOINT}`,
             {
@@ -314,6 +330,7 @@ const EditLinkForm = memo(
               image: finalImage ?? null,
               ...normalizedSettings,
               ...utmPayload,
+              ...(geoDirty ? { geo: linkSettings.geo } : {}),
             },
           );
 
@@ -345,8 +362,15 @@ const EditLinkForm = memo(
             );
           }
         } catch (error) {
-          if (axios.isAxiosError(error) && error.response?.data?.message) {
-            toast.error(error.response.data.message);
+          if (axios.isAxiosError(error)) {
+            const payload = error.response?.data as
+              | { message?: string; error?: string }
+              | undefined;
+            toast.error(
+              payload?.message ||
+                payload?.error ||
+                "An unexpected error occurred.",
+            );
           } else {
             toast.error("An unexpected error occurred.");
           }
@@ -356,6 +380,7 @@ const EditLinkForm = memo(
         workspaceslug,
         initialData.id,
         linkSettings,
+        initialLinkSettings,
         utmParams,
         onClose,
         draftMetadata,
@@ -478,6 +503,13 @@ const EditLinkForm = memo(
                         setLinkSettings((prev) => ({ ...prev, password }))
                       }
                       isFreePlan={isFreePlan}
+                    />
+                    <LinkGeoTargeting
+                      geo={linkSettings.geo}
+                      setGeo={(geo) =>
+                        setLinkSettings((prev) => ({ ...prev, geo }))
+                      }
+                      locked={geoLocked}
                     />
                   </div>
                   <Button

@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 import { jsonWithETag } from "@/lib/http";
+import { parseGeoFromCache } from "@/lib/link-targeting";
 import { maskLinkPassword } from "@/lib/link-password";
 
 // Types for database queries
@@ -13,6 +14,11 @@ type LinkWhereInput = {
     url?: { contains: string; mode: "insensitive" };
   }>;
   isArchived?: boolean;
+  tags?: {
+    some: {
+      tagId: { in: string[] };
+    };
+  };
 };
 
 type LinkOrderByInput =
@@ -52,6 +58,7 @@ const LINK_SELECT_FIELDS = {
   lastClicked: true,
   createdAt: true,
   expirationUrl: true,
+  geo: true,
   tags: {
     select: {
       tag: {
@@ -141,6 +148,14 @@ export async function GET(
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset");
     const limitParam = searchParams.get("limit");
+    const tagIds = [
+      ...new Set(
+        (searchParams.get("tag") ?? "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ];
 
     // Use defaults if not provided
     const offset = offsetParam ? parseInt(offsetParam, 10) : DEFAULT_OFFSET;
@@ -223,6 +238,13 @@ export async function GET(
       workspaceId: workspace.id,
       ...(searchConditions.length > 0 && { OR: searchConditions }),
       ...(!showArchived && { isArchived: false }),
+      ...(tagIds.length > 0 && {
+        tags: {
+          some: {
+            tagId: { in: tagIds },
+          },
+        },
+      }),
     };
 
     const orderBy = getOrderConditions(sortBy);
@@ -251,6 +273,7 @@ export async function GET(
     const maskedLinks = links.map((link) => ({
       ...link,
       password: maskLinkPassword(link.password),
+      geo: parseGeoFromCache(link.geo),
     }));
 
     return jsonWithETag(

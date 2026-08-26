@@ -43,30 +43,39 @@ export const LinkCardSkeleton = memo(() => (
 
 LinkCardSkeleton.displayName = "LinkCardSkeleton";
 
-export const EmptyState = memo(({ searchQuery }: { searchQuery: string }) => {
-  const message = searchQuery
-    ? "No links match your search criteria."
-    : "You haven't created any links yet.";
+export const EmptyState = memo(
+  ({
+    searchQuery,
+    hasTagFilter = false,
+  }: {
+    searchQuery: string;
+    hasTagFilter?: boolean;
+  }) => {
+    const message =
+      searchQuery || hasTagFilter
+        ? "No links match your search or tag filters."
+        : "You haven't created any links yet.";
 
-  return (
-    <div
-      className="flex h-full min-h-[65vh] w-full flex-col items-center justify-center rounded-xl border"
-      role="status"
-      aria-live="polite"
-    >
-      <LinkIcon
-        size={50}
-        className="animate-fade-in"
-        strokeWidth={1.1}
-        aria-hidden="true"
-      />
-      <h2 className="mt-2 text-lg font-medium">No links found</h2>
-      <p className="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
-        {message}
-      </p>
-    </div>
-  );
-});
+    return (
+      <div
+        className="flex h-full min-h-[65vh] w-full flex-col items-center justify-center rounded-xl border"
+        role="status"
+        aria-live="polite"
+      >
+        <LinkIcon
+          size={50}
+          className="animate-fade-in"
+          strokeWidth={1.1}
+          aria-hidden="true"
+        />
+        <h2 className="mt-2 text-lg font-medium">No links found</h2>
+        <p className="mt-2 max-w-md text-center text-sm text-zinc-500 dark:text-zinc-400">
+          {message}
+        </p>
+      </div>
+    );
+  },
+);
 
 EmptyState.displayName = "EmptyState";
 

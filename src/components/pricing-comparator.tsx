@@ -116,6 +116,11 @@ function buildFeatures(): Feature[] {
       basicValue: BASIC_PLAN.linkPassword,
       proValue: PRO_PLAN.linkPassword,
     },
+    {
+      feature: "Geo Targeting",
+      basicValue: BASIC_PLAN.linkGeoTargeting,
+      proValue: PRO_PLAN.linkGeoTargeting,
+    },
   ];
 }
 

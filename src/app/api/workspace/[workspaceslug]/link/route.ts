@@ -6,6 +6,7 @@ import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { getActiveSubscription } from "@/server/actions/subscription";
 import { waitUntil } from "@vercel/functions";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
@@ -20,6 +21,12 @@ import {
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { redis } from "@/lib/redis";
+import {
+  canUseGeoTargeting,
+  geoTargetSchema,
+  normalizeGeoInput,
+  type GeoTargetMap,
+} from "@/lib/link-targeting";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -79,6 +86,7 @@ const createLinkSchema = z.object({
   utm_campaign: z.string().optional().nullable(),
   utm_content: z.string().optional().nullable(),
   utm_term: z.string().optional().nullable(),
+  geo: geoTargetSchema,
   tags: z.array(z.string()).optional(),
   customDomainId: z.string().optional().nullable(),
 });
@@ -86,7 +94,7 @@ const createLinkSchema = z.object({
 type CreateLinkRequest = z.infer<typeof createLinkSchema>;
 
 // Helper: Convert empty strings to null
-function preprocessEmptyStrings(body: CreateLinkRequest): CreateLinkRequest {
+function preprocessEmptyStrings(body: Record<string, unknown>) {
   return {
     ...body,
     image: body.image === "" ? null : body.image,
@@ -96,7 +104,23 @@ function preprocessEmptyStrings(body: CreateLinkRequest): CreateLinkRequest {
     password: body.password === "" ? null : body.password,
     expiresAt: body.expiresAt === "" ? null : body.expiresAt,
     expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
+    geo: normalizeGeoInput(body.geo),
   };
+}
+
+async function assertTargetUrlsSafe(
+  urls: Array<string | null | undefined>,
+  customDomains: string[],
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  for (const url of urls) {
+    if (!url) continue;
+    const check = await assertSafeDestinationUrl(url, {
+      customDomains,
+      skipSafetyScan: true,
+    });
+    if (!check.ok) return check;
+  }
+  return { ok: true };
 }
 
 async function findVerifiedCustomDomain(customDomainId: string) {
@@ -186,7 +210,7 @@ export async function POST(
     const [headersList, context] = await Promise.all([headers(), params]);
     const [session, body] = await Promise.all([
       auth.api.getSession({ headers: headersList }),
-      req.json() as Promise<CreateLinkRequest>,
+      req.json() as Promise<Record<string, unknown>>,
     ]);
 
     if (!session) {
@@ -199,13 +223,15 @@ export async function POST(
 
     const validatedData = createLinkSchema.parse(preprocessEmptyStrings(body));
 
-    const [workspaceCheck, customDomainRow, safetyResult] = await Promise.all([
-      checkWorkspaceAccessAndLimits(session.user.id, context.workspaceslug),
-      validatedData.customDomainId
-        ? findVerifiedCustomDomain(validatedData.customDomainId)
-        : Promise.resolve(null),
-      validateUrlSafety(validatedData.url),
-    ]);
+    const [workspaceCheck, customDomainRow, safetyResult, subscriptionResult] =
+      await Promise.all([
+        checkWorkspaceAccessAndLimits(session.user.id, context.workspaceslug),
+        validatedData.customDomainId
+          ? findVerifiedCustomDomain(validatedData.customDomainId)
+          : Promise.resolve(null),
+        validateUrlSafety(validatedData.url),
+        getActiveSubscription(session.user.id),
+      ]);
 
     if (!workspaceCheck.success || !workspaceCheck.workspace) {
       return jsonWithETag(
@@ -223,6 +249,20 @@ export async function POST(
           maxLinks: workspaceCheck.maxLinks,
           planType: workspaceCheck.planType,
         }),
+        { status: 403 },
+      );
+    }
+
+    const planType =
+      subscriptionResult.subscription?.plan?.planType ??
+      workspaceCheck.planType ??
+      null;
+    const geo = (validatedData.geo ?? null) as GeoTargetMap | null;
+
+    if (geo && !canUseGeoTargeting(planType)) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload("Geo targeting requires a Pro plan.", "FORBIDDEN"),
         { status: 403 },
       );
     }
@@ -283,6 +323,16 @@ export async function POST(
       }
     }
 
+    const geoUrls = geo ? Object.values(geo) : [];
+    const targetingCheck = await assertTargetUrlsSafe(geoUrls, customDomains);
+    if (!targetingCheck.ok) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(targetingCheck.message, "BAD_REQUEST"),
+        { status: 400 },
+      );
+    }
+
     const slug = validatedData.slug?.trim() || nanoid();
     const domain = customDomainName || DEFAULT_DOMAIN;
     const storedPassword = validatedData.password
@@ -314,6 +364,7 @@ export async function POST(
           utm_campaign: validatedData.utm_campaign,
           utm_content: validatedData.utm_content,
           utm_term: validatedData.utm_term,
+          geo: geo ?? Prisma.JsonNull,
           customDomainId: validatedData.customDomainId || null,
         },
         select: {
@@ -335,6 +386,7 @@ export async function POST(
           utm_campaign: true,
           utm_content: true,
           utm_term: true,
+          geo: true,
           createdAt: true,
         },
       });
@@ -350,6 +402,7 @@ export async function POST(
       result = {
         ...link,
         password: maskLinkPassword(link.password),
+        geo: (link.geo as GeoTargetMap | null) ?? null,
         tags: provisionalTags,
         qrCode: { id: "", customization: "" },
         lastClicked: null,
@@ -426,6 +479,7 @@ export async function POST(
               image: result.image,
               metadesc: result.metadesc,
               description: result.description,
+              geo: (result.geo as GeoTargetMap | null) ?? null,
             },
             domain,
           ),

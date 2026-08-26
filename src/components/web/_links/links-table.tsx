@@ -50,11 +50,20 @@ const buildSearchConfig = (
   searchParams: URLSearchParams | null,
 ): SearchConfig => {
   const page = Number(searchParams?.get("page_no") ?? DEFAULT_PAGE);
+  const tagIds = [
+    ...new Set(
+      (searchParams?.get("tag") ?? "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  ];
   return {
     search: searchParams?.get("search") ?? "",
     showArchived: searchParams?.get("showArchived") ?? "false",
     sortBy: searchParams?.get("sortBy") ?? DEFAULT_SORT,
     offset: Math.max(0, (page - 1) * DEFAULT_LIMIT),
+    tagIds,
   };
 };
 
@@ -66,6 +75,7 @@ const buildApiUrl = (workspaceslug: string, config: SearchConfig): string => {
   if (config.showArchived === "true") params.set("showArchived", "true");
   if (config.sortBy !== DEFAULT_SORT) params.set("sortBy", config.sortBy);
   if (config.offset > 0) params.set("offset", config.offset.toString());
+  if (config.tagIds.length > 0) params.set("tag", config.tagIds.join(","));
 
   const queryString = params.toString();
   return `/api/workspace/${workspaceslug}/link/get${queryString ? `?${queryString}` : ""}`;
@@ -213,7 +223,10 @@ const LinksTable = ({ workspaceslug }: LinksTableProps) => {
           onSelect={handleSelectLink}
         />
       ) : (
-        <EmptyState searchQuery={searchConfig.search} />
+        <EmptyState
+          searchQuery={searchConfig.search}
+          hasTagFilter={searchConfig.tagIds.length > 0}
+        />
       )}
 
       {/* Pagination + Bulk Actions */}

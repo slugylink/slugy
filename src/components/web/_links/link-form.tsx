@@ -762,7 +762,6 @@ const LinkFormMainPanels = ({
           </div>
           <LinkPreview
             url={normalizedUrl}
-            key={normalizedUrl}
             customImage={previewImage || effectiveImage}
             customTitle={effectiveTitle}
             customDescription={effectiveMetadesc}

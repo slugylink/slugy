@@ -16,9 +16,32 @@ import {
   maskLinkPassword,
 } from "@/lib/link-password";
 import { assertSafeDestinationUrl, isHttpUrl } from "@/lib/url-policy";
+import { getActiveSubscription } from "@/server/actions/subscription";
+import {
+  canUseGeoTargeting,
+  geoTargetSchema,
+  normalizeGeoInput,
+  parseGeoFromCache,
+  type GeoTargetMap,
+} from "@/lib/link-targeting";
+import { Prisma } from "@prisma/client";
 
 const DEFAULT_DOMAIN = "slugy.co";
 const MAX_TAGS_PER_WORKSPACE = 5;
+
+function geoMapsEqual(
+  a: GeoTargetMap | null | undefined,
+  b: GeoTargetMap | null | undefined,
+): boolean {
+  const left = a ?? null;
+  const right = b ?? null;
+  if (left === right) return true;
+  if (!left || !right) return false;
+  const leftKeys = Object.keys(left);
+  const rightKeys = Object.keys(right);
+  if (leftKeys.length !== rightKeys.length) return false;
+  return leftKeys.every((key) => left[key] === right[key]);
+}
 
 const updateLinkSchema = z.object({
   url: z
@@ -51,6 +74,7 @@ const updateLinkSchema = z.object({
   utm_campaign: z.string().optional().nullable(),
   utm_content: z.string().optional().nullable(),
   utm_term: z.string().optional().nullable(),
+  geo: geoTargetSchema,
   tags: z.array(z.string()).optional(),
   customDomainId: z.string().optional().nullable(),
 });
@@ -76,20 +100,22 @@ export async function PATCH(
       password: body.password === "" ? null : body.password,
       expiresAt: body.expiresAt === "" ? null : body.expiresAt,
       expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
+      geo: body.geo === undefined ? undefined : normalizeGeoInput(body.geo),
     };
     const validatedData = updateLinkSchema.parse(preprocessedBody);
 
     const context = await params;
 
     // Check workspace access (member/admin/owner can edit links)
-    const access = await getWorkspaceAccess(
-      session.user.id,
-      context.workspaceslug,
-    );
+    const [access, subscriptionResult] = await Promise.all([
+      getWorkspaceAccess(session.user.id, context.workspaceslug),
+      getActiveSubscription(session.user.id),
+    ]);
     if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const workspace = access.workspace;
+    const planType = subscriptionResult.subscription?.plan?.planType ?? null;
 
     const link = await db.link.findFirst({
       where: { id: context.linkId, workspaceId: workspace.id },
@@ -98,10 +124,32 @@ export async function PATCH(
         slug: true,
         domain: true,
         image: true,
+        geo: true,
       },
     });
     if (!link) {
       return jsonWithETag(req, { error: "Link not found" }, { status: 404 });
+    }
+
+    // Gate only when applying a new/changed non-empty geo map (Pro).
+    // Clearing geo or leaving it unchanged must not 403 Basic users.
+    if (validatedData.geo !== undefined) {
+      const nextGeo = validatedData.geo;
+      const currentGeo = parseGeoFromCache(link.geo);
+      const geoChanged = !geoMapsEqual(currentGeo, nextGeo);
+      const settingGeo = Boolean(nextGeo && Object.keys(nextGeo).length > 0);
+
+      if (geoChanged && settingGeo && !canUseGeoTargeting(planType)) {
+        return jsonWithETag(
+          req,
+          {
+            error: "Geo targeting requires a Pro plan.",
+            message: "Geo targeting requires a Pro plan.",
+            code: "FORBIDDEN",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     // If customDomainId is being updated, verify it belongs to the workspace and get the domain name
@@ -183,6 +231,24 @@ export async function PATCH(
       }
     }
 
+    const targetingUrls = [
+      ...(validatedData.geo ? Object.values(validatedData.geo) : []),
+    ].filter((url): url is string => typeof url === "string");
+
+    for (const targetUrl of targetingUrls) {
+      const targetCheck = await assertSafeDestinationUrl(targetUrl, {
+        customDomains: customDomainName ? [customDomainName] : [link.domain],
+        skipSafetyScan: true,
+      });
+      if (!targetCheck.ok) {
+        return jsonWithETag(
+          req,
+          { error: targetCheck.message },
+          { status: 400 },
+        );
+      }
+    }
+
     // Check if image is being updated and delete old R2 image if exists
     // Only delete if the new image is different and it's a URL (not an uploaded file)
     // Note: If uploading via /upload-image endpoint, deletion happens there
@@ -221,6 +287,9 @@ export async function PATCH(
           if (typeof value !== "undefined" && key !== "tags") {
             if (key === "expiresAt" && value && typeof value === "string") {
               updateData.expiresAt = new Date(value as string);
+            } else if (key === "geo") {
+              updateData.geo =
+                value === null ? Prisma.JsonNull : (value as GeoTargetMap);
             } else if (key !== "tags") {
               updateData[key] = value;
             }
@@ -358,6 +427,7 @@ export async function PATCH(
             utm_campaign: true,
             utm_content: true,
             utm_term: true,
+            geo: true,
             createdAt: true,
             tags: {
               select: {
@@ -385,6 +455,7 @@ export async function PATCH(
       const responseLink = {
         ...linkWithTags,
         password: maskLinkPassword(linkWithTags.password),
+        geo: parseGeoFromCache(linkWithTags.geo),
       };
 
       waitUntil(
@@ -409,6 +480,7 @@ export async function PATCH(
               image: linkWithTags.image,
               metadesc: linkWithTags.metadesc,
               description: linkWithTags.description,
+              geo: parseGeoFromCache(linkWithTags.geo),
             },
             newDomain,
           );

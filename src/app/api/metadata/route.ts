@@ -1,76 +1,60 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getMetaTags, isValidUrl } from "@/lib/metadata";
+import { getMetaTags, isValidUrl, normalizeMetadataUrl } from "@/lib/metadata";
 import { jsonWithETag } from "@/lib/http";
-import { apiSuccessPayload, apiErrorPayload, apiErrors } from "@/lib/api-response";
+import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
+import { checkFastRateLimit, normalizeIp } from "@/lib/middleware/rate-limit";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Cache-Control": "s-maxage=3600, stale-while-revalidate=600",
 };
 
-const RATE_LIMIT = 100;
-const RATE_WINDOW = 5 * 60 * 1000;
-const MAX_IPS_TRACKED = 10000;
-
-const ipRequests = new Map<string, number[]>();
+const CACHE_HEADERS = {
+  "Cache-Control": "private, max-age=300, stale-while-revalidate=3600",
+};
 
 function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    req.headers.get("cf-connecting-ip") ||
-    "unknown"
+  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
+  const forwarded = req.headers.get("x-forwarded-for");
+  const hops = forwarded
+    ?.split(",")
+    .map((hop) => hop.trim())
+    .filter(Boolean);
+
+  return normalizeIp(
+    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
+      req.headers.get("x-real-ip") ||
+      req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+      hops?.[hops.length - 1] ||
+      "unknown",
   );
-}
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-
-  if (ipRequests.size > MAX_IPS_TRACKED) {
-    const ipsToDelete = [...ipRequests.entries()]
-      .sort(([, a], [, b]) => Math.min(...a) - Math.min(...b))
-      .slice(0, Math.floor(MAX_IPS_TRACKED * 0.2))
-      .map(([ip]) => ip);
-
-    ipsToDelete.forEach((ip) => ipRequests.delete(ip));
-  }
-
-  const requests = ipRequests.get(ip) ?? [];
-  const recentRequests = requests.filter((time) => now - time < RATE_WINDOW);
-
-  if (recentRequests.length >= RATE_LIMIT) {
-    ipRequests.set(ip, recentRequests);
-    return true;
-  }
-
-  recentRequests.push(now);
-  ipRequests.set(ip, recentRequests);
-  return false;
 }
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
+  const rate = await checkFastRateLimit(ip);
 
-  if (isRateLimited(ip)) {
+  if (!rate.success) {
+    const retryAfter = Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000));
     return jsonWithETag(
       req,
-      apiErrorPayload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED", { retryAfter: RATE_WINDOW / 1000 }),
+      apiErrorPayload("Rate limit exceeded", "RATE_LIMIT_EXCEEDED", {
+        retryAfter,
+      }),
       {
         status: 429,
         headers: {
           ...CORS_HEADERS,
-          "Retry-After": (RATE_WINDOW / 1000).toString(),
+          "Retry-After": String(retryAfter),
         },
       },
     );
   }
 
   try {
-    const url = req.nextUrl.searchParams.get("url");
-
-    if (!url || !isValidUrl(url)) {
+    const rawUrl = req.nextUrl.searchParams.get("url")?.trim() ?? "";
+    if (!rawUrl || !isValidUrl(rawUrl)) {
       return jsonWithETag(
         req,
         apiErrorPayload("Valid URL parameter is required", "BAD_REQUEST"),
@@ -78,6 +62,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const url = normalizeMetadataUrl(rawUrl);
     const metadata = await getMetaTags(url);
 
     return jsonWithETag(
@@ -85,26 +70,40 @@ export async function GET(req: NextRequest) {
       apiSuccessPayload({
         url,
         ...metadata,
-        poweredBy: "https://slugy.co",
       }),
-      { headers: CORS_HEADERS },
+      {
+        headers: {
+          ...CORS_HEADERS,
+          ...CACHE_HEADERS,
+        },
+      },
     );
   } catch (error) {
-    console.error("Error processing metadata request:", error);
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch metadata";
+    const isBadRequest =
+      message.includes("Invalid URL") ||
+      message.includes("private") ||
+      message.includes("blocked");
 
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    console.error("[metadata]", error);
 
     return jsonWithETag(
       req,
-      apiErrorPayload("Failed to fetch metadata", "INTERNAL_ERROR", errorMessage),
-      { status: 500, headers: CORS_HEADERS },
+      apiErrorPayload(
+        isBadRequest ? message : "Failed to fetch metadata",
+        isBadRequest ? "BAD_REQUEST" : "INTERNAL_ERROR",
+      ),
+      {
+        status: isBadRequest ? 400 : 500,
+        headers: CORS_HEADERS,
+      },
     );
   }
 }
 
 export function OPTIONS() {
-  return new Response(null, {
+  return new NextResponse(null, {
     status: 204,
     headers: CORS_HEADERS,
   });

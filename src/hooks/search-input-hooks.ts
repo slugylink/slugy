@@ -1,5 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { useQueryState, parseAsBoolean, parseAsString } from "nuqs";
+import {
+  useQueryState,
+  parseAsBoolean,
+  parseAsString,
+  parseAsArrayOf,
+} from "nuqs";
 import { useDebounce } from "@/hooks/use-debounce";
 import {
   DEBOUNCE_DELAY,
@@ -54,6 +59,11 @@ export const useSearchState = () => {
     },
     serialize: (value) => value,
   });
+  const [selectedTagIds, setSelectedTagIds] = useQueryState(
+    "tag",
+    parseAsArrayOf(parseAsString).withDefault([]),
+  );
+  const [, setPageNo] = useQueryState("page_no", parseAsString);
 
   const [inputValue, setInputValue] = useState(searchQuery ?? "");
   const debouncedValue = useDebounce(inputValue, DEBOUNCE_DELAY);
@@ -80,23 +90,45 @@ export const useSearchState = () => {
   const handleToggleArchived = useCallback(
     (checked: boolean) => {
       void setShowArchived(checked || null);
+      void setPageNo(null);
     },
-    [setShowArchived],
+    [setShowArchived, setPageNo],
   );
 
   const handleSortChange = useCallback(
     (value: SortOptionKey) => {
       void setSortBy(value);
+      void setPageNo(null);
     },
-    [setSortBy],
+    [setSortBy, setPageNo],
   );
+
+  const handleToggleTag = useCallback(
+    (tagId: string) => {
+      const current = selectedTagIds ?? [];
+      const next = current.includes(tagId)
+        ? current.filter((id) => id !== tagId)
+        : [...current, tagId];
+      void setSelectedTagIds(next.length > 0 ? next : null);
+      void setPageNo(null);
+    },
+    [selectedTagIds, setSelectedTagIds, setPageNo],
+  );
+
+  const handleClearTags = useCallback(() => {
+    void setSelectedTagIds(null);
+    void setPageNo(null);
+  }, [setSelectedTagIds, setPageNo]);
 
   return {
     inputValue,
     setInputValue,
     showArchived: showArchived ?? false,
     sortBy,
+    selectedTagIds: selectedTagIds ?? [],
     handleToggleArchived,
     handleSortChange,
+    handleToggleTag,
+    handleClearTags,
   };
 };

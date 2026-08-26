@@ -25,6 +25,7 @@ export interface SearchConfig {
   showArchived: string;
   sortBy: string;
   offset: number;
+  tagIds: string[];
 }
 
 export interface PaginationData {

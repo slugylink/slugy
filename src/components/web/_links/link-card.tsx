@@ -84,6 +84,7 @@ interface LinkData {
   utm_campaign?: string | null;
   utm_content?: string | null;
   utm_term?: string | null;
+  geo?: Record<string, string> | null;
   image?: string | null;
   title?: string | null;
   qrCode: {
@@ -210,6 +211,7 @@ const createEditFormData = (link: LinkData) => ({
   utm_campaign: link.utm_campaign ?? "",
   utm_content: link.utm_content ?? "",
   utm_term: link.utm_term ?? "",
+  geo: link.geo ?? null,
   creatorId: typeof link.creatorId === "string" ? link.creatorId : undefined,
   image: link.image ?? "",
   title: link.title ?? "",

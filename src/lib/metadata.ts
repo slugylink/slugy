@@ -74,6 +74,64 @@ export function isValidUrl(str: string): boolean {
   }
 }
 
+/** Normalize bare domains to https URLs. */
+export function normalizeMetadataUrl(url: string): string {
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function isBlockedMetadataHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+
+  if (
+    host === "localhost" ||
+    host.endsWith(".localhost") ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host === "metadata.google.internal"
+  ) {
+    return true;
+  }
+
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    const [a = 0, b = 0] = host.split(".").map((part) => Number(part));
+    if (a === 10 || a === 127 || a === 0) return true;
+    if (a === 169 && b === 254) return true; // link-local / cloud metadata
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+  }
+
+  if (
+    host.startsWith("fc") ||
+    host.startsWith("fd") ||
+    host.startsWith("fe80")
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function assertPublicMetadataUrl(url: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(normalizeMetadataUrl(url));
+  } catch {
+    throw new Error("Invalid URL provided");
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error("Only http(s) URLs are allowed");
+  }
+
+  if (isBlockedMetadataHost(parsed.hostname)) {
+    throw new Error("Private or local URLs are blocked");
+  }
+
+  return parsed;
+}
+
 function getSafeHostname(url: string): string {
   try {
     return new URL(url).hostname;
@@ -362,15 +420,8 @@ function hasMinimalMetadata(
 // ============================================================================
 
 export async function getMetaTags(url: string): Promise<MetadataResult> {
-  // Normalize URL
-  const normalizedUrl =
-    url.startsWith("http://") || url.startsWith("https://")
-      ? url
-      : `https://${url}`;
-
-  if (!isValidUrl(normalizedUrl)) {
-    throw new Error("Invalid URL provided");
-  }
+  const parsed = assertPublicMetadataUrl(url);
+  const normalizedUrl = parsed.toString();
 
   // Check cache
   const cacheKey = normalizedUrl.toLowerCase();
@@ -385,19 +436,14 @@ export async function getMetaTags(url: string): Promise<MetadataResult> {
     // If metadata is minimal, try root domain as fallback
     if (!hasMinimalMetadata(metadata, hostname)) {
       try {
-        const urlObj = new URL(normalizedUrl);
-        const rootDomain = urlObj.origin;
+        const rootDomain = parsed.origin;
 
         // Only try root domain if we're on a subpath
         if (
-          rootDomain !== normalizedUrl &&
-          urlObj.pathname !== "/" &&
-          urlObj.pathname !== ""
+          rootDomain !== normalizedUrl.replace(/\/$/, "") &&
+          parsed.pathname !== "/" &&
+          parsed.pathname !== ""
         ) {
-          console.log(
-            `Minimal metadata for ${normalizedUrl}. Trying root domain: ${rootDomain}`,
-          );
-
           const rootMeta = await fetchMetadata(rootDomain);
 
           // Use root metadata if it's better
@@ -420,6 +466,15 @@ export async function getMetaTags(url: string): Promise<MetadataResult> {
     cleanupCache();
     return metadata;
   } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message.includes("blocked") ||
+        error.message.includes("Invalid URL") ||
+        error.message.includes("Only http"))
+    ) {
+      throw error;
+    }
+
     console.error(`Error in getMetaTags for ${normalizedUrl}:`, error);
 
     const fallback = {

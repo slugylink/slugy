@@ -10,6 +10,7 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 import { recordLinkClick } from "@/lib/analytics/record-click";
+import { resolveTargetUrl } from "@/lib/link-targeting";
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
@@ -451,6 +452,13 @@ export async function URLRedirects(
         return serveLinkPreview(req, shortCode, linkData);
       }
 
+      const geoData = getGeoData(req);
+      const destinationUrl = resolveTargetUrl({
+        defaultUrl: linkData.url,
+        geo: linkData.geo,
+        country: geoData.country,
+      });
+
       // Track analytics for humans only (skip bots + browser prefetch).
       // waitUntil MUST be registered before the 302 returns — a bare void/async
       // after Redis will be frozen on Vercel and Tinybird events never land.
@@ -468,7 +476,7 @@ export async function URLRedirects(
               req,
               linkData.linkId!,
               shortCode,
-              linkData.url!,
+              destinationUrl,
               linkData.workspaceId!,
               domain,
               trigger,
@@ -477,7 +485,7 @@ export async function URLRedirects(
         );
       }
 
-      return createSafeRedirect(linkData.url, `${origin}/?status=error`);
+      return createSafeRedirect(destinationUrl, `${origin}/?status=error`);
     }
 
     // Handle not found

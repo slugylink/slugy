@@ -5,6 +5,7 @@ import {
   setNegativeLinkCache,
 } from "@/lib/cache-utils/link-cache";
 import { isPasswordVerifiedCookieValid } from "@/lib/link-password";
+import { parseGeoFromCache, type GeoTargetMap } from "@/lib/link-targeting";
 
 const SLUG_REGEX = /^[a-zA-Z0-9_-]+$/;
 const MAX_SLUG_LENGTH = 50;
@@ -22,6 +23,7 @@ export interface GetLinkResult {
   image?: string | null;
   metadesc?: string | null;
   description?: string | null;
+  geo?: GeoTargetMap | null;
 }
 
 interface LinkCache {
@@ -36,6 +38,7 @@ interface LinkCache {
   image: string | null;
   metadesc?: string | null;
   description: string | null;
+  geo?: GeoTargetMap | null;
 }
 
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
@@ -82,6 +85,7 @@ const fetchLinkFromDatabase = async (
       l.image,
       l.metadesc,
       l.description,
+      l.geo,
       cd.domain as custom_domain
     FROM "links" l
     LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
@@ -107,6 +111,7 @@ const fetchLinkFromDatabase = async (
     image: row.image ?? null,
     metadesc: row.metadesc ?? null,
     description: row.description ?? null,
+    geo: parseGeoFromCache(row.geo),
   };
 };
 
@@ -164,6 +169,13 @@ export async function getLink(
     let link: LinkCache | null =
       cached && typeof cached === "object" ? cached : null;
 
+    if (link) {
+      link = {
+        ...link,
+        geo: parseGeoFromCache(link.geo),
+      };
+    }
+
     if (!link) {
       link = await fetchLinkFromDatabase(slug, domain);
       if (!link && primarySql !== sql) {
@@ -218,6 +230,7 @@ export async function getLink(
       image: link.image,
       metadesc: link.metadesc ?? null,
       description: link.description,
+      geo: link.geo ?? null,
     };
   } catch (error) {
     console.error(`Error fetching link for slug "${slug}":`, error);

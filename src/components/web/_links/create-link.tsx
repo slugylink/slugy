@@ -25,7 +25,9 @@ import { LoaderCircle } from "@/utils/icons/loader-circle";
 import axios from "axios";
 import LinkExpiration from "./link-expiration";
 import LinkPassword from "./link-password";
+import LinkGeoTargeting from "./link-geo-targeting";
 import { useSubscriptionStore } from "@/store/subscription";
+import { type GeoTargetMap } from "@/lib/link-targeting";
 
 // Types
 type FormValues = z.infer<typeof linkFormSchema>;
@@ -34,6 +36,7 @@ interface LinkSettings {
   expiresAt: string | null;
   password: string | null;
   expirationUrl: string | null;
+  geo: GeoTargetMap | null;
 }
 
 interface UTMParams {
@@ -70,6 +73,7 @@ interface CreatedLink {
   utm_campaign?: string | null;
   utm_content?: string | null;
   utm_term?: string | null;
+  geo?: GeoTargetMap | null;
   createdAt?: string | Date;
   tags?: Array<{
     tag: { id: string; name: string; color: string | null };
@@ -152,6 +156,7 @@ const CreateLinkForm = React.memo(
 
     const { isPro, fetchSubscription } = useSubscriptionStore();
     const isFreePlan = !isPro;
+    const geoLocked = !isPro;
 
     useEffect(() => {
       void fetchSubscription();
@@ -165,6 +170,7 @@ const CreateLinkForm = React.memo(
       expiresAt: null,
       password: null,
       expirationUrl: null,
+      geo: null,
     });
     const [utmParams, setUtmParams] = useState<UTMParams>({
       source: "",
@@ -215,8 +221,13 @@ const CreateLinkForm = React.memo(
 
     // Check if free plan user is trying to use premium features
     const hasPremiumFeatures = useMemo(
-      () => !!(linkSettings.expiresAt || linkSettings.password),
-      [linkSettings.expiresAt, linkSettings.password],
+      () =>
+        !!(
+          linkSettings.expiresAt ||
+          linkSettings.password ||
+          (geoLocked && linkSettings.geo)
+        ),
+      [linkSettings, geoLocked],
     );
 
     const shouldDisableSubmit = useMemo(
@@ -258,6 +269,7 @@ const CreateLinkForm = React.memo(
         expiresAt: null,
         password: null,
         expirationUrl: null,
+        geo: null,
       });
       setUtmParams({
         source: "",
@@ -499,6 +511,13 @@ const CreateLinkForm = React.memo(
                         setLinkSettings((prev) => ({ ...prev, password }))
                       }
                       isFreePlan={isFreePlan}
+                    />
+                    <LinkGeoTargeting
+                      geo={linkSettings.geo}
+                      setGeo={(geo) =>
+                        setLinkSettings((prev) => ({ ...prev, geo }))
+                      }
+                      locked={geoLocked}
                     />
                   </div>
                   <Button

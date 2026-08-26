@@ -1,4 +1,5 @@
 import { redis, CACHE_BASE_TTL } from "@/lib/redis";
+import type { GeoTargetMap } from "@/lib/link-targeting";
 
 export type LinkCacheType = {
   id: string;
@@ -12,6 +13,7 @@ export type LinkCacheType = {
   image: string | null;
   metadesc?: string | null;
   description: string | null;
+  geo?: GeoTargetMap | null;
 } | null;
 
 const NEGATIVE_CACHE_TTL_SECONDS = 30;

@@ -1,122 +1,145 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import QRCodeStyling, { type Options } from "qr-code-styling";
 import { QrCode as QrCodeIcon } from "lucide-react";
 
-type DotType = NonNullable<Options["dotsOptions"]>["type"];
-const DOT_TYPES: DotType[] = [
+type DotType = NonNullable<NonNullable<Options["dotsOptions"]>["type"]>;
+
+const DOT_TYPES = new Set<string>([
   "square",
   "dots",
   "rounded",
   "classy",
   "classy-rounded",
   "extra-rounded",
-];
+]);
 
-const DEFAULT_OPTIONS: Options = {
-  width: 110,
-  height: 110,
-  type: "svg",
-  data: "",
-  margin: 1.5,
-  qrOptions: {
-    typeNumber: 0,
-    mode: "Byte",
-    errorCorrectionLevel: "H",
-  },
-  dotsOptions: {
-    type: "square",
-    color: "#000000",
-  },
-  backgroundOptions: {
-    color: "#ffffff",
-  },
-};
+const PREVIEW_SIZE = 110;
+
+/** Stored designer shape (from QRCodeDesign / DB), not full qr-code-styling Options. */
+interface QrCustomization {
+  fgColor?: string;
+  size?: number;
+  dotStyle?: DotType;
+}
 
 interface LinkQrCodeProps {
   code?: string;
   domain: string;
-  /**
-   * Customization can be a JSON string or a partial Options object.
-   */
-  customization?: Partial<Options> | string;
+  customization?: QrCustomization | Partial<Options> | string | null;
 }
 
-function isDotType(val: unknown): val is DotType {
-  return typeof val === "string" && DOT_TYPES.includes(val as DotType);
+function isDotType(value: unknown): value is DotType {
+  return typeof value === "string" && DOT_TYPES.has(value);
 }
 
-const LinkQrCode = ({ domain, code, customization }: LinkQrCodeProps) => {
+function parseCustomization(
+  input: LinkQrCodeProps["customization"],
+): QrCustomization {
+  if (!input) return {};
+
+  let raw: Record<string, unknown> = {};
+  if (typeof input === "string") {
+    try {
+      const parsed = JSON.parse(input) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        raw = parsed as Record<string, unknown>;
+      }
+    } catch {
+      return {};
+    }
+  } else if (typeof input === "object") {
+    raw = input as Record<string, unknown>;
+  }
+
+  const dots =
+    raw.dotsOptions && typeof raw.dotsOptions === "object"
+      ? (raw.dotsOptions as Record<string, unknown>)
+      : null;
+
+  const fgColor =
+    (typeof raw.fgColor === "string" && raw.fgColor) ||
+    (typeof dots?.color === "string" && dots.color) ||
+    undefined;
+
+  const dotStyle = isDotType(raw.dotStyle)
+    ? raw.dotStyle
+    : isDotType(dots?.type)
+      ? dots.type
+      : undefined;
+
+  const size =
+    typeof raw.size === "number"
+      ? raw.size
+      : typeof raw.width === "number"
+        ? raw.width
+        : undefined;
+
+  return { fgColor, size, dotStyle };
+}
+
+function buildPreviewOptions(
+  domain: string,
+  code: string,
+  customization: QrCustomization,
+): Options {
+  return {
+    width: PREVIEW_SIZE,
+    height: PREVIEW_SIZE,
+    type: "svg",
+    data: `https://${domain}/${code}?via=qr`,
+    margin: 1.5,
+    qrOptions: {
+      typeNumber: 0,
+      mode: "Byte",
+      errorCorrectionLevel: "H",
+    },
+    dotsOptions: {
+      type: customization.dotStyle ?? "square",
+      color: customization.fgColor ?? "#000000",
+    },
+    backgroundOptions: {
+      color: "#ffffff",
+    },
+  };
+}
+
+function LinkQrCode({ domain, code, customization }: LinkQrCodeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
 
-  const mergedOptions = useMemo(() => {
-    if (!code) return null;
+  const slug = code?.trim() ?? "";
+  const host = domain?.trim() || "slugy.co";
 
-    let custom: Partial<Options> = {};
-    if (customization) {
-      if (typeof customization === "string") {
-        try {
-          custom = JSON.parse(customization);
-        } catch {
-          // ignore parse error
-        }
-      } else {
-        custom = customization;
-      }
-    }
-    const customObj = custom as Record<string, unknown>;
-    const dotsOptions = {
-      ...DEFAULT_OPTIONS.dotsOptions,
-      ...(custom.dotsOptions || {}),
-      ...(typeof customObj.fgColor === "string"
-        ? { color: customObj.fgColor }
-        : {}),
-      ...(isDotType(customObj.dotStyle) ? { type: customObj.dotStyle } : {}),
-    };
-
-    return {
-      ...DEFAULT_OPTIONS,
-      ...custom,
-      data: `https://${domain}/${code}?via=qr`,
-      width:
-        typeof customObj.size === "number"
-          ? customObj.size
-          : typeof customObj.width === "number"
-            ? customObj.width
-            : DEFAULT_OPTIONS.width,
-      height:
-        typeof customObj.size === "number"
-          ? customObj.size
-          : typeof customObj.height === "number"
-            ? customObj.height
-            : DEFAULT_OPTIONS.height,
-      dotsOptions,
-      backgroundOptions: {
-        ...DEFAULT_OPTIONS.backgroundOptions,
-        ...(custom.backgroundOptions || {}),
-      },
-    };
-  }, [code, customization, domain]);
+  const options = useMemo(() => {
+    if (!slug) return null;
+    return buildPreviewOptions(host, slug, parseCustomization(customization));
+  }, [slug, host, customization]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const container = containerRef.current;
+    if (!container) return;
 
-    if (!code || !mergedOptions) {
-      containerRef.current.replaceChildren();
+    if (!options) {
+      container.replaceChildren();
+      qrCodeRef.current = null;
       return;
     }
 
     if (!qrCodeRef.current) {
-      qrCodeRef.current = new QRCodeStyling(mergedOptions);
+      qrCodeRef.current = new QRCodeStyling(options);
     } else {
-      qrCodeRef.current.update(mergedOptions);
+      qrCodeRef.current.update(options);
     }
 
-    containerRef.current.replaceChildren();
-    qrCodeRef.current.append(containerRef.current);
-  }, [code, mergedOptions]);
+    container.replaceChildren();
+    qrCodeRef.current.append(container);
+
+    return () => {
+      container.replaceChildren();
+    };
+  }, [options]);
 
   useEffect(() => {
     return () => {
@@ -126,16 +149,18 @@ const LinkQrCode = ({ domain, code, customization }: LinkQrCodeProps) => {
 
   return (
     <div className="flex aspect-[16/7] items-center justify-center rounded-lg border">
-      {code ? (
+      {slug ? (
         <div
           ref={containerRef}
           className="flex h-[110px] w-[110px] items-center justify-center"
+          aria-label={`QR code for ${host}/${slug}`}
         />
       ) : (
         <div className="flex flex-col items-center gap-2">
           <QrCodeIcon
             strokeWidth={1.8}
             className="text-muted-foreground h-10 w-10"
+            aria-hidden
           />
           <p className="text-muted-foreground text-center text-sm">
             Enter a short link to generate <br /> a QR code
@@ -145,6 +170,6 @@ const LinkQrCode = ({ domain, code, customization }: LinkQrCodeProps) => {
       <span className="sr-only">QR code preview area</span>
     </div>
   );
-};
+}
 
-export default LinkQrCode;
+export default memo(LinkQrCode);
