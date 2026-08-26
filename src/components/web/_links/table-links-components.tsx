@@ -141,21 +141,19 @@ export const LinkList = memo(
   ({
     links,
     isGridLayout,
-    isLoading,
     isSelectModeOn,
     selectedLinks,
     onSelect,
   }: {
     links: Link[];
     isGridLayout: boolean;
-    isLoading: boolean;
     isSelectModeOn: boolean;
     selectedLinks: Set<string>;
     onSelect: (id: string) => void;
   }) => {
     const gridClasses = `mb-24 grid gap-4 ${
       isGridLayout ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
-    } ${isLoading ? "opacity-70" : ""}`;
+    } `;
 
     return (
       <div

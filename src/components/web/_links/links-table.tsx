@@ -214,7 +214,6 @@ const LinksTable = ({ workspaceslug, fallbackData }: LinksTableProps) => {
             key={`layout-${isGridLayout ? "grid" : "list"}`}
             links={linksWithQrCode}
             isGridLayout={isGridLayout}
-            isLoading={isLoading}
             isSelectModeOn={isSelectModeOn}
             selectedLinks={selectedLinks}
             onSelect={handleSelectLink}
