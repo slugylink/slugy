@@ -6,6 +6,7 @@ export interface CachedAnalyticsData {
   workspaceId: string;
   url: string;
   domain?: string;
+  clickId?: string;
   timestamp: string;
   ipAddress: string;
   country: string;

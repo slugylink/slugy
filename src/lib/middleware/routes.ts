@@ -61,11 +61,13 @@ export const SUBDOMAINS = {
   bio: `bio.${ROOT_DOMAIN}`,
   app: `app.${ROOT_DOMAIN}`,
   admin: `admin.${ROOT_DOMAIN}`,
+  api: `api.${ROOT_DOMAIN}`,
   webhook: `webhook.${ROOT_DOMAIN}`,
 } as const;
 
 export const FAST_API_PATTERNS = [
   /^\/api\/analytics\/track$/,
+  /^\/api\/leads_track$/,
   /^\/api\/redirect\/[^\/]+$/,
   /^\/api\/metadata$/,
 ];

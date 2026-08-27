@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   useAnalytics,
@@ -12,6 +12,7 @@ import FilterActions, {
   type CategoryId,
   type FilterCategory,
 } from "@/components/web/_analytics/filter";
+import { parseAnalyticsEvent } from "@/components/web/_analytics/leads-demo-data";
 import {
   Box,
   Chrome,
@@ -221,55 +222,65 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     return isValidTimePeriod(period) ? period : DEFAULT_TIME_PERIOD;
   }, [searchParams]);
 
+  const event = useMemo(
+    () => parseAnalyticsEvent(searchParams.get("event")),
+    [searchParams],
+  );
+  const isLeads = event === "leads";
+
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
     [searchParams],
   );
 
-  const {
-    data: res,
-    links,
-    countries,
-    cities,
-    continents,
-    browsers,
-    oses,
-    devices,
-    referrers,
-    destinations,
-    error,
-    isLoading,
-    isValidating,
-    mutate,
-  } = useAnalytics({
+  const clicks = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: filterParams,
+    metrics: isLeads ? (["totalClicks"] as const) : ANALYTICS_METRICS,
+    analyticsEvent: "clicks",
+  });
+
+  const leads = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
     searchParams: filterParams,
     metrics: ANALYTICS_METRICS,
+    analyticsEvent: "leads",
+    enabled: isLeads,
   });
+
+  const active = isLeads ? leads : clicks;
+
+  const [cachedLeadsTotal, setCachedLeadsTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (leads.data?.totalClicks != null) {
+      setCachedLeadsTotal(leads.data.totalClicks);
+    }
+  }, [leads.data?.totalClicks]);
 
   const filterSource = useMemo<FilterSource>(
     () => ({
-      links,
-      countries,
-      cities,
-      continents,
-      browsers,
-      oses,
-      devices,
-      referrers,
-      destinations,
+      links: active.links,
+      countries: active.countries,
+      cities: active.cities,
+      continents: active.continents,
+      browsers: active.browsers,
+      oses: active.oses,
+      devices: active.devices,
+      referrers: active.referrers,
+      destinations: active.destinations,
     }),
     [
-      links,
-      countries,
-      cities,
-      continents,
-      browsers,
-      oses,
-      devices,
-      referrers,
-      destinations,
+      active.links,
+      active.countries,
+      active.cities,
+      active.continents,
+      active.browsers,
+      active.oses,
+      active.devices,
+      active.referrers,
+      active.destinations,
     ],
   );
 
@@ -279,13 +290,14 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   );
 
   const chartData = useMemo(
-    () => normalizeChartData(res?.clicksOverTime),
-    [res?.clicksOverTime],
+    () => normalizeChartData(active.data?.clicksOverTime),
+    [active.data?.clicksOverTime],
   );
 
-  const hasResolvedData = Boolean(res);
-  const showInitialLoadingState = isLoading && !hasResolvedData && !error;
-  const chartRefreshing = isValidating && hasResolvedData;
+  const hasResolvedData = Boolean(active.data);
+  const showInitialLoadingState =
+    active.isLoading && !hasResolvedData && !active.error;
+  const chartRefreshing = active.isValidating && hasResolvedData;
 
   const sharedProps = useMemo(
     () => ({
@@ -308,30 +320,36 @@ export const AnalyticsClient = memo(function AnalyticsClient({
         <Chart
           {...sharedProps}
           data={chartData}
-          totalClicks={res?.totalClicks ?? 0}
+          totalClicks={clicks.data?.totalClicks ?? 0}
+          totalLeads={
+            isLeads ? (leads.data?.totalClicks ?? null) : cachedLeadsTotal
+          }
           isRefreshing={chartRefreshing}
-          error={error ?? undefined}
+          error={active.error ?? undefined}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <UrlClicks
             {...sharedProps}
-            linksData={links}
-            destinationsData={destinations}
+            linksData={filterSource.links}
+            destinationsData={filterSource.destinations}
           />
           <GeoClicks
             {...sharedProps}
-            citiesData={cities}
-            countriesData={countries}
-            continentsData={continents}
+            citiesData={filterSource.cities}
+            countriesData={filterSource.countries}
+            continentsData={filterSource.continents}
           />
           <DeviceClicks
             {...sharedProps}
-            devicesData={devices}
-            browsersData={browsers}
-            osesData={oses}
+            devicesData={filterSource.devices}
+            browsersData={filterSource.browsers}
+            osesData={filterSource.oses}
           />
-          <ReferrerClicks {...sharedProps} referrersData={referrers} />
+          <ReferrerClicks
+            {...sharedProps}
+            referrersData={filterSource.referrers}
+          />
         </div>
       </div>
     </section>

@@ -11,12 +11,18 @@ import {
   CartesianGrid,
   type TooltipProps,
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
+import { useQueryState, parseAsString } from "nuqs";
+import { cn } from "@/lib/utils";
+import {
+  parseAnalyticsEvent,
+  type AnalyticsEvent,
+} from "@/components/web/_analytics/leads-demo-data";
 
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
@@ -34,6 +40,8 @@ interface ProcessedDataPoint {
 interface ChartProps {
   data?: ChartDataPoint[];
   totalClicks?: number;
+  /** null = not loaded yet (lazy leads fetch) */
+  totalLeads?: number | null;
   timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
@@ -52,8 +60,20 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
   label?: string;
 }
 
+const EVENT_THEME = {
+  clicks: {
+    primary: "#EA877E",
+    gradientId: "colorClicks",
+    label: "Clicks",
+  },
+  leads: {
+    primary: "#ab3bdf",
+    gradientId: "colorLeads",
+    label: "Leads",
+  },
+} as const;
+
 const CHART_THEME = {
-  primary: "#EA877E",
   background: "hsl(var(--background))",
   border: "hsl(var(--border))",
   foreground: "hsl(var(--foreground))",
@@ -111,11 +131,23 @@ const getBucketTimestamp = (date: Date, timePeriod: TimePeriod): number => {
 const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
+  totalLeads: propTotalLeads,
   timePeriod = "24h",
   isLoading,
   isRefreshing,
   error,
 }: ChartProps) => {
+  const [eventParam, setEventParam] = useQueryState("event", parseAsString);
+  const event: AnalyticsEvent = parseAnalyticsEvent(eventParam);
+  const theme = EVENT_THEME[event];
+
+  const selectEvent = useCallback(
+    (next: AnalyticsEvent) => {
+      void setEventParam(next === "clicks" ? null : next);
+    },
+    [setEventParam],
+  );
+
   const processedData = useMemo(() => {
     if (!propData) return [];
 
@@ -202,7 +234,7 @@ const AnalyticsChart = ({
         if (isNaN(date.getTime())) return null;
 
         const formattedDate = formatTime(label);
-        const clicks = payload[0]?.value;
+        const value = payload[0]?.value;
 
         return (
           <div
@@ -214,9 +246,12 @@ const AnalyticsChart = ({
             </p>
             <Separator className="my-1 px-0" />
             <div className="text-foreground m-0 flex items-center gap-2 px-3 text-sm">
-              <div className="h-2 w-2 bg-[#EA877E]" />
-              <span>Clicks:</span>
-              {formatNumber(clicks!)}
+              <div
+                className="h-2 w-2"
+                style={{ backgroundColor: theme.primary }}
+              />
+              <span>{theme.label}:</span>
+              {formatNumber(value!)}
             </div>
           </div>
         );
@@ -224,17 +259,27 @@ const AnalyticsChart = ({
         return null;
       }
     },
-    [formatTime],
+    [formatTime, theme.label, theme.primary],
   );
 
   const tickCount = CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
 
   return (
     <Card className="w-full border p-0 shadow-none">
-      <CardHeader className="grid grid-cols-2 gap-0 px-0 md:grid-cols-3">
-        <CardTitle className="flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-[28px] font-medium sm:p-6">
+      <CardHeader className="grid grid-cols-2 gap-0 px-0">
+        <button
+          type="button"
+          onClick={() => selectEvent("clicks")}
+          className={cn(
+            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
+            event !== "clicks" && "opacity-50 hover:opacity-80",
+          )}
+        >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
-            <div className="h-2.5 w-2.5 bg-[#EA877E] sm:mb-1" />
+            <div
+              className="h-2.5 w-2.5 sm:mb-1"
+              style={{ backgroundColor: EVENT_THEME.clicks.primary }}
+            />
             <span>Clicks</span>
           </div>
           <NumberFlow
@@ -242,9 +287,34 @@ const AnalyticsChart = ({
             format={{ maximumFractionDigits: 0 }}
             className="text-2xl sm:text-3xl"
           />
-        </CardTitle>
-        <div className="hidden h-full border-r border-b p-5 sm:block" />
-        <div className="hidden h-full border-b p-5 sm:block" />
+        </button>
+        <button
+          type="button"
+          onClick={() => selectEvent("leads")}
+          className={cn(
+            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
+            event !== "leads" && "opacity-50 hover:opacity-80",
+          )}
+        >
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+            <div
+              className="h-2.5 w-2.5 sm:mb-1"
+              style={{ backgroundColor: EVENT_THEME.leads.primary }}
+            />
+            <span>Leads</span>
+          </div>
+          {propTotalLeads == null ? (
+            <span className="text-muted-foreground text-2xl sm:text-3xl">
+              —
+            </span>
+          ) : (
+            <NumberFlow
+              value={propTotalLeads}
+              format={{ maximumFractionDigits: 0 }}
+              className="text-2xl sm:text-3xl"
+            />
+          )}
+        </button>
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-4">
         <div className="relative h-[320px] w-full sm:h-[500px]">
@@ -275,20 +345,26 @@ const AnalyticsChart = ({
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="colorClicks" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id={theme.gradientId}
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop
                       offset="0%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={theme.primary}
                       stopOpacity={0.8}
                     />
                     <stop
                       offset="50%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={theme.primary}
                       stopOpacity={0.3}
                     />
                     <stop
                       offset="100%"
-                      stopColor={CHART_THEME.primary}
+                      stopColor={theme.primary}
                       stopOpacity={0}
                     />
                   </linearGradient>
@@ -325,14 +401,14 @@ const AnalyticsChart = ({
                 <Area
                   type="linear"
                   dataKey="clicks"
-                  stroke={CHART_THEME.primary}
-                  fill="url(#colorClicks)"
+                  stroke={theme.primary}
+                  fill={`url(#${theme.gradientId})`}
                   strokeWidth={1.5}
                   activeDot={{
                     r: 5,
                     strokeWidth: 1,
                     stroke: "#fff",
-                    fill: CHART_THEME.primary,
+                    fill: theme.primary,
                   }}
                   isAnimationActive={
                     processedData.length < CHART_CONFIG.ANIMATION_THRESHOLD

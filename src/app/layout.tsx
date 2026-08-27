@@ -41,8 +41,6 @@ export default function RootLayout({
             href="https://fonts.cdnfonts.com/css/satoshi"
           />
         </noscript>
-        <link rel="preconnect" href="https://assets.sandipsarkar.dev" />
-        <link rel="dns-prefetch" href="https://assets.sandipsarkar.dev" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
       </head>
       <body>

@@ -1,0 +1,22 @@
+
+SCHEMA >
+    `timestamp` DateTime64(3) `json:$.timestamp`,
+    `workspace_id` String `json:$.workspace_id`,
+    `link_id` String `json:$.link_id`,
+    `click_id` String `json:$.click_id`,
+    `slug` LowCardinality(String) `json:$.slug`,
+    `url` LowCardinality(String) `json:$.url`,
+    `domain` LowCardinality(String) `json:$.domain`,
+    `event_name` LowCardinality(String) `json:$.event_name`,
+    `customer_external_id` String `json:$.customer_external_id`,
+    `country` LowCardinality(String) `json:$.country`,
+    `city` String `json:$.city`,
+    `continent` LowCardinality(String) `json:$.continent`,
+    `device` LowCardinality(String) `json:$.device`,
+    `browser` LowCardinality(String) `json:$.browser`,
+    `os` LowCardinality(String) `json:$.os`,
+    `referer` String `json:$.referer`
+
+ENGINE "MergeTree"
+ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
+ENGINE_SORTING_KEY "timestamp, link_id, workspace_id"
