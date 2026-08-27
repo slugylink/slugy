@@ -196,6 +196,15 @@ function appendSlugyIdParam(url: string, clickId: string): string {
   return parsed.toString();
 }
 
+function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
+  response.cookies.set(SLUGY_ID_COOKIE, clickId, {
+    maxAge: SLUGY_ID_COOKIE_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
+}
+
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   try {
     const parsed = new URL(url);
@@ -208,15 +217,6 @@ function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
     console.error(`Invalid redirect URL: ${url}`, error);
     return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
   }
-}
-
-function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
-  response.cookies.set(SLUGY_ID_COOKIE, clickId, {
-    maxAge: SLUGY_ID_COOKIE_MAX_AGE,
-    path: "/",
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-  });
 }
 
 // Generate HTML preview page for bots/social media crawlers
@@ -540,7 +540,10 @@ export async function URLRedirects(
       }
 
       const clickId = createClickId();
-      const redirectUrl = appendSlugyIdParam(destinationUrl, clickId);
+      // Dub-style: only append ?slugy_id= when conversion tracking is enabled.
+      const redirectUrl = linkData.trackConversion
+        ? appendSlugyIdParam(destinationUrl, clickId)
+        : destinationUrl;
 
       // Track analytics for humans only (skip bots + browser prefetch).
       // waitUntil MUST be registered before the 302 returns — a bare void/async
@@ -573,7 +576,9 @@ export async function URLRedirects(
         redirectUrl,
         `${origin}/?status=error`,
       );
-      attachSlugyIdCookie(redirectResponse, clickId);
+      if (linkData.trackConversion) {
+        attachSlugyIdCookie(redirectResponse, clickId);
+      }
       return redirectResponse;
     }
 

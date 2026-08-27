@@ -14,6 +14,7 @@ export type LinkCacheType = {
   metadesc?: string | null;
   description: string | null;
   geo?: GeoTargetMap | null;
+  trackConversion?: boolean;
 } | null;
 
 const NEGATIVE_CACHE_TTL_SECONDS = 30;

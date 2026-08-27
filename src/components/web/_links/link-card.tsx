@@ -87,6 +87,7 @@ interface LinkData {
   geo?: Record<string, string> | null;
   image?: string | null;
   title?: string | null;
+  trackConversion?: boolean;
   qrCode: {
     id: string;
     customization?: string;
@@ -215,6 +216,7 @@ const createEditFormData = (link: LinkData) => ({
   creatorId: typeof link.creatorId === "string" ? link.creatorId : undefined,
   image: link.image ?? "",
   title: link.title ?? "",
+  trackConversion: Boolean(link.trackConversion),
   qrCode: link.qrCode,
 });
 

@@ -77,6 +77,7 @@ const updateLinkSchema = z.object({
   geo: geoTargetSchema,
   tags: z.array(z.string()).optional(),
   customDomainId: z.string().optional().nullable(),
+  trackConversion: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -428,6 +429,7 @@ export async function PATCH(
             utm_content: true,
             utm_term: true,
             geo: true,
+            trackConversion: true,
             createdAt: true,
             tags: {
               select: {
@@ -481,6 +483,7 @@ export async function PATCH(
               metadesc: linkWithTags.metadesc,
               description: linkWithTags.description,
               geo: parseGeoFromCache(linkWithTags.geo),
+              trackConversion: Boolean(linkWithTags.trackConversion),
             },
             newDomain,
           );

@@ -55,6 +55,7 @@ interface LinkSettings {
   password: string | null;
   expirationUrl: string | null;
   geo: GeoTargetMap | null;
+  trackConversion: boolean;
 }
 
 interface UrlSafetyStatus {
@@ -116,6 +117,7 @@ const EditLinkForm = memo(
       password: initialData.password || null,
       expirationUrl: initialData.expirationUrl || null,
       geo: initialData.geo || null,
+      trackConversion: Boolean(initialData.trackConversion),
     });
 
     const [draftMetadata, setDraftMetadata] = useState<{
@@ -150,6 +152,7 @@ const EditLinkForm = memo(
         password: initialData.password || null,
         expirationUrl: initialData.expirationUrl || null,
         geo: initialData.geo || null,
+        trackConversion: Boolean(initialData.trackConversion),
       }),
       [initialData],
     );
@@ -204,6 +207,7 @@ const EditLinkForm = memo(
         linkSettings.expiresAt !== initialLinkSettings.expiresAt ||
         linkSettings.password !== initialLinkSettings.password ||
         linkSettings.expirationUrl !== initialLinkSettings.expirationUrl ||
+        linkSettings.trackConversion !== initialLinkSettings.trackConversion ||
         JSON.stringify(linkSettings.geo) !==
           JSON.stringify(initialLinkSettings.geo),
       [linkSettings, initialLinkSettings],
@@ -306,6 +310,7 @@ const EditLinkForm = memo(
             expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
             expirationUrl: linkSettings.expirationUrl || null,
             password: linkSettings.password || null,
+            trackConversion: linkSettings.trackConversion,
           };
 
           const utmPayload = {
@@ -470,6 +475,13 @@ const EditLinkForm = memo(
                   onSafetyStatusChange={setUrlSafetyStatus}
                   draftMetadata={draftMetadata}
                   onDraftMetadataSave={(draft) => setDraftMetadata(draft)}
+                  trackConversion={linkSettings.trackConversion}
+                  setTrackConversion={(trackConversion) =>
+                    setLinkSettings((prev) => ({
+                      ...prev,
+                      trackConversion,
+                    }))
+                  }
                 />
               </div>
 

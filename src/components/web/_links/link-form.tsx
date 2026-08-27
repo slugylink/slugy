@@ -30,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Tooltip,
   TooltipContent,
@@ -84,6 +85,8 @@ interface LinkFormFieldsProps {
   onSafetyStatusChange?: (status: UrlSafetyStatus) => void;
   draftMetadata?: DraftMetadata;
   onDraftMetadataSave?: (draft: DraftMetadata) => void;
+  trackConversion?: boolean;
+  setTrackConversion?: (enabled: boolean) => void;
 }
 
 interface TagType {
@@ -362,6 +365,8 @@ interface LinkFormMainPanelsProps {
   effectiveImage?: string;
   effectiveTitle?: string;
   effectiveMetadesc?: string;
+  trackConversion?: boolean;
+  setTrackConversion?: (enabled: boolean) => void;
 }
 
 const LinkFormMainPanels = ({
@@ -407,6 +412,8 @@ const LinkFormMainPanels = ({
   effectiveImage,
   effectiveTitle,
   effectiveMetadesc,
+  trackConversion = false,
+  setTrackConversion,
 }: LinkFormMainPanelsProps) => {
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -695,6 +702,21 @@ const LinkFormMainPanels = ({
             </FormItem>
           )}
         />
+
+        {setTrackConversion && (
+          <div className="flex items-center justify-between">
+            <div className="">
+              <Label htmlFor="track-conversion" className="text-sm font-medium">
+                Conversion tracking
+              </Label>
+            </div>
+            <Switch
+              id="track-conversion"
+              checked={trackConversion}
+              onCheckedChange={setTrackConversion}
+            />
+          </div>
+        )}
       </div>
 
       {/* Right side: QR code and link preview */}
@@ -783,6 +805,8 @@ const LinkFormFields = ({
   onSafetyStatusChange,
   draftMetadata,
   onDraftMetadataSave,
+  trackConversion = false,
+  setTrackConversion,
 }: LinkFormFieldsProps) => {
   void _code;
   const { control, getValues, watch, setValue } = form;
@@ -1153,6 +1177,8 @@ const LinkFormFields = ({
         effectiveImage={effectiveImage}
         effectiveTitle={effectiveTitle}
         effectiveMetadesc={effectiveMetadesc}
+        trackConversion={trackConversion}
+        setTrackConversion={setTrackConversion}
       />
       {/* Link Metadata Dialog */}
       {((isEditMode && linkId) || !isEditMode) && (

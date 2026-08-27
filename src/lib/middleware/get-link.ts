@@ -24,6 +24,7 @@ export interface GetLinkResult {
   metadesc?: string | null;
   description?: string | null;
   geo?: GeoTargetMap | null;
+  trackConversion?: boolean;
 }
 
 interface LinkCache {
@@ -39,6 +40,7 @@ interface LinkCache {
   metadesc?: string | null;
   description: string | null;
   geo?: GeoTargetMap | null;
+  trackConversion?: boolean;
 }
 
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
@@ -86,6 +88,7 @@ const fetchLinkFromDatabase = async (
       l.metadesc,
       l.description,
       l.geo,
+      l."trackConversion",
       cd.domain as custom_domain
     FROM "links" l
     LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
@@ -112,6 +115,7 @@ const fetchLinkFromDatabase = async (
     metadesc: row.metadesc ?? null,
     description: row.description ?? null,
     geo: parseGeoFromCache(row.geo),
+    trackConversion: Boolean(row.trackConversion),
   };
 };
 
@@ -231,6 +235,7 @@ export async function getLink(
       metadesc: link.metadesc ?? null,
       description: link.description,
       geo: link.geo ?? null,
+      trackConversion: Boolean(link.trackConversion),
     };
   } catch (error) {
     console.error(`Error fetching link for slug "${slug}":`, error);

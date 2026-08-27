@@ -63,6 +63,7 @@ export interface LinkData extends LinkFormValues {
   image?: string | null;
   title?: string | null;
   metadesc?: string | null;
+  trackConversion?: boolean;
   qrCode: {
     id: string;
     customization?: string;

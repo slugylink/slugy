@@ -53,6 +53,12 @@ const LINK_SELECT_FIELDS = {
   createdAt: true,
   expirationUrl: true,
   geo: true,
+  trackConversion: true,
+  utm_source: true,
+  utm_medium: true,
+  utm_campaign: true,
+  utm_content: true,
+  utm_term: true,
   tags: {
     select: {
       tag: {

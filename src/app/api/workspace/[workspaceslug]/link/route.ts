@@ -89,6 +89,7 @@ const createLinkSchema = z.object({
   geo: geoTargetSchema,
   tags: z.array(z.string()).optional(),
   customDomainId: z.string().optional().nullable(),
+  trackConversion: z.boolean().optional().default(false),
 });
 
 type CreateLinkRequest = z.infer<typeof createLinkSchema>;
@@ -366,6 +367,7 @@ export async function POST(
           utm_term: validatedData.utm_term,
           geo: geo ?? Prisma.JsonNull,
           customDomainId: validatedData.customDomainId || null,
+          trackConversion: validatedData.trackConversion ?? false,
         },
         select: {
           id: true,
@@ -387,6 +389,7 @@ export async function POST(
           utm_content: true,
           utm_term: true,
           geo: true,
+          trackConversion: true,
           createdAt: true,
         },
       });
@@ -480,6 +483,7 @@ export async function POST(
               metadesc: result.metadesc,
               description: result.description,
               geo: (result.geo as GeoTargetMap | null) ?? null,
+              trackConversion: Boolean(result.trackConversion),
             },
             domain,
           ),

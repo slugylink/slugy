@@ -387,6 +387,7 @@ model Link {
   conversions    BigInt    @default(0)
   leads          BigInt    @default(0)
   publicStats    Boolean   @default(false)
+  trackConversion Boolean  @default(false)
   customDomainId String?
   
   // Relations

@@ -37,6 +37,7 @@ interface LinkSettings {
   password: string | null;
   expirationUrl: string | null;
   geo: GeoTargetMap | null;
+  trackConversion: boolean;
 }
 
 interface UTMParams {
@@ -171,6 +172,7 @@ const CreateLinkForm = React.memo(
       password: null,
       expirationUrl: null,
       geo: null,
+      trackConversion: false,
     });
     const [utmParams, setUtmParams] = useState<UTMParams>({
       source: "",
@@ -270,6 +272,7 @@ const CreateLinkForm = React.memo(
         password: null,
         expirationUrl: null,
         geo: null,
+        trackConversion: false,
       });
       setUtmParams({
         source: "",
@@ -480,6 +483,13 @@ const CreateLinkForm = React.memo(
                   onSafetyStatusChange={setUrlSafetyStatus}
                   draftMetadata={draftMetadata}
                   onDraftMetadataSave={(draft) => setDraftMetadata(draft)}
+                  trackConversion={linkSettings.trackConversion}
+                  setTrackConversion={(trackConversion) =>
+                    setLinkSettings((prev) => ({
+                      ...prev,
+                      trackConversion,
+                    }))
+                  }
                 />
               </div>
 
