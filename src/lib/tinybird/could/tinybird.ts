@@ -301,7 +301,7 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           ev.utm_campaign,
           ev.utm_term,
           ev.utm_content
-        FROM slugy_click_events_mv AS ev
+        FROM slugy_click_events AS ev
         INNER JOIN (
           SELECT
             link_id,

@@ -32,9 +32,7 @@ SELECT
     ev.utm_campaign,
     ev.utm_term,
     ev.utm_content
-FROM slugy_click_events_mv AS ev
--- FINAL: ReplacingMergeTree can hold multiple versions per link_id until merge.
--- Without FINAL, INNER JOIN multiplies every click (2 metadata rows → 2x clicks).
+FROM slugy_click_events AS ev
 INNER JOIN (
     SELECT
         link_id,

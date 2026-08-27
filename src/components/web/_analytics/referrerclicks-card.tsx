@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { MousePointerClick } from "lucide-react";
 import UrlAvatar from "@/components/web/url-avatar";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
@@ -66,6 +65,21 @@ function looksLikeUrl(value: string): boolean {
   );
 }
 
+function toRows(
+  items: Array<{ clicks: number } & Record<string, string>> | undefined,
+  field: string,
+  withAvatar: boolean,
+): RowItem[] {
+  return (items ?? []).map((item) => {
+    const label = item[field] ?? "";
+    return {
+      label,
+      clicks: item.clicks,
+      avatarUrl: withAvatar && looksLikeUrl(label) ? label : undefined,
+    };
+  });
+}
+
 const ReferrerClicks = ({
   referrersData,
   utmSourcesData,
@@ -80,49 +94,33 @@ const ReferrerClicks = ({
   const [utmTab, setUtmTab] = useState<UtmTab>("utmSources");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const processedData = useMemo((): RowItem[] => {
-    if (primaryTab === "referrers") {
-      return (referrersData ?? []).map((item) => ({
+  const referrerRows = useMemo(
+    () =>
+      (referrersData ?? []).map((item) => ({
         label: item.referrer,
         clicks: item.clicks,
         avatarUrl: item.referrer,
-      }));
-    }
+      })),
+    [referrersData],
+  );
 
+  const utmRows = useMemo(() => {
     switch (utmTab) {
       case "utmSources":
-        return (utmSourcesData ?? []).map((item) => ({
-          label: item.source,
-          clicks: item.clicks,
-          avatarUrl: looksLikeUrl(item.source) ? item.source : undefined,
-        }));
+        return toRows(utmSourcesData as never, "source", true);
       case "utmMediums":
-        return (utmMediumsData ?? []).map((item) => ({
-          label: item.medium,
-          clicks: item.clicks,
-        }));
+        return toRows(utmMediumsData as never, "medium", false);
       case "utmCampaigns":
-        return (utmCampaignsData ?? []).map((item) => ({
-          label: item.campaign,
-          clicks: item.clicks,
-        }));
+        return toRows(utmCampaignsData as never, "campaign", false);
       case "utmTerms":
-        return (utmTermsData ?? []).map((item) => ({
-          label: item.term,
-          clicks: item.clicks,
-        }));
+        return toRows(utmTermsData as never, "term", false);
       case "utmContents":
-        return (utmContentsData ?? []).map((item) => ({
-          label: item.content,
-          clicks: item.clicks,
-        }));
+        return toRows(utmContentsData as never, "content", false);
       default:
         return [];
     }
   }, [
-    primaryTab,
     utmTab,
-    referrersData,
     utmSourcesData,
     utmMediumsData,
     utmCampaignsData,
@@ -130,9 +128,11 @@ const ReferrerClicks = ({
     utmContentsData,
   ]);
 
+  const activeRows = primaryTab === "referrers" ? referrerRows : utmRows;
+
   const sortedData = useMemo(
-    () => [...processedData].sort((a, b) => b.clicks - a.clicks),
-    [processedData],
+    () => [...activeRows].sort((a, b) => b.clicks - a.clicks),
+    [activeRows],
   );
 
   const headerLabel =
@@ -171,6 +171,30 @@ const ReferrerClicks = ({
     [useAvatar],
   );
 
+  function renderTable(rows: RowItem[], prefix: string, header: string) {
+    const sorted = [...rows].sort((a, b) => b.clicks - a.clicks);
+    return (
+      <div
+        className="relative h-72 w-full"
+        role="list"
+        aria-label={`Clicks by ${header.toLowerCase()}`}
+      >
+        {sorted.length > 0 || isLoading ? <TableHeader label={header} /> : null}
+        <TableCard
+          data={sorted.slice(0, 7)}
+          loading={isLoading ?? false}
+          error={error}
+          keyPrefix={prefix}
+          dataKey={prefix === "referrer" ? "referrer" : "label"}
+          getClicks={(item) => item.clicks}
+          getKey={(item, index) => item.label || `${prefix}-${index}`}
+          progressColor="bg-red-200/40"
+          NameComponent={NameComponent}
+        />
+      </div>
+    );
+  }
+
   return (
     <Card className="relative overflow-hidden border shadow-none">
       <CardContent className="pb-2">
@@ -178,15 +202,17 @@ const ReferrerClicks = ({
           value={primaryTab}
           onValueChange={(value) => setPrimaryTab(value as PrimaryTab)}
         >
-          <div className="flex items-center gap-2">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="referrers">Referrers</TabsTrigger>
-              <TabsTrigger value="utm">UTM Parameters</TabsTrigger>
-            </TabsList>
-          </div>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="referrers">Referrers</TabsTrigger>
+            <TabsTrigger value="utm">UTM Parameters</TabsTrigger>
+          </TabsList>
 
-          {primaryTab === "utm" ? (
-            <div className="bg-muted/40 mt-2 flex flex-wrap items-center gap-1 rounded-md border px-2 py-1.5">
+          <TabsContent value="referrers" className="mt-1 font-normal">
+            {renderTable(referrerRows, "referrer", "Source")}
+          </TabsContent>
+
+          <TabsContent value="utm" className="mt-1 font-normal">
+            <div className="bg-muted/40 mb-2 flex flex-wrap items-center gap-1 rounded-md border px-2 py-1.5">
               {UTM_TABS.map((tab) => (
                 <button
                   key={tab.key}
@@ -203,29 +229,11 @@ const ReferrerClicks = ({
                 </button>
               ))}
             </div>
-          ) : null}
-
-          <TabsContent value={primaryTab} className="mt-1 font-normal">
-            <div
-              className="relative h-72 w-full"
-              role="list"
-              aria-label={`Clicks by ${headerLabel.toLowerCase()}`}
-            >
-              {sortedData.length > 0 || isLoading ? (
-                <TableHeader label={headerLabel} />
-              ) : null}
-              <TableCard
-                data={sortedData.slice(0, 7)}
-                loading={isLoading ?? false}
-                error={error}
-                keyPrefix={keyPrefix}
-                dataKey="label"
-                getClicks={(item) => item.clicks}
-                getKey={(item, index) => item.label || `${keyPrefix}-${index}`}
-                progressColor="bg-red-200/40"
-                NameComponent={NameComponent}
-              />
-            </div>
+            {renderTable(
+              utmRows,
+              utmTab,
+              UTM_TABS.find((tab) => tab.key === utmTab)?.singular ?? "Source",
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -239,7 +247,7 @@ const ReferrerClicks = ({
         loading={isLoading ?? false}
         error={error}
         keyPrefix={keyPrefix}
-        dataKey="label"
+        dataKey={primaryTab === "referrers" ? "referrer" : "label"}
         getClicks={(item) => item.clicks}
         getKey={(item, index) => item.label || `${keyPrefix}-${index}`}
         progressColor="bg-red-200/40"
