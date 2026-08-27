@@ -68,7 +68,7 @@ export async function GET(
       destination_key: search.get("destination_key") || null,
       domain_key: search.get("domain_key") || null,
       metrics: search.get("metrics")
-        ? (search.get("metrics")!.split(",").filter(Boolean) as string[])
+        ? search.get("metrics")!.split(",").filter(Boolean)
         : undefined,
     };
 
@@ -124,7 +124,7 @@ export async function GET(
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
 
-    const result = await tinybird.analyticsPipe.query({
+    const result = await tinybird.leadsAnalytics.query({
       workspace_id: workspaceId,
       date_range: props.timePeriod,
       slug: props.slug_key || "",
@@ -154,20 +154,16 @@ export async function GET(
       status: 200,
       headers: {
         "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-        "X-Analytics-Metrics": normalizedMetrics.join(","),
-        "X-Analytics-Period": props.timePeriod,
-        "X-Analytics-Event": "clicks",
+        "X-Analytics-Event": "leads",
       },
     });
   } catch (err) {
-    console.error("Tinybird Analytics API error:", err);
-
+    console.error("Leads analytics API error:", err);
     if (err instanceof z.ZodError) {
       return apiErrors.validationError(err.errors, "Invalid parameters");
     }
-
     return apiErrors.serviceUnavailable(
-      "Analytics service temporarily unavailable",
+      "Leads analytics temporarily unavailable",
     );
   }
 }

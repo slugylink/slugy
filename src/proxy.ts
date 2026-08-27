@@ -126,11 +126,12 @@ const isKnownDomain = (hostname: string): boolean =>
   hostname === ROOT_DOMAIN ||
   hostname === SUBDOMAINS.bio ||
   hostname === SUBDOMAINS.app ||
-  hostname === SUBDOMAINS.admin;
+  hostname === SUBDOMAINS.admin ||
+  hostname === SUBDOMAINS.api;
 
 const isLocalSubdomain = (
   hostname: string,
-  subdomain: "app" | "bio" | "admin" | "webhook",
+  subdomain: "app" | "bio" | "admin" | "api" | "webhook",
 ): boolean =>
   !IS_PRODUCTION &&
   (hostname === `${subdomain}.localhost` ||
@@ -203,6 +204,15 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       isLocalSubdomain(hostname, "webhook")
     ) {
       return NextResponse.next();
+    }
+
+    if (hostname === SUBDOMAINS.api || isLocalSubdomain(hostname, "api")) {
+      if (!pathname.startsWith("/api/")) {
+        const apiPath =
+          pathname === "/" ? "/api/leads_track" : `/api${pathname}`;
+        return rewriteTo(`${apiPath}${url.search}`, req.url);
+      }
+      return addSecurityHeaders(NextResponse.next());
     }
 
     if (pathname.startsWith("/api/")) {

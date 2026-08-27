@@ -1,0 +1,18 @@
+SELECT
+    timestamp,
+    workspace_id,
+    link_id,
+    click_id,
+    slug,
+    url,
+    domain,
+    event_name,
+    customer_external_id,
+    country,
+    city,
+    continent,
+    device,
+    browser,
+    os,
+    referer
+FROM slugy_lead_events

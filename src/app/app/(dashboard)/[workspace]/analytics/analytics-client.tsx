@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   useAnalytics,
@@ -12,10 +12,7 @@ import FilterActions, {
   type CategoryId,
   type FilterCategory,
 } from "@/components/web/_analytics/filter";
-import {
-  getLeadsDemoData,
-  parseAnalyticsEvent,
-} from "@/components/web/_analytics/leads-demo-data";
+import { parseAnalyticsEvent } from "@/components/web/_analytics/leads-demo-data";
 import {
   Box,
   Chrome,
@@ -236,83 +233,71 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     [searchParams],
   );
 
-  const leadsDemo = useMemo(() => getLeadsDemoData(timePeriod), [timePeriod]);
+  const clicks = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: filterParams,
+    metrics: isLeads ? (["totalClicks"] as const) : ANALYTICS_METRICS,
+    analyticsEvent: "clicks",
+  });
 
-  const {
-    data: res,
-    links,
-    countries,
-    cities,
-    continents,
-    browsers,
-    oses,
-    devices,
-    referrers,
-    destinations,
-    error,
-    isLoading,
-    isValidating,
-  } = useAnalytics({
+  const leads = useAnalytics({
     workspaceslug: workspace,
     timePeriod,
     searchParams: filterParams,
     metrics: ANALYTICS_METRICS,
+    analyticsEvent: "leads",
+    enabled: isLeads,
   });
 
-  const filterSource = useMemo<FilterSource>(() => {
-    if (isLeads) {
-      return {
-        links: leadsDemo.links,
-        countries: leadsDemo.countries,
-        cities: leadsDemo.cities,
-        continents: leadsDemo.continents,
-        browsers: leadsDemo.browsers,
-        oses: leadsDemo.oses,
-        devices: leadsDemo.devices,
-        referrers: leadsDemo.referrers,
-        destinations: leadsDemo.destinations,
-      };
-    }
+  const active = isLeads ? leads : clicks;
 
-    return {
-      links,
-      countries,
-      cities,
-      continents,
-      browsers,
-      oses,
-      devices,
-      referrers,
-      destinations,
-    };
-  }, [
-    isLeads,
-    leadsDemo,
-    links,
-    countries,
-    cities,
-    continents,
-    browsers,
-    oses,
-    devices,
-    referrers,
-    destinations,
-  ]);
+  const [cachedLeadsTotal, setCachedLeadsTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (leads.data?.totalClicks != null) {
+      setCachedLeadsTotal(leads.data.totalClicks);
+    }
+  }, [leads.data?.totalClicks]);
+
+  const filterSource = useMemo<FilterSource>(
+    () => ({
+      links: active.links,
+      countries: active.countries,
+      cities: active.cities,
+      continents: active.continents,
+      browsers: active.browsers,
+      oses: active.oses,
+      devices: active.devices,
+      referrers: active.referrers,
+      destinations: active.destinations,
+    }),
+    [
+      active.links,
+      active.countries,
+      active.cities,
+      active.continents,
+      active.browsers,
+      active.oses,
+      active.devices,
+      active.referrers,
+      active.destinations,
+    ],
+  );
 
   const filterCategories = useMemo(
     () => buildFilterCategories(filterSource),
     [filterSource],
   );
 
-  const chartData = useMemo(() => {
-    if (isLeads) return leadsDemo.leadsOverTime;
-    return normalizeChartData(res?.clicksOverTime);
-  }, [isLeads, leadsDemo.leadsOverTime, res?.clicksOverTime]);
+  const chartData = useMemo(
+    () => normalizeChartData(active.data?.clicksOverTime),
+    [active.data?.clicksOverTime],
+  );
 
-  const hasResolvedData = Boolean(res);
+  const hasResolvedData = Boolean(active.data);
   const showInitialLoadingState =
-    !isLeads && isLoading && !hasResolvedData && !error;
-  const chartRefreshing = !isLeads && isValidating && hasResolvedData;
+    active.isLoading && !hasResolvedData && !active.error;
+  const chartRefreshing = active.isValidating && hasResolvedData;
 
   const sharedProps = useMemo(
     () => ({
@@ -335,10 +320,12 @@ export const AnalyticsClient = memo(function AnalyticsClient({
         <Chart
           {...sharedProps}
           data={chartData}
-          totalClicks={res?.totalClicks ?? 0}
-          totalLeads={leadsDemo.totalLeads}
+          totalClicks={clicks.data?.totalClicks ?? 0}
+          totalLeads={
+            isLeads ? (leads.data?.totalClicks ?? null) : cachedLeadsTotal
+          }
           isRefreshing={chartRefreshing}
-          error={isLeads ? undefined : (error ?? undefined)}
+          error={active.error ?? undefined}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">

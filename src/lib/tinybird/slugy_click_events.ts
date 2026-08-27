@@ -1,12 +1,11 @@
 import { tb } from "@/constants/tinybird";
-
-const API_BASE = "https://api.us-east.aws.tinybird.co/v0";
-const TINYBIRD_API_KEY = process.env.TINYBIRD_API_KEY!;
+import { ingestTinybirdEvent } from "@/lib/tinybird/http";
 
 export interface LinkClickEvent {
-  timestamp?: string; // ISO string milliseconds
+  timestamp?: string;
   link_id: string;
   workspace_id: string;
+  click_id?: string;
   slug: string;
   url: string;
   domain: string;
@@ -28,13 +27,12 @@ export interface LinkClickEvent {
   utm_content?: string;
 }
 
-const TINYBIRD_TIMEOUT_MS = 5000; // 5 seconds timeout
-
 export async function sendLinkClickEvent(event: LinkClickEvent) {
-  const payload = {
+  await ingestTinybirdEvent(tb.link_click_events, {
     timestamp: event.timestamp ?? new Date().toISOString(),
     link_id: event.link_id,
     workspace_id: event.workspace_id,
+    click_id: event.click_id ?? null,
     slug: event.slug,
     url: event.url,
     domain: event.domain,
@@ -47,47 +45,12 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
     os: event.os ?? "",
     ua: event.ua ?? "",
     referer: event.referer ?? "",
-    trigger: event.trigger ?? "",
-    user_id: event.user_id ?? "",
+    trigger: event.trigger ?? null,
+    user_id: event.user_id ?? null,
     utm_source: event.utm_source ?? "",
     utm_medium: event.utm_medium ?? "",
     utm_campaign: event.utm_campaign ?? "",
     utm_term: event.utm_term ?? "",
     utm_content: event.utm_content ?? "",
-  };
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TINYBIRD_TIMEOUT_MS);
-
-  try {
-    // wait=true so the event is acknowledged before the Edge isolate can exit
-    const res = await fetch(
-      `${API_BASE}/events?name=${tb.link_click_events}&wait=true`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${TINYBIRD_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      },
-    );
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("Tinybird link_click_events error:", res.status, text);
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      const timeoutError = new Error(
-        `Tinybird request timeout after ${TINYBIRD_TIMEOUT_MS}ms`,
-      );
-      timeoutError.name = "TinybirdTimeoutError";
-      throw timeoutError;
-    }
-    throw error; // Re-throw other errors
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  });
 }

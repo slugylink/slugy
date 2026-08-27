@@ -25,6 +25,7 @@ interface UseAnalyticsParams {
   enabled?: boolean;
   metrics?: readonly (keyof AnalyticsData)[];
   useTinybird?: boolean;
+  analyticsEvent?: "clicks" | "leads";
 }
 
 // Constants
@@ -102,6 +103,7 @@ const fetchAnalyticsData = async (
   params: Record<string, string>,
   metrics?: Array<keyof AnalyticsData>,
   useTinybird: boolean = true,
+  analyticsEvent: "clicks" | "leads" = "clicks",
 ): Promise<Partial<AnalyticsData>> => {
   const searchParams = new URLSearchParams();
 
@@ -121,9 +123,12 @@ const fetchAnalyticsData = async (
     searchParams.set("metrics", metrics.join(","));
   }
 
-  const endpoint = useTinybird
-    ? `/api/workspace/${workspaceslug}/analytics/tinybird`
-    : `/api/workspace/${workspaceslug}/analytics`;
+  const endpoint =
+    analyticsEvent === "leads"
+      ? `/api/workspace/${workspaceslug}/analytics/leads`
+      : useTinybird
+        ? `/api/workspace/${workspaceslug}/analytics/tinybird`
+        : `/api/workspace/${workspaceslug}/analytics`;
 
   const queryString = searchParams.toString();
   const url = `${endpoint}${queryString ? `?${queryString}` : ""}`;
@@ -183,6 +188,7 @@ export function useAnalytics({
   enabled = true,
   metrics = DEFAULT_METRICS,
   useTinybird = true,
+  analyticsEvent = "clicks",
 }: UseAnalyticsParams) {
   const stableSearchParams = useMemo(() => {
     const params = { time_period: timePeriod, ...searchParams };
@@ -211,12 +217,23 @@ export function useAnalytics({
     );
     const sortedMetrics = [...metrics].sort().join(",");
     return [
-      useTinybird ? "analytics-tinybird" : "analytics",
+      analyticsEvent === "leads"
+        ? "analytics-leads"
+        : useTinybird
+          ? "analytics-tinybird"
+          : "analytics",
       sortedMetrics,
       workspaceslug,
       serializedParams,
     ] as const;
-  }, [shouldFetch, metrics, workspaceslug, debouncedSearchParams, useTinybird]);
+  }, [
+    shouldFetch,
+    metrics,
+    workspaceslug,
+    debouncedSearchParams,
+    useTinybird,
+    analyticsEvent,
+  ]);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<
     Partial<AnalyticsData>,
@@ -229,6 +246,7 @@ export function useAnalytics({
         debouncedSearchParams,
         [...metrics],
         useTinybird,
+        analyticsEvent,
       ),
     {
       dedupingInterval: SWR_DEDUPING_INTERVAL,

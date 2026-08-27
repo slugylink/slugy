@@ -257,6 +257,8 @@ model Workspace {
   customDomains    CustomDomain[]
   usages           Usage[]
   apiKeys          WorkspaceApiKey[]
+  leadCustomers    LeadCustomer[]
+  leadEvents       LeadEvent[]
 
   @@index([slug])
   @@index([userId, isDefault])
@@ -273,6 +275,7 @@ model WorkspaceApiKey {
   linksPermission      ResourcePermission    @default(none)
   domainsPermission    ResourcePermission    @default(none)
   workspacesPermission ResourcePermission    @default(none)
+  leadsPermission      ResourcePermission    @default(none)
   lastUsed             DateTime?
   expiresAt            DateTime?
   createdAt            DateTime              @default(now())
@@ -394,6 +397,8 @@ model Link {
   analytics       Analytics[]
   qrCode          QrCode?
   SharedAnalytics SharedAnalytics?
+  leadCustomers   LeadCustomer[]
+  leadEvents      LeadEvent[]
 
   @@unique([slug, domain])
   @@index([slug])
@@ -644,4 +649,52 @@ model Usage {
   @@index([userId, workspaceId])
   @@index([deletedAt, createdAt(sort: Desc)])
   @@map("usages")
+}
+
+// ---------- Lead conversion tracking ----------
+
+model LeadCustomer {
+  id          String   @id @default(cuid())
+  workspaceId String
+  externalId  String
+  email       String?
+  name        String?
+  avatar      String?
+  clickId     String?
+  linkId      String?
+  country     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  link      Link?       @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  events    LeadEvent[]
+
+  @@unique([workspaceId, externalId])
+  @@index([workspaceId])
+  @@index([clickId])
+  @@map("lead_customers")
+}
+
+model LeadEvent {
+  id                 String   @id @default(cuid())
+  workspaceId        String
+  linkId             String
+  clickId            String
+  customerExternalId String
+  eventName          String
+  customerEmail      String?
+  customerName       String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  link      Link         @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  customer  LeadCustomer @relation(fields: [workspaceId, customerExternalId], references: [workspaceId, externalId])
+
+  @@unique([workspaceId, customerExternalId, eventName])
+  @@index([workspaceId, createdAt])
+  @@index([linkId, createdAt])
+  @@index([clickId])
+  @@map("lead_events")
 }

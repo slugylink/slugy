@@ -40,7 +40,8 @@ interface ProcessedDataPoint {
 interface ChartProps {
   data?: ChartDataPoint[];
   totalClicks?: number;
-  totalLeads?: number;
+  /** null = not loaded yet (lazy leads fetch) */
+  totalLeads?: number | null;
   timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
@@ -302,11 +303,17 @@ const AnalyticsChart = ({
             />
             <span>Leads</span>
           </div>
-          <NumberFlow
-            value={propTotalLeads ?? 0}
-            format={{ maximumFractionDigits: 0 }}
-            className="text-2xl sm:text-3xl"
-          />
+          {propTotalLeads == null ? (
+            <span className="text-muted-foreground text-2xl sm:text-3xl">
+              —
+            </span>
+          ) : (
+            <NumberFlow
+              value={propTotalLeads}
+              format={{ maximumFractionDigits: 0 }}
+              className="text-2xl sm:text-3xl"
+            />
+          )}
         </button>
       </CardHeader>
       <CardContent className="p-0 pr-2 pb-4">

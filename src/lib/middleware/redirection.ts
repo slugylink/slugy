@@ -11,6 +11,16 @@ import {
 import { redis } from "@/lib/redis";
 import { recordLinkClick } from "@/lib/analytics/record-click";
 import { resolveTargetUrl } from "@/lib/link-targeting";
+import { createClickId } from "@/lib/leads/generate-click-id";
+import {
+  cacheClickAttribution,
+  type CachedClickAttribution,
+} from "@/lib/leads/click-cache";
+import {
+  SLUGY_ID_COOKIE,
+  SLUGY_ID_COOKIE_MAX_AGE,
+  SLUGY_ID_PARAM,
+} from "@/lib/leads/constants";
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
@@ -156,6 +166,12 @@ function extractUTMParams(urlString: string): UTMParams {
 }
 
 // Create safe redirect with fallback — only http(s) destinations
+function appendSlugyIdParam(url: string, clickId: string): string {
+  const parsed = new URL(url);
+  parsed.searchParams.set(SLUGY_ID_PARAM, clickId);
+  return parsed.toString();
+}
+
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   try {
     const parsed = new URL(url);
@@ -168,6 +184,15 @@ function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
     console.error(`Invalid redirect URL: ${url}`, error);
     return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
   }
+}
+
+function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
+  response.cookies.set(SLUGY_ID_COOKIE, clickId, {
+    maxAge: SLUGY_ID_COOKIE_MAX_AGE,
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+  });
 }
 
 // Generate HTML preview page for bots/social media crawlers
@@ -289,6 +314,7 @@ async function trackAnalytics(
   workspaceId: string,
   domain: string | undefined,
   trigger: string,
+  clickId: string,
 ): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
@@ -302,6 +328,7 @@ async function trackAnalytics(
       workspaceId,
       url,
       domain,
+      clickId,
       timestamp,
       ...analytics,
       utm_source: utmParams.utm_source ?? undefined,
@@ -311,6 +338,23 @@ async function trackAnalytics(
       utm_content: utmParams.utm_content ?? undefined,
     };
 
+    const clickAttribution: CachedClickAttribution = {
+      clickId,
+      linkId,
+      workspaceId,
+      slug,
+      url,
+      domain: finalDomain,
+      country: analytics.country,
+      city: analytics.city,
+      continent: analytics.continent,
+      device: analytics.device,
+      browser: analytics.browser,
+      os: analytics.os,
+      referer: analytics.referer,
+      timestamp,
+    };
+
     // Caller must wrap this in waitUntil — do not nest waitUntil after awaits.
     await Promise.allSettled([
       // Tinybird click events (dashboard source)
@@ -318,6 +362,7 @@ async function trackAnalytics(
         timestamp,
         link_id: linkId,
         workspace_id: workspaceId,
+        click_id: clickId,
         slug,
         url,
         domain: finalDomain,
@@ -355,6 +400,10 @@ async function trackAnalytics(
         slug,
         domain: finalDomain,
       }).catch((err) => console.error("[Click Counter Error]", err)),
+
+      cacheClickAttribution(clickAttribution).catch((err) =>
+        console.error("[Click Cache Error]", err),
+      ),
 
       // Redis batch cache (Prisma analytics backfill)
       cacheAnalyticsEvent(cachedData),
@@ -458,6 +507,8 @@ export async function URLRedirects(
         geo: linkData.geo,
         country: geoData.country,
       });
+      const clickId = createClickId();
+      const redirectUrl = appendSlugyIdParam(destinationUrl, clickId);
 
       // Track analytics for humans only (skip bots + browser prefetch).
       // waitUntil MUST be registered before the 302 returns — a bare void/async
@@ -480,12 +531,18 @@ export async function URLRedirects(
               linkData.workspaceId!,
               domain,
               trigger,
+              clickId,
             );
           })(),
         );
       }
 
-      return createSafeRedirect(destinationUrl, `${origin}/?status=error`);
+      const redirectResponse = createSafeRedirect(
+        redirectUrl,
+        `${origin}/?status=error`,
+      );
+      attachSlugyIdCookie(redirectResponse, clickId);
+      return redirectResponse;
     }
 
     // Handle not found
