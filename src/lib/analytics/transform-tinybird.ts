@@ -11,7 +11,12 @@ export type AnalyticsMetric =
   | "browsers"
   | "oses"
   | "referrers"
-  | "destinations";
+  | "destinations"
+  | "utmSources"
+  | "utmMediums"
+  | "utmCampaigns"
+  | "utmTerms"
+  | "utmContents";
 
 export interface TinybirdAnalyticsRow {
   link_id: string;
@@ -27,6 +32,11 @@ export interface TinybirdAnalyticsRow {
   browser: string;
   os: string;
   referer: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
 }
 
 function getTimeKey(day: string, timePeriod: TimePeriod): string {
@@ -88,6 +98,21 @@ export function transformTinybirdAnalytics(
     : null;
   const destinationsMap = metricSet.has("destinations")
     ? new Map<string, { destination: string; clicks: number }>()
+    : null;
+  const utmSourcesMap = metricSet.has("utmSources")
+    ? new Map<string, { source: string; clicks: number }>()
+    : null;
+  const utmMediumsMap = metricSet.has("utmMediums")
+    ? new Map<string, { medium: string; clicks: number }>()
+    : null;
+  const utmCampaignsMap = metricSet.has("utmCampaigns")
+    ? new Map<string, { campaign: string; clicks: number }>()
+    : null;
+  const utmTermsMap = metricSet.has("utmTerms")
+    ? new Map<string, { term: string; clicks: number }>()
+    : null;
+  const utmContentsMap = metricSet.has("utmContents")
+    ? new Map<string, { content: string; clicks: number }>()
     : null;
 
   let totalClicks = 0;
@@ -179,6 +204,52 @@ export function transformTinybirdAnalytics(
         });
       }
     }
+
+    if (utmSourcesMap && item.utm_source) {
+      const existing = utmSourcesMap.get(item.utm_source);
+      if (existing) existing.clicks += clicks;
+      else
+        utmSourcesMap.set(item.utm_source, {
+          source: item.utm_source,
+          clicks,
+        });
+    }
+
+    if (utmMediumsMap && item.utm_medium) {
+      const existing = utmMediumsMap.get(item.utm_medium);
+      if (existing) existing.clicks += clicks;
+      else
+        utmMediumsMap.set(item.utm_medium, {
+          medium: item.utm_medium,
+          clicks,
+        });
+    }
+
+    if (utmCampaignsMap && item.utm_campaign) {
+      const existing = utmCampaignsMap.get(item.utm_campaign);
+      if (existing) existing.clicks += clicks;
+      else
+        utmCampaignsMap.set(item.utm_campaign, {
+          campaign: item.utm_campaign,
+          clicks,
+        });
+    }
+
+    if (utmTermsMap && item.utm_term) {
+      const existing = utmTermsMap.get(item.utm_term);
+      if (existing) existing.clicks += clicks;
+      else utmTermsMap.set(item.utm_term, { term: item.utm_term, clicks });
+    }
+
+    if (utmContentsMap && item.utm_content) {
+      const existing = utmContentsMap.get(item.utm_content);
+      if (existing) existing.clicks += clicks;
+      else
+        utmContentsMap.set(item.utm_content, {
+          content: item.utm_content,
+          clicks,
+        });
+    }
   }
 
   if (metricSet.has("totalClicks")) {
@@ -233,6 +304,31 @@ export function transformTinybirdAnalytics(
   }
   if (destinationsMap) {
     result.destinations = Array.from(destinationsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (utmSourcesMap) {
+    result.utmSources = Array.from(utmSourcesMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (utmMediumsMap) {
+    result.utmMediums = Array.from(utmMediumsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (utmCampaignsMap) {
+    result.utmCampaigns = Array.from(utmCampaignsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (utmTermsMap) {
+    result.utmTerms = Array.from(utmTermsMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (utmContentsMap) {
+    result.utmContents = Array.from(utmContentsMap.values()).sort(
       (a, b) => b.clicks - a.clicks,
     );
   }

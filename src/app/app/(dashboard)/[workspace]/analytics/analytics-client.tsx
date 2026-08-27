@@ -90,6 +90,11 @@ const ANALYTICS_METRICS = [
   "oses",
   "referrers",
   "destinations",
+  "utmSources",
+  "utmMediums",
+  "utmCampaigns",
+  "utmTerms",
+  "utmContents",
 ] as const satisfies readonly (keyof AnalyticsData)[];
 
 const ICON_PROPS = {
@@ -358,6 +363,11 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           <ReferrerClicks
             {...sharedProps}
             referrersData={filterSource.referrers}
+            utmSourcesData={clicks.utmSources}
+            utmMediumsData={clicks.utmMediums}
+            utmCampaignsData={clicks.utmCampaigns}
+            utmTermsData={clicks.utmTerms}
+            utmContentsData={clicks.utmContents}
           />
         </div>
       </div>

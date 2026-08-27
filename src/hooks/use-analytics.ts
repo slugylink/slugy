@@ -16,6 +16,11 @@ export interface AnalyticsData {
   oses: Array<{ os: string; clicks: number }>;
   referrers: Array<{ referrer: string; clicks: number }>;
   destinations: Array<{ destination: string; clicks: number }>;
+  utmSources: Array<{ source: string; clicks: number }>;
+  utmMediums: Array<{ medium: string; clicks: number }>;
+  utmCampaigns: Array<{ campaign: string; clicks: number }>;
+  utmTerms: Array<{ term: string; clicks: number }>;
+  utmContents: Array<{ content: string; clicks: number }>;
 }
 
 interface UseAnalyticsParams {
@@ -47,6 +52,11 @@ const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
   "oses",
   "referrers",
   "destinations",
+  "utmSources",
+  "utmMediums",
+  "utmCampaigns",
+  "utmTerms",
+  "utmContents",
 ];
 
 // Metric fallback values
@@ -65,6 +75,11 @@ const METRIC_FALLBACKS: Record<
   oses: [],
   referrers: [],
   destinations: [],
+  utmSources: [],
+  utmMediums: [],
+  utmCampaigns: [],
+  utmTerms: [],
+  utmContents: [],
 };
 
 // Metrics that can be sorted by clicks
@@ -78,6 +93,11 @@ const SORTABLE_METRICS: Array<keyof AnalyticsData> = [
   "oses",
   "referrers",
   "destinations",
+  "utmSources",
+  "utmMediums",
+  "utmCampaigns",
+  "utmTerms",
+  "utmContents",
 ];
 
 /**
@@ -174,6 +194,11 @@ const fetchAnalyticsData = async (
     oses: data.oses ?? METRIC_FALLBACKS.oses,
     referrers: data.referrers ?? METRIC_FALLBACKS.referrers,
     destinations: data.destinations ?? METRIC_FALLBACKS.destinations,
+    utmSources: data.utmSources ?? METRIC_FALLBACKS.utmSources,
+    utmMediums: data.utmMediums ?? METRIC_FALLBACKS.utmMediums,
+    utmCampaigns: data.utmCampaigns ?? METRIC_FALLBACKS.utmCampaigns,
+    utmTerms: data.utmTerms ?? METRIC_FALLBACKS.utmTerms,
+    utmContents: data.utmContents ?? METRIC_FALLBACKS.utmContents,
   };
 };
 
@@ -291,6 +316,11 @@ export function useAnalytics({
       oses: sortedData.oses ?? data?.oses ?? [],
       referrers: sortedData.referrers ?? data?.referrers ?? [],
       destinations: sortedData.destinations ?? data?.destinations ?? [],
+      utmSources: sortedData.utmSources ?? data?.utmSources ?? [],
+      utmMediums: sortedData.utmMediums ?? data?.utmMediums ?? [],
+      utmCampaigns: sortedData.utmCampaigns ?? data?.utmCampaigns ?? [],
+      utmTerms: sortedData.utmTerms ?? data?.utmTerms ?? [],
+      utmContents: sortedData.utmContents ?? data?.utmContents ?? [],
     }),
     [data, sortedData],
   );

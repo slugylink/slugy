@@ -41,6 +41,11 @@ const analyticsPropsSchema = z
           "oses",
           "referrers",
           "destinations",
+          "utmSources",
+          "utmMediums",
+          "utmCampaigns",
+          "utmTerms",
+          "utmContents",
         ]),
       )
       .optional(),

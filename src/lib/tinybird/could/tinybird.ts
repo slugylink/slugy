@@ -75,6 +75,11 @@ export const slugyClickEventsMv = defineDatasource("slugy_click_events_mv", {
     browser: t.string().lowCardinality(),
     os: t.string().lowCardinality(),
     referer: t.string(),
+    utm_source: t.string().lowCardinality(),
+    utm_medium: t.string().lowCardinality(),
+    utm_campaign: t.string().lowCardinality(),
+    utm_term: t.string().lowCardinality(),
+    utm_content: t.string().lowCardinality(),
   },
   engine: engine.mergeTree({
     sortingKey: ["link_id"],
@@ -104,7 +109,12 @@ export const slugyClickEventsMvPipe = defineMaterializedView(
             device,
             browser,
             os,
-            referer
+            referer,
+            utm_source,
+            utm_medium,
+            utm_campaign,
+            utm_term,
+            utm_content
           FROM slugy_click_events
         `,
       }),
@@ -224,6 +234,11 @@ const analyticsOutput = {
   browser: t.string(),
   os: t.string(),
   referer: t.string(),
+  utm_source: t.string(),
+  utm_medium: t.string(),
+  utm_campaign: t.string(),
+  utm_term: t.string(),
+  utm_content: t.string(),
 } as const;
 
 const analyticsParams = {
@@ -280,7 +295,12 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           ev.device,
           ev.browser,
           ev.os,
-          ev.referer
+          ev.referer,
+          ev.utm_source,
+          ev.utm_medium,
+          ev.utm_campaign,
+          ev.utm_term,
+          ev.utm_content
         FROM slugy_click_events_mv AS ev
         INNER JOIN (
           SELECT
@@ -320,7 +340,12 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           ev.device,
           ev.browser,
           ev.os,
-          ev.referer
+          ev.referer,
+          ev.utm_source,
+          ev.utm_medium,
+          ev.utm_campaign,
+          ev.utm_term,
+          ev.utm_content
         ORDER BY day DESC, clicks DESC
       `,
     }),

@@ -41,6 +41,11 @@ const analyticsPropsSchema = z
           "oses",
           "referrers",
           "destinations",
+          "utmSources",
+          "utmMediums",
+          "utmCampaigns",
+          "utmTerms",
+          "utmContents",
         ]),
       )
       .optional(),
@@ -112,6 +117,11 @@ export async function GET(
       "oses",
       "referrers",
       "destinations",
+      "utmSources",
+      "utmMediums",
+      "utmCampaigns",
+      "utmTerms",
+      "utmContents",
     ];
 
     const normalizedMetrics = Array.from(

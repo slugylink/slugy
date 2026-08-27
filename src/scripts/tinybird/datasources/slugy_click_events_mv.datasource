@@ -13,7 +13,12 @@ SCHEMA >
     `device` LowCardinality(String),
     `browser` LowCardinality(String),
     `os` LowCardinality(String),
-    `referer` String
+    `referer` String,
+    `utm_source` LowCardinality(String),
+    `utm_medium` LowCardinality(String),
+    `utm_campaign` LowCardinality(String),
+    `utm_term` LowCardinality(String),
+    `utm_content` LowCardinality(String)
 
 ENGINE "MergeTree"
 ENGINE_PARTITION_KEY "toYYYYMM(timestamp)"
