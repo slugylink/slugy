@@ -4,7 +4,10 @@ import {
   revalidateSubscriptionCache,
 } from "@/lib/subscription/limits-sync";
 import { polarClient } from "@/lib/polar";
-import { activateBasicEntitlement } from "@/lib/subscription/basic-entitlement";
+import {
+  activateBasicEntitlement,
+  downgradeToBasicLimits,
+} from "@/lib/subscription/basic-entitlement";
 
 export const LOG_PREFIX = "[Polar]";
 
@@ -301,16 +304,77 @@ async function deactivateSubscription(
   subscriptionId: string,
   options?: { canceledAt?: Date },
 ) {
-  await db.subscription.update({
-    where: { id: subscriptionId },
-    data: {
-      status: "inactive",
-      canceledAt: options?.canceledAt ?? new Date(),
-      cancelAtPeriodEnd: false,
-    },
+  await downgradeToBasicLimits({
+    subscriptionId,
+    canceledAt: options?.canceledAt,
   });
   await revalidateSubscriptionCache();
   return true;
+}
+
+function normalizeIncomingStatus(status: string): string {
+  return status.toLowerCase().trim();
+}
+
+/**
+ * Maps Polar statuses for our access model:
+ * - canceled + still in paid period → keep active with cancelAtPeriodEnd
+ * - past_due/unpaid within period → grace (active)
+ * - past_due/unpaid/canceled after period → inactive (caller deactivates)
+ */
+function resolveUpdatedAccess(input: {
+  remoteStatus: string;
+  cancelAtPeriodEnd: boolean;
+  periodEnd: Date | undefined;
+  now?: Date;
+}): {
+  action: "deactivate" | "cancel_at_period_end" | "update";
+  status: string;
+  cancelAtPeriodEnd: boolean;
+} {
+  const now = input.now ?? new Date();
+  const status = normalizeIncomingStatus(input.remoteStatus);
+  const periodEnded = Boolean(input.periodEnd && input.periodEnd <= now);
+  const cancelAtPeriodEnd =
+    input.cancelAtPeriodEnd || status === "canceled" || status === "cancelled";
+
+  if (status === "revoked") {
+    return {
+      action: "deactivate",
+      status: "inactive",
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  if (
+    (status === "past_due" || status === "unpaid" || cancelAtPeriodEnd) &&
+    periodEnded
+  ) {
+    return {
+      action: "deactivate",
+      status: "inactive",
+      cancelAtPeriodEnd: false,
+    };
+  }
+
+  if (cancelAtPeriodEnd) {
+    return {
+      action: "cancel_at_period_end",
+      status: "active",
+      cancelAtPeriodEnd: true,
+    };
+  }
+
+  if (status === "past_due" || status === "unpaid") {
+    // Grace while still inside the paid period.
+    return { action: "update", status: "active", cancelAtPeriodEnd: false };
+  }
+
+  return {
+    action: "update",
+    status: status || "active",
+    cancelAtPeriodEnd: false,
+  };
 }
 
 async function handleOrderCreated(order: PolarOrder) {
@@ -414,11 +478,20 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
     console.error(`${LOG_PREFIX} Subscription not found:`, sub.id);
     return;
   }
-  const status = sub.status ?? existing.status;
   const fields = getSubscriptionFields(sub);
+  const remoteStatus = sub.status ?? existing.status;
+  const periodEnd = fields.periodEnd ?? existing.periodEnd;
+  const access = resolveUpdatedAccess({
+    remoteStatus,
+    cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
+    periodEnd,
+  });
 
-  if (status === "revoked") {
-    await deactivateSubscription(existing.id, { canceledAt: new Date() });
+  if (access.action === "deactivate") {
+    const canceledAt = sub.canceledAt ?? sub.canceled_at;
+    await deactivateSubscription(existing.id, {
+      canceledAt: canceledAt ? new Date(canceledAt) : new Date(),
+    });
     return;
   }
 
@@ -429,12 +502,16 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
   }
 
   const updateData: Record<string, unknown> = {
-    status,
-    cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
+    status: access.status,
+    cancelAtPeriodEnd: access.cancelAtPeriodEnd,
     ...(updatedPlan && { planId: updatedPlan.id, priceId }),
   };
   if (fields.periodStart) updateData.periodStart = fields.periodStart;
   if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
+  if (access.action === "cancel_at_period_end") {
+    const canceledAt = sub.canceledAt ?? sub.canceled_at;
+    updateData.canceledAt = canceledAt ? new Date(canceledAt) : new Date();
+  }
 
   await db.subscription.update({
     where: { id: existing.id },
@@ -490,13 +567,28 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
     await syncUserLimits(userId, plan.planType);
   } else {
     const fields = getSubscriptionFields(sub);
-    const updateData: Record<string, unknown> = { status: "active" };
+    const updateData: Record<string, unknown> = {
+      status: "active",
+      cancelAtPeriodEnd: false,
+    };
     if (fields.periodStart) updateData.periodStart = fields.periodStart;
     if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
+    const priceId = getPriceId(sub);
+    let plan: Awaited<ReturnType<typeof findPlanByPriceIdWithSync>> = null;
+    if (priceId) {
+      plan = await findPlanByPriceIdWithSync(priceId);
+      if (plan) {
+        updateData.planId = plan.id;
+        updateData.priceId = priceId;
+      }
+    }
     await db.subscription.update({
       where: { id: existing.id },
       data: updateData,
     });
+    if (plan) {
+      await syncUserLimits(existing.referenceId, plan.planType);
+    }
   }
   await revalidateSubscriptionCache();
 }

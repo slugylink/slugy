@@ -20,6 +20,10 @@ export const activeSubscriptionSelect = {
   },
 };
 
+/**
+ * Activates Basic entitlement for a verified paid Basic checkout/order.
+ * Refuses to overwrite an in-period active/trialing Pro subscription.
+ */
 export async function activateBasicEntitlement(input: {
   userId: string;
   customerId?: string | null;
@@ -35,6 +39,32 @@ export async function activateBasicEntitlement(input: {
     )?.customerId;
 
   if (!customerId) return null;
+
+  const existing = await db.subscription.findUnique({
+    where: { referenceId: input.userId },
+    select: {
+      id: true,
+      status: true,
+      periodEnd: true,
+      plan: { select: { planType: true } },
+    },
+  });
+
+  const status = existing?.status?.toLowerCase() ?? "";
+  const isActivePro =
+    existing?.plan.planType === "pro" &&
+    ["active", "trialing"].includes(status) &&
+    existing.periodEnd > new Date();
+
+  if (isActivePro) {
+    console.warn(
+      `[Basic Entitlement] Refusing to overwrite active Pro for user ${input.userId}`,
+    );
+    return db.subscription.findUnique({
+      where: { referenceId: input.userId },
+      select: activeSubscriptionSelect,
+    });
+  }
 
   const basicPlan = await db.plan.findFirst({
     where: { planType: "basic" },
@@ -61,6 +91,9 @@ export async function activateBasicEntitlement(input: {
       periodStart,
       periodEnd,
       billingInterval: "month",
+      cancelAtPeriodEnd: false,
+      canceledAt: null,
+      subscriptionId: null,
     },
     update: {
       planId: basicPlan.id,
@@ -71,6 +104,9 @@ export async function activateBasicEntitlement(input: {
       periodStart,
       periodEnd,
       billingInterval: "month",
+      cancelAtPeriodEnd: false,
+      canceledAt: null,
+      subscriptionId: null,
     },
     select: activeSubscriptionSelect,
   });
@@ -82,4 +118,45 @@ export async function activateBasicEntitlement(input: {
 
   await syncUserLimits(input.userId, basicPlan.planType);
   return subscription;
+}
+
+/**
+ * Ends paid Pro access and applies Basic workspace/bio limits.
+ * Does not auto-grant an active Basic entitlement — that requires a verified
+ * Basic purchase (order webhook or checkout recovery).
+ */
+export async function downgradeToBasicLimits(input: {
+  subscriptionId: string;
+  canceledAt?: Date;
+}) {
+  const basicPlan = await db.plan.findFirst({
+    where: { planType: "basic" },
+    select: { id: true, monthlyPriceId: true, planType: true },
+  });
+
+  const existing = await db.subscription.findUnique({
+    where: { id: input.subscriptionId },
+    select: { referenceId: true },
+  });
+
+  if (!existing) return false;
+
+  await db.subscription.update({
+    where: { id: input.subscriptionId },
+    data: {
+      status: "inactive",
+      canceledAt: input.canceledAt ?? new Date(),
+      cancelAtPeriodEnd: false,
+      ...(basicPlan
+        ? {
+            planId: basicPlan.id,
+            priceId: basicPlan.monthlyPriceId ?? null,
+            subscriptionId: null,
+          }
+        : {}),
+    },
+  });
+
+  await syncUserLimits(existing.referenceId, "basic");
+  return true;
 }

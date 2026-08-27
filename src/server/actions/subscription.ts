@@ -4,17 +4,14 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
 import {
-  activateBasicEntitlement,
-  activeSubscriptionSelect,
-} from "@/lib/subscription/basic-entitlement";
-import {
   reconcileSubscriptionIfStale,
   subscriptionWithPlanSelect,
 } from "@/lib/subscription/reconcile";
+import { activeSubscriptionSelect } from "@/lib/subscription/basic-entitlement";
 
 export async function getActiveSubscription(userId: string) {
   try {
-    let subscription = await db.subscription.findFirst({
+    const subscription = await db.subscription.findFirst({
       where: {
         referenceId: userId,
         status: {
@@ -23,17 +20,6 @@ export async function getActiveSubscription(userId: string) {
       },
       select: activeSubscriptionSelect,
     });
-
-    const isBasicPlan = subscription?.plan?.planType === "basic";
-    const hasPaidCustomer = Boolean(subscription?.customerId);
-    const needsCustomerBackedBasicRecovery =
-      isBasicPlan &&
-      (subscription?.provider === "internal" || !hasPaidCustomer);
-
-    if (!subscription || needsCustomerBackedBasicRecovery) {
-      subscription =
-        (await activateBasicEntitlement({ userId })) ?? subscription;
-    }
 
     if (!subscription) {
       return {
@@ -63,7 +49,10 @@ export async function getSubscriptionWithPlan(userId: string) {
     });
     const subscription = await reconcileSubscriptionIfStale(rawSubscription);
 
-    if (!subscription) {
+    if (
+      !subscription ||
+      !["active", "trialing"].includes(subscription.status.toLowerCase())
+    ) {
       return {
         success: false,
         message: "No active subscription found",

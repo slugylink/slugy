@@ -2,19 +2,13 @@
 import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
 import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 //* Optimized function to check workspace access and link limits in one query
 export async function checkWorkspaceAccessAndLimits(
   userId: string,
   workspaceslug: string,
 ) {
-  const workspaceSelect = {
-    id: true,
-    name: true,
-    slug: true,
-    linksUsage: true,
-  } as const;
-
   try {
     const [subscriptionResult, workspace] = await Promise.all([
       getSubscriptionWithPlan(userId),
@@ -23,7 +17,11 @@ export async function checkWorkspaceAccessAndLimits(
           slug: workspaceslug,
           OR: [{ userId }, { members: { some: { userId } } }],
         },
-        select: workspaceSelect,
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
       }),
     ]);
 
@@ -52,7 +50,12 @@ export async function checkWorkspaceAccessAndLimits(
       };
     }
 
-    const currentLinks = workspace.linksUsage;
+    // Use the same period counter the sidebar UI shows (linksCreated).
+    const usage = await ensureCurrentUsageRecord(db, {
+      workspaceId: workspace.id,
+      userId,
+    });
+    const currentLinks = usage.linksCreated;
     const canCreateLinks = currentLinks < maxLinks;
 
     return {
@@ -173,7 +176,6 @@ export async function getUserWorkspaceStats(userId: string) {
 
 export async function checkLinkLimit(userId: string, workspaceId: string) {
   try {
-    // Get user's subscription with plan details
     const subscriptionResult = await getSubscriptionWithPlan(userId);
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
@@ -188,11 +190,11 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
 
-    // Count current links for this user
-    const currentLinkCount = await db.link.count({
-      where: { userId, workspaceId },
+    const usage = await ensureCurrentUsageRecord(db, {
+      workspaceId,
+      userId,
     });
-
+    const currentLinkCount = usage.linksCreated;
     const canCreate = currentLinkCount < maxLinks;
 
     return {

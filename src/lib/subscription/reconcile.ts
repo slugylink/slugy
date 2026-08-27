@@ -1,6 +1,7 @@
 import { Interval, Prisma } from "@prisma/client";
 
 import { polarClient } from "@/lib/polar";
+import { downgradeToBasicLimits } from "@/lib/subscription/basic-entitlement";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
 import { db } from "@/server/db";
 
@@ -40,16 +41,33 @@ export type SubscriptionWithPlan = Prisma.SubscriptionGetPayload<{
 
 export const subscriptionWithPlanSelect = subscriptionPlanSelect;
 
-function normalizeDbStatus(status: string): string {
-  switch (status) {
-    case "canceled":
-      return "inactive";
-    case "past_due":
-    case "unpaid":
-      return "active";
-    default:
-      return status;
+/**
+ * Normalize Polar remote status for our DB access model.
+ * past_due/unpaid never become "active" after the paid period ends.
+ */
+function normalizeDbStatus(
+  status: string,
+  periodEnd: Date,
+  now: Date,
+  cancelAtPeriodEnd: boolean,
+): "active" | "inactive" | string {
+  const normalized = status.toLowerCase().trim();
+
+  if (normalized === "revoked") return "inactive";
+
+  if (
+    normalized === "canceled" ||
+    normalized === "cancelled" ||
+    cancelAtPeriodEnd
+  ) {
+    return periodEnd > now ? "active" : "inactive";
   }
+
+  if (normalized === "past_due" || normalized === "unpaid") {
+    return periodEnd > now ? "active" : "inactive";
+  }
+
+  return normalized;
 }
 
 function normalizeBillingInterval(
@@ -84,18 +102,35 @@ export async function reconcileSubscriptionIfStale(
       id: subscriptionId,
     });
 
-    const remoteStatus = normalizeDbStatus(remote.status);
     const nextPeriodStart =
       remote.currentPeriodStart ?? subscription.periodStart;
     const nextPeriodEnd = remote.currentPeriodEnd ?? subscription.periodEnd;
     const nextCancelAtPeriodEnd =
       remote.cancelAtPeriodEnd ?? subscription.cancelAtPeriodEnd;
+    const remoteStatus = normalizeDbStatus(
+      remote.status,
+      nextPeriodEnd,
+      now,
+      nextCancelAtPeriodEnd,
+    );
     const nextBillingInterval = normalizeBillingInterval(
       remote.recurringInterval,
     );
     const nextPriceId =
       remote.prices.find((price) => Boolean(price.id))?.id ??
       subscription.priceId;
+
+    if (remoteStatus === "inactive") {
+      await downgradeToBasicLimits({
+        subscriptionId: subscription.id,
+        canceledAt: remote.canceledAt ?? subscription.canceledAt ?? now,
+      });
+
+      return db.subscription.findUnique({
+        where: { id: subscription.id },
+        select: subscriptionWithPlanSelect,
+      });
+    }
 
     const updated = await db.subscription.update({
       where: { id: subscription.id },
