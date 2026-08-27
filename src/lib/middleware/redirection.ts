@@ -143,8 +143,8 @@ function escapeHtml(text: string | null | undefined): string {
   return String(text).replace(/[&<>"']/g, (char) => htmlEscapes[char] ?? char);
 }
 
-// Extract UTM parameters from URL
-function extractUTMParams(urlString: string): UTMParams {
+// Extract UTM parameters from a single URL
+function extractUTMParamsFromUrl(urlString: string): UTMParams {
   try {
     const params = new URL(urlString).searchParams;
     return {
@@ -162,6 +162,30 @@ function extractUTMParams(urlString: string): UTMParams {
       utm_term: null,
       utm_content: null,
     };
+  }
+}
+
+/** Prefer short-link query UTMs; fall back to destination URL UTMs. */
+function extractUTMParams(
+  requestUrl: string,
+  destinationUrl: string,
+): UTMParams {
+  const fromRequest = extractUTMParamsFromUrl(requestUrl);
+  const fromDestination = extractUTMParamsFromUrl(destinationUrl);
+  return {
+    utm_source: fromRequest.utm_source ?? fromDestination.utm_source,
+    utm_medium: fromRequest.utm_medium ?? fromDestination.utm_medium,
+    utm_campaign: fromRequest.utm_campaign ?? fromDestination.utm_campaign,
+    utm_term: fromRequest.utm_term ?? fromDestination.utm_term,
+    utm_content: fromRequest.utm_content ?? fromDestination.utm_content,
+  };
+}
+
+function extractRefParam(urlString: string): string | null {
+  try {
+    return new URL(urlString).searchParams.get("ref");
+  } catch {
+    return null;
   }
 }
 
@@ -284,13 +308,21 @@ function getIpAddress(req: NextRequest): string {
   );
 }
 
-// Build analytics data from request
-function buildAnalyticsData(req: NextRequest, trigger: string): AnalyticsData {
+// Build analytics data from request + destination (for baked-in ref/UTMs)
+function buildAnalyticsData(
+  req: NextRequest,
+  trigger: string,
+  destinationUrl: string,
+): AnalyticsData {
   const ua = userAgent(req);
   const geoData = getGeoData(req);
-  const refParam = req.nextUrl.searchParams.get("ref");
+  // Priority: short-link ?ref= → destination ?ref= → Referer header → Direct
+  const refParam =
+    req.nextUrl.searchParams.get("ref")?.trim() ||
+    extractRefParam(destinationUrl)?.trim() ||
+    null;
   const headerReferer = req.headers.get("referer");
-  const referer = normalizeReferer(refParam?.trim() ? refParam : headerReferer);
+  const referer = normalizeReferer(refParam || headerReferer);
 
   return {
     ipAddress: getIpAddress(req),
@@ -318,8 +350,8 @@ async function trackAnalytics(
 ): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
-    const analytics = buildAnalyticsData(req, trigger);
-    const utmParams = extractUTMParams(url);
+    const analytics = buildAnalyticsData(req, trigger, url);
+    const utmParams = extractUTMParams(req.nextUrl.toString(), url);
     const finalDomain = domain || DEFAULT_DOMAIN;
 
     const cachedData: CachedAnalyticsData = {
@@ -484,7 +516,13 @@ export async function URLRedirects(
 
     // Handle valid links
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
-      const trigger = detectTrigger(req);
+      const geoData = getGeoData(req);
+      const destinationUrl = resolveTargetUrl({
+        defaultUrl: linkData.url,
+        geo: linkData.geo,
+        country: geoData.country,
+      });
+      const trigger = detectTrigger(req, destinationUrl);
       const isBot = trigger === "bot";
       const isExplicitPreviewRequest =
         req.headers.get("x-slugy-preview") === "1" ||
@@ -501,12 +539,6 @@ export async function URLRedirects(
         return serveLinkPreview(req, shortCode, linkData);
       }
 
-      const geoData = getGeoData(req);
-      const destinationUrl = resolveTargetUrl({
-        defaultUrl: linkData.url,
-        geo: linkData.geo,
-        country: geoData.country,
-      });
       const clickId = createClickId();
       const redirectUrl = appendSlugyIdParam(destinationUrl, clickId);
 

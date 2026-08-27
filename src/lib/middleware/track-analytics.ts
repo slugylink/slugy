@@ -79,7 +79,7 @@ function getGeoData(req: NextRequest) {
   };
 }
 
-function extractUTMParams(urlString: string): UTMParams {
+function extractUTMParamsFromUrl(urlString: string): UTMParams {
   try {
     const params = new URL(urlString).searchParams;
     return {
@@ -98,6 +98,52 @@ function extractUTMParams(urlString: string): UTMParams {
       utm_content: null,
     };
   }
+}
+
+function extractUTMParams(
+  requestUrl: string,
+  destinationUrl: string,
+): UTMParams {
+  const fromRequest = extractUTMParamsFromUrl(requestUrl);
+  const fromDestination = extractUTMParamsFromUrl(destinationUrl);
+  return {
+    utm_source: fromRequest.utm_source ?? fromDestination.utm_source,
+    utm_medium: fromRequest.utm_medium ?? fromDestination.utm_medium,
+    utm_campaign: fromRequest.utm_campaign ?? fromDestination.utm_campaign,
+    utm_term: fromRequest.utm_term ?? fromDestination.utm_term,
+    utm_content: fromRequest.utm_content ?? fromDestination.utm_content,
+  };
+}
+
+function extractRefParam(urlString: string): string | null {
+  try {
+    return new URL(urlString).searchParams.get("ref");
+  } catch {
+    return null;
+  }
+}
+
+function normalizeReferer(rawValue: string | null): string {
+  const trimmed = rawValue?.trim();
+  if (!trimmed) return DIRECT_REFERER;
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      return new URL(trimmed).origin;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(trimmed)) {
+    try {
+      return new URL(`https://${trimmed}`).origin;
+    } catch {
+      return trimmed;
+    }
+  }
+
+  return trimmed;
 }
 
 async function checkAnalyticsRateLimit(
@@ -182,7 +228,12 @@ async function dispatchAnalytics(
   const timestamp = new Date().toISOString();
   const geoData = getGeoData(req);
   const ipAddress = getIpAddress(req);
-  const utmParams = extractUTMParams(url);
+  const utmParams = extractUTMParams(req.nextUrl.toString(), url);
+  const refParam =
+    req.nextUrl.searchParams.get("ref")?.trim() ||
+    extractRefParam(url)?.trim() ||
+    null;
+  const headerReferer = req.headers.get("referer");
 
   const analytics: AnalyticsData = {
     ipAddress,
@@ -192,7 +243,7 @@ async function dispatchAnalytics(
     device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
     browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
     os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-    referer: req.headers.get("referer") ?? DIRECT_REFERER,
+    referer: normalizeReferer(refParam || headerReferer),
     trigger,
   };
 

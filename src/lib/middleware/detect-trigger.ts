@@ -75,7 +75,10 @@ function isBotUserAgent(ua: string): boolean {
  * Returns the trigger type for a short‐link click event.
  * Possible values: bot, prefetch, api, qr, email, social, campaign, direct, link
  */
-export function detectTrigger(req: NextRequest): TriggerType {
+export function detectTrigger(
+  req: NextRequest,
+  destinationUrl?: string,
+): TriggerType {
   const headers = req.headers;
   const refererRaw = headers.get("referer") || "";
   const ua = (headers.get("user-agent") || "").toLowerCase();
@@ -83,6 +86,20 @@ export function detectTrigger(req: NextRequest): TriggerType {
   const isNextData = headers.has("next-url");
   const refererHost = extractRefererHost(refererRaw);
   const viaParam = req.nextUrl.searchParams.get("via")?.toLowerCase();
+  const requestParams = req.nextUrl.searchParams;
+  let destinationParams: URLSearchParams | null = null;
+  try {
+    if (destinationUrl)
+      destinationParams = new URL(destinationUrl).searchParams;
+  } catch {
+    destinationParams = null;
+  }
+
+  const hasParam = (name: string) =>
+    requestParams.has(name) || Boolean(destinationParams?.has(name));
+
+  const getParam = (name: string) =>
+    requestParams.get(name) ?? destinationParams?.get(name) ?? null;
 
   // Bot detection (highest priority)
   if (isBotUserAgent(ua)) {
@@ -102,7 +119,7 @@ export function detectTrigger(req: NextRequest): TriggerType {
   // QR code detection
   if (
     QR_REGEX.test(ua) ||
-    req.nextUrl.searchParams.has("qr") ||
+    hasParam("qr") ||
     viaParam === "qr" ||
     viaParam === "qrcode"
   ) {
@@ -113,7 +130,7 @@ export function detectTrigger(req: NextRequest): TriggerType {
   if (
     EMAIL_HOSTS.some((host) => refererHost.endsWith(host)) ||
     EMAIL_REGEX.test(refererRaw) ||
-    req.nextUrl.searchParams.get("utm_medium") === "email"
+    getParam("utm_medium") === "email"
   ) {
     return "email";
   }
@@ -123,9 +140,14 @@ export function detectTrigger(req: NextRequest): TriggerType {
     return "social";
   }
 
-  // Campaign detection (UTM parameters)
-  if (UTM_PARAMS.some((param) => req.nextUrl.searchParams.has(param))) {
+  // Campaign detection (UTM parameters on short link or destination)
+  if (UTM_PARAMS.some((param) => hasParam(param))) {
     return "campaign";
+  }
+
+  // Explicit ref attribution (short link or destination)
+  if (hasParam("ref")) {
+    return "link";
   }
 
   // Direct traffic (no referer)
