@@ -69,7 +69,7 @@ const Footer = () => {
       title: "Resources",
       links: [
         { href: "/sponsors", label: "Sponsors" },
-        { href: "/resources/blog", label: "Blog" },
+        { href: "/blogs", label: "Blog" },
         { href: "/resources/help", label: "Help" },
       ],
     },
@@ -87,7 +87,11 @@ const Footer = () => {
 
   const pathname = usePathname();
 
-  if (!["/", "/tools/metadatas", "/pricing", "/sponsors"].includes(pathname)) {
+  if (
+    !["/", "/tools/metadatas", "/pricing", "/sponsors"].includes(pathname) &&
+    pathname !== "/blogs" &&
+    !pathname.startsWith("/blogs/")
+  ) {
     return null;
   }
 

@@ -40,6 +40,11 @@ const VISIBLE_PATHS = new Set([
   "/sponsors",
 ]);
 
+function isMarketingChromeVisible(pathname: string) {
+  if (VISIBLE_PATHS.has(pathname)) return true;
+  return pathname === "/blogs" || pathname.startsWith("/blogs/");
+}
+
 function NavbarLogo() {
   return (
     <Link
@@ -225,7 +230,7 @@ function MobileMenu() {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const isVisible = VISIBLE_PATHS.has(pathname);
+  const isVisible = isMarketingChromeVisible(pathname);
 
   if (!isVisible) return null;
 

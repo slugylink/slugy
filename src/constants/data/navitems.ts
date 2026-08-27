@@ -43,8 +43,8 @@ export const NAV_LINKS = [
     menu: [
       {
         title: "Blog",
-        tagline: "Read articles on the latest trends in tech.",
-        href: "/",
+        tagline: "Guides on analytics, leads, and short links.",
+        href: "/blogs",
         icon: NewspaperIcon,
       },
       {
