@@ -332,7 +332,7 @@ const AnalyticsChart = ({
         </button>
       </CardHeader>
       <CardContent className="relative p-0 pr-2 pb-4">
-        <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white">
+        {/* <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white">
           <button
             type="button"
             onClick={() => selectView("timeseries")}
@@ -359,7 +359,7 @@ const AnalyticsChart = ({
           >
             <Milestone className="size-3.5" />
           </button>
-        </div>
+        </div> */}
 
         <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (

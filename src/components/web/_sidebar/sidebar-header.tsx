@@ -15,6 +15,7 @@ const PAGE_TITLES: Record<string, string> = {
   library: "Library",
   domains: "Domains",
   upgrade: "Upgrade",
+  "api-keys": "API Keys",
 };
 
 function getPageTitle(pathname: string): string {

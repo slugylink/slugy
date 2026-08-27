@@ -67,7 +67,6 @@ export default async function OnboardingPlansPage({
   const userEntitlement = await db.user.findUnique({
     where: { id: session.user.id },
     select: {
-      customerId: true,
       subscription: {
         select: {
           id: true,
@@ -79,56 +78,10 @@ export default async function OnboardingPlansPage({
 
   const subscriptionStatus =
     userEntitlement?.subscription?.status?.toLowerCase() ?? "";
-  const hasSubscriptionRecord = Boolean(
+  const hasPaidEntitlement = Boolean(
     userEntitlement?.subscription?.id &&
-      !["inactive", "cancelled", "canceled", "revoked"].includes(
-        subscriptionStatus,
-      ),
+      ["active", "trialing"].includes(subscriptionStatus),
   );
-
-  let hasPaidEntitlement = hasSubscriptionRecord;
-
-  // Recovery path for one-time Basic checkouts where customer exists but
-  // webhook subscription row was not created yet.
-  if (!hasPaidEntitlement && userEntitlement?.customerId) {
-    const basicPlan = await db.plan.findFirst({
-      where: { planType: "basic" },
-      select: { id: true, monthlyPriceId: true },
-    });
-
-    if (basicPlan?.id) {
-      const periodStart = new Date();
-      const periodEnd = new Date(periodStart);
-      periodEnd.setFullYear(periodEnd.getFullYear() + 100);
-
-      await db.subscription.upsert({
-        where: { referenceId: session.user.id },
-        create: {
-          referenceId: session.user.id,
-          planId: basicPlan.id,
-          customerId: userEntitlement.customerId,
-          priceId: basicPlan.monthlyPriceId ?? undefined,
-          status: "active",
-          provider: "polar",
-          periodStart,
-          periodEnd,
-          billingInterval: "month",
-        },
-        update: {
-          planId: basicPlan.id,
-          customerId: userEntitlement.customerId,
-          priceId: basicPlan.monthlyPriceId ?? undefined,
-          status: "active",
-          provider: "polar",
-          periodStart,
-          periodEnd,
-          billingInterval: "month",
-        },
-      });
-
-      hasPaidEntitlement = true;
-    }
-  }
 
   if (hasPaidEntitlement) {
     redirect(`/${workspace}`);

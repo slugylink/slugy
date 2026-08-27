@@ -2,7 +2,7 @@
 
 import { memo, useCallback, useState } from "react";
 import useSWR from "swr";
-import { Copy, KeyRound, Plus, Trash2 } from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,16 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -72,6 +80,8 @@ export default memo(function ApiKeysClient({
   const [name, setName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createdKey, setCreatedKey] = useState<CreatedKeyResponse | null>(null);
+  const [keyToRevoke, setKeyToRevoke] = useState<ApiKeyRow | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   const { data, mutate, isLoading } = useSWR<ApiKeysResponse>(
     `/api/workspace/${workspaceslug}/api-keys`,
@@ -105,10 +115,12 @@ export default memo(function ApiKeysClient({
     }
   }, [name, workspaceslug, mutate]);
 
-  const handleRevoke = useCallback(
-    async (keyId: string) => {
+  const handleRevoke = useCallback(async () => {
+    if (!keyToRevoke) return;
+    setRevoking(true);
+    try {
       const res = await fetch(
-        `/api/workspace/${workspaceslug}/api-keys/${keyId}`,
+        `/api/workspace/${workspaceslug}/api-keys/${keyToRevoke.id}`,
         { method: "DELETE" },
       );
       if (!res.ok) {
@@ -116,10 +128,14 @@ export default memo(function ApiKeysClient({
         return;
       }
       toast.success("API key revoked");
+      setKeyToRevoke(null);
       void mutate();
-    },
-    [workspaceslug, mutate],
-  );
+    } catch {
+      toast.error("Failed to revoke API key");
+    } finally {
+      setRevoking(false);
+    }
+  }, [keyToRevoke, workspaceslug, mutate]);
 
   const copyText = useCallback(async (text: string, label: string) => {
     await navigator.clipboard.writeText(text);
@@ -127,24 +143,20 @@ export default memo(function ApiKeysClient({
   }, []);
 
   return (
-    <div className="space-y-6 py-3">
+    <div className="py-3">
       <Card className="shadow-none">
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <CardTitle className="flex items-center gap-2">
-              <KeyRound className="h-5 w-5" />
-              API Keys
-            </CardTitle>
             <CardDescription className="mt-2 max-w-2xl">
-              Generate keys to track leads from your app via{" "}
-              <code className="text-foreground bg-muted rounded px-1.5 py-0.5 text-xs">
-                POST https://api.slugy.co/leads_track
-              </code>
-              . Pass the click ID from the{" "}
-              <code className="text-foreground bg-muted rounded px-1.5 py-0.5 text-xs">
-                slugy_id
-              </code>{" "}
-              query param on redirect.
+              Generate keys to track leads from your app.{" "}
+              <a
+                href="https://slugy.co/blogs/lead-conversion-tracking"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground underline underline-offset-4 hover:no-underline"
+              >
+                View setup instructions
+              </a>
             </CardDescription>
           </div>
           <Dialog
@@ -217,86 +229,97 @@ export default memo(function ApiKeysClient({
           </Dialog>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex justify-center py-8">
-              <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Key</TableHead>
+                <TableHead>Last used</TableHead>
+                <TableHead className="w-[80px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Key</TableHead>
-                  <TableHead>Last used</TableHead>
-                  <TableHead className="w-[80px]" />
+                  <TableCell colSpan={4} className="py-8 text-center">
+                    <LoaderCircle className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.keys.length ? (
-                  data.keys.map((key) => (
-                    <TableRow key={key.id}>
-                      <TableCell>{key.name}</TableCell>
-                      <TableCell className="font-mono text-sm">
-                        {key.maskedKey}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {key.lastUsed
-                          ? new Date(key.lastUsed).toLocaleString()
-                          : "Never"}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Revoke API key"
-                          onClick={() => void handleRevoke(key.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={4}
-                      className="text-muted-foreground py-8 text-center text-sm"
-                    >
-                      No API keys yet
+              ) : data?.keys.length ? (
+                data.keys.map((key) => (
+                  <TableRow key={key.id}>
+                    <TableCell>{key.name}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {key.maskedKey}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {key.lastUsed
+                        ? new Date(key.lastUsed).toLocaleString()
+                        : "Never"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        aria-label="Revoke API key"
+                        onClick={() => setKeyToRevoke(key)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-muted-foreground py-8 text-center text-sm"
+                  >
+                    No API keys yet
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      <Card className="shadow-none">
-        <CardHeader>
-          <CardTitle>Track a lead</CardTitle>
-          <CardDescription>
-            After a user clicks your Slugy link, read{" "}
-            <code className="text-foreground bg-muted rounded px-1.5 py-0.5 text-xs">
-              slugy_id
-            </code>{" "}
-            from the destination URL and POST a lead event.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <pre className="bg-muted/30 overflow-x-auto rounded-md border p-4 text-xs leading-relaxed">
-            {`curl -X POST https://api.slugy.co/leads_track \\
-  -H "Authorization: Bearer slugy_your_key" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "clickId": "YOUR_SLUGY_ID",
-    "eventName": "Sign up",
-    "customerExternalId": "user_123",
-    "customerEmail": "ada@example.com"
-  }'`}
-          </pre>
-        </CardContent>
-      </Card>
+      <AlertDialog
+        open={!!keyToRevoke}
+        onOpenChange={(next) => {
+          if (!next && !revoking) setKeyToRevoke(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoke API key</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to revoke{" "}
+              {keyToRevoke ? (
+                <span className="text-foreground font-medium">
+                  &ldquo;{keyToRevoke.name}&rdquo;
+                </span>
+              ) : (
+                "this key"
+              )}
+              ? Apps using it will stop working. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revoking}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={() => void handleRevoke()}
+              disabled={revoking}
+            >
+              {revoking ? (
+                <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
+              ) : null}
+              Revoke
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });
