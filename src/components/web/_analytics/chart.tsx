@@ -14,15 +14,18 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { formatNumber } from "@/lib/format-number";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { TriangleAlert } from "lucide-react";
+import { LineChart, Milestone, TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
 import { useQueryState, parseAsString } from "nuqs";
 import { cn } from "@/lib/utils";
 import {
   parseAnalyticsEvent,
+  parseAnalyticsView,
   type AnalyticsEvent,
+  type AnalyticsView,
 } from "@/components/web/_analytics/leads-demo-data";
+import FunnelChart from "@/components/web/_analytics/funnel-chart";
 
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
@@ -62,7 +65,7 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
 
 const EVENT_THEME = {
   clicks: {
-    primary: "#EA877E",
+    primary: "#3B82F6",
     gradientId: "colorClicks",
     label: "Clicks",
   },
@@ -138,7 +141,10 @@ const AnalyticsChart = ({
   error,
 }: ChartProps) => {
   const [eventParam, setEventParam] = useQueryState("event", parseAsString);
+  const [viewParam, setViewParam] = useQueryState("view", parseAsString);
   const event: AnalyticsEvent = parseAnalyticsEvent(eventParam);
+  const view: AnalyticsView = parseAnalyticsView(viewParam);
+  const isFunnel = view === "funnel";
   const theme = EVENT_THEME[event];
 
   const selectEvent = useCallback(
@@ -146,6 +152,13 @@ const AnalyticsChart = ({
       void setEventParam(next === "clicks" ? null : next);
     },
     [setEventParam],
+  );
+
+  const selectView = useCallback(
+    (next: AnalyticsView) => {
+      void setViewParam(next === "timeseries" ? null : next);
+    },
+    [setViewParam],
   );
 
   const processedData = useMemo(() => {
@@ -266,13 +279,14 @@ const AnalyticsChart = ({
 
   return (
     <Card className="w-full border p-0 shadow-none">
-      <CardHeader className="grid grid-cols-2 gap-0 px-0">
+      <CardHeader className="relative grid grid-cols-2 gap-0 px-0">
         <button
           type="button"
           onClick={() => selectEvent("clicks")}
           className={cn(
             "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
-            event !== "clicks" && "opacity-50 hover:opacity-80",
+            !isFunnel && event !== "clicks" && "opacity-50 hover:opacity-80",
+            isFunnel && "opacity-100",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -293,7 +307,8 @@ const AnalyticsChart = ({
           onClick={() => selectEvent("leads")}
           className={cn(
             "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
-            event !== "leads" && "opacity-50 hover:opacity-80",
+            !isFunnel && event !== "leads" && "opacity-50 hover:opacity-80",
+            isFunnel && "opacity-100",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -305,7 +320,7 @@ const AnalyticsChart = ({
           </div>
           {propTotalLeads == null ? (
             <span className="text-muted-foreground text-2xl sm:text-3xl">
-              —
+              0
             </span>
           ) : (
             <NumberFlow
@@ -316,7 +331,36 @@ const AnalyticsChart = ({
           )}
         </button>
       </CardHeader>
-      <CardContent className="p-0 pr-2 pb-4">
+      <CardContent className="relative p-0 pr-2 pb-4">
+        <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white">
+          <button
+            type="button"
+            onClick={() => selectView("timeseries")}
+            aria-label="Time series chart"
+            className={cn(
+              "grid size-8 place-items-center transition-colors",
+              !isFunnel
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            <LineChart className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => selectView("funnel")}
+            aria-label="Conversion funnel"
+            className={cn(
+              "grid size-8 place-items-center border-l transition-colors",
+              isFunnel
+                ? "bg-accent text-foreground"
+                : "text-muted-foreground hover:bg-muted",
+            )}
+          >
+            <Milestone className="size-3.5" />
+          </button>
+        </div>
+
         <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (
             <div className="absolute inset-0 z-10 flex items-center justify-center bg-transparent">
@@ -338,7 +382,15 @@ const AnalyticsChart = ({
               </div>
             </div>
           )}
-          {processedData.length > 0 ? (
+
+          {isFunnel ? (
+            !isLoading && !error ? (
+              <FunnelChart
+                clicks={propTotalClicks ?? 0}
+                leads={propTotalLeads ?? 0}
+              />
+            ) : null
+          ) : processedData.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={processedData}

@@ -227,6 +227,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     [searchParams],
   );
   const isLeads = event === "leads";
+  const isFunnel = searchParams.get("view") === "funnel";
 
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
@@ -245,9 +246,9 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     workspaceslug: workspace,
     timePeriod,
     searchParams: filterParams,
-    metrics: ANALYTICS_METRICS,
+    metrics: isLeads ? ANALYTICS_METRICS : (["totalClicks"] as const),
     analyticsEvent: "leads",
-    enabled: isLeads,
+    enabled: isLeads || isFunnel,
   });
 
   const active = isLeads ? leads : clicks;
@@ -258,6 +259,12 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       setCachedLeadsTotal(leads.data.totalClicks);
     }
   }, [leads.data?.totalClicks]);
+
+  const funnelLoading =
+    isFunnel &&
+    (clicks.isLoading || leads.isLoading) &&
+    clicks.data?.totalClicks == null &&
+    leads.data?.totalClicks == null;
 
   const filterSource = useMemo<FilterSource>(
     () => ({
@@ -296,7 +303,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const hasResolvedData = Boolean(active.data);
   const showInitialLoadingState =
-    active.isLoading && !hasResolvedData && !active.error;
+    (active.isLoading && !hasResolvedData && !active.error) || funnelLoading;
   const chartRefreshing = active.isValidating && hasResolvedData;
 
   const sharedProps = useMemo(
@@ -322,7 +329,9 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           data={chartData}
           totalClicks={clicks.data?.totalClicks ?? 0}
           totalLeads={
-            isLeads ? (leads.data?.totalClicks ?? null) : cachedLeadsTotal
+            isLeads || isFunnel
+              ? (leads.data?.totalClicks ?? null)
+              : cachedLeadsTotal
           }
           isRefreshing={chartRefreshing}
           error={active.error ?? undefined}
