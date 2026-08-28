@@ -27,6 +27,7 @@ import {
   normalizeGeoInput,
   type GeoTargetMap,
 } from "@/lib/link-targeting";
+import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -268,6 +269,9 @@ export async function POST(
       );
     }
 
+    const trackConversion =
+      canUseLeadTracking(planType) && (validatedData.trackConversion ?? false);
+
     let customDomainName: string | null = null;
     if (validatedData.customDomainId) {
       if (
@@ -367,7 +371,7 @@ export async function POST(
           utm_term: validatedData.utm_term,
           geo: geo ?? Prisma.JsonNull,
           customDomainId: validatedData.customDomainId || null,
-          trackConversion: validatedData.trackConversion ?? false,
+          trackConversion,
         },
         select: {
           id: true,

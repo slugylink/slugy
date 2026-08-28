@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { generateApiKey, maskApiKey } from "@/lib/api-keys/generate";
+import { getActiveSubscription } from "@/server/actions/subscription";
+import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const createKeySchema = z.object({
   name: z.string().min(1).max(80),
@@ -33,6 +35,16 @@ export async function GET(
   const workspace = await getWorkspaceForUser(workspaceslug, session.user.id);
   if (!workspace) {
     return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
+  }
+
+  const subscriptionResult = await getActiveSubscription(workspace.userId);
+  const planType = subscriptionResult.subscription?.plan?.planType ?? null;
+  if (!canUseLeadTracking(planType)) {
+    return jsonWithETag(
+      req,
+      { error: "Lead tracking requires a Pro plan." },
+      { status: 403 },
+    );
   }
 
   const keys = await db.workspaceApiKey.findMany({
@@ -79,6 +91,16 @@ export async function POST(
 
   if (workspace.userId !== session.user.id) {
     return jsonWithETag(req, { error: "Forbidden" }, { status: 403 });
+  }
+
+  const subscriptionResult = await getActiveSubscription(workspace.userId);
+  const planType = subscriptionResult.subscription?.plan?.planType ?? null;
+  if (!canUseLeadTracking(planType)) {
+    return jsonWithETag(
+      req,
+      { error: "Lead tracking requires a Pro plan." },
+      { status: 403 },
+    );
   }
 
   const body = createKeySchema.parse(await req.json());

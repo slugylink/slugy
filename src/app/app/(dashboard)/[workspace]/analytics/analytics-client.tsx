@@ -13,6 +13,7 @@ import FilterActions, {
   type FilterCategory,
 } from "@/components/web/_analytics/filter";
 import { parseAnalyticsEvent } from "@/components/web/_analytics/leads-demo-data";
+import { useSubscriptionStore } from "@/store/subscription";
 import {
   Box,
   Chrome,
@@ -221,6 +222,12 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   workspace,
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
+  const { isPro, fetchSubscription } = useSubscriptionStore();
+  const canUseLeadTracking = isPro;
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
 
   const timePeriod = useMemo(() => {
     const period = searchParams.get("time_period");
@@ -233,6 +240,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   );
   const isLeads = event === "leads";
   const isFunnel = searchParams.get("view") === "funnel";
+  const viewingLeads = isLeads && canUseLeadTracking;
 
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
@@ -253,20 +261,21 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     searchParams: filterParams,
     metrics: isLeads ? ANALYTICS_METRICS : (["totalClicks"] as const),
     analyticsEvent: "leads",
-    enabled: isLeads || isFunnel,
+    enabled: canUseLeadTracking && (isLeads || isFunnel),
   });
 
-  const active = isLeads ? leads : clicks;
+  const active = viewingLeads ? leads : clicks;
 
   const [cachedLeadsTotal, setCachedLeadsTotal] = useState<number | null>(null);
   useEffect(() => {
-    if (leads.data?.totalClicks != null) {
+    if (canUseLeadTracking && leads.data?.totalClicks != null) {
       setCachedLeadsTotal(leads.data.totalClicks);
     }
-  }, [leads.data?.totalClicks]);
+  }, [canUseLeadTracking, leads.data?.totalClicks]);
 
   const funnelLoading =
     isFunnel &&
+    canUseLeadTracking &&
     (clicks.isLoading || leads.isLoading) &&
     clicks.data?.totalClicks == null &&
     leads.data?.totalClicks == null;
@@ -334,12 +343,14 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           data={chartData}
           totalClicks={clicks.data?.totalClicks ?? 0}
           totalLeads={
-            isLeads || isFunnel
+            canUseLeadTracking && (isLeads || isFunnel)
               ? (leads.data?.totalClicks ?? null)
               : cachedLeadsTotal
           }
           isRefreshing={chartRefreshing}
           error={active.error ?? undefined}
+          canUseLeadTracking={canUseLeadTracking}
+          workspaceSlug={workspace}
         />
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">

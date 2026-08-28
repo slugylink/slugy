@@ -24,6 +24,7 @@ import {
   parseGeoFromCache,
   type GeoTargetMap,
 } from "@/lib/link-targeting";
+import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 import { Prisma } from "@prisma/client";
 
 const DEFAULT_DOMAIN = "slugy.co";
@@ -291,6 +292,9 @@ export async function PATCH(
             } else if (key === "geo") {
               updateData.geo =
                 value === null ? Prisma.JsonNull : (value as GeoTargetMap);
+            } else if (key === "trackConversion") {
+              updateData.trackConversion =
+                canUseLeadTracking(planType) && Boolean(value);
             } else if (key !== "tags") {
               updateData[key] = value;
             }
@@ -311,6 +315,10 @@ export async function PATCH(
           } else {
             updateData.password = hashLinkPassword(validatedData.password);
           }
+        }
+
+        if (!canUseLeadTracking(planType)) {
+          updateData.trackConversion = false;
         }
 
         // Update the link

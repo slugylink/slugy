@@ -87,6 +87,7 @@ interface LinkFormFieldsProps {
   onDraftMetadataSave?: (draft: DraftMetadata) => void;
   trackConversion?: boolean;
   setTrackConversion?: (enabled: boolean) => void;
+  leadTrackingLocked?: boolean;
 }
 
 interface TagType {
@@ -367,6 +368,7 @@ interface LinkFormMainPanelsProps {
   effectiveMetadesc?: string;
   trackConversion?: boolean;
   setTrackConversion?: (enabled: boolean) => void;
+  leadTrackingLocked?: boolean;
 }
 
 const LinkFormMainPanels = ({
@@ -414,6 +416,7 @@ const LinkFormMainPanels = ({
   effectiveMetadesc,
   trackConversion = false,
   setTrackConversion,
+  leadTrackingLocked = false,
 }: LinkFormMainPanelsProps) => {
   return (
     <div className="grid gap-6 md:grid-cols-[2fr_1fr]">
@@ -705,16 +708,42 @@ const LinkFormMainPanels = ({
 
         {setTrackConversion && (
           <div className="flex items-center justify-between">
-            <div className="">
-              <Label htmlFor="track-conversion" className="text-sm font-medium">
-                Conversion tracking
-              </Label>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Label
+                  htmlFor="track-conversion"
+                  className="text-sm font-medium"
+                >
+                  Lead tracking
+                </Label>
+                {leadTrackingLocked && (
+                  <Lock className="text-muted-foreground size-3.5" />
+                )}
+              </div>
+              {leadTrackingLocked && (
+                <p className="text-muted-foreground text-xs">
+                  Upgrade to Pro to attribute signups and purchases to this
+                  link.
+                </p>
+              )}
             </div>
-            <Switch
-              id="track-conversion"
-              checked={trackConversion}
-              onCheckedChange={setTrackConversion}
-            />
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Switch
+                      id="track-conversion"
+                      checked={leadTrackingLocked ? false : trackConversion}
+                      onCheckedChange={setTrackConversion}
+                      disabled={leadTrackingLocked}
+                    />
+                  </span>
+                </TooltipTrigger>
+                {leadTrackingLocked ? (
+                  <TooltipContent>Upgrade to Pro to unlock</TooltipContent>
+                ) : null}
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
       </div>
@@ -807,6 +836,7 @@ const LinkFormFields = ({
   onDraftMetadataSave,
   trackConversion = false,
   setTrackConversion,
+  leadTrackingLocked = false,
 }: LinkFormFieldsProps) => {
   void _code;
   const { control, getValues, watch, setValue } = form;
@@ -1179,6 +1209,7 @@ const LinkFormFields = ({
         effectiveMetadesc={effectiveMetadesc}
         trackConversion={trackConversion}
         setTrackConversion={setTrackConversion}
+        leadTrackingLocked={leadTrackingLocked}
       />
       {/* Link Metadata Dialog */}
       {((isEditMode && linkId) || !isEditMode) && (

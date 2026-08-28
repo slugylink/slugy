@@ -1,8 +1,9 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Copy, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { useSubscriptionStore } from "@/store/subscription";
 
 interface ApiKeyRow {
   id: string;
@@ -82,9 +84,15 @@ export default memo(function ApiKeysClient({
   const [createdKey, setCreatedKey] = useState<CreatedKeyResponse | null>(null);
   const [keyToRevoke, setKeyToRevoke] = useState<ApiKeyRow | null>(null);
   const [revoking, setRevoking] = useState(false);
+  const { isPro, fetchSubscription } = useSubscriptionStore();
+  const canUseLeadTracking = isPro;
+
+  useEffect(() => {
+    void fetchSubscription();
+  }, [fetchSubscription]);
 
   const { data, mutate, isLoading } = useSWR<ApiKeysResponse>(
-    `/api/workspace/${workspaceslug}/api-keys`,
+    canUseLeadTracking ? `/api/workspace/${workspaceslug}/api-keys` : null,
     fetchApiKeys,
   );
 
@@ -159,129 +167,153 @@ export default memo(function ApiKeysClient({
               </a>
             </CardDescription>
           </div>
-          <Dialog
-            open={open}
-            onOpenChange={(next) => {
-              setOpen(next);
-              if (!next) setCreatedKey(null);
-            }}
-          >
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="mr-1 h-4 w-4" />
-                Create key
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create API key</DialogTitle>
-                <DialogDescription>
-                  Keys can track lead conversions for this workspace.
-                </DialogDescription>
-              </DialogHeader>
-              {createdKey ? (
-                <div className="space-y-4">
-                  <div className="bg-muted/40 rounded-md border p-3">
-                    <p className="text-muted-foreground mb-2 text-xs">
-                      Copy this key now — it won&apos;t be shown again.
-                    </p>
-                    <code className="block text-sm break-all">
-                      {createdKey.key.key}
-                    </code>
-                  </div>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => void copyText(createdKey.key.key, "API key")}
-                  >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy API key
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label htmlFor="api-key-name">Name</Label>
-                  <Input
-                    id="api-key-name"
-                    placeholder="Production website"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-              )}
-              <DialogFooter>
+          {canUseLeadTracking ? (
+            <Dialog
+              open={open}
+              onOpenChange={(next) => {
+                setOpen(next);
+                if (!next) setCreatedKey(null);
+              }}
+            >
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="mr-1 h-4 w-4" />
+                  Create key
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create API key</DialogTitle>
+                  <DialogDescription>
+                    Keys can track lead conversions for this workspace.
+                  </DialogDescription>
+                </DialogHeader>
                 {createdKey ? (
-                  <Button onClick={() => setOpen(false)}>Done</Button>
+                  <div className="space-y-4">
+                    <div className="bg-muted/40 rounded-md border p-3">
+                      <p className="text-muted-foreground mb-2 text-xs">
+                        Copy this key now — it won&apos;t be shown again.
+                      </p>
+                      <code className="block text-sm break-all">
+                        {createdKey.key.key}
+                      </code>
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() =>
+                        void copyText(createdKey.key.key, "API key")
+                      }
+                    >
+                      <Copy className="mr-2 h-4 w-4" />
+                      Copy API key
+                    </Button>
+                  </div>
                 ) : (
-                  <Button
-                    onClick={() => void handleCreate()}
-                    disabled={creating || !name.trim()}
-                  >
-                    {creating ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Create"
-                    )}
-                  </Button>
-                )}
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Key</TableHead>
-                <TableHead>Last used</TableHead>
-                <TableHead className="w-[80px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="py-8 text-center">
-                    <LoaderCircle className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
-                  </TableCell>
-                </TableRow>
-              ) : data?.keys.length ? (
-                data.keys.map((key) => (
-                  <TableRow key={key.id}>
-                    <TableCell>{key.name}</TableCell>
-                    <TableCell className="font-mono text-sm">
-                      {key.maskedKey}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {key.lastUsed
-                        ? new Date(key.lastUsed).toLocaleString()
-                        : "Never"}
-                    </TableCell>
-                    <TableCell>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="api-key-name">Name</Label>
+                      <Input
+                        id="api-key-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Production app"
+                      />
+                    </div>
+                    <DialogFooter>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        aria-label="Revoke API key"
-                        onClick={() => setKeyToRevoke(key)}
+                        onClick={() => void handleCreate()}
+                        disabled={creating || !name.trim()}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        {creating ? (
+                          <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                        ) : null}
+                        Create key
                       </Button>
+                    </DialogFooter>
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </CardHeader>
+        {!canUseLeadTracking ? (
+          <CardContent>
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed px-6 py-12 text-center">
+              <div className="bg-muted flex size-12 items-center justify-center rounded-full">
+                <Lock className="text-muted-foreground size-5" />
+              </div>
+              <div className="max-w-md space-y-1">
+                <p className="text-foreground font-medium">
+                  Upgrade to Pro to unlock lead tracking
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  API keys and lead attribution are available on the Pro plan.
+                </p>
+              </div>
+              <Button asChild size="sm">
+                <Link href={`/${workspaceslug}/settings/billing/upgrade`}>
+                  Upgrade to Pro
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        ) : (
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Key</TableHead>
+                  <TableHead>Last used</TableHead>
+                  <TableHead className="w-[80px]" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-8 text-center">
+                      <LoaderCircle className="text-muted-foreground mx-auto h-5 w-5 animate-spin" />
                     </TableCell>
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={4}
-                    className="text-muted-foreground py-8 text-center text-sm"
-                  >
-                    No API keys yet
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
+                ) : data?.keys.length ? (
+                  data.keys.map((key) => (
+                    <TableRow key={key.id}>
+                      <TableCell>{key.name}</TableCell>
+                      <TableCell className="font-mono text-sm">
+                        {key.maskedKey}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {key.lastUsed
+                          ? new Date(key.lastUsed).toLocaleString()
+                          : "Never"}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Revoke API key"
+                          onClick={() => setKeyToRevoke(key)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={4}
+                      className="text-muted-foreground py-8 text-center text-sm"
+                    >
+                      No API keys yet
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        )}
       </Card>
 
       <AlertDialog

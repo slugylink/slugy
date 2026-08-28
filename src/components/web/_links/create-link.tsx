@@ -158,6 +158,7 @@ const CreateLinkForm = React.memo(
     const { isPro, fetchSubscription } = useSubscriptionStore();
     const isFreePlan = !isPro;
     const geoLocked = !isPro;
+    const leadTrackingLocked = !isPro;
 
     useEffect(() => {
       void fetchSubscription();
@@ -300,6 +301,9 @@ const CreateLinkForm = React.memo(
             expiresAt: normalizeExpiresAt(linkSettings.expiresAt),
             expirationUrl: linkSettings.expirationUrl || null,
             password: linkSettings.password || null,
+            trackConversion: leadTrackingLocked
+              ? false
+              : linkSettings.trackConversion,
           };
 
           const utmPayload = {
@@ -490,6 +494,7 @@ const CreateLinkForm = React.memo(
                       trackConversion,
                     }))
                   }
+                  leadTrackingLocked={leadTrackingLocked}
                 />
               </div>
 

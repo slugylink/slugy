@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, type FC } from "react";
+import Link from "next/link";
 import {
   Area,
   AreaChart,
@@ -12,9 +13,10 @@ import {
   type TooltipProps,
 } from "recharts";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/format-number";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { LineChart, Milestone, TriangleAlert } from "lucide-react";
+import { LineChart, Lock, Milestone, TriangleAlert } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
 import { useQueryState, parseAsString } from "nuqs";
@@ -51,6 +53,8 @@ interface ChartProps {
   isLoading?: boolean;
   isRefreshing?: boolean;
   error?: Error;
+  canUseLeadTracking?: boolean;
+  workspaceSlug?: string;
 }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
@@ -139,12 +143,16 @@ const AnalyticsChart = ({
   isLoading,
   isRefreshing,
   error,
+  canUseLeadTracking = true,
+  workspaceSlug,
 }: ChartProps) => {
   const [eventParam, setEventParam] = useQueryState("event", parseAsString);
   const [viewParam, setViewParam] = useQueryState("view", parseAsString);
   const event: AnalyticsEvent = parseAnalyticsEvent(eventParam);
   const view: AnalyticsView = parseAnalyticsView(viewParam);
   const isFunnel = view === "funnel";
+  const showLeadUpgrade =
+    !canUseLeadTracking && (event === "leads" || isFunnel);
   const theme = EVENT_THEME[event];
 
   const selectEvent = useCallback(
@@ -309,6 +317,7 @@ const AnalyticsChart = ({
             "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
             !isFunnel && event !== "leads" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
+            !canUseLeadTracking && "relative",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -317,8 +326,15 @@ const AnalyticsChart = ({
               style={{ backgroundColor: EVENT_THEME.leads.primary }}
             />
             <span>Leads</span>
+            {!canUseLeadTracking && (
+              <Lock className="text-muted-foreground size-3" />
+            )}
           </div>
-          {propTotalLeads == null ? (
+          {!canUseLeadTracking ? (
+            <span className="text-muted-foreground text-2xl sm:text-3xl">
+              0
+            </span>
+          ) : propTotalLeads == null ? (
             <span className="text-muted-foreground text-2xl sm:text-3xl">
               0
             </span>
@@ -379,6 +395,32 @@ const AnalyticsChart = ({
                 <p className="text-muted-foreground text-sm">
                   Failed to load chart data
                 </p>
+              </div>
+            </div>
+          )}
+
+          {showLeadUpgrade && (
+            <div className="bg-background/80 absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-6 backdrop-blur-sm">
+              <div className="flex max-w-md flex-col items-center gap-3 text-center">
+                <div className="bg-muted flex size-12 items-center justify-center rounded-full">
+                  <Lock className="text-muted-foreground size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-foreground text-base font-medium">
+                    Conversion Tracking
+                  </p>
+                  <p className="text-muted-foreground max-w-sm text-sm">
+                    Upgrade to our Pro Plan and start tracking conversion events
+                    with Slugy
+                  </p>
+                </div>
+                {workspaceSlug ? (
+                  <Button asChild size="sm">
+                    <Link href={`/${workspaceSlug}/settings/billing/upgrade`}>
+                      Upgrade to Pro
+                    </Link>
+                  </Button>
+                ) : null}
               </div>
             </div>
           )}

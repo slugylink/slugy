@@ -3,6 +3,10 @@ import { z } from "zod";
 import { apiErrors, apiSuccess } from "@/lib/api-response";
 import { authenticateApiKey } from "@/lib/api-keys/auth";
 import { trackLead } from "@/lib/leads/record-lead";
+import {
+  canUseLeadTracking,
+  getWorkspaceOwnerPlanType,
+} from "@/lib/subscription/entitlements";
 
 const trackLeadSchema = z.object({
   clickId: z.string().min(1),
@@ -33,6 +37,13 @@ export async function POST(request: NextRequest) {
       return apiErrors[auth.status === 401 ? "unauthorized" : "forbidden"](
         auth.message,
       );
+    }
+
+    const ownerPlanType = await getWorkspaceOwnerPlanType(
+      auth.apiKey.workspaceId,
+    );
+    if (!canUseLeadTracking(ownerPlanType)) {
+      return apiErrors.forbidden("Lead tracking requires a Pro plan.");
     }
 
     const queryClickId = request.nextUrl.searchParams.get("clickId");
