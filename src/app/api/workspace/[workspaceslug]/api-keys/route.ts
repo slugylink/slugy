@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { generateApiKey, maskApiKey } from "@/lib/api-keys/generate";
-import { getActiveSubscription } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const createKeySchema = z.object({
@@ -37,7 +37,7 @@ export async function GET(
     return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
   }
 
-  const subscriptionResult = await getActiveSubscription(workspace.userId);
+  const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
   const planType = subscriptionResult.subscription?.plan?.planType ?? null;
   if (!canUseLeadTracking(planType)) {
     return jsonWithETag(
@@ -93,7 +93,7 @@ export async function POST(
     return jsonWithETag(req, { error: "Forbidden" }, { status: 403 });
   }
 
-  const subscriptionResult = await getActiveSubscription(workspace.userId);
+  const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
   const planType = subscriptionResult.subscription?.plan?.planType ?? null;
   if (!canUseLeadTracking(planType)) {
     return jsonWithETag(

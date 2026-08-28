@@ -15,7 +15,6 @@ const UpgardePage = () => {
   const { data: session } = useSession();
   const [loading, setLoading] = useState(false);
 
-  // Fetch active subscription
   const { data: subData, isLoading: subLoading } = useSWR<{
     subscription?: {
       plan?: {
@@ -25,61 +24,41 @@ const UpgardePage = () => {
   }>(session?.user ? "/api/subscription/active" : null, fetcher);
   const activePlanName = subData?.subscription?.plan?.name?.toLowerCase();
 
-  const handleClick = async (productId: string) => {
-    console.log("Current session:", session); // Debug log
-
+  const handleClick = (priceId: string) => {
     if (!session?.user) {
-      console.error("No session found - user not logged in");
       alert("Please log in to continue");
       return;
     }
 
     const customerEmail = encodeURIComponent(session.user.email || "");
     const customerName = encodeURIComponent(session.user.name || "");
+    const checkoutUrl = `/api/subscription/checkout?products=${encodeURIComponent(priceId)}&customer_email=${customerEmail}&customer_name=${customerName}`;
 
-    // Use relative URL to avoid cross-domain cookie issues
-    const checkoutUrl = `/api/subscription/checkout?productId=${productId}&customer_email=${customerEmail}&customer_name=${customerName}`;
-
-    console.log("Redirecting to:", checkoutUrl);
     window.location.href = checkoutUrl;
   };
 
-  // Add a function to handle manage subscription
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = () => {
     if (!session?.user) {
       alert("Please log in to manage your subscription");
       return;
     }
     setLoading(true);
-    try {
-      const res = await fetch("/api/subscription/manage", { method: "POST" });
-      const data = await res.json();
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        alert(data.error || "Failed to get portal link");
-      }
-    } catch {
-      alert("Failed to get portal link");
-    } finally {
-      setLoading(false);
-    }
+    window.location.href = "/api/subscription/manage";
   };
 
-  // Define features for each plan
   const planFeatures = {
     basic: [
-      "5 projects",
-      "10GB storage",
-      "Basic features",
-      "Community support",
+      "2 workspaces",
+      "20 links/workspace",
+      "1k tracked clicks/month",
+      "Essential link tools",
     ],
     pro: [
-      "20 projects",
-      "50GB storage",
-      "Advanced features",
-      "Priority support",
-      "14-day free trial",
+      "5 workspaces",
+      "100 links/workspace",
+      "12k tracked clicks/month",
+      "Lead tracking & geo targeting",
+      "Custom link preview",
     ],
   };
 
@@ -121,7 +100,9 @@ const UpgardePage = () => {
 
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold">${plan.monthlyPrice}</div>
-              <span className="text-muted-foreground text-sm">/month</span>
+              <span className="text-muted-foreground text-sm">
+                {plan.planType === "basic" ? "forever" : "/month"}
+              </span>
             </div>
 
             <Button

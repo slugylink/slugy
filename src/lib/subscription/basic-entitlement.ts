@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
+import { isLifetimeBillingPeriod } from "@/lib/subscription/reconcile";
 
 export const activeSubscriptionSelect = {
   id: true,
@@ -45,6 +46,7 @@ export async function activateBasicEntitlement(input: {
     select: {
       id: true,
       status: true,
+      periodStart: true,
       periodEnd: true,
       plan: { select: { planType: true } },
     },
@@ -54,7 +56,8 @@ export async function activateBasicEntitlement(input: {
   const isActivePro =
     existing?.plan.planType === "pro" &&
     ["active", "trialing"].includes(status) &&
-    existing.periodEnd > new Date();
+    (existing.periodEnd > new Date() ||
+      isLifetimeBillingPeriod("pro", existing.periodStart, existing.periodEnd));
 
   if (isActivePro) {
     console.warn(
@@ -78,6 +81,7 @@ export async function activateBasicEntitlement(input: {
   periodEnd.setFullYear(periodEnd.getFullYear() + 100);
 
   const priceId = input.priceId ?? basicPlan.monthlyPriceId ?? undefined;
+  const now = new Date();
 
   const subscription = await db.subscription.upsert({
     where: { referenceId: input.userId },
@@ -113,7 +117,7 @@ export async function activateBasicEntitlement(input: {
 
   await db.user.update({
     where: { id: input.userId },
-    data: { customerId },
+    data: { customerId, lifetimeBasicAt: now },
   });
 
   await syncUserLimits(input.userId, basicPlan.planType);
@@ -121,9 +125,8 @@ export async function activateBasicEntitlement(input: {
 }
 
 /**
- * Ends paid Pro access and applies Basic workspace/bio limits.
- * Does not auto-grant an active Basic entitlement — that requires a verified
- * Basic purchase (order webhook or checkout recovery).
+ * Ends paid Pro access. Restores active Basic when the user previously
+ * purchased lifetime Basic; otherwise marks the subscription inactive.
  */
 export async function downgradeToBasicLimits(input: {
   subscriptionId: string;
@@ -136,10 +139,28 @@ export async function downgradeToBasicLimits(input: {
 
   const existing = await db.subscription.findUnique({
     where: { id: input.subscriptionId },
-    select: { referenceId: true },
+    select: {
+      referenceId: true,
+      customerId: true,
+      priceId: true,
+    },
   });
 
   if (!existing) return false;
+
+  const user = await db.user.findUnique({
+    where: { id: existing.referenceId },
+    select: { lifetimeBasicAt: true, customerId: true },
+  });
+
+  if (user?.lifetimeBasicAt) {
+    await activateBasicEntitlement({
+      userId: existing.referenceId,
+      customerId: existing.customerId ?? user.customerId,
+      priceId: existing.priceId,
+    });
+    return true;
+  }
 
   await db.subscription.update({
     where: { id: input.subscriptionId },

@@ -68,6 +68,7 @@ model User {
   image           String?
   role            Role              @default(user)
   customerId      String?
+  lifetimeBasicAt DateTime?
   banned          Boolean           @default(false)
   banReason       String?
   banExpires      Int?

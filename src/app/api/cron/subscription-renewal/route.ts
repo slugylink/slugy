@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { downgradeToBasicLimits } from "@/lib/subscription/basic-entitlement";
 import { revalidateSubscriptionCache } from "@/lib/subscription/limits-sync";
+import { withCronAuth } from "@/lib/cron-auth";
 
 const BATCH_SIZE = 100;
 
@@ -73,10 +73,4 @@ async function handler() {
   }
 }
 
-const QSTASH_CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
-const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
-
-export const POST =
-  QSTASH_CURRENT_SIGNING_KEY && QSTASH_NEXT_SIGNING_KEY
-    ? verifySignatureAppRouter(handler)
-    : handler;
+export const POST = withCronAuth(handler);

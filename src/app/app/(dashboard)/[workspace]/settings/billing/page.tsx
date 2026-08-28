@@ -37,10 +37,6 @@ export default async function Billing({
 
   const { plan, usage, limits, billingCycle, subscription } = result.data;
 
-  // Use subscription billing cycle from result.data (from Polar subscription)
-  // This shows the actual subscription period, not workspace usage tracking period
-  console.log("[Billing Page] Billing cycle from subscription:", billingCycle);
-
   // Both Basic and Pro are paid plans now (no free tier).
   const isPaidPlan =
     plan.planType && ["basic", "pro"].includes(plan.planType.toLowerCase());
@@ -49,6 +45,7 @@ export default async function Billing({
   // Check if subscription is canceled but still active (grace period)
   const isCanceledButActive = subscription?.cancelAtPeriodEnd === true;
   const isBasicPlan = plan.planType?.toLowerCase() === "basic";
+  const isLifetimeAccess = billingCycle.isLifetime === true;
 
   const usageMetrics: UsageMetric[] = [
     {
@@ -101,12 +98,12 @@ export default async function Billing({
                 )}
               </CardTitle>
             </div>
-            {isBasicPlan ? (
+            {isBasicPlan || isLifetimeAccess ? (
               <p className="text-muted-foreground text-sm">
-                <span className="font-medium">Access:</span> Lifetime (one-time
-                payment)
+                <span className="font-medium">Access:</span> Lifetime
+                {isBasicPlan ? " (one-time payment)" : " (discounted Pro)"}
                 {billingCycle.start && (
-                  <span> - Purchased {billingCycle.start}</span>
+                  <span> - Started {billingCycle.start}</span>
                 )}
               </p>
             ) : (

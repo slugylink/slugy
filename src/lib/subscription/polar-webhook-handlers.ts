@@ -8,6 +8,12 @@ import {
   activateBasicEntitlement,
   downgradeToBasicLimits,
 } from "@/lib/subscription/basic-entitlement";
+import {
+  subscriptionWithPlanSelect,
+  syncSubscriptionFromPolar,
+  hasForeverDiscount,
+  isLifetimeBillingPeriod,
+} from "@/lib/subscription/reconcile";
 
 export const LOG_PREFIX = "[Polar]";
 
@@ -41,6 +47,7 @@ type PolarSubscription = {
   cancel_at_period_end?: boolean;
   canceledAt?: string;
   canceled_at?: string;
+  discount?: { duration?: string | null } | null;
 };
 
 type PolarOrder = {
@@ -264,8 +271,22 @@ function getSubscriptionFields(sub: PolarSubscription) {
 function getNormalizedPeriodEnd(
   planType: "basic" | "pro",
   periodStart: Date,
-  periodEnd?: Date,
+  periodEnd: Date | undefined,
+  sub?: PolarSubscription,
 ): Date {
+  if (
+    planType === "pro" &&
+    sub &&
+    hasForeverDiscount({
+      discount: (sub as { discount?: { duration?: string } | null }).discount,
+      status: sub.status,
+    })
+  ) {
+    const lifetimeEnd = new Date(periodStart);
+    lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + 100);
+    return lifetimeEnd;
+  }
+
   // Basic is a one-time forever plan. If provider doesn't send recurring
   // bounds, keep it active for a long lifetime window.
   if (planType === "basic") {
@@ -286,11 +307,17 @@ function getNormalizedPeriodEnd(
 async function findExistingSubscription(sub: PolarSubscription) {
   const subscriptionId = sub.id;
   if (!subscriptionId) return null;
-  let existing = await db.subscription.findFirst({ where: { subscriptionId } });
+  let existing = await db.subscription.findFirst({
+    where: { subscriptionId },
+    include: { plan: { select: { planType: true } } },
+  });
   if (existing) return existing;
   const customerId = getCustomerId(sub);
   if (!customerId) return null;
-  existing = await db.subscription.findFirst({ where: { customerId } });
+  existing = await db.subscription.findFirst({
+    where: { customerId },
+    include: { plan: { select: { planType: true } } },
+  });
   if (existing) {
     await db.subscription.update({
       where: { id: existing.id },
@@ -326,6 +353,7 @@ function resolveUpdatedAccess(input: {
   remoteStatus: string;
   cancelAtPeriodEnd: boolean;
   periodEnd: Date | undefined;
+  hasLifetimeAccess?: boolean;
   now?: Date;
 }): {
   action: "deactivate" | "cancel_at_period_end" | "update";
@@ -348,7 +376,8 @@ function resolveUpdatedAccess(input: {
 
   if (
     (status === "past_due" || status === "unpaid" || cancelAtPeriodEnd) &&
-    periodEnded
+    periodEnded &&
+    !input.hasLifetimeAccess
   ) {
     return {
       action: "deactivate",
@@ -397,7 +426,38 @@ async function handleOrderCreated(order: PolarOrder) {
 
 async function handleOrderPaid(order: PolarOrder) {
   console.log(`${LOG_PREFIX} order.paid`, order?.id ?? "no-id");
-  await activateBasicOrderEntitlement(order);
+  if (await activateBasicOrderEntitlement(order)) return;
+
+  const subscriptionId = order.subscriptionId ?? order.subscription_id ?? null;
+  if (!subscriptionId) return;
+
+  let existing = await db.subscription.findFirst({
+    where: { subscriptionId },
+    select: subscriptionWithPlanSelect,
+  });
+
+  if (!existing) {
+    const userId = getOrderUserId(order);
+    if (userId) {
+      existing = await db.subscription.findFirst({
+        where: { referenceId: userId },
+        select: subscriptionWithPlanSelect,
+      });
+    }
+  }
+
+  if (!existing || existing.plan.planType !== "pro") return;
+
+  if (!existing.subscriptionId) {
+    await db.subscription.update({
+      where: { id: existing.id },
+      data: { subscriptionId },
+    });
+    existing = { ...existing, subscriptionId };
+  }
+
+  await syncSubscriptionFromPolar(existing);
+  await revalidateSubscriptionCache();
 }
 
 async function handleSubscriptionCreated(sub: PolarSubscription) {
@@ -428,7 +488,33 @@ async function handleSubscriptionCreated(sub: PolarSubscription) {
     plan.planType as "basic" | "pro",
     periodStart,
     fields.periodEnd,
+    sub,
   );
+
+  const existing = await db.subscription.findUnique({
+    where: { referenceId: userId },
+    select: {
+      status: true,
+      periodStart: true,
+      periodEnd: true,
+      plan: { select: { planType: true } },
+    },
+  });
+
+  const existingStatus = existing?.status?.toLowerCase() ?? "";
+  const hasActivePro =
+    existing?.plan.planType === "pro" &&
+    ["active", "trialing"].includes(existingStatus) &&
+    (existing.periodEnd > new Date() ||
+      isLifetimeBillingPeriod("pro", existing.periodStart, existing.periodEnd));
+
+  if (hasActivePro && plan.planType === "basic") {
+    console.warn(
+      `${LOG_PREFIX} Refusing to overwrite active Pro with Basic for user ${userId}`,
+    );
+    return;
+  }
+
   await db.subscription.upsert({
     where: { referenceId: userId },
     create: {
@@ -481,10 +567,21 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
   const fields = getSubscriptionFields(sub);
   const remoteStatus = sub.status ?? existing.status;
   const periodEnd = fields.periodEnd ?? existing.periodEnd;
+  const hasLifetimeAccess =
+    hasForeverDiscount({
+      discount: sub.discount,
+      status: remoteStatus,
+    }) ||
+    isLifetimeBillingPeriod(
+      existing.plan.planType,
+      existing.periodStart,
+      existing.periodEnd,
+    );
   const access = resolveUpdatedAccess({
     remoteStatus,
     cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
     periodEnd,
+    hasLifetimeAccess,
   });
 
   if (access.action === "deactivate") {
@@ -506,8 +603,22 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
     cancelAtPeriodEnd: access.cancelAtPeriodEnd,
     ...(updatedPlan && { planId: updatedPlan.id, priceId }),
   };
+  const resolvedPlan =
+    updatedPlan ??
+    (await db.plan.findUnique({
+      where: { id: existing.planId },
+      select: { planType: true },
+    }));
+  const periodStart = fields.periodStart ?? existing.periodStart;
   if (fields.periodStart) updateData.periodStart = fields.periodStart;
-  if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
+  if (fields.periodEnd || fields.periodStart) {
+    updateData.periodEnd = getNormalizedPeriodEnd(
+      (resolvedPlan?.planType as "basic" | "pro") ?? "pro",
+      periodStart,
+      fields.periodEnd ?? existing.periodEnd,
+      sub,
+    );
+  }
   if (access.action === "cancel_at_period_end") {
     const canceledAt = sub.canceledAt ?? sub.canceled_at;
     updateData.canceledAt = canceledAt ? new Date(canceledAt) : new Date();
@@ -548,6 +659,7 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
       plan.planType as "basic" | "pro",
       periodStart,
       fields.periodEnd,
+      sub,
     );
     existing = await db.subscription.create({
       data: {
@@ -563,6 +675,7 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
         billingInterval: fields.billingInterval,
         cancelAtPeriodEnd: false,
       },
+      include: { plan: { select: { planType: true } } },
     });
     await syncUserLimits(userId, plan.planType);
   } else {

@@ -10,20 +10,31 @@ export async function checkWorkspaceAccessAndLimits(
   workspaceslug: string,
 ) {
   try {
-    const [subscriptionResult, workspace] = await Promise.all([
-      getSubscriptionWithPlan(userId),
-      db.workspace.findFirst({
-        where: {
-          slug: workspaceslug,
-          OR: [{ userId }, { members: { some: { userId } } }],
-        },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-        },
-      }),
-    ]);
+    const workspace = await db.workspace.findFirst({
+      where: {
+        slug: workspaceslug,
+        OR: [{ userId }, { members: { some: { userId } } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        userId: true,
+      },
+    });
+
+    if (!workspace) {
+      return {
+        success: false,
+        message: "Workspace not found or access denied",
+        workspace: null,
+        canCreateLinks: false,
+        currentLinks: 0,
+        maxLinks: 0,
+      };
+    }
+
+    const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
@@ -38,17 +49,6 @@ export async function checkWorkspaceAccessAndLimits(
 
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
-
-    if (!workspace) {
-      return {
-        success: false,
-        message: "Workspace not found or access denied",
-        workspace: null,
-        canCreateLinks: false,
-        currentLinks: 0,
-        maxLinks: 0,
-      };
-    }
 
     // Use the same period counter the sidebar UI shows (linksCreated).
     const usage = await ensureCurrentUsageRecord(db, {

@@ -13,6 +13,8 @@ import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
 import { checkDomainLimit } from "@/server/actions/limit";
 import { jsonWithETag } from "@/lib/http";
+import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
 
 // Helper: Get authenticated session
 async function getSession() {
@@ -81,7 +83,11 @@ export async function GET(
     });
 
     if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
+      return jsonWithETag(
+        req,
+        { error: "Workspace not found" },
+        { status: 404 },
+      );
     }
 
     return jsonWithETag(req, { domains: workspace.customDomains });
@@ -113,27 +119,37 @@ export async function POST(
     // Verify workspace access (admin only)
     const workspace = await getWorkspace(workspaceslug, session.user.id, true);
 
-     // You can uncomment and implement this based on your subscription plans
-    const subscription = await db.subscription.findUnique({
-      where: { referenceId: session.user.id },
-      include: { plan: true },
-    });
-    const maxDomains = subscription?.plan?.maxCustomDomains ?? 0;
+    const ownerSubscription = await getSubscriptionWithPlan(workspace.userId);
+    const maxDomains =
+      ownerSubscription.subscription?.plan?.maxCustomDomains ??
+      (await getBasicPlanLimits()).maxCustomDomains;
     const limitCheck = await checkDomainLimit(workspace.id, maxDomains);
     if (!limitCheck.canAdd) {
-      return jsonWithETag(req, { error: limitCheck.error || "Domain limit reached" }, { status: 403 });
+      return jsonWithETag(
+        req,
+        { error: limitCheck.error || "Domain limit reached" },
+        { status: 403 },
+      );
     }
 
     // Check if domain is already in use
     const inUse = await isDomainInUse(domain);
     if (inUse) {
-      return jsonWithETag(req, { error: "Domain is already in use" }, { status: 409 });
+      return jsonWithETag(
+        req,
+        { error: "Domain is already in use" },
+        { status: 409 },
+      );
     }
 
     // Add domain to Vercel (for SSL handling)
     const vercelResult = await addDomainToVercel(domain);
     if (!vercelResult.success) {
-      return jsonWithETag(req, { error: vercelResult.error || "Failed to add domain to Vercel" }, { status: 500 });
+      return jsonWithETag(
+        req,
+        { error: vercelResult.error || "Failed to add domain to Vercel" },
+        { status: 500 },
+      );
     }
 
     // Create domain in database
@@ -179,7 +195,11 @@ export async function DELETE(
     const domainId = searchParams.get("domainId");
 
     if (!domainId) {
-      return jsonWithETag(req, { error: "Domain ID is required" }, { status: 400 });
+      return jsonWithETag(
+        req,
+        { error: "Domain ID is required" },
+        { status: 400 },
+      );
     }
 
     // Verify workspace access (admin only)
@@ -260,7 +280,11 @@ export async function PATCH(
     try {
       body = await req.json();
     } catch {
-      return jsonWithETag(req, { error: "Invalid JSON in request body" }, { status: 400 });
+      return jsonWithETag(
+        req,
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
     }
 
     const { domainId, action } = body;
@@ -291,9 +315,7 @@ export async function PATCH(
       );
 
       // Check actual DNS configuration
-      const dnsCheckResult = await checkDnsConfiguration(
-        customDomain.domain,
-      );
+      const dnsCheckResult = await checkDnsConfiguration(customDomain.domain);
 
       const isVerified = vercelVerifyResult.verified;
       const isDnsConfigured = dnsCheckResult.configured;
@@ -318,8 +340,8 @@ export async function PATCH(
         error: !vercelVerifyResult.success
           ? vercelVerifyResult.error
           : !dnsCheckResult.success
-          ? dnsCheckResult.error
-          : undefined,
+            ? dnsCheckResult.error
+            : undefined,
       });
     }
 

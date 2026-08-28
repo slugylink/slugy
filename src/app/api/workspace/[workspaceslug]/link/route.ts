@@ -6,7 +6,10 @@ import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
-import { getActiveSubscription } from "@/server/actions/subscription";
+import {
+  canUseLeadTracking,
+  getWorkspaceOwnerPlanTypeBySlug,
+} from "@/lib/subscription/entitlements";
 import { waitUntil } from "@vercel/functions";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
@@ -27,7 +30,6 @@ import {
   normalizeGeoInput,
   type GeoTargetMap,
 } from "@/lib/link-targeting";
-import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -225,14 +227,14 @@ export async function POST(
 
     const validatedData = createLinkSchema.parse(preprocessEmptyStrings(body));
 
-    const [workspaceCheck, customDomainRow, safetyResult, subscriptionResult] =
+    const [workspaceCheck, customDomainRow, safetyResult, planType] =
       await Promise.all([
         checkWorkspaceAccessAndLimits(session.user.id, context.workspaceslug),
         validatedData.customDomainId
           ? findVerifiedCustomDomain(validatedData.customDomainId)
           : Promise.resolve(null),
         validateUrlSafety(validatedData.url),
-        getActiveSubscription(session.user.id),
+        getWorkspaceOwnerPlanTypeBySlug(context.workspaceslug),
       ]);
 
     if (!workspaceCheck.success || !workspaceCheck.workspace) {
@@ -255,10 +257,6 @@ export async function POST(
       );
     }
 
-    const planType =
-      subscriptionResult.subscription?.plan?.planType ??
-      workspaceCheck.planType ??
-      null;
     const geo = (validatedData.geo ?? null) as GeoTargetMap | null;
 
     if (geo && !canUseGeoTargeting(planType)) {

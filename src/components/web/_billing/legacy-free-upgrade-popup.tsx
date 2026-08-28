@@ -35,6 +35,28 @@ function isPaidPolarEntitlement(input: {
   return isActive && (provider === "polar" || hasCustomerId || hasPriceId);
 }
 
+function isExpiredPaidSubscription(input: {
+  planType: string | null;
+  customerId?: string | null;
+  provider?: string | null;
+  priceId?: string | null;
+  status?: string | null;
+  hasSubscriptionRecord: boolean;
+}) {
+  if (!input.hasSubscriptionRecord) return false;
+  if (isPaidPolarEntitlement(input)) return false;
+
+  const normalizedType = (input.planType ?? "").toLowerCase();
+  const status = (input.status ?? "").toLowerCase();
+  const hasCustomerId = Boolean(input.customerId?.trim());
+
+  return (
+    hasCustomerId &&
+    status === "inactive" &&
+    (normalizedType === "basic" || normalizedType === "pro")
+  );
+}
+
 function isLegacyUnpaidBasicSubscription(input: {
   planType: string | null;
   customerId?: string | null;
@@ -110,6 +132,14 @@ export default function LegacyFreeUpgradePopup() {
 
     return (
       isLegacyFreePlan(planType, subscription?.plan?.name) ||
+      isExpiredPaidSubscription({
+        planType,
+        customerId: subscription?.customerId,
+        provider: subscription?.provider,
+        priceId: subscription?.priceId,
+        status: subscription?.status,
+        hasSubscriptionRecord: Boolean(subscription?.id),
+      }) ||
       isLegacyUnpaidBasicSubscription({
         planType,
         customerId: subscription?.customerId,

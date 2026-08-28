@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 import { calculateUsagePeriod, isUsagePeriodExpired } from "@/lib/usage-period";
+import { withCronAuth } from "@/lib/cron-auth";
 
 const BATCH_SIZE = 100;
 
@@ -171,11 +171,4 @@ async function handler() {
   }
 }
 
-// Only use signature verification if QStASH keys configured
-const QSTASH_CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
-const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
-
-export const POST =
-  QSTASH_CURRENT_SIGNING_KEY && QSTASH_NEXT_SIGNING_KEY
-    ? verifySignatureAppRouter(handler)
-    : handler;
+export const POST = withCronAuth(handler);

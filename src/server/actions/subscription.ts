@@ -6,22 +6,27 @@ import { syncUserLimits } from "@/lib/subscription/limits-sync";
 import {
   reconcileSubscriptionIfStale,
   subscriptionWithPlanSelect,
+  isLifetimeBillingPeriod,
 } from "@/lib/subscription/reconcile";
-import { activeSubscriptionSelect } from "@/lib/subscription/basic-entitlement";
 
 export async function getActiveSubscription(userId: string) {
   try {
-    const subscription = await db.subscription.findFirst({
+    const rawSubscription = await db.subscription.findFirst({
       where: {
         referenceId: userId,
         status: {
           in: ["active", "trialing"],
         },
       },
-      select: activeSubscriptionSelect,
+      select: subscriptionWithPlanSelect,
     });
 
-    if (!subscription) {
+    const subscription = await reconcileSubscriptionIfStale(rawSubscription);
+
+    if (
+      !subscription ||
+      !["active", "trialing"].includes(subscription.status.toLowerCase())
+    ) {
       return {
         msg: "No active subscription",
         status: false,
@@ -29,7 +34,7 @@ export async function getActiveSubscription(userId: string) {
       };
     }
 
-    return { msg: "Success", status: true, subscription: subscription };
+    return { msg: "Success", status: true, subscription };
   } catch (error) {
     console.error("Get active subscription error:", error);
     return { msg: "Internal server error", status: false, subscription: null };
@@ -56,6 +61,22 @@ export async function getSubscriptionWithPlan(userId: string) {
       return {
         success: false,
         message: "No active subscription found",
+        subscription: null,
+      };
+    }
+
+    const now = new Date();
+    if (
+      subscription.periodEnd <= now &&
+      !isLifetimeBillingPeriod(
+        subscription.plan.planType,
+        subscription.periodStart,
+        subscription.periodEnd,
+      )
+    ) {
+      return {
+        success: false,
+        message: "Subscription expired",
         subscription: null,
       };
     }
@@ -165,6 +186,12 @@ export async function getBillingData(workspaceSlug: string) {
     // Format billing cycle dates
     const periodStart = subscriptionResult.subscription?.periodStart;
     const periodEnd = subscriptionResult.subscription?.periodEnd;
+    const planType = subscriptionResult.subscription?.plan?.planType;
+    const isLifetimeAccess = isLifetimeBillingPeriod(
+      planType,
+      periodStart,
+      periodEnd,
+    );
     const hasActiveSubscription = Boolean(subscriptionResult.subscription?.id);
     const hasCustomerId = Boolean(
       subscriptionResult.subscription?.customerId || user?.customerId,
@@ -205,6 +232,7 @@ export async function getBillingData(workspaceSlug: string) {
                 year: "numeric",
               })
             : null,
+          isLifetime: isLifetimeAccess,
         },
         subscription: {
           cancelAtPeriodEnd:
@@ -280,10 +308,10 @@ export async function getCheckoutUrl(productId?: string, priceId?: string) {
     const checkoutUrl = new URL(`${baseUrl}/api/subscription/checkout`);
 
     if (productId) {
-      checkoutUrl.searchParams.set("product_id", productId);
+      checkoutUrl.searchParams.set("products", productId);
     }
     if (priceId) {
-      checkoutUrl.searchParams.set("price_id", priceId);
+      checkoutUrl.searchParams.set("products", priceId);
     }
 
     return {

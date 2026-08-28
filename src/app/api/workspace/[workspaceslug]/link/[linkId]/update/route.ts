@@ -16,7 +16,6 @@ import {
   maskLinkPassword,
 } from "@/lib/link-password";
 import { assertSafeDestinationUrl, isHttpUrl } from "@/lib/url-policy";
-import { getActiveSubscription } from "@/server/actions/subscription";
 import {
   canUseGeoTargeting,
   geoTargetSchema,
@@ -24,7 +23,10 @@ import {
   parseGeoFromCache,
   type GeoTargetMap,
 } from "@/lib/link-targeting";
-import { canUseLeadTracking } from "@/lib/subscription/entitlements";
+import {
+  canUseLeadTracking,
+  getWorkspaceOwnerPlanTypeBySlug,
+} from "@/lib/subscription/entitlements";
 import { Prisma } from "@prisma/client";
 
 const DEFAULT_DOMAIN = "slugy.co";
@@ -109,15 +111,14 @@ export async function PATCH(
     const context = await params;
 
     // Check workspace access (member/admin/owner can edit links)
-    const [access, subscriptionResult] = await Promise.all([
+    const [access, planType] = await Promise.all([
       getWorkspaceAccess(session.user.id, context.workspaceslug),
-      getActiveSubscription(session.user.id),
+      getWorkspaceOwnerPlanTypeBySlug(context.workspaceslug),
     ]);
     if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
     const workspace = access.workspace;
-    const planType = subscriptionResult.subscription?.plan?.planType ?? null;
 
     const link = await db.link.findFirst({
       where: { id: context.linkId, workspaceId: workspace.id },

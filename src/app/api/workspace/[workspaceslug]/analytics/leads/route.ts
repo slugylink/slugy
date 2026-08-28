@@ -3,8 +3,10 @@ import { z } from "zod";
 import { getAuthSession } from "@/lib/auth";
 import { sql } from "@/server/neon";
 import { apiErrors } from "@/lib/api-response";
-import { getActiveSubscription } from "@/server/actions/subscription";
-import { canUseLeadTracking } from "@/lib/subscription/entitlements";
+import {
+  canUseLeadTracking,
+  getWorkspaceOwnerPlanTypeBySlug,
+} from "@/lib/subscription/entitlements";
 import {
   transformTinybirdAnalytics,
   type AnalyticsMetric,
@@ -107,8 +109,7 @@ export async function GET(
 
     const workspaceId = workspaceResult[0].id as string;
 
-    const subscriptionResult = await getActiveSubscription(session.user.id);
-    const planType = subscriptionResult.subscription?.plan?.planType ?? null;
+    const planType = await getWorkspaceOwnerPlanTypeBySlug(workspaceslug);
     if (!canUseLeadTracking(planType)) {
       return apiErrors.forbidden("Lead tracking requires a Pro plan.");
     }
