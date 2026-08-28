@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
 import { getCachedSession } from "@/lib/middleware/get-session";
+import { resolveDefaultWorkspaceRedirect } from "@/lib/middleware/get-default-workspace-redirect";
 import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 
 import {
@@ -283,6 +284,35 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
 //─────────── App Subdomain Handlers ───────────
 
+async function redirectAuthenticatedUserToWorkspace(
+  req: NextRequest,
+  baseUrl: string,
+  search: string,
+  redirectStatus: number,
+): Promise<NextResponse | null> {
+  const result = await resolveDefaultWorkspaceRedirect(req);
+
+  if (result.status === "redirect") {
+    return addSecurityHeaders(
+      NextResponse.redirect(
+        new URL(`/${result.slug}${search}`, baseUrl),
+        redirectStatus,
+      ),
+    );
+  }
+
+  if (result.status === "onboarding") {
+    return addSecurityHeaders(
+      NextResponse.redirect(
+        new URL(`/onboarding/create-workspace${search}`, baseUrl),
+        redirectStatus,
+      ),
+    );
+  }
+
+  return null;
+}
+
 async function handleAppSubdomain(
   url: URL,
   req: NextRequest,
@@ -307,6 +337,14 @@ async function handleAppSubdomain(
   // Handle root path
   if (pathname === "/") {
     if (token) {
+      const workspaceRedirect = await redirectAuthenticatedUserToWorkspace(
+        req,
+        baseUrl,
+        search,
+        authRedirectStatus,
+      );
+      if (workspaceRedirect) return workspaceRedirect;
+
       return addSecurityHeaders(
         NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
       );
@@ -330,8 +368,14 @@ async function handleAppSubdomain(
     }
 
     if (token && (pathname === "/login" || pathname === "/signup")) {
-      // Logged-in users should leave auth pages (OAuth often returns to /login).
-      // Dead-cookie loops are broken by /api/auth/session-cleanup.
+      const workspaceRedirect = await redirectAuthenticatedUserToWorkspace(
+        req,
+        baseUrl,
+        search,
+        authRedirectStatus,
+      );
+      if (workspaceRedirect) return workspaceRedirect;
+
       return addSecurityHeaders(
         NextResponse.redirect(new URL("/", baseUrl), authRedirectStatus),
       );

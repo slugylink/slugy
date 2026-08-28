@@ -1,5 +1,6 @@
 import { getAuthSession } from "@/lib/auth";
 import { getDefaultWorkspace } from "@/server/actions/workspace/workspace";
+import { warmDefaultWorkspaceRedirectCache } from "@/lib/middleware/get-default-workspace-redirect";
 import { redirect } from "next/navigation";
 
 export default async function App() {
@@ -13,8 +14,14 @@ export default async function App() {
   const defaultWorkspace = await getDefaultWorkspace(session.user.id);
 
   if (!defaultWorkspace.success || !defaultWorkspace.workspace) {
+    await warmDefaultWorkspaceRedirectCache(session.user.id, null);
     redirect("/onboarding/create-workspace");
   }
+
+  await warmDefaultWorkspaceRedirectCache(
+    session.user.id,
+    defaultWorkspace.workspace.slug,
+  );
 
   redirect(`/${defaultWorkspace.workspace.slug}`);
 }

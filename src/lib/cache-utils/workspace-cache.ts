@@ -1,4 +1,5 @@
 import { redis, CACHE_BASE_TTL, CACHE_TTL_JITTER } from "@/lib/redis";
+import { invalidateMiddlewareWorkspaceRedirectCache } from "@/lib/middleware/get-default-workspace-redirect";
 
 // Types for workspace cache
 type WorkspaceCacheType = {
@@ -205,6 +206,7 @@ export async function invalidateWorkspaceCache(userId: string): Promise<void> {
       redis.del(`workspace:default:${userId}`),
       redis.del(`workspace:all:${userId}`),
       invalidateAllValidationCaches(userId),
+      invalidateMiddlewareWorkspaceRedirectCache(userId),
     ]);
 
     console.log(`Cache invalidated for user: ${userId}`);
