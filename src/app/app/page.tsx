@@ -15,7 +15,7 @@ export default async function App() {
 
   if (!defaultWorkspace.success || !defaultWorkspace.workspace) {
     await warmDefaultWorkspaceRedirectCache(session.user.id, null);
-    redirect("/onboarding/create-workspace");
+    redirect("/onboarding/welcome");
   }
 
   await warmDefaultWorkspaceRedirectCache(

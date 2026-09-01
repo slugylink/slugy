@@ -304,7 +304,7 @@ async function redirectAuthenticatedUserToWorkspace(
   if (result.status === "onboarding") {
     return addSecurityHeaders(
       NextResponse.redirect(
-        new URL(`/onboarding/create-workspace${search}`, baseUrl),
+        new URL(`/onboarding/welcome${search}`, baseUrl),
         redirectStatus,
       ),
     );

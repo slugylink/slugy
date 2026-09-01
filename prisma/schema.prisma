@@ -57,6 +57,15 @@ enum ResourcePermission {
   write
 }
 
+enum OnboardingUseCase {
+  sharing_links
+  marketing_campaigns
+  tracking_clicks
+  qr_codes
+  bio_link
+  exploring
+}
+
 // -------------User & Authentication--------------
 
 model User {
@@ -69,6 +78,7 @@ model User {
   role            Role              @default(user)
   customerId      String?
   lifetimeBasicAt DateTime?
+  intendedUse     OnboardingUseCase?
   banned          Boolean           @default(false)
   banReason       String?
   banExpires      Int?
