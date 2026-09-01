@@ -45,8 +45,8 @@ const heroData = {
     "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text-transparent",
   subheading1: (
     <>
-      Shorten links, track performance, and understand your audience
-      <br className="hidden sm:block" /> — all in one place.
+      Branded links, analytics, QR codes and link-in-bio
+      <br className="hidden sm:block" /> — without the enterprise price tag.
     </>
   ),
 } as const;

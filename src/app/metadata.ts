@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s | Slugy",
   },
   description:
-    "Transform long URLs into beautiful, trackable short links with Slugy. Open-source URL shortener with advanced analytics, link-in-bio pages, custom domains, and team collaboration.",
+    "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
   keywords: [
     "URL shortener",
     "short links",
@@ -73,7 +73,7 @@ export const metadata: Metadata = {
     siteName: "Slugy",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, custom domains, and team collaboration.",
+      "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
     locale: "en_US",
     images: [
       {
@@ -90,7 +90,7 @@ export const metadata: Metadata = {
     creator: "@sandip_dev_07",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
-      "Transform long URLs into beautiful, trackable short links. Open-source platform with analytics, link-in-bio pages, and custom domains.",
+      "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
     images: [OG_IMAGE_URL],
   },
   other: {
