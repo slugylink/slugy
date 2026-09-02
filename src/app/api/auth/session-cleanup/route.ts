@@ -8,6 +8,7 @@ const AUTH_COOKIE_NAMES = [
   "__Secure-better-auth.session_data",
   "better-auth.dont_remember",
   "__Secure-better-auth.dont_remember",
+  "slugy_workspace",
 ];
 
 function getRootDomain(hostHeader: string | null): string | null {
@@ -40,8 +41,10 @@ export async function GET(req: NextRequest) {
       "Max-Age=0",
       "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
       "SameSite=Lax",
-      "HttpOnly",
     ];
+    if (name !== "slugy_workspace") {
+      parts.push("HttpOnly");
+    }
     if (secure) parts.push("Secure");
     if (domain) parts.push(`Domain=${domain}`);
     response.headers.append("Set-Cookie", parts.join("; "));

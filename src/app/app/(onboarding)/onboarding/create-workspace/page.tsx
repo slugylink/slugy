@@ -19,6 +19,7 @@ import slugify from "@sindresorhus/slugify";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import AppLogo from "@/components/web/app-logo";
+import { persistWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -72,6 +73,7 @@ export default function CreateWorkspace() {
         toast.success("Workspace created successfully!");
         form.reset();
         const slug = res.slug || data.workspaceslug;
+        persistWorkspaceSlugCookie(slug);
         router.push(`/onboarding/plans?workspace=${encodeURIComponent(slug)}`);
       } else {
         const errorMessage = res.error || "Failed to create workspace";

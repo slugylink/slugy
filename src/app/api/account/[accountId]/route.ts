@@ -40,6 +40,7 @@ const KNOWN_AUTH_COOKIES = [
   "__Host-better-auth.session_token",
   "better-auth.session_data",
   "__Secure-better-auth.session_data",
+  "slugy_workspace",
 ];
 
 // Utility functions
@@ -90,8 +91,10 @@ const buildCookieClearHeaders = (req: Request): Headers => {
       "Max-Age=0",
       "Expires=Thu, 01 Jan 1970 00:00:00 GMT",
       "SameSite=Lax",
-      "HttpOnly",
     ];
+    if (cookieName !== "slugy_workspace") {
+      parts.push("HttpOnly");
+    }
     if (secure) parts.push("Secure");
     if (domain) parts.push(`Domain=${domain}`);
     responseHeaders.append("Set-Cookie", parts.join("; "));

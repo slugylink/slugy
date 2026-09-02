@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { Plus } from "lucide-react";
 import AppLogo from "../app-logo";
+import { persistWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 
 type FormData = z.infer<typeof formSchema>;
 
@@ -92,6 +93,9 @@ export default function CreateWorkspaceDialog() {
         toast.success("Workspace created successfully!");
         reset();
         setOpen(false);
+        if (res.slug) {
+          persistWorkspaceSlugCookie(res.slug);
+        }
         // Force a hard refresh to ensure cache is cleared
         router.refresh();
         router.push(`/${res.slug}`);

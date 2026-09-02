@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { acceptInvitation, getInvitationDetails } from "@/server/actions/organization";
+import {
+  acceptInvitation,
+  getInvitationDetails,
+} from "@/server/actions/organization";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import AppLogo from "@/components/web/app-logo";
+import { persistWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 
 interface InvitationPageProps {
   params: Promise<{
@@ -26,7 +30,9 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
-  const [invitationData, setInvitationData] = useState<InvitationData | null>(null);
+  const [invitationData, setInvitationData] = useState<InvitationData | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   // Unwrap the params Promise
@@ -72,6 +78,7 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
         toast.success("Invitation accepted successfully!");
         // Redirect to the organization workspace
         if (result.workspace) {
+          persistWorkspaceSlugCookie(result.workspace.slug);
           router.push(`/${result.workspace.slug}`);
         } else {
           router.push("/dashboard");
@@ -106,7 +113,9 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
       <div className="flex min-h-screen w-full items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <LoaderCircle className="h-5 w-5 animate-spin" />
-          <p className="text-zinc-600 dark:text-zinc-300">Loading invitation...</p>
+          <p className="text-zinc-600 dark:text-zinc-300">
+            Loading invitation...
+          </p>
         </div>
       </div>
     );
@@ -124,7 +133,10 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
                 : "Organization Invitation"}
             </h2>
             <p className="text-center text-zinc-600 dark:text-zinc-300">
-              You&apos;ve been invited to join {invitationData?.targetType === "workspace" ? "a workspace" : "an organization"}
+              You&apos;ve been invited to join{" "}
+              {invitationData?.targetType === "workspace"
+                ? "a workspace"
+                : "an organization"}
             </p>
           </div>
         </div>
@@ -147,12 +159,19 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
             <div className="rounded-md bg-yellow-50 p-4">
               <div className="space-y-2">
                 <p className="text-sm dark:text-blue-200">
-                  <span className="font-semibold">{invitationData.inviterName}</span> has invited you to join{" "}
-                  <span className="font-semibold">{invitationData.targetName}</span> workspace as a{" "}
+                  <span className="font-semibold">
+                    {invitationData.inviterName}
+                  </span>{" "}
+                  has invited you to join{" "}
+                  <span className="font-semibold">
+                    {invitationData.targetName}
+                  </span>{" "}
+                  workspace as a{" "}
                   <span className="font-semibold">{invitationData.role}</span>.
                 </p>
                 <p className="text-xs dark:text-blue-300">
-                  Invitation expires: {invitationData.expiresAt.toLocaleDateString()}
+                  Invitation expires:{" "}
+                  {invitationData.expiresAt.toLocaleDateString()}
                 </p>
               </div>
             </div>
@@ -191,4 +210,4 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
       </div>
     </div>
   );
-} 
+}

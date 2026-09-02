@@ -22,6 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import CreateWorkspaceDialog from "./create-workspace-dialog";
+import { persistWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 
 // ============================================================================
 // Types
@@ -170,6 +171,7 @@ function WorkspaceSwitch({
   // Handle workspace switching
   const handleWorkspaceSwitch = useCallback(
     (workspace: WorkspaceArr) => {
+      persistWorkspaceSlugCookie(workspace.slug);
       const newPath = buildNewWorkspacePath(
         pathname,
         workspaceslug,

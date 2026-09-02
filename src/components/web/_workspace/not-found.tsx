@@ -2,11 +2,16 @@
 import { Button } from "@/components/ui/button";
 import AppLogo from "../app-logo";
 import { signOutAndRedirect } from "@/lib/auth-client";
+import { clearWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import React from "react";
 
 export default function WorkspaceNotFound() {
   const [isLoading, setIsLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    clearWorkspaceSlugCookie();
+  }, []);
 
   const handleSignout = async () => {
     setIsLoading(true);

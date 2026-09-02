@@ -1,4 +1,5 @@
 import { origins } from "@/constants/origins";
+import { clearWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 import { createAuthClient } from "better-auth/client";
 import { magicLinkClient } from "better-auth/client/plugins";
 import { adminClient } from "better-auth/client/plugins";
@@ -31,6 +32,7 @@ export function hardNavigate(path: string) {
 
 export async function signOutAndRedirect(to = "/login") {
   try {
+    clearWorkspaceSlugCookie();
     await authClient.signOut();
   } catch (error) {
     console.error("Sign out failed:", error);

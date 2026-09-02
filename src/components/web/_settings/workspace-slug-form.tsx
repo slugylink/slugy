@@ -18,6 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { persistWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 
 const formSchema = z.object({
   slug: z
@@ -65,6 +66,7 @@ const WorkspaceSlugForm = ({
         { slug },
       );
       toast.success("Workspace slug updated successfully.");
+      persistWorkspaceSlugCookie(slug);
       router.refresh();
       router.push(`/${slug}`);
     } catch (error) {

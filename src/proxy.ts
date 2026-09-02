@@ -4,6 +4,11 @@ import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
 import { getCachedSession } from "@/lib/middleware/get-session";
 import { resolveDefaultWorkspaceRedirect } from "@/lib/middleware/get-default-workspace-redirect";
 import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
+import {
+  applyWorkspaceCookie,
+  getWorkspaceCookie,
+  workspaceSlugFromPath,
+} from "@/lib/workspace-cookie";
 
 import {
   checkRateLimit,
@@ -284,21 +289,35 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
 //─────────── App Subdomain Handlers ───────────
 
+function redirectToWorkspace(
+  slug: string,
+  baseUrl: string,
+  search: string,
+  redirectStatus: number,
+): NextResponse {
+  const response = NextResponse.redirect(
+    new URL(`/${slug}${search}`, baseUrl),
+    redirectStatus,
+  );
+  applyWorkspaceCookie(response, slug);
+  return addSecurityHeaders(response);
+}
+
 async function redirectAuthenticatedUserToWorkspace(
   req: NextRequest,
   baseUrl: string,
   search: string,
   redirectStatus: number,
 ): Promise<NextResponse | null> {
+  const cookieSlug = getWorkspaceCookie(req);
+  if (cookieSlug) {
+    return redirectToWorkspace(cookieSlug, baseUrl, search, redirectStatus);
+  }
+
   const result = await resolveDefaultWorkspaceRedirect(req);
 
   if (result.status === "redirect") {
-    return addSecurityHeaders(
-      NextResponse.redirect(
-        new URL(`/${result.slug}${search}`, baseUrl),
-        redirectStatus,
-      ),
-    );
+    return redirectToWorkspace(result.slug, baseUrl, search, redirectStatus);
   }
 
   if (result.status === "onboarding") {
@@ -399,12 +418,22 @@ async function handleAppSubdomain(
 
   // Rewrite to app subdirectory if needed
   if (!isAlreadyInApp) {
-    return addSecurityHeaders(
+    const response = addSecurityHeaders(
       NextResponse.rewrite(new URL(prefixedPath, baseUrl)),
     );
+    const workspaceSlug = token ? workspaceSlugFromPath(pathname) : null;
+    if (workspaceSlug) {
+      applyWorkspaceCookie(response, workspaceSlug);
+    }
+    return response;
   }
 
-  return addSecurityHeaders(NextResponse.next());
+  const passthrough = addSecurityHeaders(NextResponse.next());
+  const workspaceSlug = token ? workspaceSlugFromPath(pathname) : null;
+  if (workspaceSlug) {
+    applyWorkspaceCookie(passthrough, workspaceSlug);
+  }
+  return passthrough;
 }
 
 async function handleRootDomain(
@@ -426,6 +455,10 @@ async function handleRootDomain(
     if (token) {
       const appUrl = new URL(req.url);
       appUrl.hostname = SUBDOMAINS.app;
+      const workspaceSlug = getWorkspaceCookie(req);
+      if (workspaceSlug) {
+        appUrl.pathname = `/${workspaceSlug}`;
+      }
       return redirectTo(appUrl.toString(), redirectStatus);
     }
   }
