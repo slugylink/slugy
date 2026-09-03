@@ -3,6 +3,8 @@ import { db } from "@/server/db";
 import { getBillingData } from "@/server/actions/subscription";
 import AppPricingComparator from "@/components/app-pricing-comparator";
 
+export const dynamic = "force-dynamic";
+
 type PriceInterval = "month" | "year" | null;
 
 interface TransformedPrice {
@@ -51,6 +53,38 @@ function transformPrice(price: unknown): TransformedPrice {
   };
 }
 
+interface PolarProduct {
+  id?: string;
+  name?: string;
+  prices?: unknown[];
+}
+
+async function listPolarProducts(): Promise<PolarProduct[]> {
+  try {
+    const response = await polarClient.products.list({ isArchived: false });
+    const items = response?.result?.items;
+    if (Array.isArray(items)) return items as PolarProduct[];
+
+    const collected: PolarProduct[] = [];
+    if (
+      response &&
+      typeof response === "object" &&
+      Symbol.asyncIterator in response
+    ) {
+      for await (const page of response as AsyncIterable<{
+        result?: { items?: PolarProduct[] };
+      }>) {
+        collected.push(...(page.result?.items ?? []));
+        break;
+      }
+    }
+    return collected;
+  } catch (error) {
+    console.error("Failed to list Polar products for upgrade page:", error);
+    return [];
+  }
+}
+
 export default async function Upgrade({
   params,
 }: {
@@ -58,12 +92,10 @@ export default async function Upgrade({
 }) {
   const { workspace } = await params;
 
-  const [response, billingResult] = await Promise.all([
-    polarClient.products.list({ isArchived: false }),
+  const [items, billingResult] = await Promise.all([
+    listPolarProducts(),
     getBillingData(workspace),
   ]);
-
-  const items = response?.result?.items ?? [];
 
   const planType =
     billingResult.success && billingResult.data?.plan?.planType
@@ -97,15 +129,19 @@ export default async function Upgrade({
     }
   }
   if (monthlyPriceId || yearlyPriceId) {
-    const pro = await db.plan.findFirst({ where: { planType: "pro" } });
-    if (pro) {
-      await db.plan.update({
-        where: { id: pro.id },
-        data: {
-          ...(monthlyPriceId && { monthlyPriceId }),
-          ...(yearlyPriceId && { yearlyPriceId }),
-        },
-      });
+    try {
+      const pro = await db.plan.findFirst({ where: { planType: "pro" } });
+      if (pro) {
+        await db.plan.update({
+          where: { id: pro.id },
+          data: {
+            ...(monthlyPriceId && { monthlyPriceId }),
+            ...(yearlyPriceId && { yearlyPriceId }),
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to sync Pro price IDs:", error);
     }
   }
 

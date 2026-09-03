@@ -11,6 +11,7 @@ import {
   PRICING_COMPARISON_FEATURES,
   PRICING_COPY,
   PRICING_CURRENCY_FORMAT,
+  getPlanPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
   type PricingFeatureValue,
@@ -116,26 +117,6 @@ function buildBasicCtaUrl(
   return `${CHECKOUT_BASE_URL}?${params.toString()}`;
 }
 
-function getProPrices(products?: ProductData[]): {
-  monthly: number;
-  yearly: number;
-} {
-  if (!products?.length) {
-    return { monthly: PRO_PLAN.monthlyPrice, yearly: PRO_PLAN.yearlyPrice };
-  }
-
-  const allPrices = products
-    .filter((p) => getPlanTypeFromProductName(p.name) === "pro")
-    .flatMap((p) => p.prices);
-  const monthly = allPrices.find((p) => p.interval === "month")?.amount;
-  const yearly = allPrices.find((p) => p.interval === "year")?.amount;
-
-  return {
-    monthly: typeof monthly === "number" ? monthly : PRO_PLAN.monthlyPrice,
-    yearly: typeof yearly === "number" ? yearly : PRO_PLAN.yearlyPrice,
-  };
-}
-
 function PlanCtaButton({
   href,
   label,
@@ -187,9 +168,7 @@ export default function AppPricingComparator({
   const isProCurrent = currentPlanType === "pro" || Boolean(isPaidPlan);
 
   const features = PRICING_COMPARISON_FEATURES;
-  const proPrices = useMemo(() => getProPrices(products), [products]);
-  const proPrice =
-    billingPeriod === "yearly" ? proPrices.yearly : proPrices.monthly;
+  const proPrice = getPlanPrice(PRO_PLAN, billingPeriod);
   const proSubtitle = getPlanPriceSubtitle(PRO_PLAN, billingPeriod);
   const proCtaUrl = useMemo(
     () => buildProCtaUrl(products, workspace, isPaidPlan, successUrlPath),
@@ -210,7 +189,7 @@ export default function AppPricingComparator({
           </span>{" "}
           {PRICING_COPY.promoSuffix}
         </p>
-        <div className="mb-6 flex justify-center pt-3 sm:mb-8 sm:justify-end">
+        <div className="mb-6 flex justify-center pt-3 sm:mb-8">
           <Tabs
             value={billingPeriod}
             onValueChange={(value) => setBillingPeriod(value as BillingPeriod)}
