@@ -41,6 +41,7 @@ interface PricingComparatorProps {
   products?: ProductData[];
   workspace?: string;
   isPaidPlan?: boolean;
+  currentPlanType?: "basic" | "pro" | null;
   successUrlPath?: string;
 }
 
@@ -232,6 +233,34 @@ function getProPrices(products?: ProductData[]): {
   };
 }
 
+function PlanCtaButton({
+  href,
+  label,
+  isCurrent,
+  variant,
+  className,
+}: {
+  href: string;
+  label: string;
+  isCurrent: boolean;
+  variant: "outline" | "default";
+  className?: string;
+}) {
+  if (isCurrent) {
+    return (
+      <Button variant="outline" size="sm" className={className} disabled>
+        Currently active
+      </Button>
+    );
+  }
+
+  return (
+    <Button asChild variant={variant} size="sm" className={className}>
+      <Link href={href}>{label}</Link>
+    </Button>
+  );
+}
+
 function FeatureCell({ value }: { value: FeatureValue }) {
   if (typeof value === "boolean") {
     return value ? (
@@ -247,9 +276,12 @@ export default function AppPricingComparator({
   products,
   workspace,
   isPaidPlan,
+  currentPlanType,
   successUrlPath,
 }: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  const isBasicCurrent = currentPlanType === "basic";
+  const isProCurrent = currentPlanType === "pro" || Boolean(isPaidPlan);
 
   const features = useMemo(() => buildFeatures(), []);
   const proPrices = useMemo(() => getProPrices(products), [products]);
@@ -301,14 +333,13 @@ export default function AppPricingComparator({
                 />
               </p>
               <p className="text-muted-foreground text-xs">Forever</p>
-              <Button
-                asChild
+              <PlanCtaButton
+                href={basicCtaUrl}
+                label="Get Basic"
+                isCurrent={isBasicCurrent}
                 variant="outline"
-                size="sm"
                 className="mt-3 w-full"
-              >
-                <Link href={basicCtaUrl}>Get Basic</Link>
-              </Button>
+              />
             </div>
 
             <div className="bg-muted rounded-lg border p-4">
@@ -321,16 +352,13 @@ export default function AppPricingComparator({
                 />
               </p>
               <p className="text-muted-foreground text-xs">{proSubtitle}</p>
-              <Button
-                asChild
-                variant={isPaidPlan ? "outline" : "default"}
-                size="sm"
+              <PlanCtaButton
+                href={proCtaUrl}
+                label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}
+                isCurrent={false}
+                variant={isProCurrent ? "outline" : "default"}
                 className="mt-3 w-full"
-              >
-                <Link href={proCtaUrl}>
-                  {isPaidPlan ? "Manage" : PRO_PLAN.buttonLabel}
-                </Link>
-              </Button>
+              />
             </div>
           </div>
 
@@ -376,9 +404,12 @@ export default function AppPricingComparator({
                   <span className="text-muted-foreground block text-xs">
                     Forever
                   </span>
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={basicCtaUrl}>Get Basic</Link>
-                  </Button>
+                  <PlanCtaButton
+                    href={basicCtaUrl}
+                    label="Get Basic"
+                    isCurrent={isBasicCurrent}
+                    variant="outline"
+                  />
                 </th>
 
                 <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
@@ -393,15 +424,12 @@ export default function AppPricingComparator({
                   <span className="text-muted-foreground block text-sm">
                     {proSubtitle}
                   </span>
-                  <Button
-                    asChild
-                    variant={isPaidPlan ? "outline" : "default"}
-                    size="sm"
-                  >
-                    <Link href={proCtaUrl}>
-                      {isPaidPlan ? "Manage" : PRO_PLAN.buttonLabel}
-                    </Link>
-                  </Button>
+                  <PlanCtaButton
+                    href={proCtaUrl}
+                    label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}
+                    isCurrent={false}
+                    variant={isProCurrent ? "outline" : "default"}
+                  />
                 </th>
               </tr>
             </thead>

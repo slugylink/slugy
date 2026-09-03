@@ -65,11 +65,17 @@ export default async function Upgrade({
 
   const items = response?.result?.items ?? [];
 
-  // Check if user has a paid subscription (Pro)
-  const isPaidPlan =
+  const planType =
     billingResult.success && billingResult.data?.plan?.planType
-      ? billingResult.data.plan.planType.toLowerCase() === "pro"
-      : false;
+      ? billingResult.data.plan.planType.toLowerCase()
+      : null;
+  const hasActiveSubscription =
+    billingResult.data?.subscription?.hasActiveSubscription === true;
+  const currentPlanType =
+    hasActiveSubscription && (planType === "basic" || planType === "pro")
+      ? planType
+      : null;
+  const isPaidPlan = currentPlanType === "pro";
 
   // Sync Pro plan price IDs from Polar so webhooks can match (Plan not found for price ID)
   let monthlyPriceId: string | null = null;
@@ -114,6 +120,7 @@ export default async function Upgrade({
       products={productData}
       workspace={workspace}
       isPaidPlan={isPaidPlan}
+      currentPlanType={currentPlanType}
     />
   );
 }
