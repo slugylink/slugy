@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { AnimatedNumber } from "@/components/web/animated-number";
 import SubscribeButton from "@/components/web/subscribe-button";
 import Link from "next/link";
+import { PRICING_COPY } from "@/constants/data/price";
 
 interface PricingCardProps {
   id: string;
@@ -56,9 +57,11 @@ export function PricingCard({
         </div>
         <p className="text-muted-foreground text-sm">{description}</p>
         <p className="text-primary text-xs font-medium">
-          Use code{" "}
-          <span className="rounded bg-red-500/10 px-2 py-0.5">BETALAUNCH</span>{" "}
-          to get a free $1.
+          {PRICING_COPY.promoPrefix}{" "}
+          <span className="rounded bg-red-500/10 px-2 py-0.5">
+            {PRICING_COPY.promoCode}
+          </span>{" "}
+          {PRICING_COPY.promoSuffix}
         </p>
       </div>
       <div className="flex items-baseline gap-2">
@@ -74,7 +77,7 @@ export function PricingCard({
           </span>
         )}
       </div>
-      <Link href={"https://app.slugy.co"}>
+      <Link href={PRICING_COPY.loginUrl}>
         {/* <Button
           disabled={!isReady}
           variant={+price === 0 ? "outline" : "default"}

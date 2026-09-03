@@ -1,5 +1,4 @@
 "use client";
-import { plans } from "@/constants/data/price";
 import MaxWidthContainer from "@/components/max-width-container";
 import { useState } from "react";
 import {
@@ -16,18 +15,18 @@ import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import NumberFlow from "@number-flow/react";
-
-type Plan = (typeof plans)[number];
-
-const CURRENCY_FORMAT = {
-  style: "currency" as const,
-  currency: "USD",
-  currencyDisplay: "narrowSymbol" as const,
-  maximumFractionDigits: 0,
-};
+import {
+  plans,
+  PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
+  getPlanPrice,
+  getPlanPriceSubtitle,
+  type BillingPeriod,
+  type Plan,
+} from "@/constants/data/price";
 
 export default function PricingSection() {
-  const [billing, setBilling] = useState<"monthly" | "yearly">("monthly");
+  const [billing, setBilling] = useState<BillingPeriod>("monthly");
 
   return (
     <section className="mt-12 py-8 sm:py-10">
@@ -40,16 +39,18 @@ export default function PricingSection() {
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
           <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-            Use code{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
-            to get a free $1.
+            {PRICING_COPY.promoPrefix}{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">
+              {PRICING_COPY.promoCode}
+            </span>{" "}
+            {PRICING_COPY.promoSuffix}
           </p>
         </div>
 
         {/* Tabs for monthly & yearly */}
         <Tabs
           value={billing}
-          onValueChange={(v) => setBilling(v as "monthly" | "yearly")}
+          onValueChange={(v) => setBilling(v as BillingPeriod)}
           className="w-full"
         >
           <div className="flex w-full items-center justify-center">
@@ -65,21 +66,16 @@ export default function PricingSection() {
                 const {
                   name,
                   description,
-                  monthlyPrice,
-                  yearlyPrice,
                   isReady,
                   buttonLabel,
                   features,
                   yearlyDiscount,
                 } = plan;
                 const showMore = features.length > 9;
+                const price = getPlanPrice(plan, billing);
+                const priceSubtitle = getPlanPriceSubtitle(plan, billing);
                 const isYearly = billing === "yearly";
                 const isBasic = plan.planType === "basic";
-                const price = isBasic
-                  ? monthlyPrice
-                  : isYearly
-                    ? yearlyPrice
-                    : monthlyPrice;
 
                 return (
                   <Card
@@ -101,15 +97,11 @@ export default function PricingSection() {
                         <NumberFlow
                           value={price}
                           locales="en-US"
-                          format={CURRENCY_FORMAT}
+                          format={PRICING_CURRENCY_FORMAT}
                           className="text-2xl font-medium tracking-tight sm:text-3xl"
                         />
                         <span className="mb-2 text-sm text-zinc-700">
-                          {isBasic
-                            ? "Forever"
-                            : isYearly
-                              ? "/ year"
-                              : "/ month"}
+                          {priceSubtitle}
                         </span>
                         {isYearly &&
                           !isBasic &&
@@ -126,9 +118,7 @@ export default function PricingSection() {
                         className="w-full rounded-lg"
                         disabled={!isReady}
                       >
-                        <Link href="https://app.slugy.co/login">
-                          {buttonLabel}
-                        </Link>
+                        <Link href={PRICING_COPY.loginUrl}>{buttonLabel}</Link>
                       </Button>
                     </CardHeader>
 

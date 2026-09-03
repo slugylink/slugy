@@ -2,6 +2,7 @@
 
 import MaxWidthContainer from "@/components/max-width-container";
 import PricingComparator from "@/components/pricing-comparator";
+import { PRICING_COPY } from "@/constants/data/price";
 
 export default function PricingPageClient() {
   return (
@@ -15,9 +16,11 @@ export default function PricingPageClient() {
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
           <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-            Use code{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
-            to get a free $1.
+            {PRICING_COPY.promoPrefix}{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">
+              {PRICING_COPY.promoCode}
+            </span>{" "}
+            {PRICING_COPY.promoSuffix}
           </p>
         </div>
 

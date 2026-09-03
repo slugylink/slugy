@@ -1,82 +1,13 @@
 import { PrismaClient } from "@prisma/client";
+import {
+  BASIC_PLAN as BASIC_PLAN_SOURCE,
+  PRO_PLAN as PRO_PLAN_SOURCE,
+  toPlanSeed,
+} from "../constants/data/price";
 
 const db = new PrismaClient();
-
-const BASIC_PLAN = {
-  name: "Basic",
-  description: "Great for genuine users who need essential link tools.",
-  monthlyPrice: 1,
-  yearlyPrice: 1,
-  monthlyPriceId: process.env.NEXT_PUBLIC_BASIC_PRICE_ID || "",
-  yearlyPriceId: process.env.NEXT_PUBLIC_BASIC_PRICE_ID || "",
-  isRecommended: false,
-  buttonLabel: "Get basic",
-  isReady: true,
-  yearlyDiscount: 0,
-  planType: "basic" as const,
-  currency: "USD",
-  interval: "month" as const,
-  maxWorkspaces: 2,
-  maxLinksPerWorkspace: 20,
-  maxClicksPerWorkspace: 1000,
-  maxUsers: 1,
-  maxCustomDomains: 2,
-  maxGalleries: 1,
-  maxLinksPerBio: 5,
-  maxTagsPerWorkspace: 5,
-  features: [
-    "2 workspaces",
-    "20 links/workspace",
-    "1k tracked clicks/month",
-    "Basic analytics",
-    "Basic QR codes",
-    "5 links/bio links",
-    "5 link tags",
-    "5 UTM templates",
-    "1 user",
-    "2 custom domains",
-    "Community support",
-  ],
-};
-
-const PRO_PLAN = {
-  name: "Pro",
-  description:
-    "Perfect for individuals and small teams who need advanced features.",
-  monthlyPrice: 10,
-  yearlyPrice: 100,
-  monthlyPriceId: process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID || "",
-  yearlyPriceId: process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID || "",
-  isRecommended: true,
-  buttonLabel: "Get pro",
-  isReady: true,
-  yearlyDiscount: 16.67,
-  planType: "pro" as const,
-  currency: "USD",
-  interval: "month" as const,
-  maxWorkspaces: 5,
-  maxLinksPerWorkspace: 100,
-  maxClicksPerWorkspace: 12000,
-  maxUsers: 3,
-  maxCustomDomains: 10,
-  maxGalleries: 2,
-  maxLinksPerBio: 15,
-  maxTagsPerWorkspace: 15,
-  features: [
-    "5 workspaces",
-    "100 links/workspace",
-    "12k tracked clicks/month",
-    "Custom link preview",
-    "Link expiration",
-    "Password protection",
-    "15 links/bio links",
-    "Up to 3 team members",
-    "15 link tags",
-    "12 months analytics retention",
-    "10 custom domains",
-    "Priority email support",
-  ],
-};
+const BASIC_PLAN = toPlanSeed(BASIC_PLAN_SOURCE);
+const PRO_PLAN = toPlanSeed(PRO_PLAN_SOURCE);
 
 async function main() {
   try {

@@ -5,23 +5,21 @@ import Link from "next/link";
 import NumberFlow from "@number-flow/react";
 import { Check } from "lucide-react";
 
-import { plans } from "@/constants/data/price";
+import {
+  BASIC_PLAN,
+  PRO_PLAN,
+  PRICING_COMPARISON_FEATURES,
+  PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
+  getPlanPriceSubtitle,
+  type BillingPeriod,
+  type PricingFeatureValue,
+} from "@/constants/data/price";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
-const YEARLY_SAVINGS = "2 Months Free";
-
-const CURRENCY_FORMAT = {
-  style: "currency" as const,
-  currency: "USD",
-  currencyDisplay: "narrowSymbol" as const,
-  maximumFractionDigits: 0,
-};
-
-type BillingPeriod = "monthly" | "yearly";
-type FeatureValue = string | boolean | number;
 type PriceInterval = "month" | "year" | null;
 
 interface ProductPrice {
@@ -45,105 +43,12 @@ interface PricingComparatorProps {
   successUrlPath?: string;
 }
 
-interface Feature {
-  feature: string;
-  basic: FeatureValue;
-  pro: FeatureValue;
-}
-
-const [BASIC_PLAN, PRO_PLAN] = (() => {
-  const basic = plans.find((plan) => plan.planType === "basic");
-  const pro = plans.find((plan) => plan.planType === "pro");
-
-  if (!basic || !pro) {
-    throw new Error("Pricing plans are not configured correctly.");
-  }
-
-  return [basic, pro] as const;
-})();
-
 function getPlanTypeFromProductName(name?: string): "basic" | "pro" | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
   if (normalized.includes("basic")) return "basic";
   if (normalized.includes("pro")) return "pro";
   return null;
-}
-
-function formatClicks(clicks: number): string {
-  if (clicks < 1000) return `${clicks} clicks`;
-  const value = clicks / 1000;
-  const formatted = Number.isInteger(value)
-    ? value.toFixed(0)
-    : value.toFixed(1);
-  return `${formatted}k clicks`;
-}
-
-function buildFeatures(): Feature[] {
-  return [
-    {
-      feature: "Workspaces",
-      basic: BASIC_PLAN.maxWorkspaces,
-      pro: PRO_PLAN.maxWorkspaces,
-    },
-    {
-      feature: "Links",
-      basic: `${BASIC_PLAN.maxLinksPerWorkspace} / workspace`,
-      pro: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
-    },
-    {
-      feature: "Analytics",
-      basic: formatClicks(BASIC_PLAN.maxClicksPerWorkspace),
-      pro: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
-    },
-    {
-      feature: "Analytics Retention",
-      basic: BASIC_PLAN.analyticsRetention,
-      pro: PRO_PLAN.analyticsRetention,
-    },
-    { feature: "Advanced Analytics", basic: false, pro: true },
-    {
-      feature: "Bio Links",
-      basic: BASIC_PLAN.maxBioLinks,
-      pro: PRO_PLAN.maxBioLinks,
-    },
-    {
-      feature: "Link Tags",
-      basic: BASIC_PLAN.maxLinkTags,
-      pro: PRO_PLAN.maxLinkTags,
-    },
-    {
-      feature: "Custom Domains",
-      basic: BASIC_PLAN.maxCustomDomains,
-      pro: PRO_PLAN.maxCustomDomains,
-    },
-    { feature: "Users", basic: BASIC_PLAN.maxUsers, pro: PRO_PLAN.maxUsers },
-    {
-      feature: "UTM Templates",
-      basic: BASIC_PLAN.maxUTM,
-      pro: PRO_PLAN.maxUTM,
-    },
-    {
-      feature: "Custom Link Preview",
-      basic: BASIC_PLAN.customizeLinkPreview,
-      pro: PRO_PLAN.customizeLinkPreview,
-    },
-    {
-      feature: "Link Expiration",
-      basic: BASIC_PLAN.linkExp,
-      pro: PRO_PLAN.linkExp,
-    },
-    {
-      feature: "Password Protection",
-      basic: BASIC_PLAN.linkPassword,
-      pro: PRO_PLAN.linkPassword,
-    },
-    {
-      feature: "Geo Targeting",
-      basic: BASIC_PLAN.linkGeoTargeting,
-      pro: PRO_PLAN.linkGeoTargeting,
-    },
-  ];
 }
 
 function getProductIdsByPlanType(
@@ -158,13 +63,10 @@ function getProductIdsByPlanType(
   if (productIds.length > 0) return productIds;
 
   if (planType === "basic") {
-    return [process.env.NEXT_PUBLIC_BASIC_PRICE_ID].filter(Boolean) as string[];
+    return [BASIC_PLAN.monthlyPriceId].filter(Boolean);
   }
 
-  return [
-    process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID,
-    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID,
-  ].filter(Boolean) as string[];
+  return [PRO_PLAN.yearlyPriceId, PRO_PLAN.monthlyPriceId].filter(Boolean);
 }
 
 function buildProCtaUrl(
@@ -197,7 +99,7 @@ function buildBasicCtaUrl(
   workspace?: string,
   successUrlPath?: string,
 ): string {
-  if (!workspace) return "https://app.slugy.co/login";
+  if (!workspace) return PRICING_COPY.loginUrl;
 
   const productIds = getProductIdsByPlanType("basic", products);
   if (productIds.length === 0) return CHECKOUT_BASE_URL;
@@ -261,7 +163,7 @@ function PlanCtaButton({
   );
 }
 
-function FeatureCell({ value }: { value: FeatureValue }) {
+function FeatureCell({ value }: { value: PricingFeatureValue }) {
   if (typeof value === "boolean") {
     return value ? (
       <Check className="size-4" />
@@ -283,11 +185,11 @@ export default function AppPricingComparator({
   const isBasicCurrent = currentPlanType === "basic";
   const isProCurrent = currentPlanType === "pro" || Boolean(isPaidPlan);
 
-  const features = useMemo(() => buildFeatures(), []);
+  const features = PRICING_COMPARISON_FEATURES;
   const proPrices = useMemo(() => getProPrices(products), [products]);
   const proPrice =
     billingPeriod === "yearly" ? proPrices.yearly : proPrices.monthly;
-  const proSubtitle = billingPeriod === "yearly" ? "/year" : "/month";
+  const proSubtitle = getPlanPriceSubtitle(PRO_PLAN, billingPeriod);
   const proCtaUrl = useMemo(
     () => buildProCtaUrl(products, workspace, isPaidPlan, successUrlPath),
     [products, workspace, isPaidPlan, successUrlPath],
@@ -301,9 +203,11 @@ export default function AppPricingComparator({
     <section>
       <div className="mx-auto max-w-full">
         <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
-          Use code{" "}
-          <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span> to
-          get a free $1.
+          {PRICING_COPY.promoPrefix}{" "}
+          <span className="rounded bg-red-500/10 px-2 py-1">
+            {PRICING_COPY.promoCode}
+          </span>{" "}
+          {PRICING_COPY.promoSuffix}
         </p>
         <div className="mb-6 flex justify-center sm:mb-8 sm:justify-end">
           <Tabs
@@ -315,7 +219,7 @@ export default function AppPricingComparator({
                 Monthly
               </TabsTrigger>
               <TabsTrigger value="yearly" className="text-sm">
-                Yearly ({YEARLY_SAVINGS})
+                Yearly ({PRICING_COPY.yearlySavings})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -329,13 +233,15 @@ export default function AppPricingComparator({
                 <NumberFlow
                   value={BASIC_PLAN.monthlyPrice}
                   locales="en-US"
-                  format={CURRENCY_FORMAT}
+                  format={PRICING_CURRENCY_FORMAT}
                 />
               </p>
-              <p className="text-muted-foreground text-xs">Forever</p>
+              <p className="text-muted-foreground text-xs">
+                {getPlanPriceSubtitle(BASIC_PLAN, billingPeriod)}
+              </p>
               <PlanCtaButton
                 href={basicCtaUrl}
-                label="Get Basic"
+                label={BASIC_PLAN.buttonLabel}
                 isCurrent={isBasicCurrent}
                 variant="outline"
                 className="mt-3 w-full"
@@ -348,7 +254,7 @@ export default function AppPricingComparator({
                 <NumberFlow
                   value={proPrice}
                   locales="en-US"
-                  format={CURRENCY_FORMAT}
+                  format={PRICING_CURRENCY_FORMAT}
                 />
               </p>
               <p className="text-muted-foreground text-xs">{proSubtitle}</p>
@@ -398,15 +304,15 @@ export default function AppPricingComparator({
                     <NumberFlow
                       value={BASIC_PLAN.monthlyPrice}
                       locales="en-US"
-                      format={CURRENCY_FORMAT}
+                      format={PRICING_CURRENCY_FORMAT}
                     />
                   </span>
                   <span className="text-muted-foreground block text-xs">
-                    Forever
+                    {getPlanPriceSubtitle(BASIC_PLAN, billingPeriod)}
                   </span>
                   <PlanCtaButton
                     href={basicCtaUrl}
-                    label="Get Basic"
+                    label={BASIC_PLAN.buttonLabel}
                     isCurrent={isBasicCurrent}
                     variant="outline"
                   />
@@ -418,7 +324,7 @@ export default function AppPricingComparator({
                     <NumberFlow
                       value={proPrice}
                       locales="en-US"
-                      format={CURRENCY_FORMAT}
+                      format={PRICING_CURRENCY_FORMAT}
                     />
                   </span>
                   <span className="text-muted-foreground block text-sm">

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { PRICING_COPY } from "@/constants/data/price";
 
 export default function Pricing() {
   return (
@@ -16,9 +17,11 @@ export default function Pricing() {
             workflow today
           </p>
           <p className="text-primary mx-auto mt-3 max-w-xl text-sm font-medium">
-            Use code{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">BETALAUNCH</span>{" "}
-            to get a free $1.
+            {PRICING_COPY.promoPrefix}{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">
+              {PRICING_COPY.promoCode}
+            </span>{" "}
+            {PRICING_COPY.promoSuffix}
           </p>
         </div>
         <div className="@container relative mt-12 md:mt-20">

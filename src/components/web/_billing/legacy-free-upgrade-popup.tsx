@@ -13,6 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSubscriptionStore } from "@/store/subscription";
+import { BASIC_PLAN, PRO_PLAN } from "@/constants/data/price";
 
 function isLegacyFreePlan(planType: string | null, planName?: string | null) {
   const normalizedType = (planType ?? "").toLowerCase();
@@ -173,7 +174,7 @@ export default function LegacyFreeUpgradePopup() {
           <DialogTitle>Upgrade Required</DialogTitle>
           <DialogDescription>
             Your account is on a legacy Free plan. Please upgrade to continue
-            with Basic ($1 Forever) or Pro ($10/month).
+            {` with Basic ($${BASIC_PLAN.monthlyPrice} Forever) or Pro ($${PRO_PLAN.monthlyPrice}/month).`}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="gap-2">

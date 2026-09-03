@@ -1,5 +1,5 @@
 "use client";
-import { plans } from "@/constants/data/price";
+import { plans, getPlanPriceSubtitle } from "@/constants/data/price";
 import React, { useState } from "react";
 import { createAuthClient } from "better-auth/react";
 import { Button } from "@/components/ui/button";
@@ -46,22 +46,6 @@ const UpgardePage = () => {
     window.location.href = "/api/subscription/manage";
   };
 
-  const planFeatures = {
-    basic: [
-      "2 workspaces",
-      "20 links/workspace",
-      "1k tracked clicks/month",
-      "Essential link tools",
-    ],
-    pro: [
-      "5 workspaces",
-      "100 links/workspace",
-      "12k tracked clicks/month",
-      "Lead tracking & geo targeting",
-      "Custom link preview",
-    ],
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 text-center">
@@ -92,45 +76,39 @@ const UpgardePage = () => {
                 )}
               </div>
               <p className="text-muted-foreground text-sm">
-                {plan.planType === "basic"
-                  ? "Get started with basic features for personal use."
-                  : "Perfect for individuals and small teams who need advanced features."}
+                {plan.description}
               </p>
             </div>
 
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold">${plan.monthlyPrice}</div>
               <span className="text-muted-foreground text-sm">
-                {plan.planType === "basic" ? "forever" : "/month"}
+                {getPlanPriceSubtitle(plan, "monthly")}
               </span>
             </div>
 
             <Button
               onClick={() => handleClick(plan.monthlyPriceId)}
               disabled={
-                !session?.user || activePlanName === plan.name || subLoading
+                !session?.user || activePlanName === plan.planType || subLoading
               }
               variant={plan.monthlyPrice === 0 ? "outline" : "default"}
               className="w-full"
             >
-              {activePlanName === plan.name
+              {activePlanName === plan.planType
                 ? "Currently active"
                 : session?.user
-                  ? plan.planType === "basic"
-                    ? "Get basic"
-                    : "Get pro"
+                  ? plan.buttonLabel
                   : "Please log in"}
             </Button>
 
             <ul className="grid gap-2 text-zinc-600 dark:text-zinc-300">
-              {planFeatures[plan.planType as keyof typeof planFeatures]?.map(
-                (feature, index) => (
-                  <li key={index} className="flex items-center gap-2 text-sm">
-                    <Check className="h-4 w-4 text-green-500" />
-                    {feature}
-                  </li>
-                ),
-              )}
+              {plan.features.map((feature) => (
+                <li key={feature} className="flex items-center gap-2 text-sm">
+                  <Check className="h-4 w-4 text-green-500" />
+                  {feature}
+                </li>
+              ))}
             </ul>
           </Card>
         ))}
