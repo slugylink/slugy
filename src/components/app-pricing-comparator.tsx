@@ -17,6 +17,7 @@ import {
 } from "@/constants/data/price";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
@@ -209,17 +210,23 @@ export default function AppPricingComparator({
           </span>{" "}
           {PRICING_COPY.promoSuffix}
         </p>
-        <div className="mb-6 flex justify-center sm:mb-8 sm:justify-end">
+        <div className="mb-6 flex justify-center pt-3 sm:mb-8 sm:justify-end">
           <Tabs
             value={billingPeriod}
             onValueChange={(value) => setBillingPeriod(value as BillingPeriod)}
           >
-            <TabsList className="flex w-full max-w-md gap-1 border text-xs sm:text-sm">
+            <TabsList className="relative flex w-full max-w-md gap-1 overflow-visible border text-xs sm:text-sm">
               <TabsTrigger value="monthly" className="text-sm">
                 Monthly
               </TabsTrigger>
-              <TabsTrigger value="yearly" className="text-sm">
-                Yearly ({PRICING_COPY.yearlySavings})
+              <TabsTrigger
+                value="yearly"
+                className="relative overflow-visible text-sm"
+              >
+                Yearly
+                <Badge className="absolute -top-4 left-1/2 z-10 -translate-x-1/2 bg-blue-500 px-1.5 py-0 text-[10px] leading-4">
+                  {PRICING_COPY.yearlySavings}
+                </Badge>
               </TabsTrigger>
             </TabsList>
           </Tabs>

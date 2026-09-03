@@ -53,10 +53,15 @@ export default function PricingSection() {
           onValueChange={(v) => setBilling(v as BillingPeriod)}
           className="w-full"
         >
-          <div className="flex w-full items-center justify-center">
-            <TabsList className="mt-2 h-auto">
+          <div className="flex w-full items-center justify-center pt-3">
+            <TabsList className="relative mt-2 h-auto overflow-visible">
               <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="yearly">Yearly</TabsTrigger>
+              <TabsTrigger value="yearly" className="relative overflow-visible">
+                Yearly
+                <Badge className="absolute -top-4 left-[50%] z-10 -translate-x-1/2 bg-blue-500 px-1.5 py-0 text-[10px] leading-4">
+                  {PRICING_COPY.yearlySavings}
+                </Badge>
+              </TabsTrigger>
             </TabsList>
           </div>
 

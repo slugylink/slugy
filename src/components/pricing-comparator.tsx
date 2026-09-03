@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 import NumberFlow from "@number-flow/react";
 
@@ -131,17 +132,23 @@ export default function PricingComparator({
           </span>{" "}
           {PRICING_COPY.promoSuffix}
         </p>
-        <div className="mb-8 flex justify-end">
+        <div className="mb-8 flex justify-end pt-3">
           <Tabs
             value={billingPeriod}
             onValueChange={(value) => setBillingPeriod(value as BillingPeriod)}
           >
-            <TabsList className="flex w-full max-w-md gap-1 border text-sm">
+            <TabsList className="relative flex w-full max-w-md gap-1 overflow-visible border text-sm">
               <TabsTrigger value="monthly" className="text-sm">
                 Monthly
               </TabsTrigger>
-              <TabsTrigger value="yearly" className="text-sm">
-                Yearly ({PRICING_COPY.yearlySavings})
+              <TabsTrigger
+                value="yearly"
+                className="relative overflow-visible text-sm"
+              >
+                Yearly
+                <Badge className="absolute -top-4 left-1/2 z-10 -translate-x-1/2 bg-blue-500 px-1.5 py-0 text-[10px] leading-4">
+                  {PRICING_COPY.yearlySavings}
+                </Badge>
               </TabsTrigger>
             </TabsList>
           </Tabs>
