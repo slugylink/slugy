@@ -81,31 +81,61 @@ export default function LeadConversionTrackingPost() {
       </P>
 
       <Callout>
-        Lead tracking uses a <InlineCode>slugy_id</InlineCode> on redirect, a
-        first-party cookie on <strong>your</strong> site, and a server-side{" "}
-        <InlineCode>POST</InlineCode> to{" "}
+        Lead tracking is a <strong>Pro</strong> feature. Enable{" "}
+        <strong>Lead tracking</strong> on the link, capture{" "}
+        <InlineCode>slugy_id</InlineCode> on your site, then{" "}
+        <InlineCode>POST</InlineCode> from your server to{" "}
         <InlineCode>https://api.slugy.co/leads_track</InlineCode>.
       </Callout>
 
       <H2 id="how-it-works">How lead conversion works</H2>
-      <P>The flow is three steps:</P>
+      <P>The product flow is:</P>
       <Ol>
         <li>
-          <strong className="text-foreground">Click</strong> — someone opens
-          your Slugy short link.
+          <strong className="text-foreground">Enable tracking</strong> — turn on{" "}
+          <strong className="text-foreground">Lead tracking</strong> when you
+          create or edit the short link (Pro only). Without this, Slugy does not
+          attach a click id.
         </li>
         <li>
-          <strong className="text-foreground">Attribution</strong> — Slugy
-          redirects to your site with <InlineCode>?slugy_id=…</InlineCode> in
-          the URL.
+          <strong className="text-foreground">Click</strong> — someone opens
+          that short link. Slugy redirects to your destination with{" "}
+          <InlineCode>?slugy_id=…</InlineCode> in the URL.
+        </li>
+        <li>
+          <strong className="text-foreground">Persist</strong> — your site
+          stores that id in a first-party cookie so later pages still know the
+          click.
         </li>
         <li>
           <strong className="text-foreground">Lead</strong> — when they convert,
-          your backend sends that ID to Slugy with the customer details.
+          your backend sends the id plus customer details to Slugy with a
+          workspace API key.
         </li>
       </Ol>
 
-      <H2 id="step-1">Step 1: Create an API key</H2>
+      <H2 id="step-1">Step 1: Use a Pro workspace</H2>
+      <P>
+        API keys, the lead-tracking toggle, and the Leads metric in Analytics
+        all require Pro. On Free, those surfaces stay locked until you upgrade
+        in Settings → Billing.
+      </P>
+
+      <H2 id="step-2">Step 2: Turn on Lead tracking for the link</H2>
+      <Ol>
+        <li>Create a new link, or open an existing one to edit.</li>
+        <li>
+          Toggle <strong className="text-foreground">Lead tracking</strong> on.
+        </li>
+        <li>Save the link.</li>
+      </Ol>
+      <P>
+        Only then does a click append <InlineCode>slugy_id</InlineCode> to the
+        destination. Links without the toggle still collect click analytics —
+        they just cannot be attributed as leads.
+      </P>
+
+      <H2 id="step-3">Step 3: Create an API key</H2>
       <Ol>
         <li>
           Open your workspace →{" "}
@@ -117,27 +147,34 @@ export default function LeadConversionTrackingPost() {
           </Link>
           .
         </li>
-        <li>Create a key and copy it once (it won&apos;t be shown again).</li>
+        <li>
+          Create a key, name it, and copy it once (it won&apos;t be shown
+          again).
+        </li>
         <li>
           Store it as <InlineCode>SLUGY_API_KEY</InlineCode> in your server
           environment — never in browser JavaScript.
         </li>
       </Ol>
-
-      <H2 id="step-2">Step 2: Share the short link</H2>
       <P>
-        Point a Slugy link at your landing page (portfolio, signup, checkout).
-        Visitors must arrive through that short link so Slugy can attach{" "}
+        Keys belong to one workspace. A <InlineCode>clickId</InlineCode> from
+        another workspace will be rejected.
+      </P>
+
+      <H2 id="step-4">Step 4: Share the short link</H2>
+      <P>
+        Point the tracking-enabled Slugy link at your landing page. Visitors
+        must arrive through that short link so Slugy can attach{" "}
         <InlineCode>slugy_id</InlineCode>.
       </P>
-      <P>Example redirect destination after a click:</P>
-      <Code>{`https://yoursite.com/pricing?slugy_id=clx_abc123…`}</Code>
+      <P>Example destination after a click:</P>
+      <Code>{`https://yoursite.com/pricing?slugy_id=K7mP2nQx9vR4tLw8cB3hY1aD`}</Code>
 
-      <H2 id="step-3">Step 3: Add slugy helpers on your app</H2>
+      <H2 id="step-5">Step 5: Capture slugy_id on your site</H2>
       <P>
-        Slugy cannot set a cookie on your domain. Add two small files on your
-        app: one to read the id, one to capture it into a first-party cookie on
-        first landing.
+        The query param lives on <em>your</em> domain after redirect. Slugy
+        cannot set a first-party cookie there, so persist the id yourself on
+        first landing — otherwise a later /checkout page will lose attribution.
       </P>
 
       <H3 id="slugy-ts">
@@ -188,18 +225,17 @@ export function CaptureSlugyId() {
   return null;
 }
 
-// Optional: re-export helper for Buy Now / signup handlers
 export { getSlugyId };`}</Code>
       <P>
         Mount <InlineCode>&lt;CaptureSlugyId /&gt;</InlineCode> in your root
         layout so every landing page captures attribution. Use{" "}
-        <InlineCode>getSlugyId()</InlineCode> later when tracking a lead.
+        <InlineCode>getSlugyId()</InlineCode> when the conversion happens.
       </P>
 
-      <H2 id="step-4">Step 4: Track the lead from your server</H2>
+      <H2 id="step-6">Step 6: Track the lead from your server</H2>
       <P>
-        When the conversion happens (Buy Now, signup, form submit), call Slugy
-        from a server route or backend — not from the client with a secret key.
+        When the conversion succeeds (paid, signed up, form accepted), call
+        Slugy from a server route — not from the client with a secret key.
       </P>
 
       <H3 id="api">API</H3>
@@ -222,7 +258,8 @@ Content-Type: application/json`}</Code>
                 <InlineCode>clickId</InlineCode>
               </td>
               <td className="px-3 py-2">
-                The <InlineCode>slugy_id</InlineCode> from the URL/cookie
+                The <InlineCode>slugy_id</InlineCode> from the URL or cookie.
+                You can also pass it as a query param on the request.
               </td>
               <td className="px-3 py-2">Yes</td>
             </tr>
@@ -269,6 +306,16 @@ Content-Type: application/json`}</Code>
           </tbody>
         </table>
       </div>
+
+      <P>
+        A new lead returns <InlineCode>201</InlineCode> with{" "}
+        <InlineCode>leadEventId</InlineCode>. Repeating the same{" "}
+        <InlineCode>customerExternalId</InlineCode> +{" "}
+        <InlineCode>eventName</InlineCode> in that workspace is idempotent and
+        returns <InlineCode>200</InlineCode>. Unknown or cross-workspace{" "}
+        <InlineCode>clickId</InlineCode> values return{" "}
+        <InlineCode>404</InlineCode>.
+      </P>
 
       <H3 id="nextjs-route">Next.js example</H3>
       <Code>{`// app/api/track-lead/route.ts
@@ -336,11 +383,12 @@ async function onBuyNow() {
           workspace.
         </li>
         <li>
-          Switch to the <strong className="text-foreground">Leads</strong> tab
-          (fetched only when you open it).
+          Click the <strong className="text-foreground">Leads</strong> metric
+          next to Clicks. Lead analytics load when you select that metric.
         </li>
         <li>
-          Filter by link, country, device, and time range like click analytics.
+          Filter by link, country, device, and time range the same way as
+          clicks.
         </li>
       </Ul>
 
@@ -348,23 +396,30 @@ async function onBuyNow() {
       <Ul>
         <li>
           Same <InlineCode>customerExternalId</InlineCode> +{" "}
-          <InlineCode>eventName</InlineCode> is idempotent — won&apos;t
-          double-count.
+          <InlineCode>eventName</InlineCode> in a workspace is idempotent — it
+          won&apos;t double-count.
         </li>
         <li>
-          <InlineCode>slugy_id</InlineCode> attribution lasts 90 days in Redis
-          (and as long as you keep the cookie).
+          Click attribution lives 90 days in Redis (and as long as you keep the
+          first-party cookie). After that, Slugy still tries to resolve the
+          click from stored analytics.
         </li>
         <li>
-          Always track after the action succeeds on your backend (paid, signed
-          up, etc.).
+          Always send the lead <em>after</em> the action succeeds on your
+          backend.
+        </li>
+        <li>
+          Skip the client call when <InlineCode>getSlugyId()</InlineCode> is
+          empty — that visitor did not come through a tracking-enabled short
+          link.
         </li>
       </Ul>
 
       <H2 id="get-started">Get started</H2>
       <P>
-        Create a short link, add the cookie snippet, and wire{" "}
-        <InlineCode>leads_track</InlineCode> on your next conversion event.
+        Upgrade to Pro, enable Lead tracking on a link, add the cookie snippet,
+        and wire <InlineCode>leads_track</InlineCode> on your next conversion
+        event.
       </P>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link

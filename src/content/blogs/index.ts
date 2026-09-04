@@ -6,8 +6,9 @@ export const BLOG_POSTS: BlogPost[] = [
     slug: "lead-conversion-tracking",
     title: "How to track lead conversions with Slugy",
     description:
-      "Attribute signups and Buy Now clicks back to your Slugy short links using slugy_id, a first-party cookie, and the leads_track API.",
+      "Pro lead tracking: enable it on the link, capture slugy_id on your site, and attribute signups with the leads_track API.",
     publishedAt: "2026-08-27",
+    updatedAt: "2026-09-04",
     author: { name: "Slugy" },
     tags: ["leads", "analytics", "guides"],
     Content: LeadConversionTrackingPost,
