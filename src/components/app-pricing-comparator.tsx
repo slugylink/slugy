@@ -58,19 +58,32 @@ function getPlanTypeFromProductName(name?: string): "basic" | "pro" | null {
 function getProductIdsByPlanType(
   planType: "basic" | "pro",
   products?: ProductData[],
+  billing: BillingPeriod = "monthly",
 ): string[] {
-  const productIds =
-    products
-      ?.filter((p) => getPlanTypeFromProductName(p.name) === planType)
-      .map((p) => p.id)
-      .filter(Boolean) ?? [];
-  if (productIds.length > 0) return productIds;
-
   if (planType === "basic") {
+    const basicFromPolar =
+      products
+        ?.filter((p) => getPlanTypeFromProductName(p.name) === "basic")
+        .map((p) => p.id)
+        .filter(Boolean) ?? [];
+    if (basicFromPolar.length > 0) return basicFromPolar;
     return [BASIC_PLAN.monthlyPriceId].filter(Boolean);
   }
 
-  return [PRO_PLAN.yearlyPriceId, PRO_PLAN.monthlyPriceId].filter(Boolean);
+  const priceId =
+    billing === "yearly" ? PRO_PLAN.yearlyPriceId : PRO_PLAN.monthlyPriceId;
+  if (priceId) return [priceId];
+
+  const interval = billing === "yearly" ? "year" : "month";
+  return (
+    products
+      ?.filter((product) => {
+        if (getPlanTypeFromProductName(product.name) !== "pro") return false;
+        return product.prices.some((price) => price.interval === interval);
+      })
+      .map((product) => product.id)
+      .filter(Boolean) ?? []
+  );
 }
 
 function buildProCtaUrl(
@@ -78,16 +91,18 @@ function buildProCtaUrl(
   workspace?: string,
   isPaidPlan?: boolean,
   successUrlPath?: string,
+  billing: BillingPeriod = "monthly",
 ): string {
   if (isPaidPlan && workspace) {
     return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
   }
 
-  const productIds = getProductIdsByPlanType("pro", products);
+  const productIds = getProductIdsByPlanType("pro", products, billing);
   if (productIds.length === 0) return CHECKOUT_BASE_URL;
 
   const params = new URLSearchParams();
   params.set("products", productIds.join(","));
+  params.set("billing", billing);
 
   if (successUrlPath) {
     params.set("successUrl", successUrlPath);
@@ -174,8 +189,15 @@ export default function AppPricingComparator({
   const proPromoPrice = getPlanPromoPrice(PRO_PLAN, billingPeriod);
   const proSubtitle = getPlanPriceSubtitle(PRO_PLAN, billingPeriod);
   const proCtaUrl = useMemo(
-    () => buildProCtaUrl(products, workspace, isPaidPlan, successUrlPath),
-    [products, workspace, isPaidPlan, successUrlPath],
+    () =>
+      buildProCtaUrl(
+        products,
+        workspace,
+        isPaidPlan,
+        successUrlPath,
+        billingPeriod,
+      ),
+    [products, workspace, isPaidPlan, successUrlPath, billingPeriod],
   );
   const basicCtaUrl = useMemo(
     () => buildBasicCtaUrl(products, workspace, successUrlPath),
@@ -185,13 +207,15 @@ export default function AppPricingComparator({
   return (
     <section>
       <div className="mx-auto max-w-full">
-        <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
-          {PRICING_COPY.promoPrefix}{" "}
-          <span className="rounded bg-red-500/10 px-2 py-1">
-            {PRICING_COPY.promoCode}
-          </span>{" "}
-          {PRICING_COPY.promoSuffix}
-        </p>
+        {billingPeriod === "monthly" && (
+          <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
+            {PRICING_COPY.promoPrefix}{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">
+              {PRICING_COPY.promoCode}
+            </span>{" "}
+            {PRICING_COPY.promoSuffix}
+          </p>
+        )}
         <div className="mb-6 flex justify-center pt-3 sm:mb-8">
           <Tabs
             value={billingPeriod}
@@ -246,6 +270,7 @@ export default function AppPricingComparator({
               {proPromoPrice != null && (
                 <p className="text-primary mt-1 text-xs font-medium">
                   {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+                  first month
                 </p>
               )}
               <PlanCtaButton
@@ -319,6 +344,7 @@ export default function AppPricingComparator({
                   {proPromoPrice != null && (
                     <span className="text-primary block text-xs font-medium">
                       {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+                      first month
                     </span>
                   )}
                   <PlanCtaButton

@@ -2,7 +2,6 @@
 
 import MaxWidthContainer from "@/components/max-width-container";
 import PricingComparator from "@/components/pricing-comparator";
-import { PRICING_COPY } from "@/constants/data/price";
 
 export default function PricingPageClient() {
   return (
@@ -14,13 +13,6 @@ export default function PricingPageClient() {
           </h1>
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
             Pick a plan that fits your needs. Upgrade anytime.
-          </p>
-          <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-            {PRICING_COPY.promoPrefix}{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">
-              {PRICING_COPY.promoCode}
-            </span>{" "}
-            {PRICING_COPY.promoSuffix}
           </p>
         </div>
 

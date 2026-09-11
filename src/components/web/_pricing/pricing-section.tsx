@@ -38,13 +38,15 @@ export default function PricingSection() {
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
-          <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-            {PRICING_COPY.promoPrefix}{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">
-              {PRICING_COPY.promoCode}
-            </span>{" "}
-            {PRICING_COPY.promoSuffix}
-          </p>
+          {billing === "monthly" && (
+            <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
+              {PRICING_COPY.promoPrefix}{" "}
+              <span className="rounded bg-red-500/10 px-2 py-1">
+                {PRICING_COPY.promoCode}
+              </span>{" "}
+              {PRICING_COPY.promoSuffix}
+            </p>
+          )}
         </div>
 
         {/* Tabs for monthly & yearly */}

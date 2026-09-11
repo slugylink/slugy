@@ -92,7 +92,7 @@ function PriceHeader({
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
       {promoPrice != null && (
         <span className="text-primary block text-xs font-medium">
-          {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+          {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off first month
         </span>
       )}
       <Button asChild variant={buttonVariant} size="sm">
@@ -127,6 +127,15 @@ export default function PricingComparator({
   return (
     <section>
       <div className="mx-auto">
+        {billingPeriod === "monthly" && (
+          <p className="text-primary mb-4 text-center text-sm font-medium">
+            {PRICING_COPY.promoPrefix}{" "}
+            <span className="rounded bg-red-500/10 px-2 py-1">
+              {PRICING_COPY.promoCode}
+            </span>{" "}
+            {PRICING_COPY.promoSuffix}
+          </p>
+        )}
         <div className="mb-8 flex justify-center pt-3">
           <Tabs
             value={billingPeriod}

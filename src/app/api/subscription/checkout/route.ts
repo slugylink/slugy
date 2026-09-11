@@ -135,7 +135,8 @@ export async function GET(req: NextRequest) {
   // Build checkout URL with customer info and products
   const checkoutUrl = buildCheckoutUrl(req, user);
   const productIds = checkoutUrl.searchParams.getAll("products");
-  const applyPromo = shouldApplyCheckoutPromo(productIds);
+  const billing = checkoutUrl.searchParams.get("billing");
+  const applyPromo = shouldApplyCheckoutPromo(productIds, billing);
 
   if (applyPromo && !checkoutUrl.searchParams.has("discountId")) {
     const discountId = await resolvePromoDiscountId();

@@ -1,6 +1,7 @@
 "use server";
 import { db } from "@/server/db";
 import { PRICING_COPY } from "@/constants/data/price";
+import { shouldApplyCheckoutPromo } from "@/lib/subscription/promo";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
@@ -315,7 +316,13 @@ export async function getCheckoutUrl(productId?: string, priceId?: string) {
       checkoutUrl.searchParams.set("products", priceId);
     }
 
-    checkoutUrl.searchParams.set("discount_code", PRICING_COPY.promoCode);
+    const checkoutProductIds = [
+      checkoutUrl.searchParams.get("products"),
+    ].filter((id): id is string => Boolean(id));
+    if (shouldApplyCheckoutPromo(checkoutProductIds)) {
+      checkoutUrl.searchParams.set("discount_code", PRICING_COPY.promoCode);
+      checkoutUrl.searchParams.set("billing", "monthly");
+    }
 
     return {
       success: true,

@@ -54,17 +54,30 @@ export async function resolvePromoDiscountId(): Promise<string | undefined> {
   }
 }
 
-export function shouldApplyCheckoutPromo(productIds: string[]): boolean {
+export function shouldApplyCheckoutPromo(
+  productIds: string[],
+  billing?: string | null,
+): boolean {
+  if (billing === "yearly") return false;
+
   const basicIds = new Set(
     [BASIC_PLAN.monthlyPriceId, BASIC_PLAN.yearlyPriceId].filter(Boolean),
   );
-  const proIds = new Set(
-    [PRO_PLAN.monthlyPriceId, PRO_PLAN.yearlyPriceId].filter(Boolean),
-  );
+  const monthlyProId = PRO_PLAN.monthlyPriceId;
+  const yearlyProId = PRO_PLAN.yearlyPriceId;
 
-  if (productIds.some((id) => proIds.has(id))) return true;
   if (productIds.length > 0 && productIds.every((id) => basicIds.has(id))) {
     return false;
   }
-  return productIds.length > 0;
+
+  if (
+    yearlyProId &&
+    productIds.includes(yearlyProId) &&
+    (!monthlyProId || !productIds.includes(monthlyProId))
+  ) {
+    return false;
+  }
+
+  if (billing === "monthly") return productIds.length > 0;
+  return Boolean(monthlyProId && productIds.includes(monthlyProId));
 }

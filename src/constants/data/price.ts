@@ -42,7 +42,7 @@ export interface PricingComparisonRow {
 export const PRICING_COPY = {
   promoCode: "GETPRO",
   promoPrefix: "Use code",
-  promoSuffix: "to get $3 off Pro.",
+  promoSuffix: "to get $3 off your first month of Pro.",
   promoAmount: 3,
   yearlySavings: "2 Months Free",
   loginUrl: "https://app.slugy.co/login",
@@ -75,7 +75,7 @@ export function getPlanPromoPrice(
   plan: Plan,
   billing: BillingPeriod,
 ): number | null {
-  if (plan.planType !== "pro") return null;
+  if (plan.planType !== "pro" || billing !== "monthly") return null;
   return Math.max(0, getPlanPrice(plan, billing) - PRICING_COPY.promoAmount);
 }
 
