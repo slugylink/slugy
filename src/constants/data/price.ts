@@ -40,9 +40,10 @@ export interface PricingComparisonRow {
 }
 
 export const PRICING_COPY = {
-  promoCode: "BETALAUNCH",
+  promoCode: "GETPRO",
   promoPrefix: "Use code",
-  promoSuffix: "to get a free $1.",
+  promoSuffix: "to get $3 off Pro.",
+  promoAmount: 3,
   yearlySavings: "2 Months Free",
   loginUrl: "https://app.slugy.co/login",
 } as const;
@@ -68,6 +69,14 @@ export function getYearlyDiscountPercent(
 export function getPlanPrice(plan: Plan, billing: BillingPeriod): number {
   if (plan.planType === "basic") return plan.monthlyPrice;
   return billing === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+}
+
+export function getPlanPromoPrice(
+  plan: Plan,
+  billing: BillingPeriod,
+): number | null {
+  if (plan.planType !== "pro") return null;
+  return Math.max(0, getPlanPrice(plan, billing) - PRICING_COPY.promoAmount);
 }
 
 export function getPlanPriceSubtitle(

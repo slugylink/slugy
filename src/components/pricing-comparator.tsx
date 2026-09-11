@@ -5,8 +5,8 @@ import {
   PRO_PLAN,
   PRICING_COMPARISON_FEATURES,
   PRICING_COPY,
-  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
+  getPlanPromoPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
   type Plan,
@@ -18,7 +18,7 @@ import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import NumberFlow from "@number-flow/react";
+import { PromoPrice } from "@/components/promo-price";
 
 interface PricingComparatorProps {
   workspace?: string;
@@ -68,6 +68,7 @@ function PriceHeader({
   highlighted?: boolean;
 }) {
   const price = getPlanPrice(plan, billing);
+  const promoPrice = getPlanPromoPrice(plan, billing);
   const subtitle = getPlanPriceSubtitle(plan, billing);
   const shouldManage = plan.planType === "pro" && Boolean(isPaidPlan);
   const buttonText = shouldManage ? "Manage" : plan.buttonLabel;
@@ -86,13 +87,14 @@ function PriceHeader({
     <th className={headerClass}>
       <span className="block">{plan.name}</span>
       <span className="block text-2xl font-medium">
-        <NumberFlow
-          value={price}
-          locales="en-US"
-          format={PRICING_CURRENCY_FORMAT}
-        />
+        <PromoPrice price={price} promoPrice={promoPrice} />
       </span>
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
+      {promoPrice != null && (
+        <span className="text-primary block text-xs font-medium">
+          {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+        </span>
+      )}
       <Button asChild variant={buttonVariant} size="sm">
         <Link href={buttonUrl}>{buttonText}</Link>
       </Button>

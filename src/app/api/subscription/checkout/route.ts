@@ -3,6 +3,11 @@ import { Checkout } from "@polar-sh/nextjs";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
+import { PRICING_COPY } from "@/constants/data/price";
+import {
+  resolvePromoDiscountId,
+  shouldApplyCheckoutPromo,
+} from "@/lib/subscription/promo";
 
 const POLAR_MODE =
   (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox";
@@ -129,6 +134,15 @@ export async function GET(req: NextRequest) {
 
   // Build checkout URL with customer info and products
   const checkoutUrl = buildCheckoutUrl(req, user);
+  const productIds = checkoutUrl.searchParams.getAll("products");
+  const applyPromo = shouldApplyCheckoutPromo(productIds);
+
+  if (applyPromo && !checkoutUrl.searchParams.has("discountId")) {
+    const discountId = await resolvePromoDiscountId();
+    if (discountId) {
+      checkoutUrl.searchParams.set("discountId", discountId);
+    }
+  }
 
   // Create updated request
   const updatedReq = new NextRequest(checkoutUrl, {
@@ -138,10 +152,24 @@ export async function GET(req: NextRequest) {
   });
 
   // Call Polar checkout handler
-  return await Checkout({
+  const response = await Checkout({
     accessToken: process.env.POLAR_ACCESS_TOKEN!,
     server: POLAR_MODE,
     successUrl: getSuccessUrl(req),
     returnUrl: RETURN_URL,
   })(updatedReq);
+
+  if (!applyPromo) return response;
+
+  const location = response.headers.get("location");
+  if (!location || response.status < 300 || response.status >= 400) {
+    return response;
+  }
+
+  const redirectUrl = new URL(location);
+  if (!redirectUrl.searchParams.has("discount_code")) {
+    redirectUrl.searchParams.set("discount_code", PRICING_COPY.promoCode);
+  }
+
+  return NextResponse.redirect(redirectUrl.toString(), response.status);
 }

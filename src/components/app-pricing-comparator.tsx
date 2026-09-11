@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import NumberFlow from "@number-flow/react";
+import { PromoPrice } from "@/components/promo-price";
 import { Check } from "lucide-react";
 
 import {
@@ -12,6 +12,7 @@ import {
   PRICING_COPY,
   PRICING_CURRENCY_FORMAT,
   getPlanPrice,
+  getPlanPromoPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
   type PricingFeatureValue,
@@ -169,6 +170,7 @@ export default function AppPricingComparator({
 
   const features = PRICING_COMPARISON_FEATURES;
   const proPrice = getPlanPrice(PRO_PLAN, billingPeriod);
+  const proPromoPrice = getPlanPromoPrice(PRO_PLAN, billingPeriod);
   const proSubtitle = getPlanPriceSubtitle(PRO_PLAN, billingPeriod);
   const proCtaUrl = useMemo(
     () => buildProCtaUrl(products, workspace, isPaidPlan, successUrlPath),
@@ -237,13 +239,14 @@ export default function AppPricingComparator({
             <div className="bg-muted rounded-lg border p-4">
               <p className="font-medium">{PRO_PLAN.name}</p>
               <p className="mt-1 text-2xl font-medium">
-                <NumberFlow
-                  value={proPrice}
-                  locales="en-US"
-                  format={PRICING_CURRENCY_FORMAT}
-                />
+                <PromoPrice price={proPrice} promoPrice={proPromoPrice} />
               </p>
               <p className="text-muted-foreground text-xs">{proSubtitle}</p>
+              {proPromoPrice != null && (
+                <p className="text-primary mt-1 text-xs font-medium">
+                  {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+                </p>
+              )}
               <PlanCtaButton
                 href={proCtaUrl}
                 label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}
@@ -307,15 +310,16 @@ export default function AppPricingComparator({
                 <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
                   <span className="block">{PRO_PLAN.name}</span>
                   <span className="block text-2xl font-medium">
-                    <NumberFlow
-                      value={proPrice}
-                      locales="en-US"
-                      format={PRICING_CURRENCY_FORMAT}
-                    />
+                    <PromoPrice price={proPrice} promoPrice={proPromoPrice} />
                   </span>
                   <span className="text-muted-foreground block text-sm">
                     {proSubtitle}
                   </span>
+                  {proPromoPrice != null && (
+                    <span className="text-primary block text-xs font-medium">
+                      {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
+                    </span>
+                  )}
                   <PlanCtaButton
                     href={proCtaUrl}
                     label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}

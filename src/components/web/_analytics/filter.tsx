@@ -28,6 +28,12 @@ import CountryFlag from "./country-flag";
 import FilterSelectedButtons from "./filter-selected-buttons";
 import { useQueryState, parseAsString, parseAsArrayOf } from "nuqs";
 import { useSubscriptionStore } from "@/store/subscription";
+import { HiSparkles } from "react-icons/hi2";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface BaseOption {
   clicks?: number;
@@ -121,7 +127,10 @@ const OptimizedImage = ({ src, alt }: { src: string; alt: string }) => {
       height={16}
       loading="lazy"
       onLoad={() => setLoading(false)}
-      className={cn(loading ? "blur-[2px]" : "blur-0", "transition-all duration-300 ease-in-out")}
+      className={cn(
+        loading ? "blur-[2px]" : "blur-0",
+        "transition-all duration-300 ease-in-out",
+      )}
       onError={() => setError(true)}
     />
   );
@@ -192,10 +201,7 @@ const FilterOptionItem = ({
         )}
         {category.id === "referrer_key" && (
           <>
-            <UrlAvatar
-              size={5}
-              url={(option as ReferrerAnalytics).referrer}
-            />
+            <UrlAvatar size={5} url={(option as ReferrerAnalytics).referrer} />
             <span className="line-clamp-1">{label}</span>
           </>
         )}
@@ -225,32 +231,60 @@ const TimePeriodSelector = ({
   isPro,
 }: TimePeriodSelectorProps) => (
   <Select value={timePeriod} onValueChange={onTimePeriodChange}>
-    <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300">
+    <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:border-zinc-300 hover:shadow-sm">
       <Calendar /> <SelectValue placeholder="Select time range" />
     </SelectTrigger>
-    <SelectContent className="w-fit cursor-pointer animate-in fade-in slide-in-from-top-2 duration-150 ease-out">
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '0ms', animationFillMode: 'both' }}>
-        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="24h">
+    <SelectContent className="animate-in fade-in slide-in-from-top-2 w-fit cursor-pointer duration-150 ease-out">
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "0ms", animationFillMode: "both" }}
+      >
+        <SelectItem
+          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+          value="24h"
+        >
           Last 24 hours
         </SelectItem>
       </div>
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '30ms', animationFillMode: 'both' }}>
-        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="7d">
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "30ms", animationFillMode: "both" }}
+      >
+        <SelectItem
+          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+          value="7d"
+        >
           Last 7 days
         </SelectItem>
       </div>
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '60ms', animationFillMode: 'both' }}>
-        <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="30d">
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "60ms", animationFillMode: "both" }}
+      >
+        <SelectItem
+          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+          value="30d"
+        >
           Last 30 days
         </SelectItem>
       </div>
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '90ms', animationFillMode: 'both' }}>
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "90ms", animationFillMode: "both" }}
+      >
         {isPro ? (
-          <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="3m">
+          <SelectItem
+            className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            value="3m"
+          >
             Last 3 months
           </SelectItem>
         ) : (
-          <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="3m" disabled>
+          <SelectItem
+            className="opacity-60 transition-colors duration-150 ease-in-out"
+            value="3m"
+            disabled
+          >
             Last 3 months
             <Lock
               size={10}
@@ -259,13 +293,23 @@ const TimePeriodSelector = ({
           </SelectItem>
         )}
       </div>
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '120ms', animationFillMode: 'both' }}>
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "120ms", animationFillMode: "both" }}
+      >
         {isPro ? (
-          <SelectItem className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50" value="12m">
+          <SelectItem
+            className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+            value="12m"
+          >
             Last 12 months
           </SelectItem>
         ) : (
-          <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="12m" disabled>
+          <SelectItem
+            className="opacity-60 transition-colors duration-150 ease-in-out"
+            value="12m"
+            disabled
+          >
             Last 12 months
             <Lock
               size={10}
@@ -274,8 +318,15 @@ const TimePeriodSelector = ({
           </SelectItem>
         )}
       </div>
-      <div className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out" style={{ animationDelay: '150ms', animationFillMode: 'both' }}>
-        <SelectItem className="transition-colors duration-150 ease-in-out opacity-60" value="all" disabled>
+      <div
+        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+        style={{ animationDelay: "150ms", animationFillMode: "both" }}
+      >
+        <SelectItem
+          className="opacity-60 transition-colors duration-150 ease-in-out"
+          value="all"
+          disabled
+        >
           All Time
           <Lock
             size={10}
@@ -292,19 +343,30 @@ interface FilterGroupsProps {
   onCategoryClick: (categoryId: CategoryId) => void;
 }
 
-const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps) => {
-  const hasGroup1 = filteredCategories.some(cat => cat.id === "slug_key" || cat.id === "destination_key");
-  const hasGroup2 = filteredCategories.some(cat =>
-    cat.id === "country_key" || cat.id === "city_key" || cat.id === "continent_key"
+const FilterGroups = ({
+  filteredCategories,
+  onCategoryClick,
+}: FilterGroupsProps) => {
+  const hasGroup1 = filteredCategories.some(
+    (cat) => cat.id === "slug_key" || cat.id === "destination_key",
   );
-  const hasGroup3 = filteredCategories.some(cat =>
-    cat.id === "device_key" || cat.id === "browser_key" || cat.id === "os_key"
+  const hasGroup2 = filteredCategories.some(
+    (cat) =>
+      cat.id === "country_key" ||
+      cat.id === "city_key" ||
+      cat.id === "continent_key",
   );
-  const hasGroup4 = filteredCategories.some(cat => cat.id === "referrer_key");
+  const hasGroup3 = filteredCategories.some(
+    (cat) =>
+      cat.id === "device_key" ||
+      cat.id === "browser_key" ||
+      cat.id === "os_key",
+  );
+  const hasGroup4 = filteredCategories.some((cat) => cat.id === "referrer_key");
 
   return (
     <div
-      className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200 overflow-x-hidden"
+      className="custom-scrollbar animate-in slide-in-from-top-2 overflow-x-hidden overflow-y-auto duration-200"
       style={{
         maxHeight: "400px",
         scrollbarWidth: "thin",
@@ -315,18 +377,20 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
       {hasGroup1 && (
         <DropdownMenuGroup>
           {filteredCategories
-            .filter(cat => cat.id === "slug_key" || cat.id === "destination_key")
+            .filter(
+              (cat) => cat.id === "slug_key" || cat.id === "destination_key",
+            )
             .map((category, index) => (
               <div
                 key={category.id}
                 className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
                 style={{
                   animationDelay: `${index * 50}ms`,
-                  animationFillMode: 'both'
+                  animationFillMode: "both",
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -352,8 +416,11 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
       {hasGroup2 && (
         <DropdownMenuGroup>
           {filteredCategories
-            .filter(cat =>
-              cat.id === "country_key" || cat.id === "city_key" || cat.id === "continent_key"
+            .filter(
+              (cat) =>
+                cat.id === "country_key" ||
+                cat.id === "city_key" ||
+                cat.id === "continent_key",
             )
             .map((category, index) => (
               <div
@@ -361,11 +428,11 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
                 className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
                 style={{
                   animationDelay: `${(index + 2) * 50}ms`,
-                  animationFillMode: 'both'
+                  animationFillMode: "both",
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -391,8 +458,11 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
       {hasGroup3 && (
         <DropdownMenuGroup>
           {filteredCategories
-            .filter(cat =>
-              cat.id === "device_key" || cat.id === "browser_key" || cat.id === "os_key"
+            .filter(
+              (cat) =>
+                cat.id === "device_key" ||
+                cat.id === "browser_key" ||
+                cat.id === "os_key",
             )
             .map((category, index) => (
               <div
@@ -400,11 +470,11 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
                 className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
                 style={{
                   animationDelay: `${(index + 5) * 50}ms`,
-                  animationFillMode: 'both'
+                  animationFillMode: "both",
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -430,18 +500,18 @@ const FilterGroups = ({ filteredCategories, onCategoryClick }: FilterGroupsProps
       {hasGroup4 && (
         <DropdownMenuGroup>
           {filteredCategories
-            .filter(cat => cat.id === "referrer_key")
+            .filter((cat) => cat.id === "referrer_key")
             .map((category, index) => (
               <div
                 key={category.id}
                 className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
                 style={{
                   animationDelay: `${(index + 8) * 50}ms`,
-                  animationFillMode: 'both'
+                  animationFillMode: "both",
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:translate-x-0.5"
+                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -574,7 +644,10 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
     handleFilterChange(categoryId, value);
   };
 
-  const getOptionValue = (category: FilterCategory, option: FilterOption): string => {
+  const getOptionValue = (
+    category: FilterCategory,
+    option: FilterOption,
+  ): string => {
     switch (category.id) {
       case "slug_key":
         return (option as LinkAnalytics).slug;
@@ -599,7 +672,10 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
     }
   };
 
-  const getOptionLabel = (category: FilterCategory, option: FilterOption): string => {
+  const getOptionLabel = (
+    category: FilterCategory,
+    option: FilterOption,
+  ): string => {
     switch (category.id) {
       case "slug_key":
         return `slugy.co/${(option as LinkAnalytics).slug}`;
@@ -628,7 +704,10 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
     return name.toLowerCase().replace(/\s+/g, "-");
   };
 
-  const getOptionIcon = (category: FilterCategory, option: FilterOption): string | undefined => {
+  const getOptionIcon = (
+    category: FilterCategory,
+    option: FilterOption,
+  ): string | undefined => {
     switch (category.id) {
       case "slug_key":
         return (option as LinkAnalytics).url;
@@ -709,12 +788,12 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="flex items-center font-normal transition-all duration-200 ease-in-out hover:shadow-sm hover:border-zinc-300"
+                className="flex items-center font-normal transition-all duration-200 ease-in-out hover:border-zinc-300 hover:shadow-sm"
               >
-                <Filter strokeWidth={1.5} className=" h-4 w-4" />
+                <Filter strokeWidth={1.5} className="h-4 w-4" />
                 Filter
                 {selectedFilterCount > 0 && (
-                  <span className="bg-primary text-primary-foreground flex h-[18px] w-[18px] text-center items-center justify-center rounded-full text-[11px]">
+                  <span className="bg-primary text-primary-foreground flex h-[18px] w-[18px] items-center justify-center rounded-full text-center text-[11px]">
                     {selectedFilterCount}
                   </span>
                 )}
@@ -722,7 +801,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="relative w-[212px] p-2 animate-in fade-in slide-in-from-top-2 duration-200 ease-out overflow-x-hidden"
+              className="animate-in fade-in slide-in-from-top-2 relative w-[212px] overflow-x-hidden p-2 duration-200 ease-out"
               align="start"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
@@ -742,19 +821,19 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                     e.stopPropagation();
                     setSearchQuery(e.target.value);
                   }}
-                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm focus:ring-[1px] focus:outline-none transition-all duration-200 ease-in-out focus:border-zinc-300 focus:shadow-sm"
+                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm transition-all duration-200 ease-in-out focus:border-zinc-300 focus:shadow-sm focus:ring-[1px] focus:outline-none"
                   autoComplete="off"
                   aria-label="Filter options"
                 />
               </div>
 
               {activeCategory ? (
-                <div className="animate-in slide-in-from-top-2 relative duration-200 overflow-x-hidden">
+                <div className="animate-in slide-in-from-top-2 relative overflow-x-hidden duration-200">
                   {filteredCategories
                     .filter((cat) => cat.id === activeCategory)
                     .map((category) => (
                       <DropdownMenuGroup key={category.id}>
-                        <div className="sticky top-0 z-50 mb-2 ">
+                        <div className="sticky top-0 z-50 mb-2">
                           <DropdownMenuLabel
                             className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800"
                             onClick={() => setActiveCategory(null)}
@@ -769,7 +848,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                           </DropdownMenuLabel>
                         </div>
                         <div
-                          className="custom-scrollbar animate-in slide-in-from-top-2 overflow-y-auto duration-200 overflow-x-hidden"
+                          className="custom-scrollbar animate-in slide-in-from-top-2 overflow-x-hidden overflow-y-auto duration-200"
                           style={{
                             maxHeight: "320px",
                             scrollbarWidth: "thin",
@@ -793,7 +872,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                                     className="animate-in fade-in slide-in-from-left-2 duration-200 ease-out"
                                     style={{
                                       animationDelay: `${index * 30}ms`,
-                                      animationFillMode: 'both'
+                                      animationFillMode: "both",
                                     }}
                                   >
                                     <FilterOptionItem
@@ -828,11 +907,29 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
           </DropdownMenu>
         </div>
 
-        <TimePeriodSelector
-          timePeriod={timePeriod}
-          onTimePeriodChange={handleTimePeriodChange}
-          isPro={isPro}
-        />
+        <div className="flex items-center gap-2">
+          <div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="ml-2"
+                  aria-label="Generate Report"
+                >
+                  <HiSparkles />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Generate Report</TooltipContent>
+            </Tooltip>
+          </div>
+
+          <TimePeriodSelector
+            timePeriod={timePeriod}
+            onTimePeriodChange={handleTimePeriodChange}
+            isPro={isPro}
+          />
+        </div>
       </div>
 
       {selectedFilterCount > 0 && (

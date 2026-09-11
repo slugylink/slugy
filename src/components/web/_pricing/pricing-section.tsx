@@ -14,12 +14,12 @@ import { MoveUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import NumberFlow from "@number-flow/react";
+import { PromoPrice } from "@/components/promo-price";
 import {
   plans,
   PRICING_COPY,
-  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
+  getPlanPromoPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
   type Plan,
@@ -78,6 +78,7 @@ export default function PricingSection() {
                 } = plan;
                 const showMore = features.length > 9;
                 const price = getPlanPrice(plan, billing);
+                const promoPrice = getPlanPromoPrice(plan, billing);
                 const priceSubtitle = getPlanPriceSubtitle(plan, billing);
                 const isYearly = billing === "yearly";
                 const isBasic = plan.planType === "basic";
@@ -99,10 +100,9 @@ export default function PricingSection() {
                         </div>
                       </div>
                       <div className="mb-1 flex items-end gap-2">
-                        <NumberFlow
-                          value={price}
-                          locales="en-US"
-                          format={PRICING_CURRENCY_FORMAT}
+                        <PromoPrice
+                          price={price}
+                          promoPrice={promoPrice}
                           className="text-2xl font-medium tracking-tight sm:text-3xl"
                         />
                         <span className="mb-2 text-sm text-zinc-700">
