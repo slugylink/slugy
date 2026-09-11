@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import NumberFlow from "@number-flow/react";
 import { PromoPrice } from "@/components/promo-price";
 import { Check } from "lucide-react";
 
