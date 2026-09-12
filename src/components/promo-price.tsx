@@ -12,27 +12,20 @@ export function PromoPrice({
   promoPrice: number | null;
   className?: string;
 }) {
-  if (promoPrice == null || promoPrice >= price) {
-    return (
-      <NumberFlow
-        value={price}
-        locales="en-US"
-        format={PRICING_CURRENCY_FORMAT}
-        className={className}
-      />
-    );
-  }
+  const hasPromo = promoPrice != null && promoPrice < price;
+  const displayPrice = hasPromo ? promoPrice : price;
 
   return (
     <span className="inline-flex items-baseline gap-2">
+      {hasPromo && (
+        <span className="text-muted-foreground text-lg font-normal line-through sm:text-xl">
+          {new Intl.NumberFormat("en-US", PRICING_CURRENCY_FORMAT).format(
+            price,
+          )}
+        </span>
+      )}
       <NumberFlow
-        value={price}
-        locales="en-US"
-        format={PRICING_CURRENCY_FORMAT}
-        className="text-muted-foreground text-lg font-normal line-through sm:text-xl"
-      />
-      <NumberFlow
-        value={promoPrice}
+        value={displayPrice}
         locales="en-US"
         format={PRICING_CURRENCY_FORMAT}
         className={className}

@@ -207,15 +207,13 @@ export default function AppPricingComparator({
   return (
     <section>
       <div className="mx-auto max-w-full">
-        {billingPeriod === "monthly" && (
-          <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
-            {PRICING_COPY.promoPrefix}{" "}
-            <span className="rounded bg-red-500/10 px-2 py-1">
-              {PRICING_COPY.promoCode}
-            </span>{" "}
-            {PRICING_COPY.promoSuffix}
-          </p>
-        )}
+        <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
+          {PRICING_COPY.promoPrefix}{" "}
+          <span className="rounded bg-red-500/10 px-2 py-1">
+            {PRICING_COPY.promoCode}
+          </span>{" "}
+          {PRICING_COPY.promoSuffix}
+        </p>
         <div className="mb-6 flex justify-center pt-3 sm:mb-8">
           <Tabs
             value={billingPeriod}
