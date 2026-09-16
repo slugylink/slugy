@@ -36,8 +36,8 @@ export async function PUT(
     const LinksSchema = z.object({
       links: z.array(
         z.object({
-          id: z.string(),
-          position: z.number(),
+          id: z.string().min(1).max(64),
+          position: z.number().int().min(0).max(10_000),
         }),
       ),
     });

@@ -5,7 +5,9 @@ import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
 const QSTASH_CURRENT_SIGNING_KEY = process.env.QSTASH_CURRENT_SIGNING_KEY;
 const QSTASH_NEXT_SIGNING_KEY = process.env.QSTASH_NEXT_SIGNING_KEY;
 
-export function withCronAuth(handler: () => Promise<NextResponse>) {
+export function withCronAuth(
+  handler: (req: NextRequest) => Promise<NextResponse>,
+) {
   const wrapped = async (req: NextRequest) => {
     if (
       process.env.NODE_ENV === "production" &&
@@ -18,7 +20,7 @@ export function withCronAuth(handler: () => Promise<NextResponse>) {
       return verifySignatureAppRouter(handler)(req);
     }
 
-    return handler();
+    return handler(req);
   };
 
   return wrapped;

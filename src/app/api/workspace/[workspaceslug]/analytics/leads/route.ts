@@ -1,8 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { getAuthSession } from "@/lib/auth";
-import { sql } from "@/server/neon";
 import { apiErrors } from "@/lib/api-response";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import {
+  analyticsFilterFieldsSchema,
+  tinybirdFilterParams,
+} from "@/lib/analytics/query-params";
 import {
   canUseLeadTracking,
   getWorkspaceOwnerPlanTypeBySlug,
@@ -14,22 +17,15 @@ import {
 } from "@/lib/analytics/transform-tinybird";
 import { tinybird } from "@/lib/tinybird/could/tinybird";
 
-const CACHE_DURATION = 60;
-const STALE_WHILE_REVALIDATE = 60;
+const PRIVATE_NO_STORE = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie, Authorization",
+};
 
-const analyticsPropsSchema = z
-  .object({
-    timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]),
-    slug_key: z.string().nullable().optional(),
-    country_key: z.string().nullable().optional(),
-    city_key: z.string().nullable().optional(),
-    continent_key: z.string().nullable().optional(),
-    browser_key: z.string().nullable().optional(),
-    os_key: z.string().nullable().optional(),
-    referrer_key: z.string().nullable().optional(),
-    device_key: z.string().nullable().optional(),
-    destination_key: z.string().nullable().optional(),
-    domain_key: z.string().nullable().optional(),
+export const dynamic = "force-dynamic";
+
+const analyticsPropsSchema = analyticsFilterFieldsSchema
+  .extend({
     metrics: z
       .array(
         z.enum([
@@ -83,31 +79,12 @@ export async function GET(
 
     const props = analyticsPropsSchema.parse(raw);
 
-    const authResult = await getAuthSession();
-    if (!authResult.success) {
-      return apiErrors.unauthorized();
-    }
-    const session = authResult.session;
-
-    const workspaceResult = await sql`
-      SELECT id FROM "workspaces"
-      WHERE slug = ${workspaceslug}
-      AND "deletedAt" IS NULL
-      AND (
-        "userId" = ${session.user.id}
-        OR EXISTS (
-          SELECT 1 FROM "members" m
-          WHERE m."workspaceId" = "workspaces".id
-            AND m."userId" = ${session.user.id}
-        )
-      )
-    `;
-
-    if (workspaceResult.length === 0) {
-      return apiErrors.notFound("Workspace not found");
+    const access = await requireWorkspaceAccess(workspaceslug);
+    if (!access.ok) {
+      return access.response;
     }
 
-    const workspaceId = workspaceResult[0].id as string;
+    const workspaceId = access.workspace.id;
 
     const planType = await getWorkspaceOwnerPlanTypeBySlug(workspaceslug);
     if (!canUseLeadTracking(planType)) {
@@ -140,17 +117,7 @@ export async function GET(
 
     const result = await tinybird.leadsAnalytics.query({
       workspace_id: workspaceId,
-      date_range: props.timePeriod,
-      slug: props.slug_key || "",
-      url: props.destination_key || "",
-      country: props.country_key || "",
-      city: props.city_key || "",
-      continent: props.continent_key || "",
-      browser: props.browser_key || "",
-      os: props.os_key || "",
-      referer: props.referrer_key || "",
-      device: props.device_key || "",
-      domain: props.domain_key || "",
+      ...tinybirdFilterParams(props),
     });
 
     const rows = (result.data ?? []).map((row) => ({
@@ -167,7 +134,7 @@ export async function GET(
     return NextResponse.json(analyticsData, {
       status: 200,
       headers: {
-        "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
+        ...PRIVATE_NO_STORE,
         "X-Analytics-Event": "leads",
       },
     });

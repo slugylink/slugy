@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
+import {
+  ANALYTICS_INGEST_HEADER,
+  analyticsIngestPayload,
+  verifyInternalAnalyticsIngest,
+} from "@/lib/analytics/internal-ingest-auth";
 import { jsonWithETag } from "@/lib/http";
 import {
   apiSuccessPayload,
@@ -10,10 +15,10 @@ import {
 
 // Input validation schema
 const analyticsSchema = z.object({
-  linkId: z.string().min(1),
-  slug: z.string().min(1),
-  domain: z.string().optional(),
-  workspaceId: z.string().min(1),
+  linkId: z.string().min(1).max(64),
+  slug: z.string().min(1).max(50),
+  domain: z.string().max(255).optional(),
+  workspaceId: z.string().min(1).max(64),
   analyticsData: z.object({
     ipAddress: z.string().ip().optional(),
     country: z.string().max(100),
@@ -50,6 +55,19 @@ export async function POST(req: NextRequest) {
 
     const { linkId, slug, domain, workspaceId, analyticsData } =
       validationResult.data;
+
+    if (
+      !verifyInternalAnalyticsIngest(
+        analyticsIngestPayload({ linkId, workspaceId, slug }),
+        req.headers.get(ANALYTICS_INGEST_HEADER),
+      )
+    ) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload("Unauthorized", "UNAUTHORIZED"),
+        { status: 401 },
+      );
+    }
 
     // Verify the link exists and belongs to the workspace
     const link = await db.link.findFirst({

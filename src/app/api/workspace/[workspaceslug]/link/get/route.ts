@@ -1,12 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { db } from "@/server/db";
-import { getAuthSession } from "@/lib/auth";
 import { DEFAULT_LIMIT, DEFAULT_SORT } from "@/constants/links";
 import { jsonWithETag } from "@/lib/http";
 import {
   queryWorkspaceLinks,
   VALID_LINK_SORT_OPTIONS,
 } from "@/lib/links/query-workspace-links";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
@@ -17,28 +16,17 @@ export async function GET(
   { params }: { params: Promise<{ workspaceslug: string }> },
 ) {
   try {
-    const authResult = await getAuthSession();
-    if (!authResult.success) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
-    }
-    const session = authResult.session;
-
     const context = await params;
     const { workspaceslug } = context;
 
-    if (!workspaceslug?.trim()) {
-      return NextResponse.json(
-        { error: "Invalid workspace slug", code: "INVALID_WORKSPACE" },
-        { status: 400 },
-      );
+    const access = await requireWorkspaceAccess(workspaceslug);
+    if (!access.ok) {
+      return access.response;
     }
 
     const searchParams = request.nextUrl.searchParams;
 
-    const search = searchParams.get("search")?.trim() ?? "";
+    const search = (searchParams.get("search")?.trim() ?? "").slice(0, 200);
     const showArchived = searchParams.get("showArchived") === "true";
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset");
@@ -87,45 +75,8 @@ export async function GET(
       );
     }
 
-    const workspace = await db.workspace.findUnique({
-      where: { slug: workspaceslug },
-      select: { id: true, userId: true },
-    });
-
-    if (!workspace) {
-      return NextResponse.json(
-        {
-          error: "Workspace not found or access denied",
-          code: "WORKSPACE_NOT_FOUND",
-        },
-        { status: 404 },
-      );
-    }
-
-    if (workspace.userId !== session.user.id) {
-      const member = await db.member.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: workspace.id,
-            userId: session.user.id,
-          },
-        },
-        select: { id: true },
-      });
-
-      if (!member) {
-        return NextResponse.json(
-          {
-            error: "Workspace not found or access denied",
-            code: "WORKSPACE_NOT_FOUND",
-          },
-          { status: 404 },
-        );
-      }
-    }
-
     const result = await queryWorkspaceLinks({
-      workspaceId: workspace.id,
+      workspaceId: access.workspace.id,
       search,
       showArchived,
       sortBy,

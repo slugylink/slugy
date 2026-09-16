@@ -83,9 +83,14 @@ function buildHeaders(
     headers.set("ETag", etag);
   }
 
-  // Set Cache-Control (if not already set)
+  // Never cache user-specific API JSON at the CDN.
   if (!headers.has("Cache-Control")) {
-    headers.set("Cache-Control", "private, max-age=0, must-revalidate");
+    headers.set("Cache-Control", "private, no-store");
+  } else {
+    const cacheControl = headers.get("Cache-Control") ?? "";
+    if (/\bpublic\b/i.test(cacheControl) || /\bs-maxage=/i.test(cacheControl)) {
+      headers.set("Cache-Control", "private, no-store");
+    }
   }
 
   // Add Vary headers for user-specific data

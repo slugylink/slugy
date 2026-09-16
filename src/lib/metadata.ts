@@ -34,7 +34,6 @@ interface MetadataResult {
 const CACHE_MAX_SIZE = 1_000;
 const CACHE_EVICT_PCT = 0.2;
 const REQUEST_TIMEOUT_MS = 10_000; // Increased to 10s
-const CACHE_REVALIDATE_SECONDS = 3600;
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -164,54 +163,74 @@ export function getRelativeUrl(
 // HTML Fetching
 // ============================================================================
 
+const MAX_REDIRECTS = 3;
+const MAX_HTML_BYTES = 512_000;
+
 export async function getHtml(url: string): Promise<string | null> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    let current = assertPublicMetadataUrl(url).toString();
 
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": USER_AGENT,
-        Accept: ACCEPT_HEADER,
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control": "no-cache",
-        DNT: "1",
-        Connection: "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "x-slugy-preview": "1",
-      },
-      signal: controller.signal,
-      next: { revalidate: CACHE_REVALIDATE_SECONDS },
-      redirect: "follow",
-    });
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    clearTimeout(timeout);
+      const response = await fetch(current, {
+        headers: {
+          "User-Agent": USER_AGENT,
+          Accept: ACCEPT_HEADER,
+          "Accept-Language": "en-US,en;q=0.9",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          DNT: "1",
+          Connection: "keep-alive",
+          "Upgrade-Insecure-Requests": "1",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
+          "x-slugy-preview": "1",
+        },
+        signal: controller.signal,
+        redirect: "manual",
+      });
 
-    if (!response.ok) {
-      console.warn(`HTTP ${response.status} for ${url}`);
-      // Don't throw on 4xx/5xx, return null instead
-      return null;
+      clearTimeout(timeout);
+
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get("location");
+        if (!location) return null;
+        current = assertPublicMetadataUrl(
+          new URL(location, current).toString(),
+        ).toString();
+        continue;
+      }
+
+      if (!response.ok) {
+        console.warn(`HTTP ${response.status} for ${current}`);
+        return null;
+      }
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
+        console.warn(`Non-HTML content type for ${current}: ${contentType}`);
+        return null;
+      }
+
+      const buffer = await response.arrayBuffer();
+      if (buffer.byteLength > MAX_HTML_BYTES) {
+        console.warn(`HTML too large for ${current}`);
+        return null;
+      }
+
+      const html = new TextDecoder("utf-8").decode(buffer);
+      if (!html || html.length < 100) {
+        console.warn(`Empty or too short HTML for ${current}`);
+        return null;
+      }
+
+      return html;
     }
 
-    const contentType = response.headers.get("content-type") || "";
-    if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
-      console.warn(`Non-HTML content type for ${url}: ${contentType}`);
-      return null;
-    }
-
-    const html = await response.text();
-
-    // Check if we got valid HTML
-    if (!html || html.length < 100) {
-      console.warn(`Empty or too short HTML for ${url}`);
-      return null;
-    }
-
-    return html;
+    return null;
   } catch (error) {
     if (error instanceof Error) {
       if (error.name === "AbortError") {

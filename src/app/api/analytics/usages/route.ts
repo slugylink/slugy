@@ -3,13 +3,18 @@ import { db } from "@/server/db";
 import { z } from "zod";
 import { setWorkspaceLimitsCache } from "@/lib/cache-utils/workspace-cache";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
+import {
+  ANALYTICS_INGEST_HEADER,
+  analyticsIngestPayload,
+  verifyInternalAnalyticsIngest,
+} from "@/lib/analytics/internal-ingest-auth";
 
 // Input validation schema
 const usagesSchema = z.object({
-  linkId: z.string().min(1),
-  slug: z.string().min(1),
-  domain: z.string().optional(),
-  workspaceId: z.string().min(1),
+  linkId: z.string().min(1).max(64),
+  slug: z.string().min(1).max(50),
+  domain: z.string().max(255).optional(),
+  workspaceId: z.string().min(1).max(64),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,6 +37,15 @@ export async function POST(req: NextRequest) {
     }
 
     const { linkId, slug, domain, workspaceId } = validationResult.data;
+
+    if (
+      !verifyInternalAnalyticsIngest(
+        analyticsIngestPayload({ linkId, workspaceId, slug }),
+        req.headers.get(ANALYTICS_INGEST_HEADER),
+      )
+    ) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // Verify the link exists and belongs to the workspace
     const link = await db.link.findFirst({

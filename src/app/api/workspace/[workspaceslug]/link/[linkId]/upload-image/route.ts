@@ -1,42 +1,35 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { s3Service } from "@/lib/s3-service";
-import { headers } from "next/headers";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ workspaceslug: string; linkId: string }> },
 ) {
   try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-    if (!session?.user) {
-      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+    const context = await params;
+    const access = await requireWorkspaceAccess(context.workspaceslug);
+    if (!access.ok) {
+      return access.response;
     }
 
-    const context = await params;
-
-    // Find the link and verify ownership
-    const link = await db.link.findUnique({
-      where: { id: context.linkId },
+    // Find the link and verify it belongs to this workspace
+    const link = await db.link.findFirst({
+      where: {
+        id: context.linkId,
+        workspaceId: access.workspace.id,
+      },
       include: { workspace: true },
     });
 
     if (!link) {
-      return NextResponse.json(
-        { message: "Link not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ message: "Link not found" }, { status: 404 });
     }
 
     // Verify workspace access
-    if (link.workspace.slug !== context.workspaceslug) {
-      return NextResponse.json(
-        { message: "Unauthorized" },
-        { status: 401 },
-      );
+    if (link.workspace.id !== access.workspace.id) {
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const formData = await req.formData();
@@ -108,4 +101,3 @@ export async function POST(
     );
   }
 }
-

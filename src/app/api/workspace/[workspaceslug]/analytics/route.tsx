@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { sql } from "@/server/neon";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
+import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { analyticsFilterFieldsSchema } from "@/lib/analytics/query-params";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -35,23 +35,18 @@ type ClientMetric =
   | "destinations";
 
 // Constants for better maintainability
-const CACHE_DURATION = 120; // 2 minutes
-const STALE_WHILE_REVALIDATE = 240; // 4 minutes
+const PRIVATE_NO_STORE = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie, Authorization",
+};
 const MAX_RESULTS = 100;
 
+export const dynamic = "force-dynamic";
+
 // Validation schema with better error messages
-const analyticsPropsSchema = z
-  .object({
-    timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]),
-    slug_key: z.string().nullable().optional(),
-    country_key: z.string().nullable().optional(),
-    city_key: z.string().nullable().optional(),
-    continent_key: z.string().nullable().optional(),
-    browser_key: z.string().nullable().optional(),
-    os_key: z.string().nullable().optional(),
-    referrer_key: z.string().nullable().optional(),
-    device_key: z.string().nullable().optional(),
-    destination_key: z.string().nullable().optional(),
+const analyticsPropsSchema = analyticsFilterFieldsSchema
+  .omit({ domain_key: true })
+  .extend({
     metrics: z
       .array(
         z.enum([
@@ -63,8 +58,8 @@ const analyticsPropsSchema = z
           "continents",
           "devices",
           "browsers",
-          "os", // Allow singular form
-          "oses", // Allow plural form
+          "os",
+          "oses",
           "referrers",
           "destinations",
         ]),
@@ -93,35 +88,43 @@ function getStartDate(period: TimePeriod): Date {
 // Helper function to build filter conditions with better performance
 function buildFilterConditions(filters: Record<string, string>) {
   const conditions: ReturnType<typeof sql>[] = [];
-  const filterMap = {
-    slug: filters.slug,
-    destination: filters.destination,
-    country: filters.country,
-    city: filters.city,
-    continent: filters.continent,
-    browser: filters.browser,
-    os: filters.os,
-    referrer: filters.referrer,
-    device: filters.device,
+
+  const append = (
+    value: string | undefined,
+    clause: (bound: string) => ReturnType<typeof sql>,
+  ) => {
+    const trimmed = value?.trim();
+    if (trimmed) conditions.push(clause(trimmed));
   };
 
-  // Only add conditions for non-empty filters
-  Object.entries(filterMap).forEach(([key, value]) => {
-    if (value?.trim()) {
-      const column = key === "destination" ? "l.url" : `a.${key}`;
-      conditions.push(sql`${sql.unsafe(column)} = ${value}`);
-    }
-  });
+  append(filters.slug, (value) => sql`l.slug = ${value}`);
+  append(filters.destination, (value) => sql`l.url = ${value}`);
+  append(filters.country, (value) => sql`a.country = ${value}`);
+  append(filters.city, (value) => sql`a.city = ${value}`);
+  append(filters.continent, (value) => sql`a.continent = ${value}`);
+  append(filters.browser, (value) => sql`a.browser = ${value}`);
+  append(filters.os, (value) => sql`a.os = ${value}`);
+  append(filters.referrer, (value) => sql`a.referer = ${value}`);
+  append(filters.device, (value) => sql`a.device = ${value}`);
 
   if (conditions.length === 0) return sql``;
   if (conditions.length === 1) return sql`AND ${conditions[0]}`;
 
-  // Build AND chain more efficiently
   let result = sql`AND ${conditions[0]}`;
   for (let i = 1; i < conditions.length; i++) {
     result = sql`${result} AND ${conditions[i]}`;
   }
   return result;
+}
+
+function timeBucketExpr(periodUnit: string) {
+  if (periodUnit === "hour") {
+    return sql`date_trunc('hour', a."clickedAt")`;
+  }
+  if (periodUnit === "month") {
+    return sql`date_trunc('month', a."clickedAt")`;
+  }
+  return sql`date_trunc('day', a."clickedAt")`;
 }
 
 // Optimized query for specific metrics with better error handling
@@ -145,7 +148,7 @@ async function fetchMetricData(
       case "clicksOverTime":
         const timeResult = await sql`
           SELECT 
-            date_trunc(${periodUnit}, a."clickedAt") AS time_period,
+            ${timeBucketExpr(periodUnit)} AS time_period,
             COUNT(*) AS clicks
           FROM "analytics" a
           JOIN "links" l ON a."linkId" = l.id
@@ -381,13 +384,9 @@ export async function GET(
 
     const props = analyticsPropsSchema.parse(raw);
 
-    // Authenticate user
-    const session = await auth.api.getSession({ headers: await headers() });
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized", code: "UNAUTHORIZED" },
-        { status: 401 },
-      );
+    const access = await requireWorkspaceAccess(workspaceslug);
+    if (!access.ok) {
+      return access.response;
     }
 
     // Calculate start date and period unit
@@ -438,15 +437,8 @@ export async function GET(
     // Build base where clause with performance optimization
     const baseWhereClause = sql`
       a."clickedAt" >= ${startDate}
-      AND w.slug = ${workspaceslug}
-      AND (
-        w."userId" = ${session.user.id}
-        OR EXISTS (
-          SELECT 1 FROM "members" wm
-          WHERE wm."workspaceId" = w.id
-            AND wm."userId" = ${session.user.id}
-        )
-      )
+      AND w.id = ${access.workspace.id}
+      AND w."deletedAt" IS NULL
       ${buildFilterConditions(filters)}
     `;
 
@@ -455,9 +447,7 @@ export async function GET(
       return NextResponse.json(
         {},
         {
-          headers: {
-            "Cache-Control": `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-          },
+          headers: PRIVATE_NO_STORE,
         },
       );
     }
@@ -500,16 +490,12 @@ export async function GET(
       ...(Object.keys(errors).length > 0 && { _errors: errors }),
     });
 
-    // Cache headers for better performance
-    response.headers.set(
-      "Cache-Control",
-      `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`,
-    );
+    response.headers.set("Cache-Control", PRIVATE_NO_STORE["Cache-Control"]);
+    response.headers.set("Vary", PRIVATE_NO_STORE.Vary);
 
     // Performance and debugging headers
     response.headers.set("X-Analytics-Metrics", normalizedMetrics.join(","));
     response.headers.set("X-Analytics-Period", props.timePeriod);
-    response.headers.set("X-Analytics-Cache", `${CACHE_DURATION}s`);
 
     return response;
   } catch (err) {

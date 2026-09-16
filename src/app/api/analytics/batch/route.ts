@@ -7,6 +7,7 @@ import {
   clearProcessedAnalyticsEvents,
   getCachedAnalyticsCount,
 } from "@/lib/cache-utils/analytics-cache";
+import { withCronAuth } from "@/lib/cron-auth";
 
 const ANALYTICS_ZSET_KEY = "analytics:batch";
 const BATCH_PROCESS = 5000;
@@ -24,7 +25,7 @@ const batchProcessSchema = z.object({
   processAll: z.boolean().optional().default(false), // New option to process all cached events
 });
 
-export async function POST(req: NextRequest) {
+async function handler(req: NextRequest) {
   try {
     // Safely parse request body with error handling
     let body;
@@ -306,29 +307,8 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET endpoint for monitoring batch status
-export async function GET() {
-  try {
-    let cachedCount = 0;
-    try {
-      cachedCount = await getCachedAnalyticsCount();
-    } catch (countError) {
-      console.error("Failed to get cached analytics count:", countError);
-      // Return 0 if count retrieval fails, but don't fail the endpoint
-    }
+export const POST = withCronAuth(handler);
 
-    return NextResponse.json({
-      cachedEventsCount: cachedCount,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error("Failed to get batch status:", error);
-    return NextResponse.json(
-      {
-        error: "Failed to get batch status",
-        details: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 },
-    );
-  }
+export async function GET() {
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }

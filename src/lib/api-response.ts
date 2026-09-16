@@ -49,6 +49,11 @@ export function apiSuccess<T>(
 /**
  * Creates an error API response
  */
+const PRIVATE_NO_STORE_HEADERS = {
+  "Cache-Control": "private, no-store",
+  Vary: "Cookie, Authorization",
+};
+
 export function apiError(
   error: string,
   code?: ApiErrorCode,
@@ -63,7 +68,13 @@ export function apiError(
     ...(details !== undefined && { details }),
   };
 
-  return NextResponse.json(response, { status, headers });
+  return NextResponse.json(response, {
+    status,
+    headers: {
+      ...PRIVATE_NO_STORE_HEADERS,
+      ...headers,
+    },
+  });
 }
 
 /**
@@ -72,41 +83,43 @@ export function apiError(
 export const apiErrors = {
   unauthorized: (message: string = "Unauthorized") =>
     apiError(message, "UNAUTHORIZED", 401),
-  
+
   forbidden: (message: string = "Forbidden") =>
     apiError(message, "FORBIDDEN", 403),
-  
+
   notFound: (message: string = "Resource not found") =>
     apiError(message, "NOT_FOUND", 404),
-  
+
   validationError: (details: unknown, message: string = "Validation failed") =>
     apiError(message, "VALIDATION_ERROR", 400, details),
-  
+
   rateLimitExceeded: (retryAfter?: number) =>
     apiError(
       "Rate limit exceeded",
       "RATE_LIMIT_EXCEEDED",
       429,
       retryAfter ? { retryAfter } : undefined,
-      retryAfter
-        ? { "Retry-After": retryAfter.toString() }
-        : undefined,
+      retryAfter ? { "Retry-After": retryAfter.toString() } : undefined,
     ),
-  
+
   serviceUnavailable: (message: string = "Service temporarily unavailable") =>
     apiError(message, "SERVICE_UNAVAILABLE", 503),
-  
-  internalError: (message: string = "Internal server error", details?: unknown) =>
-    apiError(message, "INTERNAL_ERROR", 500, details),
-  
+
+  internalError: (
+    message: string = "Internal server error",
+    details?: unknown,
+  ) => apiError(message, "INTERNAL_ERROR", 500, details),
+
   badRequest: (message: string = "Bad request", details?: unknown) =>
     apiError(message, "BAD_REQUEST", 400, details),
-  
+
   conflict: (message: string = "Conflict", details?: unknown) =>
     apiError(message, "CONFLICT", 409, details),
-  
-  unprocessableEntity: (message: string = "Unprocessable entity", details?: unknown) =>
-    apiError(message, "UNPROCESSABLE_ENTITY", 422, details),
+
+  unprocessableEntity: (
+    message: string = "Unprocessable entity",
+    details?: unknown,
+  ) => apiError(message, "UNPROCESSABLE_ENTITY", 422, details),
 };
 
 /**

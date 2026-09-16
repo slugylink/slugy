@@ -1,4 +1,9 @@
 import { waitUntil } from "@vercel/functions";
+import {
+  ANALYTICS_INGEST_HEADER,
+  analyticsIngestPayload,
+  signInternalAnalyticsIngest,
+} from "@/lib/analytics/internal-ingest-auth";
 import { NextRequest, userAgent } from "next/server";
 import { sendLinkClickEvent } from "@/lib/tinybird/slugy_click_events";
 import {
@@ -290,7 +295,12 @@ async function dispatchAnalytics(
 
       fetch(`${req.nextUrl.origin}/api/analytics/usages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          [ANALYTICS_INGEST_HEADER]: signInternalAnalyticsIngest(
+            analyticsIngestPayload({ linkId, workspaceId, slug }),
+          ),
+        },
         body: JSON.stringify({
           linkId,
           slug,
