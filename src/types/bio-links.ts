@@ -123,6 +123,7 @@ export type GalleryData = {
 export type SocialLinksProps = {
   socials: PublicBioSocial[];
   theme: Theme;
+  variant?: "default" | "header";
 };
 
 export type BioLinksProps = {
@@ -137,6 +138,9 @@ export type ProfileSectionProps = {
   readonly theme: Theme;
   readonly children?: ReactNode;
   readonly isPreview?: boolean;
+  readonly avatarUrl?: string;
+  readonly layout?: "overlay" | "split";
+  readonly avatarOverlay?: ReactNode;
 };
 
 export type GalleryFooterProps = {

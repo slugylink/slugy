@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { useState, useEffect } from "react";
+
 import {
   Dialog,
   DialogContent,
@@ -12,9 +13,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+
 import {
   Form,
   FormControl,
@@ -23,6 +26,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+
 import axios from "axios";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
@@ -40,8 +44,12 @@ interface GallerySettingsDialogProps {
 }
 
 const formSchema = z.object({
-  name: z.string().max(25, { message: "Name must be at most 25 characters" }),
-  bio: z.string().max(50, { message: "Bio must be at most 50 characters" }),
+  name: z.string().max(25, {
+    message: "Name must be at most 25 characters",
+  }),
+  bio: z.string().max(70, {
+    message: "Bio must be at most 70 characters",
+  }),
 });
 
 const GallerySettingsDialog = ({
@@ -92,6 +100,7 @@ const GallerySettingsDialog = ({
     }
 
     setIsSubmitting(true);
+
     try {
       await axios.patch(`/api/bio-gallery/${username}/update`, updateData);
 
@@ -101,15 +110,19 @@ const GallerySettingsDialog = ({
       onOpenChange(false);
     } catch (error: unknown) {
       console.error("Update error:", error);
+
       if (axios.isAxiosError(error) && error.response) {
         console.error("Response data:", error.response.data);
+
         const errorMessage =
           (error.response.data as { error: string }).error ??
           "Failed to update gallery";
+
         toast.error(errorMessage);
       } else {
         toast.error("Failed to update gallery");
       }
+
       await mutate(`/api/bio-gallery/${username}`);
     } finally {
       setIsSubmitting(false);
@@ -142,6 +155,7 @@ const GallerySettingsDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Name</FormLabel>
+
                     <FormControl>
                       <Input
                         placeholder="Enter your name"
@@ -149,8 +163,10 @@ const GallerySettingsDialog = ({
                         disabled={isSubmitting}
                       />
                     </FormControl>
+
                     <div className="flex items-center justify-between text-xs">
                       <FormMessage />
+
                       <span className="text-muted-foreground">
                         {field.value?.length}/25
                       </span>
@@ -165,6 +181,7 @@ const GallerySettingsDialog = ({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Bio</FormLabel>
+
                     <FormControl>
                       <Textarea
                         placeholder="About yourself"
@@ -173,10 +190,12 @@ const GallerySettingsDialog = ({
                         disabled={isSubmitting}
                       />
                     </FormControl>
+
                     <div className="flex items-center justify-between text-xs">
                       <FormMessage />
+
                       <span className="text-muted-foreground flex items-center justify-end">
-                        {field.value?.length}/50
+                        {field.value?.length}/70
                       </span>
                     </div>
                   </FormItem>
@@ -193,13 +212,14 @@ const GallerySettingsDialog = ({
               >
                 Cancel
               </Button>
+
               <Button
                 disabled={!isValid || isSubmitting || !isDirty}
                 type="submit"
               >
                 {isSubmitting && (
                   <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
-                )}{" "}
+                )}
                 Save
               </Button>
             </div>

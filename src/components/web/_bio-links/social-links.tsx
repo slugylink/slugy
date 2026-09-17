@@ -23,16 +23,19 @@ function SocialLink({
   platform,
   url,
   keyPrefix,
+  variant = "default",
 }: {
   platform: SocialPlatform;
   url: string;
   keyPrefix: string;
+  variant?: "default" | "header";
 }) {
   const platformConfig = SOCIAL_PLATFORMS[platform];
   if (!platformConfig) return null;
 
   const href = platformConfig.isMail ? formatEmailUrl(url) : url;
   const isMail = platformConfig.isMail;
+  const isHeader = variant === "header";
 
   return (
     <Link
@@ -41,28 +44,42 @@ function SocialLink({
       target={isMail ? "_self" : "_blank"}
       rel={isMail ? undefined : "noopener noreferrer"}
       aria-label={`${platform} profile`}
-      className={`flex size-9 items-center justify-center rounded-full bg-white transition-transform ${BIO_SOCIAL_ICON_MAP[platform]?.colorClass ?? "text-zinc-700"}`}
+      className={
+        isHeader
+          ? "flex size-9 items-center justify-center rounded-full bg-[#e3e4e6] text-zinc-800 transition-transform hover:scale-[1.03]"
+          : `flex size-6 items-center justify-center rounded-full bg-white transition-transform ${BIO_SOCIAL_ICON_MAP[platform]?.colorClass ?? "text-zinc-700"}`
+      }
     >
-      {getSocialIcon(platform, 18)}
+      {getSocialIcon(platform, isHeader ? 18 : 18)}
     </Link>
   );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function SocialLinks({ socials, theme }: SocialLinksProps) {
+export default function SocialLinks({
+  socials,
+  theme,
+  variant = "default",
+}: SocialLinksProps) {
   const validSocials = socials.filter((s): s is ValidSocial =>
     Boolean(s.platform && s.url && s.platform in SOCIAL_PLATFORMS),
   );
 
   if (!validSocials.length) return null;
 
-  const shouldAutoScroll = validSocials.length >= AUTO_SCROLL_THRESHOLD;
+  const shouldAutoScroll =
+    variant !== "header" && validSocials.length >= AUTO_SCROLL_THRESHOLD;
+  const isHeader = variant === "header";
 
   if (!shouldAutoScroll) {
     return (
       <div
-        className={`flex flex-wrap items-center justify-center gap-1.5 ${theme.textColor}`}
+        className={
+          isHeader
+            ? "flex flex-wrap items-center justify-start gap-3"
+            : `flex flex-wrap items-center justify-center gap-1.5 ${theme.textColor}`
+        }
       >
         {validSocials.map(({ platform, url }) => (
           <SocialLink
@@ -70,6 +87,7 @@ export default function SocialLinks({ socials, theme }: SocialLinksProps) {
             platform={platform}
             url={url}
             keyPrefix="static"
+            variant={variant}
           />
         ))}
       </div>

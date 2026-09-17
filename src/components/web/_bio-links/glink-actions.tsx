@@ -119,7 +119,7 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
         variant="secondary"
         className="flex h-8 items-center gap-2 text-sm font-normal"
       >
-        slugy.co/b/{username}
+        bio.slugy.co/{username}
         <button
           className="flex cursor-pointer items-center justify-center focus:outline-none"
           onClick={handleCopy}

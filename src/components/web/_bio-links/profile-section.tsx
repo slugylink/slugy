@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 import type { ProfileSectionProps } from "@/types/bio-links";
 import { getDisplayName } from "@/utils/bio-links";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
@@ -11,9 +12,45 @@ export default function ProfileSection({
   bio,
   theme,
   children,
-  isPreview = false,
+  isPreview: _isPreview = false,
+  avatarUrl,
+  layout = "overlay",
+  avatarOverlay,
 }: ProfileSectionProps) {
   const displayName = getDisplayName(name, username);
+
+  if (layout === "split") {
+    return (
+      <section className="relative z-10 mt-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1 pt-1">
+            <h1 className="text-xl leading-none font-bold tracking-tight text-zinc-900 sm:text-2xl">
+              {displayName}
+            </h1>
+            {bio ? (
+              <p className="mt-2 max-w-[16rem] text-[12px] leading-snug text-zinc-400 sm:max-w-xs sm:text-sm">
+                {bio}
+              </p>
+            ) : null}
+          </div>
+          {avatarUrl ? (
+            <div className="relative shrink-0">
+              <Image
+                src={avatarUrl}
+                alt={`${displayName}'s profile`}
+                width={96}
+                height={96}
+                priority
+                className="relative z-[1] size-[64px] rounded-full object-cover sm:size-[76px]"
+              />
+              {avatarOverlay}
+            </div>
+          ) : null}
+        </div>
+        {children ? <div className="mt-6">{children}</div> : null}
+      </section>
+    );
+  }
 
   return (
     <section className="relative z-10 h-full min-h-full bg-transparent">

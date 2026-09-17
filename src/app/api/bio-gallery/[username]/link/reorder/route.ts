@@ -58,7 +58,7 @@ export async function PUT(
     if (links.length > 0) {
       const values = links.map(
         (link: { id: string; position: number }) =>
-          Prisma.sql`(${link.id}, ${link.position})`,
+          Prisma.sql`(${link.id}::text, ${link.position}::integer)`,
       );
 
       const updatedCount = await db.$executeRaw(

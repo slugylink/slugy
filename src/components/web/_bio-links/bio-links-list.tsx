@@ -62,13 +62,7 @@ function buildRenderBlocks(links: BioLinksProps["links"]): RenderBlock[] {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function LinkCard({
-  link,
-  theme,
-}: {
-  link: LinkItem;
-  theme: BioLinksProps["theme"];
-}) {
+function LinkCard({ link }: { link: LinkItem }) {
   const label = link.title || link.url;
 
   return (
@@ -77,11 +71,16 @@ function LinkCard({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Visit ${label}`}
-      className={`group flex w-full items-center gap-2.5 rounded-xl border border-white/15 px-5 py-4 text-left text-base font-medium backdrop-blur transition hover:opacity-90 focus:opacity-90 focus:outline-none ${theme.buttonStyle}`}
+      className="group flex w-full items-center gap-3 rounded-2xl border bg-zinc-50 px-3 py-3 text-left hover:opacity-90 focus:opacity-90 focus:outline-none"
     >
-      <UrlAvatar url={link.url} />
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full border border-zinc-600 bg-zinc-900 text-zinc-300 transition duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-white">
+      <UrlAvatar
+        url={link.url}
+        className="border-white bg-white shadow-[0_1px_4px_rgba(15,23,42,0.08)] ring-1 ring-black/5 dark:border-white dark:bg-white dark:from-white dark:to-white"
+      />
+      <span className="min-w-0 flex-1 truncate text-[15px] font-medium text-zinc-700">
+        {label}
+      </span>
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-zinc-800 text-white shadow-sm transition duration-200 group-hover:bg-zinc-900">
         <ArrowUpRight className="size-4" aria-hidden="true" />
       </span>
     </Link>
@@ -97,9 +96,8 @@ function FeatureCard({ link }: { link: LinkItem }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={`Visit: ${label}`}
-      className="group bg-background relative block aspect-video overflow-hidden rounded-xl"
+      className="group relative block aspect-video overflow-hidden rounded-[24px] border bg-zinc-100"
     >
-      {/* Cover image */}
       <img
         src={link.image || DEFAULT_LINK_IMAGE_URL}
         alt=""
@@ -110,19 +108,19 @@ function FeatureCard({ link }: { link: LinkItem }) {
         className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
       />
 
-      {/* Gradient overlay */}
       <div
-        className="absolute inset-0 z-10 bg-gradient-to-t from-black/80 via-black/20 to-transparent"
+        className="absolute inset-0 z-10 bg-gradient-to-t from-black/45 via-black/5 to-transparent"
         aria-hidden="true"
       />
 
-      {/* Site favicon */}
-      <span className="absolute top-3 left-3 rounded-full shadow-sm">
-        <UrlAvatar className="size-8 p-1.5 shadow" url={link.url} />
+      <span className="absolute top-3 left-3 z-20">
+        <UrlAvatar
+          className="size-9 border-white bg-white p-1.5 shadow-sm dark:border-white dark:bg-white dark:from-white dark:to-white"
+          url={link.url}
+        />
       </span>
 
-      {/* Title */}
-      <p className="md:text-md absolute inset-x-0 bottom-2.5 z-10 line-clamp-1 px-4 text-center text-base leading-tight font-semibold text-white drop-shadow-sm">
+      <p className="absolute inset-x-0 bottom-3 z-10 line-clamp-1 px-4 text-left text-sm leading-tight font-semibold text-white drop-shadow-sm sm:text-base">
         {label}
       </p>
     </Link>
@@ -131,12 +129,10 @@ function FeatureCard({ link }: { link: LinkItem }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function BioLinksList({ links, theme }: BioLinksProps) {
+export default function BioLinksList({ links }: BioLinksProps) {
   if (!links.length) {
     return (
-      <p
-        className={`min-h-[150px] rounded-[18px] px-4 py-6 text-center backdrop-blur ${theme.textColor}`}
-      >
+      <p className="min-h-[150px] rounded-[18px] px-4 py-6 text-center text-zinc-400">
         No links available.
       </p>
     );
@@ -164,7 +160,7 @@ export default function BioLinksList({ links, theme }: BioLinksProps) {
           return <FeatureCard key={block.link.id} link={block.link} />;
         }
 
-        return <LinkCard key={block.link.id} link={block.link} theme={theme} />;
+        return <LinkCard key={block.link.id} link={block.link} />;
       })}
     </div>
   );

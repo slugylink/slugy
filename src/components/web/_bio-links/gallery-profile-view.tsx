@@ -7,7 +7,6 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
-import Image from "next/image";
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
@@ -56,10 +55,8 @@ export default function GalleryProfileView({
   gallery,
   theme,
   avatarUrl,
-  mode = "full",
   children,
 }: GalleryProfileViewProps) {
-  const isPreview = mode === "preview";
   const socials = gallery.socials ?? [];
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatarUrl);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
@@ -95,7 +92,7 @@ export default function GalleryProfileView({
       setCurrentAvatarUrl(getAvatarUrl(data.logo, gallery.username));
       await mutate(`/api/bio-gallery/${gallery.username}`);
       toast.success("Profile image updated");
-    } catch (error) {
+    } catch {
       toast.error("Failed to upload image");
       await mutate(`/api/bio-gallery/${gallery.username}`);
     } finally {
@@ -107,66 +104,54 @@ export default function GalleryProfileView({
   };
 
   return (
-    <div className={"relative rounded-[18px]"}>
-      <div className="relative z-10 mx-auto w-full rounded-[18px] bg-transparent md:max-w-lg">
-        <div className="relative w-full overflow-hidden rounded-[18px]">
-          <div
-            className={"relative z-0 h-[420px] overflow-hidden sm:h-[520px]"}
-          >
-            <Image
-              src={currentAvatarUrl}
-              alt={`${gallery.name}'s profile image`}
-              fill
-              className="object-cover"
-              priority={!isPreview}
-              sizes={"(max-width: 768px) 100vw, 680px"}
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={handleImageUpload}
-              disabled={isUploadingImage}
-            />
-          </div>
+    <div className="relative mx-auto max-w-lg overflow-hidden rounded-[18px] border bg-[#f6f6f7] bg-[radial-gradient(#e4e3e6_1.15px,transparent_1.15px)] bg-[size:18px_18px]">
+      <div className="relative z-10 mx-auto w-full">
+        <div className="relative w-full">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            className="hidden"
+            onChange={handleImageUpload}
+            disabled={isUploadingImage}
+          />
 
-          <div className="relative top-[-220px] z-20! flex items-center justify-center">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="cursor-pointer items-center justify-center rounded-full bg-zinc-50/40 text-white transition hover:text-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label="Upload profile image"
-              disabled={isUploadingImage}
-            >
-              {isUploadingImage ? (
-                <LoaderCircle className="h-5 w-5 animate-spin" />
-              ) : (
-                <ImagePlus strokeWidth={1.5} size={40} className="p-2" />
-              )}
-            </button>
-          </div>
-
-          <div className={"relative z-[5] -mt-[360px] h-[360px]"}>
+          <div className="px-6 pt-8 pb-2">
             <ProfileSection
               name={gallery.name}
               username={gallery.username}
               bio={gallery.bio}
               theme={theme}
-              isPreview={isPreview}
+              avatarUrl={currentAvatarUrl}
+              layout="split"
+              avatarOverlay={
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 z-10 flex items-center justify-center rounded-full bg-black/0 text-white opacity-0 transition hover:bg-black/40 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Upload profile image"
+                  disabled={isUploadingImage}
+                >
+                  {isUploadingImage ? (
+                    <LoaderCircle className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <ImagePlus strokeWidth={1.5} size={22} />
+                  )}
+                </button>
+              }
             >
-              <SocialLinks socials={socials} theme={theme} />
+              <SocialLinks socials={socials} theme={theme} variant="header" />
             </ProfileSection>
           </div>
 
-          <div>
+          <div className="px-4">
             <GLinkDialogBox username={gallery.username} />
           </div>
 
-          <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7">
+          <div className="relative z-10 space-y-4 px-4 pt-4 pb-16 sm:pb-20">
             {children}
-            <GalleryFooter />
           </div>
+          <GalleryFooter placement="absolute" />
         </div>
       </div>
     </div>

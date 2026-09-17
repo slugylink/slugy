@@ -92,11 +92,8 @@ export default function GalleryLinksProfileClient({
             <motion.div {...fadeUp(0.25)}>
               <Contact />
             </motion.div>
-
-            <motion.div {...fadeUp(0.3)}>
-              <GalleryFooter />
-            </motion.div>
           </div>
+          <GalleryFooter />
         </div>
       </div>
     </div>
