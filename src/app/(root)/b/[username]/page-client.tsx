@@ -6,14 +6,8 @@ import SocialLinks from "@/components/web/_bio-links/social-links";
 import BioLinksList from "@/components/web/_bio-links/bio-links-list";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
+import { fadeUp } from "@/lib/motion";
 import type { GalleryData, Theme } from "@/types/bio-links";
-
-export const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 18 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.1 },
-  transition: { duration: 0.4, delay },
-});
 
 interface PageClientProps {
   gallery: GalleryData;
@@ -52,7 +46,7 @@ export default function GalleryLinksProfileClient({
 
           <LazyMotion features={domAnimation}>
             <div className="relative z-10 space-y-4 px-4 pt-6 pb-20 sm:pb-24">
-              <m.div {...fadeUp(0.08)}>
+              <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}>
                 <BioLinksList links={links} theme={theme} />
               </m.div>
             </div>

@@ -137,7 +137,6 @@ export type ProfileSectionProps = {
   readonly bio: string | null;
   readonly theme: Theme;
   readonly children?: ReactNode;
-  readonly isPreview?: boolean;
   readonly avatarUrl?: string;
   readonly layout?: "overlay" | "split";
   readonly avatarOverlay?: ReactNode;

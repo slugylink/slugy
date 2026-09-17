@@ -50,7 +50,7 @@ function SocialLink({
           : `flex size-6 items-center justify-center rounded-full bg-white transition-transform ${BIO_SOCIAL_ICON_MAP[platform]?.colorClass ?? "text-zinc-700"}`
       }
     >
-      {getSocialIcon(platform, isHeader ? 18 : 18)}
+      {getSocialIcon(platform, isHeader ? 17 : 18)}
     </Link>
   );
 }
@@ -77,7 +77,7 @@ export default function SocialLinks({
       <div
         className={
           isHeader
-            ? "flex flex-wrap items-center justify-start gap-3"
+            ? "flex flex-wrap items-center justify-start gap-2"
             : `flex flex-wrap items-center justify-center gap-1.5 ${theme.textColor}`
         }
       >

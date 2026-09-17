@@ -4,7 +4,7 @@ import type { ProfileSectionProps } from "@/types/bio-links";
 import { getDisplayName } from "@/utils/bio-links";
 import { RiVerifiedBadgeFill } from "react-icons/ri";
 import { LazyMotion, domAnimation, m } from "motion/react";
-import { fadeUp } from "@/app/(bio-links)/bio/[username]/page-client";
+import { fadeUp } from "@/lib/motion";
 
 export default function ProfileSection({
   name,
@@ -12,7 +12,6 @@ export default function ProfileSection({
   bio,
   theme,
   children,
-  isPreview: _isPreview = false,
   avatarUrl,
   layout = "overlay",
   avatarOverlay,
@@ -22,13 +21,13 @@ export default function ProfileSection({
   if (layout === "split") {
     return (
       <section className="relative z-10 mt-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1 pt-1">
             <h1 className="text-xl leading-none font-bold tracking-tight text-zinc-900 sm:text-2xl">
               {displayName}
             </h1>
             {bio ? (
-              <p className="mt-2 max-w-[16rem] text-[12px] leading-snug text-zinc-400 sm:max-w-xs sm:text-sm">
+              <p className="mt-2 max-w-[16rem] text-[13px] leading-snug text-zinc-400 sm:max-w-xs sm:text-[14px]">
                 {bio}
               </p>
             ) : null}
@@ -41,7 +40,7 @@ export default function ProfileSection({
                 width={96}
                 height={96}
                 priority
-                className="relative z-[1] size-[64px] rounded-full object-cover sm:size-[76px]"
+                className="relative z-[1] size-[68px] rounded-full object-cover sm:size-[75px]"
               />
               {avatarOverlay}
             </div>

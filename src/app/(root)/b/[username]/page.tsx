@@ -126,10 +126,8 @@ function getTheme(themeId: string | null | undefined): Theme {
 
 // ─── Page Component ───────────────────────────────────────────────────────────
 
-export default async function GalleryLinksProfile(context: {
-  params: Promise<{ username: string }>;
-}) {
-  const { username } = await context.params;
+export default async function GalleryLinksProfile({ params }: PageParams) {
+  const { username } = await params;
   if (!username) notFound();
 
   const gallery = await getGallery(username);

@@ -10,14 +10,8 @@ import FeatureCard from "@/components/web/_bio-links/feature-card";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
 import GridFeatureCard from "@/components/web/_bio-links/grid-feature-card";
 import Contact from "@/components/web/_bio-links/contact";
+import { fadeUp } from "@/lib/motion";
 import type { GalleryData, Theme } from "@/types/bio-links";
-
-export const fadeUp = (delay = 0) => ({
-  initial: { opacity: 0, y: 18 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.45, delay },
-});
 
 interface PageClientProps {
   gallery: GalleryData;
