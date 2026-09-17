@@ -235,7 +235,7 @@ export default function Navbar() {
   if (!isVisible) return null;
 
   return (
-    <nav className="fixed top-0 left-0 z-50 w-full border-b border-zinc-200 bg-white backdrop-blur-md dark:border-white/10">
+    <nav className="fixed top-0 left-0 z-50 w-full border-b border-zinc-200 bg-white dark:border-white/10">
       <div className="mx-auto flex h-[3.5rem] max-w-6xl items-center justify-between px-4">
         <NavbarLogo />
         <DesktopMenu />

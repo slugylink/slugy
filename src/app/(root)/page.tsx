@@ -51,8 +51,8 @@ const OpenSource = dynamic(() => import("./_components/open-source"), {
 export default function Home() {
   return (
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
-      <div className="landing-hero-shell relative mx-auto w-[99%] overflow-hidden rounded-3xl border py-8 pb-16">
-        <div className="landing-hero-glow pointer-events-none absolute inset-0" />
+      <div className="landing-hero-shell relative mx-auto w-[99%] overflow-hidden rounded-3xl border py-10 pb-20 sm:py-14 sm:pb-24">
+        <div className="landing-hero-axes pointer-events-none absolute inset-0" />
         <div className="relative z-20 mx-auto max-w-6xl py-4">
           <Hero />
         </div>

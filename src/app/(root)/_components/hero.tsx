@@ -42,7 +42,7 @@ const heroData = {
     </div>
   ),
   heading2Gradient:
-    "mx-auto inline-block w-fit py-1 bg-gradient-to-r from-[#ffaa40] via-[#ffaa40]/90 to-[#9c40ff] bg-clip-text text-center leading-none font-semibold text-transparent",
+    "mx-auto inline-block w-fit py-1  bg-clip-text text-center leading-none font-semibold",
   subheading1: (
     <>
       Branded links, analytics, QR codes and link-in-bio

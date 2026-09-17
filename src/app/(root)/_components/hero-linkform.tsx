@@ -178,7 +178,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     <div>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100/70 p-2 shadow-sm backdrop-blur-md sm:p-2.5"
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100 p-2 shadow-sm sm:p-2.5"
       >
         <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
           <Input

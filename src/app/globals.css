@@ -339,25 +339,62 @@
 }
 
 .landing-hero-shell {
-  background:
-    radial-gradient(
-      120% 80% at 50% -10%,
-      rgba(255, 170, 64, 0.14),
-      transparent 55%
-    ),
-    radial-gradient(
-      90% 60% at 100% 20%,
-      rgba(156, 64, 255, 0.08),
-      transparent 50%
-    ),
-    linear-gradient(180deg, #f7f5f2 0%, #faf8f6 45%, #ffffff 100%);
+  contain: paint;
+  isolation: isolate;
+  background-color: #ffffff;
 }
 
-.landing-hero-glow {
+.landing-hero-shell::before {
+  content: "";
+  position: absolute;
+  inset: -30%;
+  z-index: 0;
+  pointer-events: none;
+  background-color: #ffffff;
   background-image:
-    radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.55), transparent 40%),
-    radial-gradient(circle at 80% 10%, rgba(255, 170, 64, 0.08), transparent 35%);
-  opacity: 0.9;
+    /* linear-gradient(to top left, #dfefee 0%, transparent 48%),
+    linear-gradient(to top right, #fbb4aa 0%, transparent 52%),
+    linear-gradient(to top, #f5b6db 0%, transparent 50%), */
+    linear-gradient(
+      to top,
+      color-mix(in srgb, #dfefee 68%, white) 15%,
+      color-mix(in srgb, #f5b6db 67%, white) 30%,
+      color-mix(in srgb, #fbb4aa 74%, white) 40%,
+      color-mix(in srgb, #fff 88%, white) 65%,
+      #ffffff 100%
+    );
+  transform: rotate(-12deg);
+}
+
+.landing-hero-axes {
+  z-index: 1;
+  background-image:
+    linear-gradient(to right, rgba(251, 251, 252, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(248, 248, 248, 0.5) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 14%,
+    black 82%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 14%,
+    black 82%,
+    transparent
+  );
+}
+
+.landing-dot-grid {
+  background-image: radial-gradient(
+    circle,
+    rgb(255 255 255 / 0.55) 1px,
+    transparent 1.2px
+  );
+  background-size: 12px 12px;
 }
 
 

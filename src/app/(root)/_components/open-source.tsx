@@ -1,11 +1,8 @@
-"use client";
 import { Button } from "@/components/ui/button";
-import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa6";
-import { memo } from "react";
 
-const OpenSource = memo(function OpenSource() {
+export default function OpenSource() {
   return (
     <section className="relative mx-auto my-4 max-w-full">
       <div className="">
@@ -30,13 +27,9 @@ const OpenSource = memo(function OpenSource() {
     "
             />
           </svg>
-          <FlickeringGrid
-            className="absolute inset-0 opacity-20"
-            squareSize={4}
-            gridGap={8}
-            flickerChance={0.5}
-            color="rgb(255, 255, 255)"
-            maxOpacity={0.7}
+          <div
+            className="landing-dot-grid pointer-events-none absolute inset-0 opacity-20"
+            aria-hidden
           />
           <div className="relative z-10 flex flex-col items-center justify-center py-20 pb-24">
             <div className="mx-auto w-full space-y-2 text-center">
@@ -81,8 +74,4 @@ const OpenSource = memo(function OpenSource() {
       </div>
     </section>
   );
-});
-
-OpenSource.displayName = "OpenSource";
-
-export default OpenSource;
+}
