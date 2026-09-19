@@ -4,50 +4,38 @@ import { toast } from "sonner";
 import { useThemeStore } from "@/store/theme-store";
 import { ThemeConfirmToast } from "@/components/ui/theme-confirm-toast";
 import { KeyedMutator } from "swr";
-
-interface Gallery {
-  links: Array<{
-    id: string;
-    title: string;
-    url: string;
-    isPublic: boolean;
-    position: number;
-    clicks: number;
-    galleryId: string;
-  }>;
-  username: string;
-  name?: string | null;
-  bio?: string | null;
-  logo?: string | null;
-  socials?: Array<{
-    platform: string;
-    url?: string;
-    isPublic?: boolean;
-  }>;
-  theme?: string;
-}
+import type { EditorGallery } from "@/types/bio-links";
 
 export function useThemeUpdate(
   username: string,
   initialTheme: string,
   onThemeChange?: (theme: string) => void,
-  mutate?: KeyedMutator<Gallery>
+  mutate?: KeyedMutator<EditorGallery>,
 ) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const router = useRouter();
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
-  
+
+  const updateCacheTheme = (themeId: string) => {
+    if (!mutate) return;
+    void mutate(
+      (current) => (current ? { ...current, theme: themeId } : current),
+      { revalidate: false },
+    );
+  };
+
   const handleThemeClick = (themeId: string, currentTheme: string) => {
     if (themeId === currentTheme) return;
-    
-    // Update theme store immediately to show in preview
+
+    // Update theme store + preview cache immediately
     setTheme(themeId);
-    
+    updateCacheTheme(themeId);
+
     // Close the sheet
     setIsSheetOpen(false);
-    
+
     // Show toast with confirm/cancel buttons
     toast.custom(
       (t) => (
@@ -56,21 +44,25 @@ export function useThemeUpdate(
           onCancel={() => {
             // Revert theme on cancel
             setTheme(currentTheme);
+            updateCacheTheme(currentTheme);
             toast.dismiss(t);
           }}
           onConfirm={() => {
-            handleConfirmTheme(themeId);
+            handleConfirmTheme(themeId, currentTheme);
             toast.dismiss(t);
           }}
         />
       ),
       {
         duration: 8000,
-      }
+      },
     );
   };
 
-  const handleConfirmTheme = async (themeId: string) => {
+  const handleConfirmTheme = async (
+    themeId: string,
+    currentTheme: string = initialTheme,
+  ) => {
     if (!themeId) return;
     setIsSaving(true);
     try {
@@ -125,7 +117,8 @@ export function useThemeUpdate(
       }
       toast.error(message);
       // Revert theme on error
-      setTheme(initialTheme);
+      setTheme(currentTheme);
+      updateCacheTheme(currentTheme);
     } finally {
       setIsSaving(false);
     }
@@ -139,4 +132,4 @@ export function useThemeUpdate(
     handleThemeClick,
     handleConfirmTheme,
   };
-} 
+}

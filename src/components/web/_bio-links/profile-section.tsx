@@ -23,11 +23,15 @@ export default function ProfileSection({
       <section className="relative z-10 mt-4">
         <div className="flex items-center justify-between gap-4">
           <div className="min-w-0 flex-1 pt-1">
-            <h1 className="text-xl leading-none font-bold tracking-tight text-zinc-900 sm:text-2xl">
+            <h1
+              className={`text-xl leading-none font-bold tracking-tight sm:text-2xl ${theme.textColor}`}
+            >
               {displayName}
             </h1>
             {bio ? (
-              <p className="mt-2 max-w-[16rem] text-[13px] leading-snug text-zinc-400 sm:max-w-xs sm:text-[14px]">
+              <p
+                className={`mt-2 max-w-[16rem] text-[13px] leading-snug sm:max-w-xs sm:text-[14px] ${theme.accentColor}`}
+              >
                 {bio}
               </p>
             ) : null}

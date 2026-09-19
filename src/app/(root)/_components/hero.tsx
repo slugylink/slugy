@@ -45,7 +45,7 @@ const heroData = {
     "mx-auto inline-block w-fit py-1  bg-clip-text text-center leading-none font-semibold",
   subheading1: (
     <>
-      Branded links, analytics, QR codes and link-in-bio
+      Branded links, analytics, QR codes, lead tracking and link-in-bio
       <br className="hidden sm:block" /> — without the enterprise price tag.
     </>
   ),

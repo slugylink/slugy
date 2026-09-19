@@ -24,11 +24,13 @@ function SocialLink({
   url,
   keyPrefix,
   variant = "default",
+  buttonStyle,
 }: {
   platform: SocialPlatform;
   url: string;
   keyPrefix: string;
   variant?: "default" | "header";
+  buttonStyle?: string;
 }) {
   const platformConfig = SOCIAL_PLATFORMS[platform];
   if (!platformConfig) return null;
@@ -46,7 +48,7 @@ function SocialLink({
       aria-label={`${platform} profile`}
       className={
         isHeader
-          ? "flex size-9 items-center justify-center rounded-full bg-[#e3e4e6] text-zinc-800 transition-transform hover:scale-[1.03]"
+          ? `flex size-9 items-center justify-center rounded-full transition-transform hover:scale-[1.03] ${buttonStyle ?? "bg-[#e3e4e6] text-zinc-800"}`
           : `flex size-6 items-center justify-center rounded-full bg-white transition-transform ${BIO_SOCIAL_ICON_MAP[platform]?.colorClass ?? "text-zinc-700"}`
       }
     >
@@ -88,6 +90,7 @@ export default function SocialLinks({
             url={url}
             keyPrefix="static"
             variant={variant}
+            buttonStyle={theme.buttonStyle}
           />
         ))}
       </div>

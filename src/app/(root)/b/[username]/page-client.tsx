@@ -24,11 +24,13 @@ export default function GalleryLinksProfileClient({
   const links = gallery.links ?? [];
 
   return (
-    <div className="relative min-h-screen w-full overscroll-x-none bg-[#f6f6f7] bg-[radial-gradient(#e4e3e6_1.15px,transparent_1.15px)] bg-[size:18px_18px]">
+    <div
+      className={`relative min-h-screen w-full overscroll-x-none bg-fixed ${theme.background}`}
+    >
       <div className="relative z-10 mx-auto w-full md:max-w-md">
         <div className="relative">
           <div className="absolute top-4 right-4 z-20">
-            <ShareActions color="text-zinc-700" />
+            <ShareActions color={theme.textColor} />
           </div>
 
           <div className="px-6 pt-14 pb-2">
@@ -46,9 +48,9 @@ export default function GalleryLinksProfileClient({
 
           <LazyMotion features={domAnimation}>
             <div className="relative z-10 space-y-4 px-4 pt-6 pb-20 sm:pb-24">
-              <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}>
-                <BioLinksList links={links} theme={theme} />
-              </m.div>
+              {/* <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}> */}
+              <BioLinksList links={links} theme={theme} />
+              {/* </m.div> */}
             </div>
           </LazyMotion>
           <GalleryFooter />

@@ -12,7 +12,10 @@ import FilterActions, {
   type CategoryId,
   type FilterCategory,
 } from "@/components/web/_analytics/filter";
-import { parseAnalyticsEvent } from "@/components/web/_analytics/leads-demo-data";
+import {
+  DEMO_ANALYTICS_DATA,
+  parseAnalyticsEvent,
+} from "@/constants/data/demo-analytics-data";
 import { useSubscriptionStore } from "@/store/subscription";
 import {
   Box,
@@ -149,7 +152,10 @@ function extractFilterParams(
 }
 
 function normalizeChartData(
-  clicksOverTime: AnalyticsData["clicksOverTime"] | undefined,
+  clicksOverTime:
+    | AnalyticsData["clicksOverTime"]
+    | Array<{ time: string; clicks: number }>
+    | undefined,
 ) {
   if (!clicksOverTime?.length) return undefined;
   return clicksOverTime.map((item) => ({
@@ -223,7 +229,8 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
   const { isPro, fetchSubscription } = useSubscriptionStore();
-  const canUseLeadTracking = isPro;
+  const isDemo = searchParams.get("demo") === "true";
+  const canUseLeadTracking = isPro || isDemo;
 
   useEffect(() => {
     void fetchSubscription();
@@ -231,8 +238,9 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const timePeriod = useMemo(() => {
     const period = searchParams.get("time_period");
-    return isValidTimePeriod(period) ? period : DEFAULT_TIME_PERIOD;
-  }, [searchParams]);
+    if (isValidTimePeriod(period)) return period;
+    return isDemo ? "30d" : DEFAULT_TIME_PERIOD;
+  }, [isDemo, searchParams]);
 
   const event = useMemo(
     () => parseAnalyticsEvent(searchParams.get("event")),
@@ -253,6 +261,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     searchParams: filterParams,
     metrics: isLeads ? (["totalClicks"] as const) : ANALYTICS_METRICS,
     analyticsEvent: "clicks",
+    enabled: !isDemo,
   });
 
   const leads = useAnalytics({
@@ -261,10 +270,11 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     searchParams: filterParams,
     metrics: isLeads ? ANALYTICS_METRICS : (["totalClicks"] as const),
     analyticsEvent: "leads",
-    enabled: canUseLeadTracking && (isLeads || isFunnel),
+    enabled: !isDemo && canUseLeadTracking && (isLeads || isFunnel),
   });
 
   const active = viewingLeads ? leads : clicks;
+  const activeData = isDemo ? DEMO_ANALYTICS_DATA[event] : active.data;
 
   const [cachedLeadsTotal, setCachedLeadsTotal] = useState<number | null>(null);
   useEffect(() => {
@@ -282,26 +292,26 @@ export const AnalyticsClient = memo(function AnalyticsClient({
 
   const filterSource = useMemo<FilterSource>(
     () => ({
-      links: active.links,
-      countries: active.countries,
-      cities: active.cities,
-      continents: active.continents,
-      browsers: active.browsers,
-      oses: active.oses,
-      devices: active.devices,
-      referrers: active.referrers,
-      destinations: active.destinations,
+      links: activeData?.links ?? [],
+      countries: activeData?.countries ?? [],
+      cities: activeData?.cities ?? [],
+      continents: activeData?.continents ?? [],
+      browsers: activeData?.browsers ?? [],
+      oses: activeData?.oses ?? [],
+      devices: activeData?.devices ?? [],
+      referrers: activeData?.referrers ?? [],
+      destinations: activeData?.destinations ?? [],
     }),
     [
-      active.links,
-      active.countries,
-      active.cities,
-      active.continents,
-      active.browsers,
-      active.oses,
-      active.devices,
-      active.referrers,
-      active.destinations,
+      activeData?.links,
+      activeData?.countries,
+      activeData?.cities,
+      activeData?.continents,
+      activeData?.browsers,
+      activeData?.oses,
+      activeData?.devices,
+      activeData?.referrers,
+      activeData?.destinations,
     ],
   );
 
@@ -311,11 +321,11 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   );
 
   const chartData = useMemo(
-    () => normalizeChartData(active.data?.clicksOverTime),
-    [active.data?.clicksOverTime],
+    () => normalizeChartData(activeData?.clicksOverTime),
+    [activeData?.clicksOverTime],
   );
 
-  const hasResolvedData = Boolean(active.data);
+  const hasResolvedData = Boolean(activeData);
   const showInitialLoadingState =
     (active.isLoading && !hasResolvedData && !active.error) || funnelLoading;
   const chartRefreshing = active.isValidating && hasResolvedData;
@@ -341,10 +351,16 @@ export const AnalyticsClient = memo(function AnalyticsClient({
         <Chart
           {...sharedProps}
           data={chartData}
-          totalClicks={clicks.data?.totalClicks ?? 0}
+          totalClicks={
+            isDemo
+              ? DEMO_ANALYTICS_DATA.clicks.totalClicks
+              : (clicks.data?.totalClicks ?? 0)
+          }
           totalLeads={
             canUseLeadTracking && (isLeads || isFunnel)
-              ? (leads.data?.totalClicks ?? null)
+              ? isDemo
+                ? DEMO_ANALYTICS_DATA.leads.totalClicks
+                : (leads.data?.totalClicks ?? null)
               : cachedLeadsTotal
           }
           isRefreshing={chartRefreshing}
@@ -374,11 +390,11 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           <ReferrerClicks
             {...sharedProps}
             referrersData={filterSource.referrers}
-            utmSourcesData={clicks.utmSources}
-            utmMediumsData={clicks.utmMediums}
-            utmCampaignsData={clicks.utmCampaigns}
-            utmTermsData={clicks.utmTerms}
-            utmContentsData={clicks.utmContents}
+            utmSourcesData={activeData?.utmSources ?? []}
+            utmMediumsData={activeData?.utmMediums ?? []}
+            utmCampaignsData={activeData?.utmCampaigns ?? []}
+            utmTermsData={activeData?.utmTerms ?? []}
+            utmContentsData={activeData?.utmContents ?? []}
           />
         </div>
       </div>

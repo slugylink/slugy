@@ -104,7 +104,9 @@ export default function GalleryProfileView({
   };
 
   return (
-    <div className="relative mx-auto max-w-lg overflow-hidden rounded-[18px] border bg-[#f6f6f7] bg-[radial-gradient(#e4e3e6_1.15px,transparent_1.15px)] bg-[size:18px_18px]">
+    <div
+      className={`relative mx-auto max-w-lg overflow-hidden rounded-[18px] border ${theme.background}`}
+    >
       <div className="relative z-10 mx-auto w-full">
         <div className="relative w-full">
           <input

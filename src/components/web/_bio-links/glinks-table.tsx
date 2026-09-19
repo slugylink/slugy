@@ -2,6 +2,7 @@
 
 import Actions from "./glink-actions";
 import DraggableLinks from "./draggable-links";
+import ThemePicker from "./theme-picker";
 import GalleryProfileView, {
   resolveGalleryTheme,
 } from "@/components/web/_bio-links/gallery-profile-view";
@@ -72,8 +73,15 @@ const GalleryLinkTable = ({
   return (
     <div className={CONTAINER_CLASSES}>
       <div className="mx-auto w-full">
-        <div className="mx-auto mb-5 max-w-lg">
-          <Actions gallery={gallery} username={username} mutate={mutate} />
+        <div className="mx-auto mb-5 flex max-w-lg items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <Actions gallery={gallery} username={username} mutate={mutate} />
+          </div>
+          <ThemePicker
+            username={username}
+            initialTheme={previewThemeId}
+            mutate={mutate}
+          />
         </div>
         <GalleryProfileView
           gallery={previewGallery}
