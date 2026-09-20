@@ -9,6 +9,8 @@ import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const createKeySchema = z.object({
   name: z.string().min(1).max(80),
+  linksPermission: z.enum(["none", "write"]).optional().default("write"),
+  leadsPermission: z.enum(["none", "write"]).optional().default("write"),
 });
 
 async function getWorkspaceForUser(workspaceslug: string, userId: string) {
@@ -54,6 +56,7 @@ export async function GET(
       id: true,
       name: true,
       key: true,
+      linksPermission: true,
       leadsPermission: true,
       lastUsed: true,
       createdAt: true,
@@ -66,6 +69,7 @@ export async function GET(
       id: key.id,
       name: key.name,
       maskedKey: maskApiKey(key.key),
+      linksPermission: key.linksPermission,
       leadsPermission: key.leadsPermission,
       lastUsed: key.lastUsed,
       createdAt: key.createdAt,
@@ -113,12 +117,14 @@ export async function POST(
       workspaceId: workspace.id,
       createdBy: session.user.id,
       permissionLevel: "restricted",
-      leadsPermission: "write",
+      linksPermission: body.linksPermission,
+      leadsPermission: body.leadsPermission,
     },
     select: {
       id: true,
       name: true,
       key: true,
+      linksPermission: true,
       leadsPermission: true,
       createdAt: true,
     },
@@ -128,7 +134,10 @@ export async function POST(
     req,
     {
       key: apiKey,
-      endpoint: "https://api.slugy.co/leads_track",
+      endpoints: {
+        links: "https://app.slugy.co/api/v1/link",
+        leads: "https://api.slugy.co/leads_track",
+      },
     },
     { status: 201 },
   );

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Slugy Shorten</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <span class="mark">S</span>
+        <div>
+          <h1>Slugy</h1>
+          <p>Create a short link</p>
+        </div>
+      </header>
+
+      <form id="shorten-form">
+        <label for="url">Destination URL</label>
+        <input id="url" type="url" required autocomplete="url" />
+
+        <label for="slug">Custom back-half <span>(optional)</span></label>
+        <input id="slug" type="text" maxlength="50" placeholder="summer-sale" />
+
+        <button id="shorten" type="submit">Shorten current page</button>
+      </form>
+
+      <section id="result" class="hidden" aria-live="polite">
+        <label for="short-url">Short link</label>
+        <div class="copy-row">
+          <input id="short-url" readonly />
+          <button id="copy" type="button">Copy</button>
+        </div>
+      </section>
+
+      <p id="message" class="message" aria-live="polite"></p>
+
+      <details id="settings">
+        <summary>Connection settings</summary>
+        <div class="settings-fields">
+          <label for="api-key">Workspace API key</label>
+          <input id="api-key" type="password" autocomplete="off" placeholder="slugy_..." />
+          <p class="hint">Create a key with Links: Write in Slugy settings. It stays only for this Chrome session.</p>
+          <p id="api-key-status" class="hint" aria-live="polite"></p>
+
+          <button id="save-settings" type="button" class="secondary">Save settings</button>
+          <button id="clear-settings" type="button" class="secondary">Forget API key</button>
+        </div>
+      </details>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

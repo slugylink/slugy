@@ -47,6 +47,7 @@ interface ApiKeyRow {
   id: string;
   name: string;
   maskedKey: string;
+  linksPermission: string;
   leadsPermission: string;
   lastUsed: string | null;
   createdAt: string;
@@ -61,10 +62,14 @@ interface CreatedKeyResponse {
     id: string;
     name: string;
     key: string;
+    linksPermission: string;
     leadsPermission: string;
     createdAt: string;
   };
-  endpoint: string;
+  endpoints: {
+    links: string;
+    leads: string;
+  };
 }
 
 async function fetchApiKeys(url: string): Promise<ApiKeysResponse> {
@@ -156,7 +161,8 @@ export default memo(function ApiKeysClient({
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <CardDescription className="mt-2 max-w-2xl">
-              Generate keys to track leads from your app.{" "}
+              Generate workspace-scoped keys for integrations, including the
+              Chrome extension and lead tracking.
               <a
                 href="https://slugy.co/blogs/lead-conversion-tracking"
                 target="_blank"
@@ -185,7 +191,8 @@ export default memo(function ApiKeysClient({
                 <DialogHeader>
                   <DialogTitle>Create API key</DialogTitle>
                   <DialogDescription>
-                    Keys can track lead conversions for this workspace.
+                    This key is scoped to this workspace. It can create short
+                    links and track lead conversions.
                   </DialogDescription>
                 </DialogHeader>
                 {createdKey ? (

@@ -5,15 +5,25 @@ export type ApiKeyAuthResult =
   | { ok: true; apiKey: WorkspaceApiKey }
   | { ok: false; status: 401 | 403; message: string };
 
+export type ApiKeyResource = "leads" | "links";
+
 function parseBearerToken(header: string | null): string | null {
   if (!header?.startsWith("Bearer ")) return null;
   const token = header.slice(7).trim();
   return token.length > 0 ? token : null;
 }
 
+function getResourcePermission(
+  apiKey: WorkspaceApiKey,
+  resource: ApiKeyResource,
+): ResourcePermission {
+  return resource === "links" ? apiKey.linksPermission : apiKey.leadsPermission;
+}
+
 export async function authenticateApiKey(
   authorizationHeader: string | null,
   requiredPermission: ResourcePermission = "write",
+  resource: ApiKeyResource = "leads",
 ): Promise<ApiKeyAuthResult> {
   const token = parseBearerToken(authorizationHeader);
   if (!token) {
@@ -32,12 +42,12 @@ export async function authenticateApiKey(
     return { ok: false, status: 401, message: "Invalid API key" };
   }
 
-  const permission = apiKey.leadsPermission;
+  const permission = getResourcePermission(apiKey, resource);
   if (requiredPermission === "write" && permission !== "write") {
     return {
       ok: false,
       status: 403,
-      message: "API key lacks leads write permission",
+      message: `API key lacks ${resource} write permission`,
     };
   }
 
@@ -49,7 +59,7 @@ export async function authenticateApiKey(
     return {
       ok: false,
       status: 403,
-      message: "API key lacks leads read permission",
+      message: `API key lacks ${resource} read permission`,
     };
   }
 

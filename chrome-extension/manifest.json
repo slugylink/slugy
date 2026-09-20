@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Slugy Shorten",
+  "description": "Create Slugy short links for the current page in a selected workspace.",
+  "version": "1.0.0",
+  "action": {
+    "default_title": "Shorten with Slugy",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["storage", "tabs", "clipboardWrite"],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "https://app.slugy.co/*",
+    "https://api.slugy.co/*"
+  ]
+}
