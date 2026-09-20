@@ -1,7 +1,7 @@
 "use client";
 import { useState, useCallback, useMemo, memo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { CornerDownRight, Copy, Check, Timer } from "lucide-react";
+import { CornerDownRight, Copy, Check, Timer, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { usePathname } from "next/navigation";
@@ -67,6 +67,21 @@ const CopyButton = memo(
 );
 
 CopyButton.displayName = "CopyButton";
+
+// Memoize the QR code button component
+const QrButton = memo(({ onClick }: { onClick: () => void }) => (
+  <Button
+    variant="ghost"
+    size="sm"
+    className="h-auto rounded-full p-[1px] hover:bg-transparent"
+    onClick={onClick}
+    aria-label="Show QR code"
+  >
+    <QrCode className="p-[1.5px]" strokeWidth={1.8} />
+  </Button>
+));
+
+QrButton.displayName = "QrButton";
 
 // Memoize the analytics badge component
 const AnalyticsBadge = memo(
@@ -220,6 +235,10 @@ export default function LinkCard({ link }: LinkCardProps) {
       });
   }, [shortUrl]);
 
+  const handleOpenQrCode = useCallback(() => {
+    updateDialog("qrCode", true);
+  }, [updateDialog]);
+
   return (
     <TooltipProvider delayDuration={0}>
       <div
@@ -237,6 +256,7 @@ export default function LinkCard({ link }: LinkCardProps) {
             </p>
             <div className="flex items-center gap-2">
               <CopyButton isCopied={isCopied} onClick={handleCopy} />
+              <QrButton onClick={handleOpenQrCode} />
             </div>
           </div>
           <LinkPreviewComponent url={link.original || ""} />
@@ -265,6 +285,7 @@ export default function LinkCard({ link }: LinkCardProps) {
               linkId={link.short || ""}
               code={link.short?.split("/").pop()?.replace("&c", "") ?? ""}
               onOpenChange={(open) => updateDialog("qrCode", open)}
+              hideActions
             />
           </DialogContent>
         </Dialog>

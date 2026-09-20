@@ -60,6 +60,7 @@ interface QRCodeDesignerProps {
     size: number;
     dotStyle: DotType;
   }) => void;
+  hideActions?: boolean;
 }
 
 // ============================================================================
@@ -266,6 +267,7 @@ export default function QRCodeDesigner({
   code,
   onOpenChange,
   onCustomizationSaved,
+  hideActions = false,
 }: QRCodeDesignerProps) {
   const url = `https://${domain}/${code}?ref=qr`;
 
@@ -566,24 +568,26 @@ export default function QRCodeDesigner({
       </div>
 
       {/* Footer */}
-      <div className="flex justify-end gap-2 pt-4">
-        <Button
-          variant="outline"
-          className="w-fit"
-          onClick={() => onOpenChange(false)}
-          disabled={isSaving}
-        >
-          Cancel
-        </Button>
-        <Button
-          className="w-fit"
-          disabled={isSaving || !isFormDirty}
-          onClick={handleSave}
-        >
-          {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
-          Save
-        </Button>
-      </div>
+      {!hideActions && (
+        <div className="flex justify-end gap-2 pt-4">
+          <Button
+            variant="outline"
+            className="w-fit"
+            onClick={() => onOpenChange(false)}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button
+            className="w-fit"
+            disabled={isSaving || !isFormDirty}
+            onClick={handleSave}
+          >
+            {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
+            Save
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
