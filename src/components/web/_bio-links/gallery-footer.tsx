@@ -31,7 +31,7 @@ export default function GalleryFooter({
       )}
     >
       <Link
-        href="https://slugy.co?ref=gallery"
+        href="https://slugy.co/app?ref=bio.slugy"
         aria-label="Made with Slugy"
         className="inline-flex items-center gap-0.5 transition hover:opacity-80"
       >
