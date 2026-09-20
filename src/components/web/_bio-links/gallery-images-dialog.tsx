@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { mutate as globalMutate, type KeyedMutator } from "swr";
 import type { EditorGallery, PublicGalleryImage } from "@/types/bio-links";
 import { MAX_BIO_GALLERY_IMAGES } from "@/constants/bio-links";
+import { compressImageForUpload } from "@/lib/client-image";
 
 interface GalleryImagesDialogProps {
   open: boolean;
@@ -32,6 +33,35 @@ interface GalleryImagesDialogProps {
   username: string;
   images?: PublicGalleryImage[];
   mutate?: KeyedMutator<EditorGallery>;
+}
+
+interface GalleryApiResponse {
+  images?: PublicGalleryImage[];
+  error?: string;
+}
+
+async function parseGalleryResponse(
+  res: Response,
+): Promise<{ data: GalleryApiResponse | null; error: string | null }> {
+  const text = await res.text();
+  let data: GalleryApiResponse | null = null;
+
+  try {
+    data = text ? (JSON.parse(text) as GalleryApiResponse) : null;
+  } catch {
+    data = null;
+  }
+
+  if (res.ok) {
+    return { data, error: null };
+  }
+
+  const fallback =
+    res.status === 413
+      ? "Images are too large to upload. Please try smaller images."
+      : `Upload failed (${res.status})`;
+
+  return { data, error: data?.error ?? fallback };
 }
 
 export default function GalleryImagesDialog({
@@ -80,34 +110,40 @@ export default function GalleryImagesDialog({
     }
 
     setIsUploading(true);
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
+
+    const uploaded: PublicGalleryImage[] = [];
 
     try {
-      const res = await fetch(`/api/bio-gallery/${username}/gallery`, {
-        method: "POST",
-        body: formData,
-      });
+      for (const file of files) {
+        const compressed = await compressImageForUpload(file);
+        const formData = new FormData();
+        formData.append("files", compressed);
 
-      const data = (await res.json()) as {
-        images?: PublicGalleryImage[];
-        error?: string;
-      };
+        const res = await fetch(`/api/bio-gallery/${username}/gallery`, {
+          method: "POST",
+          body: formData,
+        });
 
-      if (!res.ok) {
-        throw new Error(data.error ?? "Failed to upload images");
+        const { data, error } = await parseGalleryResponse(res);
+
+        if (error) {
+          throw new Error(error);
+        }
+
+        if (data?.images?.length) {
+          uploaded.push(...data.images);
+        }
       }
 
-      if (data.images) {
-        setItems((prev) => [...prev, ...data.images!]);
-      }
+      setItems((prev) => [...prev, ...uploaded]);
       await refresh();
-      toast.success(
-        data.images && data.images.length > 1
-          ? "Images uploaded"
-          : "Image uploaded",
-      );
+      toast.success(uploaded.length > 1 ? "Images uploaded" : "Image uploaded");
     } catch (error) {
+      if (uploaded.length > 0) {
+        setItems((prev) => [...prev, ...uploaded]);
+        await refresh();
+      }
+
       toast.error(
         error instanceof Error ? error.message : "Failed to upload images",
       );
@@ -128,8 +164,8 @@ export default function GalleryImagesDialog({
       );
 
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to delete image");
+        const { error } = await parseGalleryResponse(res);
+        throw new Error(error ?? "Failed to delete image");
       }
 
       setItems((prev) => prev.filter((item) => item.id !== image.id));
@@ -160,8 +196,8 @@ export default function GalleryImagesDialog({
       );
 
       if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        throw new Error(data.error ?? "Failed to update image");
+        const { error } = await parseGalleryResponse(res);
+        throw new Error(error ?? "Failed to update image");
       }
 
       setItems((prev) =>
@@ -204,8 +240,8 @@ export default function GalleryImagesDialog({
             body: JSON.stringify({ position }),
           }).then(async (res) => {
             if (!res.ok) {
-              const data = (await res.json()) as { error?: string };
-              throw new Error(data.error ?? "Failed to reorder images");
+              const { error } = await parseGalleryResponse(res);
+              throw new Error(error ?? "Failed to reorder images");
             }
           }),
         ),

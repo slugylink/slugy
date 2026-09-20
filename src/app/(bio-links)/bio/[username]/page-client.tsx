@@ -51,7 +51,7 @@ export default function GalleryLinksProfileClient({
           </div>
 
           <LazyMotion features={domAnimation}>
-            <div className="relative z-10 space-y-4 px-4 pt-6 pb-8">
+            <div className="relative z-10 space-y-4 px-4 pt-6 pb-16">
               {/* <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}> */}
               <BioLinksList links={links} theme={theme} />
               {/* </m.div> */}
