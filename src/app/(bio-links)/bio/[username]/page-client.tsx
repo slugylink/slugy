@@ -1,16 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import { motion } from "motion/react";
+import { useState } from "react";
+import { LazyMotion, domAnimation, m } from "motion/react";
 import ShareActions from "@/components/web/_bio-links/bio-actions";
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import BioLinksList from "@/components/web/_bio-links/bio-links-list";
+import GalleryCarousel from "@/components/web/_bio-links/gallery-carousel";
+import GalleryViewerDialog from "@/components/web/_bio-links/gallery-viewer-dialog";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
-import FeatureCard from "@/components/web/_bio-links/feature-card";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
-import GridFeatureCard from "@/components/web/_bio-links/grid-feature-card";
-import Contact from "@/components/web/_bio-links/contact";
-import { fadeUp } from "@/lib/motion";
 import type { GalleryData, Theme } from "@/types/bio-links";
 
 interface PageClientProps {
@@ -26,70 +24,58 @@ export default function GalleryLinksProfileClient({
 }: PageClientProps) {
   const socials = gallery.socials ?? [];
   const links = gallery.links ?? [];
+  const images = gallery.images ?? [];
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   return (
-    <div className="relative min-h-screen w-full overscroll-x-none bg-transparent">
-      <div className="fixed inset-0 top-0 z-0 h-full">
-        <Image
-          src={avatarUrl}
-          alt=""
-          fill
-          aria-hidden="true"
-          sizes="100vw"
-          className="fixed top-0 left-0 z-0 h-screen w-screen scale-110 object-cover opacity-80 blur-2xl"
-        />
-      </div>
-
-      <div className="fixed inset-0 top-0 z-0 h-full bg-black/40" />
-
-      <div className="relative z-10 mx-auto w-full bg-transparent md:max-w-lg md:rounded-3xl">
-        <div className="relative md:rounded-3xl">
+    <div
+      className={`relative min-h-screen w-full overscroll-x-none bg-fixed ${theme.background}`}
+    >
+      <div className="relative z-10 mx-auto w-full md:max-w-md">
+        <div className="relative">
           <div className="absolute top-4 right-4 z-20">
-            <ShareActions color="text-white" />
+            <ShareActions color={theme.textColor} />
           </div>
 
-          <div className="sticky top-0 z-0 h-[500px] overflow-hidden md:mt-8 md:h-[600px] md:rounded-3xl">
-            <Image
-              src={avatarUrl}
-              alt={`${gallery.name}'s profile image`}
-              fill
-              className="object-cover"
-              priority
-              sizes="(max-width: 768px) 100vw, 680px"
-            />
-          </div>
-
-          <div className="relative z-10 -mt-[80svh] h-[80svh]">
+          <div className="px-6 pt-14 pb-2">
             <ProfileSection
               name={gallery.name}
               username={gallery.username}
               bio={gallery.bio}
               theme={theme}
+              avatarUrl={avatarUrl}
+              layout="split"
             >
-              <SocialLinks socials={socials} theme={theme} />
+              <SocialLinks socials={socials} theme={theme} variant="header" />
             </ProfileSection>
           </div>
 
-          <div className="relative z-10 space-y-4 bg-black px-4 pb-6 text-white sm:pb-7">
-            <motion.div {...fadeUp(0.15)}>
+          <LazyMotion features={domAnimation}>
+            <div className="relative z-10 space-y-4 px-4 pt-6 pb-8">
+              {/* <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}> */}
               <BioLinksList links={links} theme={theme} />
-            </motion.div>
+              {/* </m.div> */}
 
-            <motion.div {...fadeUp(0.15)}>
-              <GridFeatureCard />
-            </motion.div>
-
-            <motion.div {...fadeUp(0.2)}>
-              <FeatureCard />
-            </motion.div>
-
-            <motion.div {...fadeUp(0.25)}>
-              <Contact />
-            </motion.div>
-          </div>
+              {images.length > 0 && (
+                <GalleryCarousel
+                  images={images}
+                  alt={`${gallery.name}'s gallery`}
+                  onImageClick={setViewerIndex}
+                />
+              )}
+            </div>
+          </LazyMotion>
           <GalleryFooter />
         </div>
       </div>
+
+      <GalleryViewerDialog
+        images={images}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(null)}
+        alt={`${gallery.name}'s gallery`}
+      />
     </div>
   );
 }

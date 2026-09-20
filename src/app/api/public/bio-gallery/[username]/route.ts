@@ -25,6 +25,7 @@ function transformCachedData(cachedData: CachedBioData): GalleryData {
     socials: cachedData.socials.map((social) => ({
       ...social,
     })),
+    images: (cachedData.images ?? []).map((image) => ({ ...image })),
   };
 }
 
@@ -49,6 +50,12 @@ function createCacheData(gallery: GalleryData): CachedBioData {
       platform: social.platform || "",
       url: social.url || "",
       isPublic: social.isPublic,
+    })),
+    images: (gallery.images ?? []).map((image) => ({
+      id: image.id,
+      image: image.image,
+      position: image.position,
+      isPublic: image.isPublic,
     })),
   };
 }
@@ -115,6 +122,16 @@ export async function GET(
             isPublic: true,
           },
         },
+        images: {
+          where: { isPublic: true, deletedAt: null },
+          orderBy: { position: "asc" },
+          select: {
+            id: true,
+            image: true,
+            position: true,
+            isPublic: true,
+          },
+        },
       },
     });
 
@@ -127,6 +144,7 @@ export async function GET(
       ...cacheData,
       links: cacheData.links.map((link) => ({ ...link })),
       socials: cacheData.socials.map((social) => ({ ...social })),
+      images: (cacheData.images ?? []).map((image) => ({ ...image })),
     }).catch(() => {
       // Cache write failures should not break API responses.
     });

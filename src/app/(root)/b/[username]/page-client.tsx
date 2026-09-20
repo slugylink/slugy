@@ -1,12 +1,14 @@
 "use client";
 
-import { LazyMotion, domAnimation, m } from "motion/react";
+import { useState } from "react";
+import { LazyMotion, domAnimation } from "motion/react";
 import ShareActions from "@/components/web/_bio-links/bio-actions";
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import BioLinksList from "@/components/web/_bio-links/bio-links-list";
+import GalleryCarousel from "@/components/web/_bio-links/gallery-carousel";
+import GalleryViewerDialog from "@/components/web/_bio-links/gallery-viewer-dialog";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
-import { fadeUp } from "@/lib/motion";
 import type { GalleryData, Theme } from "@/types/bio-links";
 
 interface PageClientProps {
@@ -22,6 +24,8 @@ export default function GalleryLinksProfileClient({
 }: PageClientProps) {
   const socials = gallery.socials ?? [];
   const links = gallery.links ?? [];
+  const images = gallery.images ?? [];
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   return (
     <div
@@ -47,15 +51,31 @@ export default function GalleryLinksProfileClient({
           </div>
 
           <LazyMotion features={domAnimation}>
-            <div className="relative z-10 space-y-4 px-4 pt-6 pb-20 sm:pb-24">
+            <div className="relative z-10 space-y-4 px-4 pt-6 pb-16">
               {/* <m.div {...fadeUp(0.08, { amount: 0.1, duration: 0.4 })}> */}
               <BioLinksList links={links} theme={theme} />
               {/* </m.div> */}
+
+              {images.length > 0 && (
+                <GalleryCarousel
+                  images={images}
+                  alt={`${gallery.name}'s gallery`}
+                  onImageClick={setViewerIndex}
+                />
+              )}
             </div>
           </LazyMotion>
           <GalleryFooter />
         </div>
       </div>
+
+      <GalleryViewerDialog
+        images={images}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(null)}
+        alt={`${gallery.name}'s gallery`}
+      />
     </div>
   );
 }

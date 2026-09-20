@@ -3,6 +3,7 @@ import type { SocialPlatform, SocialPlatformConfig } from "@/types/bio-links";
 // Constants for bio-links functionality
 export const DEFAULT_AVATAR_BASE = "https://avatar.vercel.sh" as const;
 export const DEFAULT_THEME_ID = "default" as const;
+export const MAX_BIO_GALLERY_IMAGES = 6 as const;
 export const UTM_REF_PARAM = "ref" as const;
 export const UTM_REF_VALUE = "slugy.co" as const;
 export const CANONICAL_BASE = "https://bio.slugy.co" as const;

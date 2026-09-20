@@ -3,6 +3,7 @@
 import Actions from "./glink-actions";
 import DraggableLinks from "./draggable-links";
 import ThemePicker from "./theme-picker";
+import GalleryCarousel from "./gallery-carousel";
 import GalleryProfileView, {
   resolveGalleryTheme,
 } from "@/components/web/_bio-links/gallery-profile-view";
@@ -63,6 +64,14 @@ const GalleryLinkTable = ({
       url: social.url ?? null,
       isPublic: Boolean(social.isPublic),
     })),
+    images: (gallery.images ?? [])
+      .filter((image) => image.isPublic)
+      .map((image) => ({
+        id: image.id,
+        image: image.image,
+        position: image.position,
+        isPublic: image.isPublic,
+      })),
   };
 
   const previewContainerClasses = cn(PREVIEW_CONTAINER_CLASSES);
@@ -95,6 +104,12 @@ const GalleryLinkTable = ({
             username={username}
             mutate={mutate}
           />
+          {previewGallery.images.length > 0 && (
+            <GalleryCarousel
+              images={previewGallery.images}
+              alt="Gallery image"
+            />
+          )}
         </GalleryProfileView>
       </div>
     </div>

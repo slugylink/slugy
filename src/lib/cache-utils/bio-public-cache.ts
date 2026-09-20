@@ -30,6 +30,12 @@ export interface BioPublicCache {
     url: string;
     isPublic: boolean;
   }>;
+  images?: Array<{
+    id: string;
+    image: string;
+    position: number;
+    isPublic: boolean;
+  }>;
   cachedAt: number;
   expiresAt: number;
 }

@@ -83,6 +83,10 @@ export async function GET(
         include: {
           socials: { orderBy: { platform: "asc" } },
           links: { orderBy: { position: "asc" } },
+          images: {
+            where: { deletedAt: null },
+            orderBy: { position: "asc" },
+          },
         },
       });
     } catch (err) {
@@ -119,6 +123,12 @@ export async function GET(
         position: link.position,
         clicks: link.clicks,
         galleryId: link.bioId,
+      })),
+      images: bio.images.map((image) => ({
+        id: image.id,
+        image: image.image,
+        position: image.position,
+        isPublic: Boolean(image.isPublic),
       })),
     };
 

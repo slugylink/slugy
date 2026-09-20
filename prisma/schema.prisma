@@ -573,9 +573,10 @@ model Bio {
   isPublic       Boolean  @default(false)
   
   // Relations
-  creator User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  creator User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   links   BioLinks[]
   socials BioSocials[]
+  images  BioGalleryImage[]
 
   @@index([userId, username])
   @@map("bios")
@@ -617,6 +618,23 @@ model BioSocials {
   bio Bio @relation(fields: [bioId], references: [id], onDelete: Cascade)
 
   @@map("bio_socials")
+}
+
+model BioGalleryImage {
+  id        String    @id @default(cuid())
+  bioId     String
+  image     String
+  position  Int       @default(0)
+  isPublic  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  
+  // Relations
+  bio Bio @relation(fields: [bioId], references: [id], onDelete: Cascade)
+
+  @@index([bioId])
+  @@map("bio_gallery_images")
 }
 
 // --------- Notifications & Usage ----------

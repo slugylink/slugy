@@ -11,6 +11,7 @@ import {
   Copy,
   User,
   PencilLine,
+  Images,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import GallerySettingsDialog from "./gallery-settings-dialog";
+import GalleryImagesDialog from "./gallery-images-dialog";
 import { SocialSettingsDialog } from "./social-settings-dialog";
 import {
   Sheet,
@@ -57,6 +59,7 @@ interface ActionsProps {
 const Actions = ({ gallery, username, mutate }: ActionsProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -155,6 +158,10 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
               <Share2 className="mr-2 h-4 w-4" />
               <span>Social Links</span>
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setGalleryOpen(true)}>
+              <Images className="mr-2 h-4 w-4" />
+              <span>Gallery Images</span>
+            </DropdownMenuItem>
             <DropdownMenuItem
               className=""
               onClick={() => setDeleteDialogOpen(true)}
@@ -180,6 +187,15 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
         onOpenChange={setSocialOpen}
         username={username}
         initialData={gallery.socials}
+      />
+
+      {/* Gallery Images Dialog */}
+      <GalleryImagesDialog
+        open={galleryOpen}
+        onOpenChange={setGalleryOpen}
+        username={username}
+        images={gallery.images ?? []}
+        mutate={mutate}
       />
       {/* Delete Gallery AlertDialog */}
       <AlertDialog

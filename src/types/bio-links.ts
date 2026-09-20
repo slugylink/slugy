@@ -59,6 +59,14 @@ export type CachedBioData = {
   readonly theme: string | null;
   readonly links: readonly CachedLink[];
   readonly socials: readonly CachedSocial[];
+  readonly images?: readonly CachedGalleryImage[];
+};
+
+export type CachedGalleryImage = {
+  readonly id: string;
+  readonly image: string;
+  readonly position: number;
+  readonly isPublic: boolean;
 };
 
 export type CachedLink = {
@@ -85,6 +93,13 @@ export type PublicBioLink = Pick<
 
 export type PublicBioSocial = Pick<BioSocials, "platform" | "url" | "isPublic">;
 
+export type PublicGalleryImage = {
+  id: string;
+  image: string;
+  position: number;
+  isPublic: boolean;
+};
+
 export type EditorBioLink = {
   id: string;
   title: string;
@@ -105,6 +120,7 @@ export type EditorGallery = {
   bio?: string | null;
   logo?: string | null;
   socials?: PublicBioSocial[];
+  images?: PublicGalleryImage[];
   theme?: string | Theme | null;
 };
 
@@ -117,6 +133,7 @@ export type GalleryData = {
   readonly theme: string | null;
   readonly links: PublicBioLink[];
   readonly socials: PublicBioSocial[];
+  readonly images: PublicGalleryImage[];
 };
 
 // Props for reusable components with strict typing
