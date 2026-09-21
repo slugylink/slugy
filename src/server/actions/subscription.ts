@@ -125,6 +125,7 @@ export async function getBillingData(workspaceSlug: string) {
         maxClicksLimit: true,
         maxUsers: true,
         maxLinkTags: true,
+        maxUtmTemplates: true,
         linksUsage: true,
         clicksUsage: true,
         addedUsers: true,
@@ -132,6 +133,7 @@ export async function getBillingData(workspaceSlug: string) {
           select: {
             customDomains: true,
             tags: true,
+            utmTemplates: true,
             members: true,
             links: true,
           },
@@ -180,6 +182,7 @@ export async function getBillingData(workspaceSlug: string) {
     if (
       plan?.planType &&
       (workspace.maxLinkTags !== plan.maxTagsPerWorkspace ||
+        workspace.maxUtmTemplates !== plan.maxUtmTemplates ||
         (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)
     ) {
       await syncUserLimits(userId, plan.planType);
@@ -218,6 +221,7 @@ export async function getBillingData(workspaceSlug: string) {
           maxGalleries: 1,
           maxLinksPerBio: 5,
           maxTagsPerWorkspace: 5,
+          maxUtmTemplates: 5,
         },
         billingCycle: {
           start: periodStart
@@ -247,6 +251,7 @@ export async function getBillingData(workspaceSlug: string) {
           customDomains: workspace._count.customDomains,
           bioGalleries: bioCount,
           tags: workspace._count.tags,
+          utmTemplates: workspace._count.utmTemplates,
           teammates: workspace._count.members,
           links: workspace.linksUsage,
           clicks: workspace.clicksUsage,
@@ -260,6 +265,9 @@ export async function getBillingData(workspaceSlug: string) {
           tags:
             subscriptionResult.subscription?.plan?.maxTagsPerWorkspace ??
             workspace.maxLinkTags,
+          utmTemplates:
+            subscriptionResult.subscription?.plan?.maxUtmTemplates ??
+            workspace.maxUtmTemplates,
           teammates:
             subscriptionResult.subscription?.plan?.maxUsers ??
             workspace.maxUsers,

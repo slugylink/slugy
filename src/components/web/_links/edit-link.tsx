@@ -501,6 +501,7 @@ const EditLinkForm = memo(
                       setUtmOpen={setUtmOpen}
                       params={utmParams}
                       setParams={setUtmParams}
+                      workspaceslug={workspaceslug ?? undefined}
                     />
                     <LinkExpiration
                       expiration={linkSettings.expiresAt}

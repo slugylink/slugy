@@ -177,6 +177,7 @@ model Plan {
   maxUsers              Int @default(1)
   maxCustomDomains      Int @default(2)
   maxTagsPerWorkspace   Int @default(5)
+  maxUtmTemplates       Int @default(5)
   
   // Metadata
   features      Json?
@@ -254,6 +255,7 @@ model Workspace {
   maxClicksLimit Int      @default(1000)
   maxUsers       Int      @default(1)
   maxLinkTags    Int      @default(5)
+  maxUtmTemplates Int     @default(5)
   addedUsers     Int      @default(1)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -265,6 +267,7 @@ model Workspace {
   workspaceInvites Invitation[]
   links            Link[]
   tags             Tag[]
+  utmTemplates     UtmTemplate[]
   customDomains    CustomDomain[]
   usages           Usage[]
   apiKeys          WorkspaceApiKey[]
@@ -522,6 +525,31 @@ model LinkTag {
   @@index([linkId])
   @@index([tagId])
   @@map("link_tags")
+}
+
+// ---------UTM Templates------------
+
+model UtmTemplate {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  name         String
+  utm_source   String?
+  utm_medium   String?
+  utm_campaign String?
+  utm_term     String?
+  utm_content  String?
+  referral     String?
+  isDefault    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([name, workspaceId])
+  @@index([workspaceId])
+  @@map("utm_templates")
 }
 
 // ---------Custom Domains--------

@@ -21,6 +21,7 @@ export async function syncUserLimits(userId: string, planType: PlanType) {
         maxGalleries: true,
         maxLinksPerBio: true,
         maxTagsPerWorkspace: true,
+        maxUtmTemplates: true,
       },
     });
 
@@ -37,6 +38,7 @@ export async function syncUserLimits(userId: string, planType: PlanType) {
         maxClicksLimit: plan.maxClicksPerWorkspace,
         maxUsers: plan.maxUsers,
         maxLinkTags: plan.maxTagsPerWorkspace,
+        maxUtmTemplates: plan.maxUtmTemplates,
       },
     });
 
@@ -93,6 +95,7 @@ export async function getBasicPlanLimits() {
       maxGalleries: true,
       maxLinksPerBio: true,
       maxTagsPerWorkspace: true,
+      maxUtmTemplates: true,
     },
   });
 
@@ -106,6 +109,7 @@ export async function getBasicPlanLimits() {
       maxGalleries: 1,
       maxLinksPerBio: 5,
       maxTagsPerWorkspace: 5,
+      maxUtmTemplates: 5,
     }
   );
 }

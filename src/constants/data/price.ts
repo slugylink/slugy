@@ -139,6 +139,7 @@ export const BASIC_PLAN: Plan = {
     "1 user",
     "Community support",
     "5 link tags",
+    "5 UTM templates",
   ],
 };
 
@@ -185,6 +186,7 @@ export const PRO_PLAN: Plan = {
     "12 months analytics retention",
     "Priority email support",
     "10 custom domains",
+    "15 UTM templates",
   ],
 };
 
@@ -279,5 +281,6 @@ export function toPlanSeed(plan: Plan) {
     maxUsers: plan.maxUsers,
     maxCustomDomains: plan.maxCustomDomains,
     maxTagsPerWorkspace: plan.maxLinkTags,
+    maxUtmTemplates: plan.maxUTM,
   };
 }

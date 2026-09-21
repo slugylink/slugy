@@ -508,6 +508,7 @@ const CreateLinkForm = React.memo(
                       setUtmOpen={setUtmOpen}
                       params={utmParams}
                       setParams={setUtmParams}
+                      workspaceslug={workspaceslug}
                     />
                     <LinkExpiration
                       expiration={linkSettings.expiresAt}

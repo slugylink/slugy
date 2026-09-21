@@ -31,6 +31,7 @@ const subscriptionPlanSelect = {
       maxGalleries: true,
       maxLinksPerBio: true,
       maxTagsPerWorkspace: true,
+      maxUtmTemplates: true,
     },
   },
 } as const;

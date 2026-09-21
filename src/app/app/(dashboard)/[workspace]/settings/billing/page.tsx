@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Globe, Link2, Tag, Users } from "lucide-react";
+import { DiamondPlus, Globe, Link2, Tag, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,6 +65,12 @@ export default async function Billing({
       used: usage.tags,
       limit: limits.tags,
       icon: Tag,
+    },
+    {
+      label: "UTM Templates",
+      used: usage.utmTemplates,
+      limit: limits.utmTemplates,
+      icon: DiamondPlus,
     },
     {
       label: "Teammates",
@@ -139,7 +145,7 @@ export default async function Billing({
 
       <div className="">
         <Card className="">
-          <CardContent className="grid border-y border-r px-0 sm:grid-cols-2 lg:grid-cols-4">
+          <CardContent className="grid border-y border-r px-0 sm:grid-cols-2 lg:grid-cols-5">
             {usageMetrics.map((metric) => {
               const Icon = metric.icon;
               const limitLabel =

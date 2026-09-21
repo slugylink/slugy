@@ -14,10 +14,10 @@ const Navitems = ({ workspaceslug }: { workspaceslug: string }) => {
       name: "Tags",
       path: "/tags",
     },
-    // {
-    //   name: "UTM Templates",
-    //   path: "/utm",
-    // },
+    {
+      name: "UTM Templates",
+      path: "/utm-template",
+    },
   ];
 
   const basePath = `/${workspaceslug}/settings/library`;

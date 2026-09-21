@@ -67,11 +67,12 @@ async function main() {
             "maxUsers" = $15,
             "maxCustomDomains" = $16,
             "maxTagsPerWorkspace" = $17,
-            "features" = $18::jsonb,
-            "buttonLabel" = $19,
-            "isReady" = $20,
-            "isRecommended" = $21
-          WHERE "planType" = $22::"PlanType"
+            "maxUtmTemplates" = $18,
+            "features" = $19::jsonb,
+            "buttonLabel" = $20,
+            "isReady" = $21,
+            "isRecommended" = $22
+          WHERE "planType" = $23::"PlanType"
           `,
           plan.name,
           plan.description,
@@ -90,6 +91,7 @@ async function main() {
           plan.maxUsers,
           plan.maxCustomDomains,
           plan.maxTagsPerWorkspace,
+          plan.maxUtmTemplates,
           featuresJson,
           plan.buttonLabel,
           plan.isReady,
@@ -118,13 +120,14 @@ async function main() {
             "maxUsers",
             "maxCustomDomains",
             "maxTagsPerWorkspace",
+            "maxUtmTemplates",
             "features",
             "buttonLabel",
             "isReady",
             "isRecommended"
           ) VALUES (
             $1, $2, $3, $4, $5, $6, $7, $8::"PlanType", $9, $10::"Interval",
-            $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20, $21, $22
+            $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, $21, $22, $23
           )
           `,
           plan.name,
@@ -145,6 +148,7 @@ async function main() {
           plan.maxUsers,
           plan.maxCustomDomains,
           plan.maxTagsPerWorkspace,
+          plan.maxUtmTemplates,
           featuresJson,
           plan.buttonLabel,
           plan.isReady,
