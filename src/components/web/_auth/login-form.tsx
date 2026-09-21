@@ -31,6 +31,21 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
+/**
+ * Honour a safe `?next=` path (used by the browser-extension auth bridge)
+ * so login resumes where it started. Falls back to the dashboard.
+ */
+function resolveNextPath(): string {
+  if (typeof window === "undefined") return POST_LOGIN_PATH;
+
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (!next || !next.startsWith("/") || next.startsWith("//")) {
+    return POST_LOGIN_PATH;
+  }
+
+  return next;
+}
+
 type LoginUiState = {
   showPassword: boolean;
   isGithubLoading: boolean;
@@ -196,7 +211,7 @@ export function LoginForm({
     try {
       await authClient.signIn.social({
         provider: "google",
-        callbackURL: POST_LOGIN_PATH,
+        callbackURL: resolveNextPath(),
       });
       try {
         localStorage.setItem("lastUsedProvider", "google");
@@ -216,7 +231,7 @@ export function LoginForm({
     try {
       await authClient.signIn.social({
         provider: "github",
-        callbackURL: POST_LOGIN_PATH,
+        callbackURL: resolveNextPath(),
       });
       try {
         localStorage.setItem("lastUsedProvider", "github");
@@ -250,7 +265,7 @@ export function LoginForm({
             }
             dispatch({ type: "SET_LAST_PROVIDER", payload: "credential" });
             dispatch({ type: "SET_REDIRECTING", payload: true });
-            hardNavigate(POST_LOGIN_PATH);
+            hardNavigate(resolveNextPath());
           },
           onError: (err) => {
             dispatch({ type: "SET_LOADING", payload: false });
@@ -290,7 +305,7 @@ export function LoginForm({
       await authClient.signIn.magicLink(
         {
           email,
-          callbackURL: "/",
+          callbackURL: resolveNextPath(),
         },
         {
           onSuccess: () => {

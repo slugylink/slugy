@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Slugy</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img class="brand-logo" src="icons/icon48.png" alt="Slugy" width="24" height="24" />
+        <span class="brand-name">Slugy</span>
+      </div>
+      <div class="topbar-actions">
+        <button id="menu-button" class="icon-button" type="button" aria-label="More options" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+          </svg>
+        </button>
+        <div id="menu" class="menu" hidden>
+          <p id="menu-email" class="menu-email"></p>
+          <button type="button" class="menu-item" data-action="dashboard">Open dashboard</button>
+          <button type="button" class="menu-item" data-action="shortcut">Keyboard shortcut</button>
+          <button type="button" class="menu-item menu-item-danger" data-action="signout">Sign out</button>
+        </div>
+      </div>
+    </header>
+
+    <main id="auth-view" class="view auth-view" hidden>
+      <img class="auth-logo" src="icons/icon48.png" alt="Slugy" width="44" height="44" />
+      <h1 class="auth-title">Shorten in one click</h1>
+      <p class="auth-subtitle">
+        Use your existing Slugy dashboard session to create short links without leaving your tab.
+      </p>
+      <div class="auth-actions">
+        <button id="connect-button" class="button button-primary" type="button">
+          Already signed in on the dashboard?
+        </button>
+      </div>
+      <p id="auth-hint" class="auth-hint">A new tab will open to confirm your account.</p>
+    </main>
+
+    <main id="app-view" class="view app-view" hidden>
+      <div class="field">
+        <label class="label" for="url-input">Link to shorten</label>
+        <div class="input-row">
+          <input id="url-input" class="input" type="url" inputmode="url" placeholder="https://example.com/page" autocomplete="off" spellcheck="false" />
+          <button id="reset-url" class="icon-button input-reset" type="button" title="Use current tab URL" aria-label="Use current tab URL">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12a9 9 0 1 1-2.64-6.36" /><path d="M21 3v6h-6" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="context-line">
+        <span class="context-dot"></span>
+        <span id="context-text">Plain short link</span>
+      </div>
+
+      <button id="alias-toggle" class="text-button alias-toggle" type="button">+ Custom alias</button>
+
+      <div id="alias-field" class="field alias-field" hidden>
+        <div class="alias-input-row">
+          <span id="alias-domain" class="alias-prefix">slugy.co/</span>
+          <input id="alias-input" class="input alias-input" type="text" placeholder="custom-alias" autocomplete="off" spellcheck="false" maxlength="50" />
+        </div>
+      </div>
+
+      <button id="shorten-button" class="button button-primary button-block" type="button">
+        <span id="shorten-label">Shorten &amp; copy</span>
+        <span id="shorten-spinner" class="spinner" hidden></span>
+      </button>
+
+      <p id="status" class="status" hidden></p>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

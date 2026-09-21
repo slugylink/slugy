@@ -47,6 +47,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# browser extension build output
+/extension/dist/
+
 # idea files
 .idea
 certificates

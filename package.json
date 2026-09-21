@@ -5,6 +5,8 @@
   "scripts": {
     "build": "next build",
     "build:vercel": "vercel build",
+    "ext:build": "node extension/build.mjs",
+    "ext:dev": "node extension/build.mjs --app-url=http://app.localhost:3000",
     "dev": "next dev",
     "dev:vercel": "vercel dev",
     "preview": "vercel",

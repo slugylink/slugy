@@ -14,6 +14,7 @@ export const PUBLIC_ROUTES = new Set([
   "/not-found",
   "/onboarding",
   "/onboarding/welcome",
+  "/extension/authorize",
   "/pricing",
   "/features",
   "/about",

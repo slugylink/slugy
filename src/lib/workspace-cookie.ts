@@ -23,6 +23,7 @@ const RESERVED_APP_SEGMENTS = new Set([
   "account",
   "theme",
   "testz",
+  "extension",
   "app",
   "api",
   "admin",
