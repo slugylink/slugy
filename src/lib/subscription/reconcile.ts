@@ -311,7 +311,8 @@ export function isLifetimeBillingPeriod(
   periodStart: Date | null | undefined,
   periodEnd: Date | null | undefined,
 ): boolean {
-  if (planType?.toLowerCase() === "basic") return true;
+  const normalized = planType?.toLowerCase();
+  if (normalized === "basic" || normalized === "free") return true;
   if (!periodStart || !periodEnd) return false;
 
   const years =
@@ -326,9 +327,10 @@ export async function reconcileSubscriptionIfStale(
   if (!subscription) return null;
 
   const now = new Date();
+  const planType = subscription.plan.planType?.toLowerCase();
   const shouldRefresh =
     subscription.provider === "polar" &&
-    subscription.plan.planType === "pro" &&
+    (planType === "pro" || planType === "business") &&
     (subscription.subscriptionId || subscription.customerId) &&
     subscription.periodEnd <= now;
 

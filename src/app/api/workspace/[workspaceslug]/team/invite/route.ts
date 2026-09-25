@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { sendOrganizationInvitation } from "@/server/actions/email";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
+import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -29,15 +30,44 @@ export async function POST(
       where: {
         id: access.workspace.id,
       },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, userId: true },
     });
 
     if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Workspace not found" },
+        { status: 404 },
+      );
+    }
+
+    // Enforce plan seat limit (members + pending invites count as seats).
+    const ownerSub = await getSubscriptionWithPlan(workspace.userId);
+    const maxUsers = ownerSub.subscription?.plan?.maxUsers ?? 1;
+    const [memberCount, pendingCount] = await Promise.all([
+      db.member.count({ where: { workspaceId: workspace.id } }),
+      db.invitation.count({
+        where: {
+          workspaceId: workspace.id,
+          status: "pending",
+          deletedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+      }),
+    ]);
+    // +1 for the owner seat.
+    if (memberCount + pendingCount + 1 >= maxUsers) {
+      return NextResponse.json(
+        {
+          error:
+            "Team member limit reached for this plan. Upgrade for more seats.",
+        },
+        { status: 403 },
+      );
     }
 
     const body = await req.json();
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const email =
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const role = body.role === "admin" ? "admin" : "member";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -115,7 +145,11 @@ export async function POST(
     });
 
     return NextResponse.json(
-      { success: true, invitationId: invitation.id, expiresAt: invitation.expiresAt },
+      {
+        success: true,
+        invitationId: invitation.id,
+        expiresAt: invitation.expiresAt,
+      },
       { status: 201 },
     );
   } catch (error) {

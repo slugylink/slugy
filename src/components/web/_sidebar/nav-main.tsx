@@ -180,7 +180,7 @@ const NavItemComponent = memo<{
 }>(({ item, isActive, isSubItemActive, onNavItemClick }) => {
   const buttonClasses = cn(
     "group-hover/menu-item cursor-pointer transition-colors duration-200",
-    isActive && "bg-sidebar-accent text-blue-500 hover:text-blue-500",
+    isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
   );
 
   return (

@@ -25,6 +25,7 @@ import {
 } from "@/lib/link-targeting";
 import {
   canUseLeadTracking,
+  canUsePremiumLinkFeatures,
   getWorkspaceOwnerPlanTypeBySlug,
 } from "@/lib/subscription/entitlements";
 import { Prisma } from "@prisma/client";
@@ -148,6 +149,31 @@ export async function PATCH(
           {
             error: "Geo targeting requires a Pro plan.",
             message: "Geo targeting requires a Pro plan.",
+            code: "FORBIDDEN",
+          },
+          { status: 403 },
+        );
+      }
+    }
+
+    // Gate only when setting a new password or expiration (Pro). Clearing
+    // or leaving them unchanged must not 403 free users.
+    if (!canUsePremiumLinkFeatures(planType)) {
+      const settingPassword =
+        validatedData.password !== undefined &&
+        validatedData.password !== null &&
+        !isPasswordUnchanged(validatedData.password);
+      const settingExpiry =
+        validatedData.expiresAt !== undefined &&
+        validatedData.expiresAt !== null;
+      if (settingPassword || settingExpiry) {
+        return jsonWithETag(
+          req,
+          {
+            error:
+              "Password protection and link expiration require a Pro plan.",
+            message:
+              "Password protection and link expiration require a Pro plan.",
             code: "FORBIDDEN",
           },
           { status: 403 },

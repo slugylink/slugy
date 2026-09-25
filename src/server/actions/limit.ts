@@ -1,7 +1,8 @@
 "use server";
 import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "./subscription";
-import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
+import { getFreePlanLimits } from "@/lib/subscription/limits-sync";
+import { ensureFreeSubscription } from "@/lib/subscription/free-entitlement";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 
 //* Optimized function to check workspace access and link limits in one query
@@ -34,7 +35,14 @@ export async function checkWorkspaceAccessAndLimits(
       };
     }
 
-    const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
+    let subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
+
+    // Self-healing: users without any subscription (signed up before the
+    // Free tier, or via OAuth edge cases) get Free instead of a hard block.
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      await ensureFreeSubscription(workspace.userId);
+      subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
+    }
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
@@ -50,10 +58,11 @@ export async function checkWorkspaceAccessAndLimits(
     const { subscription } = subscriptionResult;
     const maxLinks = subscription.plan.maxLinksPerWorkspace;
 
-    // Use the same period counter the sidebar UI shows (linksCreated).
+    // Quota is workspace-scoped: key usage to the workspace OWNER so a
+    // member cannot get a separate fresh counter and exceed plan limits.
     const usage = await ensureCurrentUsageRecord(db, {
       workspaceId: workspace.id,
-      userId,
+      userId: workspace.userId,
     });
     const currentLinks = usage.linksCreated;
     const canCreateLinks = currentLinks < maxLinks;
@@ -70,6 +79,7 @@ export async function checkWorkspaceAccessAndLimits(
       currentLinks,
       maxLinks,
       planType: subscription.plan.planType,
+      ownerUserId: workspace.userId,
     };
   } catch (error) {
     console.error("Error checking workspace access and limits:", error);
@@ -93,8 +103,11 @@ export async function checkWorkspaceLimit(userId: string) {
     });
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
-      const basicLimits = await getBasicPlanLimits();
-      const maxWorkspaces = basicLimits.maxWorkspaces;
+      await ensureFreeSubscription(userId);
+      const retry = await getSubscriptionWithPlan(userId);
+      const freeLimits = await getFreePlanLimits();
+      const maxWorkspaces =
+        retry.subscription?.plan?.maxWorkspaces ?? freeLimits.maxWorkspaces;
       const canCreate = currentWorkspaceCount < maxWorkspaces;
 
       return {
@@ -104,7 +117,10 @@ export async function checkWorkspaceLimit(userId: string) {
           : `Workspace limit reached. Upgrade to Pro.`,
         currentCount: currentWorkspaceCount,
         maxLimit: maxWorkspaces,
-        planType: "basic" as const,
+        planType: (retry.subscription?.plan?.planType ?? "free") as
+          | "free"
+          | "basic"
+          | "pro",
       };
     }
 
@@ -135,7 +151,12 @@ export async function checkWorkspaceLimit(userId: string) {
 
 export async function getUserWorkspaceStats(userId: string) {
   try {
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    let subscriptionResult = await getSubscriptionWithPlan(userId);
+
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      await ensureFreeSubscription(userId);
+      subscriptionResult = await getSubscriptionWithPlan(userId);
+    }
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
@@ -176,7 +197,19 @@ export async function getUserWorkspaceStats(userId: string) {
 
 export async function checkLinkLimit(userId: string, workspaceId: string) {
   try {
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    // Resolve the owner so quota and counters are workspace-scoped.
+    const workspace = await db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { userId: true },
+    });
+    const ownerUserId = workspace?.userId ?? userId;
+
+    let subscriptionResult = await getSubscriptionWithPlan(ownerUserId);
+
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      await ensureFreeSubscription(ownerUserId);
+      subscriptionResult = await getSubscriptionWithPlan(ownerUserId);
+    }
 
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
@@ -192,7 +225,7 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
 
     const usage = await ensureCurrentUsageRecord(db, {
       workspaceId,
-      userId,
+      userId: ownerUserId,
     });
     const currentLinkCount = usage.linksCreated;
     const canCreate = currentLinkCount < maxLinks;
@@ -205,6 +238,7 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
       currentCount: currentLinkCount,
       maxLimit: maxLinks,
       planType: subscription.plan.planType,
+      ownerUserId,
     };
   } catch (error) {
     console.error("Error checking link limit:", error);
@@ -219,7 +253,11 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
 
 export async function checkBioGalleryLimit(userId: string) {
   try {
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    let subscriptionResult = await getSubscriptionWithPlan(userId);
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      await ensureFreeSubscription(userId);
+      subscriptionResult = await getSubscriptionWithPlan(userId);
+    }
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
         canCreate: false,
@@ -255,7 +293,11 @@ export async function checkBioGalleryLimit(userId: string) {
 export async function checkBioGalleryLinkLimit(userId: string, bioId: string) {
   try {
     // Get user's subscription with plan details
-    const subscriptionResult = await getSubscriptionWithPlan(userId);
+    let subscriptionResult = await getSubscriptionWithPlan(userId);
+    if (!subscriptionResult.success || !subscriptionResult.subscription) {
+      await ensureFreeSubscription(userId);
+      subscriptionResult = await getSubscriptionWithPlan(userId);
+    }
     if (!subscriptionResult.success || !subscriptionResult.subscription) {
       return {
         canCreate: false,

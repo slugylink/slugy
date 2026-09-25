@@ -16,11 +16,9 @@ const heroData = {
   announcement: {
     text: (
       <>
-        Not Backed by{" "}
-        <span className="mx-2 aspect-square size-5 bg-orange-500 p-[0px] text-center text-white">
-          Y
-        </span>{" "}
-        Combinator
+        Free plan
+        <span className="mx-2 inline-block h-1 w-1 rounded-full bg-zinc-400" />
+        No credit card required
       </>
     ),
   },

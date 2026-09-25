@@ -52,6 +52,7 @@ export async function getUsages({
       },
       select: {
         id: true,
+        userId: true,
         maxClicksLimit: true,
         maxLinksLimit: true,
         maxUsers: true,
@@ -62,9 +63,11 @@ export async function getUsages({
       return { workspace: null, usage: null };
     }
 
+    // Usage counters are workspace-scoped → key by the owner so every
+    // member sees the same numbers the limit checks enforce.
     const usage = await ensureCurrentUsageRecord(db, {
       workspaceId: workspace.id,
-      userId,
+      userId: workspace.userId,
     });
 
     return { workspace, usage };

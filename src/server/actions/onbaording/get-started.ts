@@ -1,10 +1,21 @@
 "use server";
 
-export async function createFreeSubscription(userId: string) {
-  void userId;
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { ensureFreeSubscription } from "@/lib/subscription/free-entitlement";
 
-  return {
-    success: false as const,
-    message: "Free plan is no longer available. Please choose a paid plan.",
-  };
+export async function createFreeSubscription() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  const userId = session?.user?.id;
+  if (!userId) {
+    return { success: false as const, message: "Unauthorized" };
+  }
+  const result = await ensureFreeSubscription(userId);
+  if (!result.success) {
+    return {
+      success: false as const,
+      message: "Could not activate the Free plan. Please try again.",
+    };
+  }
+  return { success: true as const, message: "Free plan activated" };
 }

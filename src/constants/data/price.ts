@@ -1,5 +1,5 @@
 export type BillingPeriod = "monthly" | "yearly";
-export type PlanType = "basic" | "pro";
+export type PlanType = "free" | "basic" | "pro" | "business";
 export type PricingFeatureValue = string | boolean | number;
 
 export interface Plan {
@@ -67,7 +67,8 @@ export function getYearlyDiscountPercent(
 }
 
 export function getPlanPrice(plan: Plan, billing: BillingPeriod): number {
-  if (plan.planType === "basic") return plan.monthlyPrice;
+  if (plan.planType === "free" || plan.planType === "basic")
+    return plan.monthlyPrice;
   return billing === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 }
 
@@ -83,7 +84,7 @@ export function getPlanPriceSubtitle(
   plan: Plan,
   billing: BillingPeriod,
 ): string {
-  if (plan.planType === "basic") return "Forever";
+  if (plan.planType === "free" || plan.planType === "basic") return "Forever";
   return billing === "yearly" ? "/year" : "/month";
 }
 
@@ -99,6 +100,51 @@ function formatClicks(clicks: number): string {
 // Pricing Values:
 const PRO_MONTHLY_PRICE = 8;
 const PRO_YEARLY_PRICE = 80;
+const BUSINESS_MONTHLY_PRICE = 29;
+const BUSINESS_YEARLY_PRICE = 290;
+
+export const FREE_PLAN: Plan = {
+  name: "Free",
+  description: "Perfect for trying Slugy. Upgrade when you grow.",
+  monthlyPrice: 0,
+  yearlyPrice: 0,
+  monthlyPriceId: "",
+  yearlyPriceId: "",
+  isRecommended: false,
+  buttonLabel: "Get Started",
+  isReady: true,
+  yearlyDiscount: 0,
+  planType: "free",
+  currency: "USD",
+  interval: "month",
+  maxWorkspaces: 1,
+  maxLinksPerWorkspace: 10,
+  maxClicksPerWorkspace: 1000,
+  maxUsers: 1,
+  maxCustomDomains: 1,
+  maxBioLinks: 5,
+  maxLinkTags: 5,
+  maxUTM: 5,
+  maxGalleries: 1,
+  linkExp: false,
+  linkPassword: false,
+  linkGeoTargeting: false,
+  analyticsRetention: "30 days",
+  customizeLinkPreview: false,
+  features: [
+    "1 workspace",
+    "10 new links/month",
+    "1k tracked clicks/month",
+    "Basic analytics",
+    "Basic QR codes",
+    "5 links/bio links",
+    "1 user",
+    "1 custom domain",
+    "5 link tags",
+    "5 UTM templates",
+    "Community support",
+  ],
+};
 
 export const BASIC_PLAN: Plan = {
   name: "Basic",
@@ -158,14 +204,14 @@ export const PRO_PLAN: Plan = {
   planType: "pro",
   currency: "USD",
   interval: "month",
-  maxWorkspaces: 5,
-  maxLinksPerWorkspace: 100,
-  maxClicksPerWorkspace: 12000,
-  maxUsers: 3,
-  maxCustomDomains: 10,
-  maxBioLinks: 15,
-  maxLinkTags: 15,
-  maxUTM: 15,
+  maxWorkspaces: 3,
+  maxLinksPerWorkspace: 250,
+  maxClicksPerWorkspace: 10000,
+  maxUsers: 2,
+  maxCustomDomains: 3,
+  maxBioLinks: 10,
+  maxLinkTags: 10,
+  maxUTM: 10,
   maxGalleries: 2,
   linkExp: true,
   linkPassword: true,
@@ -173,24 +219,74 @@ export const PRO_PLAN: Plan = {
   analyticsRetention: "12 months",
   customizeLinkPreview: true,
   features: [
-    "5 workspaces",
-    "100 links/workspace",
-    "12k tracked clicks/month",
+    "3 workspaces",
+    "250 new links/month",
+    "10k tracked clicks/month",
     "Custom link preview",
     "Link expiration",
     "Password protection",
     "Geo targeting",
-    "15 links/bio links",
-    "Up to 3 team members",
-    "15 link tags",
+    "10 links/bio links",
+    "Up to 2 team members",
+    "10 link tags",
     "12 months analytics retention",
     "Priority email support",
-    "10 custom domains",
-    "15 UTM templates",
+    "3 custom domains",
+    "10 UTM templates",
   ],
 };
 
-export const plans: Plan[] = [BASIC_PLAN, PRO_PLAN];
+export const BUSINESS_PLAN: Plan = {
+  name: "Business",
+  description: "For teams and agencies running links at scale.",
+  monthlyPrice: BUSINESS_MONTHLY_PRICE,
+  yearlyPrice: BUSINESS_YEARLY_PRICE,
+  monthlyPriceId: process.env.NEXT_PUBLIC_BUSINESS_MONTHLY_PRICE_ID || "",
+  yearlyPriceId: process.env.NEXT_PUBLIC_BUSINESS_YEARLY_PRICE_ID || "",
+  isRecommended: false,
+  buttonLabel: "Get Business",
+  isReady: true,
+  yearlyDiscount: getYearlyDiscountPercent(
+    BUSINESS_MONTHLY_PRICE,
+    BUSINESS_YEARLY_PRICE,
+  ),
+  planType: "business",
+  currency: "USD",
+  interval: "month",
+  maxWorkspaces: 10,
+  maxLinksPerWorkspace: 1500,
+  maxClicksPerWorkspace: 50000,
+  maxUsers: 5,
+  maxCustomDomains: 10,
+  maxBioLinks: 30,
+  maxLinkTags: 30,
+  maxUTM: 30,
+  maxGalleries: 5,
+  linkExp: true,
+  linkPassword: true,
+  linkGeoTargeting: true,
+  analyticsRetention: "24 months",
+  customizeLinkPreview: true,
+  features: [
+    "10 workspaces",
+    "1500 new links/month",
+    "50k tracked clicks/month",
+    "Custom link preview",
+    "Link expiration",
+    "Password protection",
+    "Geo targeting",
+    "30 links/bio links",
+    "Up to 5 team members",
+    "30 link tags",
+    "24 months analytics retention",
+    "Priority support",
+    "10 custom domains",
+    "30 UTM templates",
+    "Bulk link creation",
+  ],
+};
+
+export const plans: Plan[] = [FREE_PLAN, PRO_PLAN, BUSINESS_PLAN];
 
 export const PRICING_COMPARISON_FEATURES: PricingComparisonRow[] = [
   {

@@ -98,10 +98,13 @@ async function findPlanByPriceId(priceId: string) {
   return plans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
 
-function getPlanTypeByProductName(name?: string): "basic" | "pro" | null {
+function getPlanTypeByProductName(
+  name?: string,
+): "basic" | "pro" | "business" | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
   if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("business")) return "business";
   if (normalized.includes("pro")) return "pro";
   return null;
 }
@@ -172,11 +175,12 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
     const items = response?.result?.items ?? [];
 
     const updates: Record<
-      "basic" | "pro",
+      "basic" | "pro" | "business",
       { monthlyPriceId: string | null; yearlyPriceId: string | null }
     > = {
       basic: { monthlyPriceId: null, yearlyPriceId: null },
       pro: { monthlyPriceId: null, yearlyPriceId: null },
+      business: { monthlyPriceId: null, yearlyPriceId: null },
     };
 
     for (const product of items) {
@@ -204,7 +208,7 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
       }
     }
 
-    for (const planType of ["basic", "pro"] as const) {
+    for (const planType of ["basic", "pro", "business"] as const) {
       const monthlyPriceId = updates[planType].monthlyPriceId;
       const yearlyPriceId = updates[planType].yearlyPriceId;
       if (!monthlyPriceId && !yearlyPriceId) continue;
@@ -234,7 +238,7 @@ async function findPlanByPriceIdWithSync(priceId: string) {
   plan = await findPlanByPriceId(priceId);
   if (plan) return plan;
   const candidatePlans = await db.plan.findMany({
-    where: { planType: { in: ["basic", "pro"] } },
+    where: { planType: { in: ["basic", "pro", "business"] } },
   });
   return candidatePlans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
@@ -446,7 +450,11 @@ async function handleOrderPaid(order: PolarOrder) {
     }
   }
 
-  if (!existing || existing.plan.planType !== "pro") return;
+  if (
+    !existing ||
+    (existing.plan.planType !== "pro" && existing.plan.planType !== "business")
+  )
+    return;
 
   if (!existing.subscriptionId) {
     await db.subscription.update({

@@ -81,6 +81,40 @@ export async function revalidateSubscriptionCache() {
 }
 
 /**
+ * Gets free plan limits (fallback when the plans table is unreachable).
+ */
+export async function getFreePlanLimits() {
+  const freePlan = await db.plan.findFirst({
+    where: { planType: "free" },
+    select: {
+      maxWorkspaces: true,
+      maxLinksPerWorkspace: true,
+      maxClicksPerWorkspace: true,
+      maxUsers: true,
+      maxCustomDomains: true,
+      maxGalleries: true,
+      maxLinksPerBio: true,
+      maxTagsPerWorkspace: true,
+      maxUtmTemplates: true,
+    },
+  });
+
+  return (
+    freePlan || {
+      maxWorkspaces: 1,
+      maxLinksPerWorkspace: 10,
+      maxClicksPerWorkspace: 1000,
+      maxUsers: 1,
+      maxCustomDomains: 1,
+      maxGalleries: 1,
+      maxLinksPerBio: 5,
+      maxTagsPerWorkspace: 5,
+      maxUtmTemplates: 5,
+    }
+  );
+}
+
+/**
  * Gets default basic plan limits
  */
 export async function getBasicPlanLimits() {

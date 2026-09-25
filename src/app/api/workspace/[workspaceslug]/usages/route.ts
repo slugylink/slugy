@@ -36,6 +36,7 @@ async function getWorkspaceData(workspaceslug: string, userId: string) {
     },
     select: {
       id: true,
+      userId: true,
       maxClicksLimit: true,
       maxLinksLimit: true,
       maxUsers: true,
@@ -43,12 +44,9 @@ async function getWorkspaceData(workspaceslug: string, userId: string) {
   });
 }
 
-async function getUsageData(workspaceslug: string, userId: string) {
+async function getUsageData(workspaceslug: string, ownerUserId: string) {
   const workspace = await db.workspace.findFirst({
-    where: {
-      slug: workspaceslug,
-      ...buildWorkspaceAccessFilter(userId),
-    },
+    where: { slug: workspaceslug },
     select: { id: true },
   });
 
@@ -58,7 +56,7 @@ async function getUsageData(workspaceslug: string, userId: string) {
 
   return ensureCurrentUsageRecord(db, {
     workspaceId: workspace.id,
-    userId,
+    userId: ownerUserId,
   });
 }
 
@@ -118,11 +116,7 @@ export async function GET(
     const userId = authResult.session.user.id;
 
     // Fetch data in parallel
-    const [workspace, usage, subscription] = await Promise.all([
-      getWorkspaceData(workspaceslug, userId),
-      getUsageData(workspaceslug, userId),
-      getSubscriptionData(userId),
-    ]);
+    const workspace = await getWorkspaceData(workspaceslug, userId);
 
     // Validate workspace exists and user has access
     if (!workspace) {
@@ -132,6 +126,12 @@ export async function GET(
         { status: 404 },
       );
     }
+
+    // Usage + subscription are workspace-scoped → use the owner's record.
+    const [usage, subscription] = await Promise.all([
+      getUsageData(workspaceslug, workspace.userId),
+      getSubscriptionData(workspace.userId),
+    ]);
 
     // Return usage data
     return jsonWithETag(req, {

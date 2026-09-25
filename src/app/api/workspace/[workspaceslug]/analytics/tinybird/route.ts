@@ -12,6 +12,8 @@ import {
   type TimePeriod,
 } from "@/lib/analytics/transform-tinybird";
 import { tinybird } from "@/lib/tinybird/could/tinybird";
+import { getWorkspaceOwnerPlanType } from "@/lib/subscription/entitlements";
+import { clampPeriodByRetention } from "@/lib/subscription/retention";
 
 const PRIVATE_NO_STORE = {
   "Cache-Control": "private, no-store",
@@ -82,6 +84,11 @@ export async function GET(
 
     const workspaceId = access.workspace.id;
 
+    // Retention: never query buckets older than the owner's plan allows.
+    const planType = await getWorkspaceOwnerPlanType(workspaceId);
+    const timePeriod = clampPeriodByRetention(planType, props.timePeriod);
+    const effectiveProps = { ...props, timePeriod };
+
     const requestedMetrics = props.metrics || [
       "totalClicks",
       "clicksOverTime",
@@ -113,7 +120,7 @@ export async function GET(
 
     const result = await tinybird.analyticsPipe.query({
       workspace_id: workspaceId,
-      ...tinybirdFilterParams(props),
+      ...tinybirdFilterParams(effectiveProps),
     });
 
     const rows = (result.data ?? []).map((row) => ({
@@ -124,7 +131,7 @@ export async function GET(
     const analyticsData = transformTinybirdAnalytics(
       rows,
       normalizedMetrics,
-      props.timePeriod,
+      timePeriod,
     );
 
     return NextResponse.json(analyticsData, {
@@ -132,7 +139,7 @@ export async function GET(
       headers: {
         ...PRIVATE_NO_STORE,
         "X-Analytics-Metrics": normalizedMetrics.join(","),
-        "X-Analytics-Period": props.timePeriod,
+        "X-Analytics-Period": timePeriod,
         "X-Analytics-Event": "clicks",
       },
     });

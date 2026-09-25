@@ -1,16 +1,7 @@
 "use client";
 import MaxWidthContainer from "@/components/max-width-container";
 import { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { IoIosCheckmarkCircle } from "react-icons/io";
-import { MoveUpRight } from "lucide-react";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -24,9 +15,141 @@ import {
   type BillingPeriod,
   type Plan,
 } from "@/constants/data/price";
+import {
+  BarChart3,
+  Briefcase,
+  CalendarDays,
+  Clock,
+  Eye,
+  FlaskConical,
+  Globe,
+  LayoutGrid,
+  Link as LinkIcon,
+  Link2,
+  Lock,
+  MapPin,
+  MousePointerClick,
+  QrCode,
+  Tag,
+  Users,
+  LifeBuoy,
+  Sparkles,
+  type LucideIcon,
+} from "lucide-react";
+
+const FEATURE_ICON_RULES: Array<{ match: RegExp; icon: LucideIcon }> = [
+  { match: /click|event/i, icon: MousePointerClick },
+  { match: /qr/i, icon: QrCode },
+  { match: /retention|month|year/i, icon: CalendarDays },
+  { match: /domain/i, icon: Globe },
+  { match: /team|member|user/i, icon: Users },
+  { match: /support/i, icon: LifeBuoy },
+  { match: /tag/i, icon: Tag },
+  { match: /bio/i, icon: LayoutGrid },
+  { match: /password/i, icon: Lock },
+  { match: /geo/i, icon: MapPin },
+  { match: /expir/i, icon: Clock },
+  { match: /preview/i, icon: Eye },
+  { match: /utm/i, icon: FlaskConical },
+  { match: /workspace/i, icon: Briefcase },
+  { match: /analytic/i, icon: BarChart3 },
+  { match: /link/i, icon: Link2 },
+];
+
+function featureIcon(feature: string): LucideIcon {
+  return (
+    FEATURE_ICON_RULES.find((rule) => rule.match.test(feature))?.icon ??
+    Sparkles
+  );
+}
+
+function PriceLine({ plan, billing }: { plan: Plan; billing: BillingPeriod }) {
+  const price = getPlanPrice(plan, billing);
+  const promoPrice = getPlanPromoPrice(plan, billing);
+  const subtitle = getPlanPriceSubtitle(plan, billing);
+  const per =
+    subtitle === "Forever" ? "free forever" : `per ${subtitle.slice(1)}`;
+  return (
+    <p className="text-lg">
+      <span className="font-semibold">
+        <PromoPrice price={price} promoPrice={promoPrice} />
+      </span>{" "}
+      <span className="text-muted-foreground text-sm">{per}</span>
+    </p>
+  );
+}
+
+function PlanCard({
+  plan,
+  billing,
+  bestValue,
+  plusHeader,
+  plusFeatures,
+}: {
+  plan: Plan;
+  billing: BillingPeriod;
+  bestValue?: boolean;
+  plusHeader?: string;
+  plusFeatures?: string[];
+}) {
+  const features = plusFeatures ?? plan.features;
+  return (
+    <div className="flex h-full flex-col">
+      <div className="rounded-xl bg-zinc-100/80 p-5 dark:bg-zinc-900">
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-medium">{plan.name}</h3>
+          {bestValue && (
+            <Badge className="bg-orange-200 px-2 py-0 text-[10px] font-semibold tracking-wide text-orange-900 uppercase hover:bg-orange-200 dark:bg-orange-900/40 dark:text-orange-200">
+              Best value
+            </Badge>
+          )}
+        </div>
+        <div className="mt-1">
+          <PriceLine plan={plan} billing={billing} />
+        </div>
+        <p className="text-muted-foreground mt-3 min-h-10 text-sm">
+          {plan.description}
+        </p>
+        <Button
+          asChild
+          size="lg"
+          variant={bestValue ? "default" : "outline"}
+          className={
+            bestValue
+              ? "mt-4 w-full"
+              : "mt-4 w-full bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+          }
+          disabled={!plan.isReady}
+        >
+          <Link href={PRICING_COPY.loginUrl}>{plan.buttonLabel}</Link>
+        </Button>
+      </div>
+
+      <div className="px-1 pt-5">
+        <p className="text-sm font-semibold">{plusHeader ?? "Key Features:"}</p>
+        <ul className="mt-3 space-y-2.5">
+          {features.map((feat) => {
+            const Icon = featureIcon(feat);
+            return (
+              <li key={feat} className="flex items-start gap-2.5 text-sm">
+                <Icon className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0" />
+                <span>{feat}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
 
 export default function PricingSection() {
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
+  const [free, pro, business] = plans;
+  const proFeatures = new Set(pro?.features ?? []);
+  const businessExtras = (business?.features ?? []).filter(
+    (f) => !proFeatures.has(f),
+  );
 
   return (
     <section className="mt-12 py-8 sm:py-10">
@@ -65,95 +188,19 @@ export default function PricingSection() {
             </TabsList>
           </div>
 
-          <div className="mx-auto mt-8 grid w-full max-w-3xl grid-cols-1 gap-5 sm:mt-10 sm:grid-cols-2 sm:gap-6">
-            {plans.map((plan: Plan) => {
-              const {
-                name,
-                description,
-                isReady,
-                buttonLabel,
-                features,
-                yearlyDiscount,
-              } = plan;
-              const showMore = features.length > 9;
-              const price = getPlanPrice(plan, billing);
-              const promoPrice = getPlanPromoPrice(plan, billing);
-              const priceSubtitle = getPlanPriceSubtitle(plan, billing);
-              const isYearly = billing === "yearly";
-              const isBasic = plan.planType === "basic";
-
-              return (
-                <Card
-                  key={name}
-                  className="h-full w-full max-w-none rounded-3xl border bg-zinc-100/60 p-1.5 backdrop-blur-md dark:bg-zinc-900/60"
-                >
-                  <CardHeader className="space-y-4 rounded-[18px] bg-white p-4 shadow-sm sm:p-5 [.border-b]:border-zinc-200/60 dark:[.border-b]:border-zinc-800">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base sm:text-lg">
-                          {name}
-                        </CardTitle>
-                        <CardDescription className="mt-1 text-sm text-zinc-700">
-                          {description}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <div className="mb-1 flex items-end gap-2">
-                      <PromoPrice
-                        price={price}
-                        promoPrice={promoPrice}
-                        className="text-2xl font-medium tracking-tight sm:text-3xl"
-                      />
-                      <span className="mb-2 text-sm text-zinc-700">
-                        {priceSubtitle}
-                      </span>
-                      {isYearly &&
-                        !isBasic &&
-                        typeof yearlyDiscount === "number" &&
-                        yearlyDiscount > 0 && (
-                          <Badge variant="secondary" className="mb-1">
-                            Save {yearlyDiscount}%
-                          </Badge>
-                        )}
-                    </div>
-                    <Button
-                      asChild
-                      size="lg"
-                      className="w-full rounded-lg"
-                      disabled={!isReady}
-                    >
-                      <Link href={PRICING_COPY.loginUrl}>{buttonLabel}</Link>
-                    </Button>
-                  </CardHeader>
-
-                  <CardContent className="px-4 pb-4">
-                    <div className="border-zinc-200 text-sm dark:border-zinc-800">
-                      <p className="mb-3 border-b pb-2.5 text-xs font-normal text-zinc-700 uppercase dark:text-zinc-200">
-                        Includes
-                      </p>
-                      <ul className="space-y-2">
-                        {features
-                          .slice(0, 9)
-                          .map((feat: string, idx: number) => (
-                            <li
-                              key={feat}
-                              className="flex items-start gap-2 capitalize"
-                            >
-                              <IoIosCheckmarkCircle className="" size={19} />
-                              <span>{feat}</span>
-                              {showMore && idx === 8 && (
-                                <span className="text-muted-foreground ml-1 flex cursor-pointer items-center gap-1 lowercase underline">
-                                  more <MoveUpRight size={12} />
-                                </span>
-                              )}
-                            </li>
-                          ))}
-                      </ul>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="mx-auto mt-8 grid w-full max-w-5xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-3 md:gap-5">
+            {free && <PlanCard plan={free} billing={billing} />}
+            {pro && <PlanCard plan={pro} billing={billing} bestValue />}
+            {business && (
+              <PlanCard
+                plan={business}
+                billing={billing}
+                plusHeader="Everything in Pro, plus:"
+                plusFeatures={
+                  businessExtras.length > 0 ? businessExtras : undefined
+                }
+              />
+            )}
           </div>
         </Tabs>
       </MaxWidthContainer>

@@ -211,13 +211,13 @@ export async function getBillingData(workspaceSlug: string) {
       message: "Billing data retrieved",
       data: {
         plan: subscriptionResult.subscription?.plan || {
-          name: "Basic",
-          planType: "basic",
-          maxWorkspaces: 2,
-          maxLinksPerWorkspace: 20,
+          name: "Free",
+          planType: "free",
+          maxWorkspaces: 1,
+          maxLinksPerWorkspace: 10,
           maxClicksPerWorkspace: 1000,
           maxUsers: 1,
-          maxCustomDomains: 2,
+          maxCustomDomains: 1,
           maxGalleries: 1,
           maxLinksPerBio: 5,
           maxTagsPerWorkspace: 5,

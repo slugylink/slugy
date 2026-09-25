@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { polarClient } from "@/lib/polar";
 import AppPricingComparator from "@/components/app-pricing-comparator";
+import ContinueFreeButton from "./continue-free-button";
 import { db } from "@/server/db";
 
 type PriceInterval = "month" | "year" | null;
@@ -71,6 +72,7 @@ export default async function OnboardingPlansPage({
         select: {
           id: true,
           status: true,
+          plan: { select: { planType: true } },
         },
       },
     },
@@ -78,9 +80,13 @@ export default async function OnboardingPlansPage({
 
   const subscriptionStatus =
     userEntitlement?.subscription?.status?.toLowerCase() ?? "";
+  const planType = userEntitlement?.subscription?.plan?.planType?.toLowerCase();
+  // Only a *paid* entitlement skips the plans page — a Free entitlement
+  // (auto-provisioned) must still let the user choose Pro.
   const hasPaidEntitlement = Boolean(
     userEntitlement?.subscription?.id &&
-      ["active", "trialing"].includes(subscriptionStatus),
+      ["active", "trialing"].includes(subscriptionStatus) &&
+      (planType === "pro" || planType === "business"),
   );
 
   if (hasPaidEntitlement) {
@@ -101,7 +107,7 @@ export default async function OnboardingPlansPage({
       <div className="mx-auto mt-6 mb-8 max-w-3xl text-center">
         <h1 className="text-2xl font-semibold sm:text-2xl">Choose Your Plan</h1>
         <p className="text-muted-foreground mt-1 text-sm">
-          Pick Basic or Pro to activate your workspace.
+          Start free, or pick Pro for advanced features.
         </p>
       </div>
       <div className="mx-auto max-w-5xl bg-white">
@@ -111,6 +117,12 @@ export default async function OnboardingPlansPage({
           isPaidPlan={false}
           successUrlPath={`/${workspace}`}
         />
+        <div className="mx-auto mt-6 max-w-xs">
+          <ContinueFreeButton workspace={workspace} />
+          <p className="text-muted-foreground mt-2 text-center text-xs">
+            Free forever · 1 workspace · 10 links · 1k clicks/month
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import {
   BASIC_PLAN as BASIC_PLAN_SOURCE,
+  BUSINESS_PLAN as BUSINESS_PLAN_SOURCE,
+  FREE_PLAN as FREE_PLAN_SOURCE,
   PRO_PLAN as PRO_PLAN_SOURCE,
   toPlanSeed,
 } from "../constants/data/price";
@@ -8,6 +10,8 @@ import {
 const db = new PrismaClient();
 const BASIC_PLAN = toPlanSeed(BASIC_PLAN_SOURCE);
 const PRO_PLAN = toPlanSeed(PRO_PLAN_SOURCE);
+const FREE_PLAN = toPlanSeed(FREE_PLAN_SOURCE);
+const BUSINESS_PLAN = toPlanSeed(BUSINESS_PLAN_SOURCE);
 
 async function main() {
   try {
@@ -35,8 +39,12 @@ async function main() {
     `);
 
     const upsertPlanByType = async (
-      planType: "basic" | "pro",
-      plan: typeof BASIC_PLAN | typeof PRO_PLAN,
+      planType: "free" | "basic" | "pro" | "business",
+      plan:
+        | typeof BASIC_PLAN
+        | typeof PRO_PLAN
+        | typeof FREE_PLAN
+        | typeof BUSINESS_PLAN,
     ) => {
       const rows = await db.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count FROM "plans" WHERE "planType" = $1::"PlanType"`,
@@ -157,8 +165,10 @@ async function main() {
       }
     };
 
+    await upsertPlanByType("free", FREE_PLAN);
     await upsertPlanByType("basic", BASIC_PLAN);
     await upsertPlanByType("pro", PRO_PLAN);
+    await upsertPlanByType("business", BUSINESS_PLAN);
 
     console.log("Seeded successfully");
   } catch (error) {

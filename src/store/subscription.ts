@@ -36,7 +36,9 @@ function applySubscription(
 ) {
   const planType =
     (subscription?.plan?.planType as PlanType | undefined) ?? null;
-  const isPro = !!planType && planType.toString().toLowerCase() === "pro";
+  // Business includes everything Pro unlocks in the UI.
+  const normalized = planType?.toString().toLowerCase();
+  const isPro = normalized === "pro" || normalized === "business";
 
   set({
     subscription,

@@ -10,6 +10,7 @@ import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
 import { waitUntil } from "@vercel/functions";
 import { jsonWithETag } from "@/lib/http";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
+import { canUsePremiumLinkFeatures } from "@/lib/subscription/entitlements";
 
 const nanoid = customAlphabet(
   "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
@@ -191,6 +192,13 @@ export async function POST(
             message: "expiresAt must be a valid future date",
             path: ["expiresAt"],
           });
+        } else if (
+          !canUsePremiumLinkFeatures(workspaceCheck.planType as string | null)
+        ) {
+          rowErrors.push({
+            message: "Link expiration requires a Pro plan",
+            path: ["expiresAt"],
+          });
         } else {
           expiresAt = parsedDate;
         }
@@ -286,7 +294,20 @@ export async function POST(
     }> = [];
     const createdByIndex = new Map<number, { id: string; slug: string }>();
     if (valid.length > 0) {
-      // Resolve tags up-front (same approach as CSV import).
+      // Resolve tags up-front (same approach as CSV import), capped at
+      // the owner's plan tag limit.
+      const ownerPlan = await db.plan.findFirst({
+        where: {
+          planType:
+            (workspaceCheck.planType as
+              | "free"
+              | "basic"
+              | "pro"
+              | "business") ?? "free",
+        },
+        select: { maxTagsPerWorkspace: true },
+      });
+      const maxTags = ownerPlan?.maxTagsPerWorkspace ?? 5;
       const allTagNames = Array.from(new Set(valid.flatMap((v) => v.tags)));
       const tagNameToId = new Map<string, string>();
       if (allTagNames.length > 0) {
@@ -298,7 +319,12 @@ export async function POST(
           select: { id: true, name: true },
         });
         for (const tag of existingTags) tagNameToId.set(tag.name, tag.id);
-        const missing = allTagNames.filter((n) => !tagNameToId.has(n));
+        const currentTagCount = await db.tag.count({
+          where: { workspaceId: workspaceCheck.workspace.id, deletedAt: null },
+        });
+        const missing = allTagNames
+          .filter((n) => !tagNameToId.has(n))
+          .slice(0, Math.max(0, maxTags - currentTagCount));
         if (missing.length > 0) {
           await db.tag.createMany({
             data: missing.map((name) => ({
@@ -393,7 +419,7 @@ export async function POST(
         await db.$transaction(async (tx) => {
           const currentUsage = await ensureCurrentUsageRecord(tx, {
             workspaceId: workspaceCheck.workspace.id,
-            userId: session.user.id,
+            userId: workspaceCheck.ownerUserId ?? session.user.id,
           });
           await Promise.all([
             tx.workspace.update({

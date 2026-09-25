@@ -126,15 +126,16 @@ export async function activateBasicEntitlement(input: {
 
 /**
  * Ends paid Pro access. Restores active Basic when the user previously
- * purchased lifetime Basic; otherwise marks the subscription inactive.
+ * purchased lifetime Basic; otherwise moves them to the Free plan so they
+ * keep working (acquisition-safe) instead of a dead inactive state.
  */
 export async function downgradeToBasicLimits(input: {
   subscriptionId: string;
   canceledAt?: Date;
 }) {
-  const basicPlan = await db.plan.findFirst({
-    where: { planType: "basic" },
-    select: { id: true, monthlyPriceId: true, planType: true },
+  const freePlan = await db.plan.findFirst({
+    where: { planType: "free" },
+    select: { id: true, planType: true },
   });
 
   const existing = await db.subscription.findUnique({
@@ -162,22 +163,29 @@ export async function downgradeToBasicLimits(input: {
     return true;
   }
 
+  if (!freePlan) {
+    console.error("[Downgrade] Free plan row missing from DB");
+    return false;
+  }
+
+  const periodStart = new Date();
+  const periodEnd = new Date(periodStart);
+  periodEnd.setFullYear(periodEnd.getFullYear() + 100);
+
   await db.subscription.update({
     where: { id: input.subscriptionId },
     data: {
-      status: "inactive",
-      canceledAt: input.canceledAt ?? new Date(),
+      status: "active",
+      planId: freePlan.id,
+      priceId: null,
+      subscriptionId: null,
+      periodStart,
+      periodEnd,
       cancelAtPeriodEnd: false,
-      ...(basicPlan
-        ? {
-            planId: basicPlan.id,
-            priceId: basicPlan.monthlyPriceId ?? null,
-            subscriptionId: null,
-          }
-        : {}),
+      canceledAt: null,
     },
   });
 
-  await syncUserLimits(existing.referenceId, "basic");
+  await syncUserLimits(existing.referenceId, "free");
   return true;
 }

@@ -3,6 +3,8 @@ import { sql } from "@/server/neon";
 import { z } from "zod";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { analyticsFilterFieldsSchema } from "@/lib/analytics/query-params";
+import { getWorkspaceOwnerPlanType } from "@/lib/subscription/entitlements";
+import { clampStartDateByRetention } from "@/lib/subscription/retention";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -389,8 +391,12 @@ export async function GET(
       return access.response;
     }
 
-    // Calculate start date and period unit
-    const startDate = getStartDate(props.timePeriod);
+    // Calculate start date and period unit (start clamped to plan retention)
+    const planType = await getWorkspaceOwnerPlanType(access.workspace.id);
+    const startDate = clampStartDateByRetention(
+      planType,
+      getStartDate(props.timePeriod),
+    );
     const periodUnit = getPeriodUnit(props.timePeriod);
 
     // Build filters object

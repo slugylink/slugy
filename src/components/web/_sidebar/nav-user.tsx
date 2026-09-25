@@ -127,12 +127,6 @@ export const NavUser = () => {
                   Account
                 </Link>
               </DropdownMenuItem>
-              {/* <DropdownMenuItem asChild>
-                <Link href="/billing">
-                  <CreditCard className="mr-2 inline-block" />
-                  Billing
-                </Link>
-              </DropdownMenuItem> */}
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />

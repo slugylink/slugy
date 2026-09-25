@@ -15,12 +15,6 @@ import {
 import { useSubscriptionStore } from "@/store/subscription";
 import { BASIC_PLAN, PRO_PLAN } from "@/constants/data/price";
 
-function isLegacyFreePlan(planType: string | null, planName?: string | null) {
-  const normalizedType = (planType ?? "").toLowerCase();
-  const normalizedName = (planName ?? "").toLowerCase();
-  return normalizedType === "free" || normalizedName === "free";
-}
-
 function isPaidPolarEntitlement(input: {
   customerId?: string | null;
   provider?: string | null;
@@ -132,7 +126,6 @@ export default function LegacyFreeUpgradePopup() {
     }
 
     return (
-      isLegacyFreePlan(planType, subscription?.plan?.name) ||
       isExpiredPaidSubscription({
         planType,
         customerId: subscription?.customerId,

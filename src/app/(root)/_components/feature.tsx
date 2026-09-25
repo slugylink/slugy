@@ -1,6 +1,7 @@
 "use client";
 import React, { memo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FeatureLinkCard, {
   DEMO_LINKS,
@@ -9,112 +10,175 @@ import FeatureQRCodeDesign from "@/components/web/_features/feature-qr-code-desi
 import FeatureAnalyticsChart from "@/components/web/_features/feature-chart";
 import FeatureLinkPreview from "@/components/web/_features/feature-preview";
 
-const featureCardsData = [
+interface Row {
+  eyebrow: string;
+  title: string;
+  description: string;
+  cta: string;
+  visual: React.ReactNode;
+}
+
+const ROWS: Row[] = [
   {
-    title: "Link Shortening",
-    description: "Create branded, concise links for effective sharing.",
-    body: (
-      <>
+    eyebrow: "Slugy Links",
+    title: "Links that look like you",
+    description:
+      "Shared workspaces, custom domains, and bulk creation — every link on brand, whoever ships it.",
+    cta: "Explore Links",
+    visual: (
+      <div className="space-y-2">
         <FeatureLinkCard className="mx-auto" link={DEMO_LINKS[0]} />
-        <FeatureLinkCard
-          className="mx-auto w-[97%] shadow-[0_0_16px_rgba(0,0,0,0.08)]"
-          link={DEMO_LINKS[1]}
+        <FeatureLinkCard className="mx-auto w-[97%]" link={DEMO_LINKS[1]} />
+      </div>
+    ),
+  },
+  {
+    eyebrow: "Slugy Analytics",
+    title: "Every click, accounted for",
+    description:
+      "Referrers, campaigns, geo routing, and reports you can send to clients — live.",
+    cta: "Explore Analytics",
+    visual: <FeatureAnalyticsChart timePeriod="7d" />,
+  },
+  {
+    eyebrow: "Bio Links",
+    title: "Your whole internet, on one page",
+    description:
+      "A bio page, branded links, and QR codes for every post — everything you share behind a single URL.",
+    cta: "Explore Bio Links",
+    visual: (
+      <div className="mx-auto max-w-[300px]">
+        <FeatureLinkPreview
+          username={"sandip"}
+          links={[
+            { id: "1", title: "Portfolio", url: "https://slugy.co/sandip" },
+            { id: "2", title: "Github", url: "https://slugy.co/git" },
+          ]}
+          socials={[]}
+          name={"Sandip"}
+          bio={"Full Stack Developer"}
+          logo={"/logo.svg"}
+          initialTheme={"prism"}
         />
-        <FeatureLinkCard className="mx-auto w-[94%]" link={DEMO_LINKS[2]} />
-      </>
+      </div>
     ),
   },
+];
+
+const MINIS = [
   {
-    title: "QR Code Generation",
-    description: "Instantly generate QR codes for easy scanning.",
-    body: (
-      <Card className="h-full w-full rounded-b-none border border-b-0 p-2 shadow-[0_0_16px_rgba(0,0,0,0.08)] sm:max-w-[400px] sm:p-3">
+    eyebrow: "QR codes",
+    title: "From link to scan in one click",
+    description:
+      "A print-ready code rides along with every short link, styled to match your brand.",
+    visual: (
+      <div className="mx-auto max-w-[280px]">
         <FeatureQRCodeDesign code="app" />
-      </Card>
+      </div>
     ),
   },
   {
-    title: "Analytics Dashboard",
-    description: "Track link performance with detailed click insights.",
-    body: <FeatureAnalyticsChart timePeriod="7d" />,
-  },
-  {
-    title: "Link in Bio",
-    description: "Your links in one place for easy sharing.",
-    body: (
-      <FeatureLinkPreview
-        username={"sandip"}
-        links={[
-          {
-            id: "1",
-            title: "Portfolio",
-            url: "https://slugy.co/sandip",
-          },
-          {
-            id: "2",
-            title: "Github",
-            url: "https://slugy.co/git",
-          },
-        ]}
-        socials={[]}
-        name={"Sandip"}
-        bio={"Full Stack Developer"}
-        logo={"/logo.svg"}
-        initialTheme={"prism"}
-      />
+    eyebrow: "Control",
+    title: "Password, expiry & geo",
+    description:
+      "Protect sensitive links, auto-expire campaigns, and route countries to the right destination.",
+    visual: (
+      <div className="mx-auto max-w-[280px] space-y-2 rounded-xl border bg-zinc-50/60 p-4 dark:bg-zinc-900/40">
+        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
+          <span className="truncate font-medium">slugy.co/launch</span>
+          <span className="ml-2 shrink-0 rounded-full bg-zinc-900 px-2 py-0.5 text-[11px] text-white dark:bg-zinc-100 dark:text-zinc-900">
+            Password
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
+          <span className="truncate font-medium">slugy.co/sale</span>
+          <span className="ml-2 shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
+            Expires Fri
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
+          <span className="truncate font-medium">slugy.co/global</span>
+          <span className="ml-2 shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+            12 countries
+          </span>
+        </div>
+      </div>
     ),
   },
-] as const;
+];
 
 const Features = memo(function Features() {
   return (
-    <div className="dark:bg-background mx-auto mt-4 max-w-6xl px-2 py-10 text-center sm:mt-6 sm:px-4 sm:py-16">
-      {/* Heading */}
-      <div className="mb-4 space-y-3 text-2xl font-medium sm:mb-5 sm:space-y-4 sm:text-4xl">
-        <h2 className="text-balance">Elevate your brand</h2>
+    <div className="dark:bg-background mx-auto mt-4 max-w-6xl px-2 py-10 sm:mt-6 sm:px-4 sm:py-16">
+      <div className="mx-auto max-w-2xl text-center">
+        <h2 className="text-2xl font-medium text-balance sm:text-4xl">
+          Built for creators, marketers, and teams
+        </h2>
+        <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
+          Whatever you share and wherever you share it — one toolkit covers
+          every link.
+        </p>
       </div>
-      {/* Description */}
-      <p className="mx-auto mb-6 max-w-xl text-sm text-zinc-600 sm:mb-8 sm:text-base dark:text-zinc-300">
-        Create standout short links with our powerful link management{" "}
-        <br className="hidden sm:block" />
-        platform that includes robust analytics.
-      </p>
-      {/* Feature Cards Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-8">
-        {featureCardsData.map((feat, idx) => (
-          <Card
-            key={feat.title}
-            className="rounded-none border-none bg-transparent p-2 pt-6 shadow-none sm:p-3 sm:pt-10"
+
+      <div className="mt-8 overflow-hidden rounded-[20px] border sm:mt-10">
+        {ROWS.map((row, i) => (
+          <div
+            key={row.eyebrow}
+            className={cn(
+              "grid grid-cols-1 items-center gap-6 p-6 sm:p-10 md:grid-cols-2",
+              i > 0 && "border-t",
+            )}
           >
-            <div>
-              <div className="relative">
-                {/* <div className="absolute inset-x-32 top-6 m-auto aspect-video bg-gradient-to-tr from-yellow-500 via-orange-200 to-violet-300 blur-3xl md:inset-x-20" /> */}
-                {/* Feature Image/Body */}
-                <div className="relative w-full">
-                  <div
-                    className={cn(
-                      "relative aspect-[16/15] overflow-hidden rounded-[20px] border border-zinc-200/80 bg-zinc-50/20 p-4 sm:aspect-[16/11] sm:p-8 dark:border-zinc-200/40",
-                      idx === 1
-                        ? "mx-auto flex w-full justify-center"
-                        : "space-y-2.5 sm:px-10",
-                    )}
-                  >
-                    {feat.body}
-                  </div>
-                </div>
-                <div className="absolute inset-0 z-0 [background:radial-gradient(100%_100%_at_28%_-0%,transparent_60%,#ffffff_100%)] dark:[background:radial-gradient(100%_100%_at_0%_0%,transparent_0%,#121212_100%)]" />
-              </div>
-              <CardContent className="mt-3 p-0 pl-1 sm:pl-2">
-                <h3 className="mb-1.5 text-start text-base font-medium sm:text-lg">
-                  {feat.title}
-                </h3>
-                <p className="text-muted-foreground text-start text-sm leading-relaxed font-normal sm:text-base">
-                  {feat.description}
-                </p>
-              </CardContent>
+            <div className={cn(i % 2 === 1 && "md:order-2")}>
+              <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                {row.eyebrow}
+              </p>
+              <h3 className="mt-2 text-xl font-medium text-balance sm:text-2xl">
+                {row.title}
+              </h3>
+              <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed sm:text-base">
+                {row.description}
+              </p>
+              <Link
+                href="/#features"
+                className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+              >
+                {row.cta} <ArrowRight className="h-4 w-4" />
+              </Link>
             </div>
-          </Card>
+            <div
+              className={cn(
+                "rounded-xl border bg-zinc-50/60 p-4 dark:bg-zinc-900/40",
+                i % 2 === 1 && "md:order-1",
+              )}
+            >
+              {row.visual}
+            </div>
+          </div>
         ))}
+
+        <div className="grid grid-cols-1 border-t md:grid-cols-2">
+          {MINIS.map((mini, i) => (
+            <div
+              key={mini.eyebrow}
+              className={cn(
+                "p-6 sm:p-10",
+                i > 0 && "border-t md:border-t-0 md:border-l",
+              )}
+            >
+              <div className="mb-6">{mini.visual}</div>
+              <p className="text-muted-foreground text-center text-xs font-semibold tracking-widest uppercase">
+                {mini.eyebrow}
+              </p>
+              <h3 className="mx-auto mt-2 max-w-sm text-center text-lg font-medium">
+                {mini.title}
+              </h3>
+              <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed">
+                {mini.description}
+              </p>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

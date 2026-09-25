@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import AppLogo from "@/components/web/app-logo";
 import { usePathname } from "next/navigation";
+import { FaGithub, FaXTwitter } from "react-icons/fa6";
 
 interface FooterLinkProps {
   href: string;
@@ -51,11 +52,23 @@ const FooterSection = ({ title, links }: FooterSectionProps) => (
   </section>
 );
 
+const SOCIALS = [
+  { href: "https://x.com/slugydotco", label: "X", Icon: FaXTwitter },
+  {
+    href: "https://github.com/slugylink/slugy",
+    label: "GitHub",
+    Icon: FaGithub,
+  },
+];
+
 const Footer = () => {
   const footerSections: FooterSectionProps[] = [
     {
       title: "Product",
-      links: [{ href: "#features", label: "Features" }],
+      links: [
+        { href: "#features", label: "Features" },
+        { href: "/pricing", label: "Pricing" },
+      ],
     },
     {
       title: "About",
@@ -70,17 +83,17 @@ const Footer = () => {
       links: [
         { href: "/sponsors", label: "Sponsors" },
         { href: "/blogs", label: "Blog" },
-        { href: "/resources/help", label: "Help" },
+        {
+          href: "https://github.com/slugylink/slugy/discussions/categories/feedback",
+          label: "Feedback",
+        },
       ],
     },
     {
       title: "Connect",
       links: [
-        { href: "https://x.com/slugydotco", label: "Twitter" },
-        {
-          href: "https://www.linkedin.com/in/sarkar-sandip/",
-          label: "LinkedIn",
-        },
+        { href: "https://x.com/slugydotco", label: "X (Twitter)" },
+        { href: "https://github.com/slugylink/slugy", label: "GitHub" },
       ],
     },
   ];
@@ -96,14 +109,28 @@ const Footer = () => {
   }
 
   return (
-    <footer className="border-border relative mx-auto mt-12 flex w-full max-w-6xl flex-col items-center justify-center bg-transparent bg-[radial-gradient(35%_128px_at_50%_0%,theme(backgroundColor.white/8%),transparent)] px-3 sm:mt-16 sm:px-4">
-      {/* <div className="bg-foreground absolute top-0 right-1/2 left-1/2 h-1.5 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full" /> */}
+    <footer className="border-border relative mx-auto mt-12 flex w-full max-w-6xl flex-col items-center justify-center bg-transparent px-3 sm:mt-16 sm:px-4">
       <div className="grid w-full gap-8 pb-12 sm:pb-16 xl:grid-cols-3 xl:gap-8">
         <div className="flex flex-col items-start justify-start md:max-w-[300px]">
           <AppLogo />
           <p className="text-muted-foreground mt-4 text-start text-sm">
-            Simplify Links Like Magic!
+            Short links with powerful analytics — without the enterprise price
+            tag.
           </p>
+          <div className="mt-4 flex items-center gap-2">
+            {SOCIALS.map(({ href, label, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={label}
+                className="text-muted-foreground hover:text-foreground hover:bg-muted flex h-8 w-8 items-center justify-center rounded-lg transition-colors"
+              >
+                <Icon className="h-4 w-4" />
+              </a>
+            ))}
+          </div>
         </div>
         <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 sm:gap-8 xl:col-span-2 xl:mt-0">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-8">

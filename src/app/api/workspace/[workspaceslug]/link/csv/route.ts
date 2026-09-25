@@ -569,7 +569,16 @@ export async function POST(
     const slugToId = new Map<string, string>();
     const tagNameToId = new Map<string, string>();
 
-    // Pre-create all tags in one batch to avoid repeated queries
+    // Pre-create all tags in one batch (capped at the plan tag limit).
+    const ownerPlan = await db.plan.findFirst({
+      where: {
+        planType:
+          (workspaceCheck.planType as "free" | "basic" | "pro" | "business") ??
+          "free",
+      },
+      select: { maxTagsPerWorkspace: true },
+    });
+    const maxTags = ownerPlan?.maxTagsPerWorkspace ?? 5;
     const allTagNames = Array.from(
       new Set(tagsToCreate.flatMap((t) => t.tagNames)),
     );
@@ -587,9 +596,12 @@ export async function POST(
         tagNameToId.set(tag.name, tag.id);
       }
 
-      const missingTagNames = allTagNames.filter(
-        (name) => !tagNameToId.has(name),
-      );
+      const currentTagCount = await db.tag.count({
+        where: { workspaceId: workspaceCheck.workspace.id, deletedAt: null },
+      });
+      const missingTagNames = allTagNames
+        .filter((name) => !tagNameToId.has(name))
+        .slice(0, Math.max(0, maxTags - currentTagCount));
 
       if (missingTagNames.length > 0) {
         await db.tag.createMany({
@@ -709,7 +721,7 @@ export async function POST(
       await db.$transaction(async (tx) => {
         const currentUsage = await ensureCurrentUsageRecord(tx, {
           workspaceId: workspaceCheck.workspace.id,
-          userId: session.user.id,
+          userId: workspaceCheck.ownerUserId ?? session.user.id,
         });
 
         await Promise.all([

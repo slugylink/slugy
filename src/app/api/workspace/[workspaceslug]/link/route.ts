@@ -8,6 +8,7 @@ import { headers } from "next/headers";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import {
   canUseLeadTracking,
+  canUsePremiumLinkFeatures,
   getWorkspaceOwnerPlanTypeBySlug,
 } from "@/lib/subscription/entitlements";
 import { waitUntil } from "@vercel/functions";
@@ -142,6 +143,7 @@ async function resolveWorkspaceTags(
   tx: Prisma.TransactionClient | typeof db,
   workspaceId: string,
   tagNames: string[],
+  maxTags: number = MAX_TAGS_PER_WORKSPACE,
 ): Promise<Array<{ id: string; name: string; color: string | null }>> {
   if (!tagNames.length) return [];
 
@@ -176,7 +178,7 @@ async function resolveWorkspaceTags(
 
     const canCreateCount = Math.min(
       newTagNames.length,
-      MAX_TAGS_PER_WORKSPACE - currentTagCount,
+      Math.max(0, maxTags - currentTagCount),
     );
 
     const tagNamesToCreate = newTagNames.slice(0, canCreateCount);
@@ -258,8 +260,11 @@ export async function POST(
     }
 
     const geo = (validatedData.geo ?? null) as GeoTargetMap | null;
+    // Prefer the plan resolved alongside the limit check (that call also
+    // auto-provisions Free for legacy users, so this is never stale).
+    const effectivePlanType = workspaceCheck.planType ?? planType;
 
-    if (geo && !canUseGeoTargeting(planType)) {
+    if (geo && !canUseGeoTargeting(effectivePlanType)) {
       return jsonWithETag(
         req,
         apiErrorPayload("Geo targeting requires a Pro plan.", "FORBIDDEN"),
@@ -268,7 +273,22 @@ export async function POST(
     }
 
     const trackConversion =
-      canUseLeadTracking(planType) && (validatedData.trackConversion ?? false);
+      canUseLeadTracking(effectivePlanType) &&
+      (validatedData.trackConversion ?? false);
+
+    if (
+      !canUsePremiumLinkFeatures(effectivePlanType) &&
+      (validatedData.password || validatedData.expiresAt)
+    ) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(
+          "Password protection and link expiration require a Pro plan.",
+          "FORBIDDEN",
+        ),
+        { status: 403 },
+      );
+    }
 
     let customDomainName: string | null = null;
     if (validatedData.customDomainId) {
@@ -432,6 +452,16 @@ export async function POST(
       throw error;
     }
 
+    const ownerPlan = await db.plan.findFirst({
+      where: {
+        planType:
+          (workspaceCheck.planType as "free" | "basic" | "pro" | "business") ??
+          "free",
+      },
+      select: { maxTagsPerWorkspace: true },
+    });
+    const maxTags = ownerPlan?.maxTagsPerWorkspace ?? MAX_TAGS_PER_WORKSPACE;
+
     waitUntil(
       (async () => {
         const assignedTags = validatedData.tags?.length
@@ -439,6 +469,7 @@ export async function POST(
               db,
               workspaceCheck.workspace.id,
               validatedData.tags,
+              maxTags,
             )
           : [];
 
@@ -456,7 +487,7 @@ export async function POST(
 
         const currentUsage = await ensureCurrentUsageRecord(db, {
           workspaceId: workspaceCheck.workspace.id,
-          userId: session.user.id,
+          userId: workspaceCheck.ownerUserId ?? session.user.id,
         });
 
         await Promise.all([

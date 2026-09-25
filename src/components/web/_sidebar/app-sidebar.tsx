@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 import { NavMain } from "@/components/web/_sidebar/nav-main";
 import { NavUser } from "@/components/web/_sidebar/nav-user";
 import {

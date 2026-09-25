@@ -73,23 +73,46 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
       <NavigationMenuContent>
         <ul
           className={cn(
-            "grid gap-3 p-0 md:w-[400px] lg:w-[500px]",
-            isFeatures ? "lg:grid-cols-[.75fr_1fr]" : "lg:grid-cols-2",
+            "grid gap-1 p-2",
+            isFeatures
+              ? "md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]"
+              : "w-[300px] grid-cols-1",
           )}
         >
           {isFeatures && (
             <li className="row-span-4">
               <NavigationMenuLink asChild>
                 <Link
-                  href="/"
-                  className="from-muted/50 to-muted flex h-full w-full flex-col justify-end rounded-md bg-gradient-to-b p-3 no-underline outline-none select-none focus:shadow-md"
+                  href="/#features"
+                  className="from-muted/50 to-muted flex h-full w-full flex-col justify-end gap-3 rounded-lg bg-gradient-to-b p-4 no-underline outline-none select-none focus:shadow-md"
                 >
-                  <div className="mt-4 mb-2 text-lg font-medium">
-                    All Features
+                  <div
+                    aria-hidden
+                    className="rounded-lg border bg-white/80 p-3 shadow-sm dark:bg-zinc-900"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="h-6 w-6 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" />
+                      <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                      <div className="h-2 w-8 rounded-full bg-blue-500/70" />
+                    </div>
+                    <div className="mt-2 flex h-10 items-end gap-1">
+                      {[35, 55, 40, 70, 52, 85, 64, 95].map((h, i) => (
+                        <div
+                          key={i}
+                          className="flex-1 rounded-sm bg-zinc-900/80 dark:bg-zinc-100/80"
+                          style={{ height: `${h}%` }}
+                        />
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-muted-foreground text-sm leading-tight">
-                    Manage links, track performance, and more.
-                  </p>
+                  <div>
+                    <div className="mt-1 mb-1 text-lg font-medium">
+                      All Features
+                    </div>
+                    <p className="text-muted-foreground text-sm leading-tight">
+                      Manage links, track performance, and more.
+                    </p>
+                  </div>
                 </Link>
               </NavigationMenuLink>
             </li>
@@ -235,7 +258,7 @@ export default function Navbar() {
   if (!isVisible) return null;
 
   return (
-    <nav className="fixed top-0 left-0 z-50 w-full border-b border-zinc-200 bg-white dark:border-white/10">
+    <nav className="fixed top-0 left-0 z-50 w-full border-b border-zinc-200 bg-white/90 backdrop-blur-md dark:border-white/10 dark:bg-zinc-950/90">
       <div className="mx-auto flex h-[3.5rem] max-w-6xl items-center justify-between px-4">
         <NavbarLogo />
         <DesktopMenu />

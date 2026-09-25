@@ -16,6 +16,7 @@ import {
   type TimePeriod,
 } from "@/lib/analytics/transform-tinybird";
 import { tinybird } from "@/lib/tinybird/could/tinybird";
+import { clampPeriodByRetention } from "@/lib/subscription/retention";
 
 const PRIVATE_NO_STORE = {
   "Cache-Control": "private, no-store",
@@ -91,6 +92,9 @@ export async function GET(
       return apiErrors.forbidden("Lead tracking requires a Pro plan.");
     }
 
+    const timePeriod = clampPeriodByRetention(planType, props.timePeriod);
+    const effectiveProps = { ...props, timePeriod };
+
     const requestedMetrics = props.metrics || [
       "totalClicks",
       "clicksOverTime",
@@ -117,7 +121,7 @@ export async function GET(
 
     const result = await tinybird.leadsAnalytics.query({
       workspace_id: workspaceId,
-      ...tinybirdFilterParams(props),
+      ...tinybirdFilterParams(effectiveProps),
     });
 
     const rows = (result.data ?? []).map((row) => ({
@@ -128,7 +132,7 @@ export async function GET(
     const analyticsData = transformTinybirdAnalytics(
       rows,
       normalizedMetrics,
-      props.timePeriod,
+      timePeriod,
     );
 
     return NextResponse.json(analyticsData, {

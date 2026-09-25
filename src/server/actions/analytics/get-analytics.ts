@@ -8,6 +8,8 @@ import {
   formatAnalyticsResponse,
   AnalyticsMetric,
 } from "./analytics";
+import { getWorkspaceOwnerPlanTypeBySlug } from "@/lib/subscription/entitlements";
+import { clampStartDateByRetention } from "@/lib/subscription/retention";
 import { z } from "zod";
 import { headers } from "next/headers";
 
@@ -40,7 +42,7 @@ const AnalyticsPropsSchema = z.object({
   destination_key: z.string().nullable().optional(),
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(1).max(100).optional(),
-  metrics: z.array(z.enum(ALL_METRICS)).optional()
+  metrics: z.array(z.enum(ALL_METRICS)).optional(),
 });
 
 export async function getAnalytics(
@@ -56,8 +58,14 @@ export async function getAnalytics(
       throw new Error("User not authenticated");
     }
 
-    // 3️ Time period & metrics selection
-    const startDate = getStartDate(safeProps.timePeriod);
+    // 3️ Time period & metrics selection (start clamped to plan retention)
+    const planType = await getWorkspaceOwnerPlanTypeBySlug(
+      safeProps.workspaceslug,
+    );
+    const startDate = clampStartDateByRetention(
+      planType,
+      getStartDate(safeProps.timePeriod),
+    );
     const metrics = (safeProps.metrics ?? ALL_METRICS) as AnalyticsMetric[];
 
     // 4️ Core grouped analytics query

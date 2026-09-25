@@ -3,6 +3,8 @@ import { jsonWithETag } from "@/lib/http";
 import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { verifyLinkPassword } from "@/lib/link-password";
+import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { clampStartDateByRetention } from "@/lib/subscription/retention";
 import {
   formatAnalyticsResponse,
   getStartDate,
@@ -75,7 +77,9 @@ export async function GET(
             url: true,
             domain: true,
             createdAt: true,
-            workspace: { select: { name: true, slug: true, logo: true } },
+            workspace: {
+              select: { name: true, slug: true, logo: true, userId: true },
+            },
           },
         },
       },
@@ -106,7 +110,14 @@ export async function GET(
     }
 
     const timePeriod: TimePeriod = parsed.data.timePeriod;
-    const startDate = getStartDate(timePeriod);
+    // Public reports respect the owner's retention too.
+    const ownerSub = await getSubscriptionWithPlan(
+      shared.link.workspace.userId,
+    );
+    const startDate = clampStartDateByRetention(
+      ownerSub.subscription?.plan?.planType,
+      getStartDate(timePeriod),
+    );
 
     // Short-TTL cache: reports are read-heavy and shared externally, so
     // repeat views (same period + filters) should not re-run groupBy.

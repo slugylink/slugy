@@ -4,71 +4,42 @@ import { FaGithub } from "react-icons/fa6";
 
 export default function OpenSource() {
   return (
-    <section className="relative mx-auto my-4 max-w-full">
-      <div className="">
-        <div className="cardboard relative mx-auto overflow-hidden bg-black/90">
-          <svg
-            className="curve-svg mx-auto block h-auto w-[92%] sm:w-[72%] lg:w-[50%]"
-            viewBox="0 26 1440 90"
-            preserveAspectRatio="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill="white"
-              d="
-      M0,25
-      L1440,25
-      L1440,25
-      C1400,25 1352,25 1316,50
-      C1290,68 1265,88 1224,88
-      L216,88
-      C175,88 150,68 124,50
-      C88,25 40,25 0,25
-    "
-            />
-          </svg>
-          <div
-            className="landing-dot-grid pointer-events-none absolute inset-0 opacity-20"
-            aria-hidden
-          />
-          <div className="relative z-10 flex flex-col items-center justify-center py-20 pb-24">
-            <div className="mx-auto w-full space-y-2 text-center">
-              <div className="text-2xl font-medium sm:text-[38px]">
-                <h2 className="text-background text-balance">
-                  Get started with Slugy
-                </h2>
-              </div>
-
-              <p className="text-center text-sm text-zinc-300 sm:text-base dark:text-zinc-300">
-                Slugy is an open-source link management tool. <br /> It&apos;s
-                fast, secure, and easy to use.
-              </p>
-            </div>
-            <div className="relative z-10 mt-10 flex flex-wrap items-center justify-center gap-4">
-              <Link target="_blank" href="https://app.slugy.co/signup">
-                <Button
-                  variant={"secondary"}
-                  className="rounded-md bg-white text-black"
-                >
-                  Get started
-                </Button>
-              </Link>
+    <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+      <div className="relative overflow-hidden rounded-[24px] bg-zinc-950 px-6 py-16 text-center sm:py-20 dark:border dark:border-zinc-800">
+        <div
+          className="landing-dot-grid pointer-events-none absolute inset-0 opacity-20"
+          aria-hidden
+        />
+        <div className="relative z-10 mx-auto max-w-2xl">
+          <p className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">
+            Open Source
+          </p>
+          <h2 className="mt-2 text-2xl font-medium text-balance text-white sm:text-4xl">
+            Give every link a job
+          </h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-400 sm:text-base">
+            Free short links, analytics, QR codes, and bio pages. Open source,
+            fast, and easy to use.
+          </p>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Button
+              asChild
+              size="lg"
+              className="rounded-lg bg-white text-zinc-900 hover:bg-zinc-200"
+            >
+              <Link href="https://app.slugy.co/signup">Start for free</Link>
+            </Button>
+            <Button
+              asChild
+              size="lg"
+              variant="ghost"
+              className="rounded-lg text-zinc-300 hover:bg-zinc-800 hover:text-white"
+            >
               <Link target="_blank" href="https://github.com/slugylink/slugy">
-                <Button className="rounded-md bg-zinc-700 hover:bg-zinc-700">
-                  <FaGithub className="mr-1 h-5 w-5" />
-                  Github
-                </Button>
+                <FaGithub className="mr-2 h-5 w-5" />
+                GitHub
               </Link>
-              {/* <Link
-                target="_blank"
-                href="https://github.com/sponsors/slugylink"
-              >
-                <Button variant="outline" className="rounded-lg text-black">
-                  <Heart className="mr-2 h-5 w-5 text-pink-500" />
-                  Support
-                </Button>
-              </Link> */}
-            </div>
+            </Button>
           </div>
         </div>
       </div>

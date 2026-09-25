@@ -2,7 +2,14 @@ import { db } from "@/server/db";
 import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 
 export function canUseLeadTracking(planType: string | null | undefined) {
-  return planType?.toLowerCase() === "pro";
+  const normalized = planType?.toLowerCase();
+  return normalized === "pro" || normalized === "business";
+}
+
+/** Password protection + link expiration are paid features. */
+export function canUsePremiumLinkFeatures(planType: string | null | undefined) {
+  const normalized = planType?.toLowerCase();
+  return normalized === "pro" || normalized === "business";
 }
 
 export async function getWorkspaceOwnerUserId(
