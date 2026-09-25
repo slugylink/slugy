@@ -17,6 +17,7 @@ import {
   type CachedClickAttribution,
 } from "@/lib/leads/click-cache";
 import { resolveReferer } from "@/lib/analytics/referrer";
+import { getGeoData } from "@/lib/analytics/geo";
 import {
   SLUGY_ID_COOKIE,
   SLUGY_ID_COOKIE_MAX_AGE,
@@ -50,46 +51,6 @@ interface UTMParams {
   utm_campaign: string | null;
   utm_term: string | null;
   utm_content: string | null;
-}
-
-interface GeoData {
-  country: string;
-  city: string;
-  continent: string;
-  region: string;
-}
-
-// Safely decode URI component
-function safeDecodeURIComponent(value: string | null): string {
-  if (!value) return UNKNOWN_VALUE;
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-// Extract geolocation data from headers (Cloudflare/Vercel)
-function getGeoData(req: NextRequest): GeoData {
-  const headers = req.headers;
-
-  return {
-    country:
-      (
-        headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country")
-      )?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: safeDecodeURIComponent(
-      headers.get("cf-ipcity") || headers.get("x-vercel-ip-city"),
-    ),
-    continent:
-      (
-        headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent")
-      )?.toLowerCase() ?? UNKNOWN_VALUE,
-    region:
-      headers.get("cf-region") ||
-      headers.get("x-vercel-ip-country-region") ||
-      UNKNOWN_VALUE,
-  };
 }
 
 // Escape HTML to prevent XSS
@@ -267,7 +228,7 @@ function getIpAddress(req: NextRequest): string {
     (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
     req.headers.get("x-real-ip") ||
     req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-    hops?.[hops.length - 1] ||
+    hops?.[0] ||
     UNKNOWN_VALUE
   );
 }

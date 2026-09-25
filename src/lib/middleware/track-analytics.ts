@@ -13,6 +13,7 @@ import {
 import { redis } from "@/lib/redis";
 import { db } from "@/server/db";
 import { resolveReferer } from "@/lib/analytics/referrer";
+import { getGeoData } from "@/lib/analytics/geo";
 import {
   getWorkspaceLimitsCache,
   setWorkspaceLimitsCache,
@@ -53,35 +54,6 @@ export interface TrackLinkAnalyticsParams {
   workspaceId: string;
   domain?: string;
   trigger: string;
-}
-
-function safeDecodeURIComponent(value: string | null): string {
-  if (!value) return UNKNOWN_VALUE;
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return value;
-  }
-}
-
-function getGeoData(req: NextRequest) {
-  const headers = req.headers;
-
-  // Try Cloudflare headers first, fallback to Vercel
-  const country =
-    headers.get("cf-ipcountry") || headers.get("x-vercel-ip-country");
-  const city = headers.get("cf-ipcity") || headers.get("x-vercel-ip-city");
-  const continent =
-    headers.get("cf-ipcontinent") || headers.get("x-vercel-ip-continent");
-  const region =
-    headers.get("cf-region") || headers.get("x-vercel-ip-country-region");
-
-  return {
-    country: country?.toLowerCase() ?? UNKNOWN_VALUE,
-    city: safeDecodeURIComponent(city),
-    continent: continent?.toLowerCase() ?? UNKNOWN_VALUE,
-    region: region || UNKNOWN_VALUE,
-  };
 }
 
 function extractUTMParamsFromUrl(urlString: string): UTMParams {
