@@ -37,7 +37,7 @@ const ROWS: Row[] = [
         width={1270}
         height={960}
         quality={90}
-        className="mx-auto h-auto w-full rounded-lg"
+        className="aspect-[4/3] h-auto w-full object-cover"
         sizes="(max-width: 768px) 100vw, 520px"
       />
     ),
@@ -60,7 +60,7 @@ const ROWS: Row[] = [
         width={1270}
         height={960}
         quality={90}
-        className="mx-auto h-auto w-full rounded-lg"
+        className="aspect-[4/3] h-auto w-full object-cover"
         sizes="(max-width: 768px) 100vw, 520px"
       />
     ),
@@ -81,7 +81,7 @@ const MINIS = [
         width={1270}
         height={960}
         quality={90}
-        className="mx-auto h-auto w-full rounded-lg"
+        className="aspect-[4/3] h-auto w-full object-cover"
         sizes="(max-width: 768px) 100vw, 400px"
       />
     ),
@@ -99,7 +99,7 @@ const MINIS = [
         width={1270}
         height={960}
         quality={90}
-        className="mx-auto h-auto w-full rounded-lg"
+        className="aspect-[4/3] h-auto w-full object-cover"
         sizes="(max-width: 768px) 100vw, 400px"
       />
     ),
@@ -123,7 +123,7 @@ const Features = memo(function Features() {
           <motion.div
             key={row.eyebrow}
             className={cn(
-              "grid grid-cols-1 items-center gap-6 p-6 sm:p-10 md:grid-cols-2",
+              "grid min-w-0 grid-cols-1 items-center gap-6 p-6 sm:p-10 md:grid-cols-2",
               i > 0 && "border-t",
             )}
             initial={{ opacity: 0, y: 32, filter: "blur(6px)" }}
@@ -131,7 +131,7 @@ const Features = memo(function Features() {
             viewport={{ once: true, margin: "-80px" }}
             transition={{ duration: 0.7, ease: EASE }}
           >
-            <div className={cn(i % 2 === 1 && "md:order-2")}>
+            <div className={cn("min-w-0", i % 2 === 1 && "md:order-2")}>
               <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
                 {row.eyebrow}
               </p>
@@ -161,7 +161,7 @@ const Features = memo(function Features() {
             </div>
             <div
               className={cn(
-                "overflow-hidden rounded-xl border bg-zinc-50/60 dark:bg-zinc-900/40",
+                "min-w-0 overflow-hidden rounded-xl border bg-zinc-50/60 dark:bg-zinc-900/40",
                 i % 2 === 1 && "md:order-1",
               )}
             >
@@ -175,27 +175,31 @@ const Features = memo(function Features() {
             <StaggerItem
               key={mini.eyebrow}
               className={cn(
-                "p-6 sm:p-10",
+                "flex flex-col p-6 sm:p-10",
                 i > 0 && "border-t md:border-t-0 md:border-l",
               )}
             >
-              <div className="mb-6">{mini.visual}</div>
-              <p className="text-muted-foreground text-center text-xs font-semibold tracking-widest uppercase">
-                {mini.eyebrow}
-              </p>
-              <h3 className="mx-auto mt-2 max-w-sm text-center text-lg font-medium">
-                {mini.title}
-              </h3>
-              <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed">
-                {mini.description}
-              </p>
-              <div className="mt-3 text-center">
-                <Link
-                  href={mini.href}
-                  className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-                >
-                  {mini.cta} <ArrowRight className="h-4 w-4" />
-                </Link>
+              <div className="order-2 mt-6 min-w-0 overflow-hidden rounded-xl border bg-zinc-50/60 md:order-1 md:mt-0 md:mb-6 dark:bg-zinc-900/40">
+                {mini.visual}
+              </div>
+              <div className="order-1 md:order-2">
+                <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase md:text-center">
+                  {mini.eyebrow}
+                </p>
+                <h3 className="mx-auto mt-2 max-w-sm text-lg font-medium md:text-center">
+                  {mini.title}
+                </h3>
+                <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+                  {mini.description}
+                </p>
+                <div className="mt-3 md:text-center">
+                  <Link
+                    href={mini.href}
+                    className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+                  >
+                    {mini.cta} <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
             </StaggerItem>
           ))}
