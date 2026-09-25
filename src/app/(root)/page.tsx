@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
+import { MotionProvider } from "./_components/reveal";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -13,8 +14,10 @@ const LOADING_HEIGHT = {
   pricing: "h-[500px]",
   testimonials: "h-[380px]",
   openSource: "h-[300px]",
-  video: "h-[420px]",
   sponsors: "h-[280px]",
+  faq: "h-[420px]",
+  finalCta: "h-[380px]",
+  compare: "h-[480px]",
 } as const;
 
 function SectionPlaceholder({ height }: { height: string }) {
@@ -24,10 +27,6 @@ function SectionPlaceholder({ height }: { height: string }) {
 // Below-the-fold: defer JS; reserved height avoids layout jump
 const Features = dynamic(() => import("./_components/feature"), {
   loading: () => <SectionPlaceholder height={LOADING_HEIGHT.features} />,
-});
-
-const VideoDemoSection = dynamic(() => import("./_components/video-demo"), {
-  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.video} />,
 });
 
 const PricingSection = dynamic(
@@ -49,8 +48,12 @@ const Sponsors = dynamic(() => import("./_components/sponsors"), {
   loading: () => <SectionPlaceholder height={LOADING_HEIGHT.sponsors} />,
 });
 
-const OpenSource = dynamic(() => import("./_components/open-source"), {
-  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.openSource} />,
+const Faq = dynamic(() => import("./_components/faq"), {
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.faq} />,
+});
+
+const FinalCta = dynamic(() => import("./_components/final-cta"), {
+  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.finalCta} />,
 });
 
 export default function Home() {
@@ -64,33 +67,34 @@ export default function Home() {
       </div>
 
       <div>
-        <section id="features" className="scroll-mt-20">
-          <Features />
-        </section>
+        <MotionProvider>
+          <section id="features" className="scroll-mt-20">
+            <Features />
+          </section>
 
-        <section id="stats" className="scroll-mt-20">
-          <VideoDemoSection />
-        </section>
+          <section id="pricing" className="scroll-mt-20">
+            <PricingSection />
+          </section>
+          <section id="testimonials" className="scroll-mt-20">
+            <Testimonials />
+          </section>
 
-        <section id="pricing" className="scroll-mt-20">
-          <PricingSection />
-        </section>
+          <section id="stats-metrics" className="scroll-mt-20">
+            <Stats />
+          </section>
 
-        <section id="testimonials" className="scroll-mt-20">
-          <Testimonials />
-        </section>
+          <section id="sponsors" className="scroll-mt-20">
+            <Sponsors />
+          </section>
 
-        <section id="stats-metrics" className="scroll-mt-20">
-          <Stats />
-        </section>
+          <section id="faq" className="scroll-mt-20">
+            <Faq />
+          </section>
 
-        <section id="sponsors" className="scroll-mt-20">
-          <Sponsors />
-        </section>
-
-        <section id="open-source" className="scroll-mt-20">
-          <OpenSource />
-        </section>
+          <section id="get-started" className="scroll-mt-20">
+            <FinalCta />
+          </section>
+        </MotionProvider>
       </div>
     </main>
   );

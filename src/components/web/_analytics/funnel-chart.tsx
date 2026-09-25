@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { formatNumber } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
@@ -11,26 +10,20 @@ export interface FunnelStageInput {
   label: string;
   value: number;
   color: string;
-  tint: string;
 }
 
 const W = 900;
 const H = 320;
 const CY = H / 2;
-const MAX = 130;
+const MAXH = 118;
 
-function bandPath(hl: number, hr: number, x0: number, col: number) {
-  const x1 = x0 + col;
-  const flat = x0 + col * 0.3;
-  const c1 = flat + (x1 - flat) * 0.45;
-  const c2 = flat + (x1 - flat) * 0.55;
+function flowPath(x0: number, x1: number, h0: number, h1: number) {
+  const mx = (x0 + x1) / 2;
   return [
-    `M ${x0} ${CY - hl}`,
-    `L ${flat} ${CY - hl}`,
-    `C ${c1} ${CY - hl} ${c2} ${CY - hr} ${x1} ${CY - hr}`,
-    `L ${x1} ${CY + hr}`,
-    `C ${c2} ${CY + hr} ${c1} ${CY + hl} ${flat} ${CY + hl}`,
-    `L ${x0} ${CY + hl}`,
+    `M ${x0} ${CY - h0}`,
+    `C ${mx} ${CY - h0} ${mx} ${CY - h1} ${x1} ${CY - h1}`,
+    `L ${x1} ${CY + h1}`,
+    `C ${mx} ${CY + h1} ${mx} ${CY + h0} ${x0} ${CY + h0}`,
     "Z",
   ].join(" ");
 }
@@ -60,95 +53,110 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
       safeClicks > 0 ? (safeLeads / safeClicks) * 100 : safeLeads > 0 ? 100 : 0;
 
     const raw: FunnelStageInput[] = [
-      {
-        id: "clicks",
-        label: "Clicks",
-        value: safeClicks,
-        color: "#2563eb",
-        tint: "rgba(37, 99, 235, 0.08)",
-      },
-      {
-        id: "leads",
-        label: "Leads",
-        value: safeLeads,
-        color: "#ab3bdf",
-        tint: "rgba(171, 59, 223, 0.08)",
-      },
+      { id: "clicks", label: "Clicks", value: safeClicks, color: "#2563eb" },
+      { id: "leads", label: "Leads", value: safeLeads, color: "#ab3bdf" },
     ];
 
-    const maxValue = Math.max(...raw.map((s) => s.value), 1);
+    // Both bands scale with their values relative to the largest stage,
+    // so the funnel shape always reflects the real clicks/leads split.
+    // Non-zero stages keep a minimum height so small conversions stay visible.
+    const maxValue = Math.max(safeClicks, safeLeads, 1);
+    const MIN_RATIO = 0.12;
+    const ratioOf = (v: number) =>
+      v <= 0 ? 0 : Math.max(v / maxValue, MIN_RATIO);
+
+    const b0 = MAXH * ratioOf(safeClicks);
+    const b1 = MAXH * ratioOf(safeLeads);
+    const b2 = b1 * 0.45;
 
     return raw.map((stage, i) => ({
       ...stage,
       percent: i === 0 ? "100%" : formatPercent(leadRate),
-      ratio: Math.max(0.12, stage.value / maxValue),
+      h0: i === 0 ? b0 : b1,
+      h1: i === 0 ? b1 : b2,
     }));
   }, [clicks, leads]);
 
+  const isEmpty = stages.every((s) => s.value === 0);
   const col = W / stages.length;
   const activeStage = active != null ? stages[active] : null;
+
+  if (isEmpty) {
+    return (
+      <div
+        className={cn(
+          "text-muted-foreground flex h-full w-full items-center justify-center text-sm",
+          className,
+        )}
+        role="img"
+        aria-label="Conversion funnel from clicks to leads"
+      >
+        No funnel data yet.
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn("relative h-full w-full", className)}
       onMouseLeave={() => setActive(null)}
     >
-      <div className="pointer-events-none absolute inset-0 grid grid-cols-2">
-        {stages.map((stage, i) => (
-          <div
-            key={stage.id}
-            className={cn(
-              "border-border transition-colors",
-              i > 0 && "border-l",
-            )}
-            style={active === i ? { backgroundColor: stage.tint } : undefined}
-          />
-        ))}
-      </div>
-
       <svg
         viewBox={`0 0 ${W} ${H}`}
         preserveAspectRatio="none"
-        className="pointer-events-none relative h-full w-full"
+        className="relative h-full w-full"
         role="img"
         aria-label="Conversion funnel from clicks to leads"
       >
         {stages.map((stage, i) => {
-          const next = stages[i + 1];
-          const hl = stage.ratio * MAX;
-          const hr = (next ? next.ratio : stage.ratio * 0.75) * MAX;
+          const x0 = i * col;
+          const x1 = x0 + col;
+          const dimmed = active != null && active !== i;
           return (
-            <g key={stage.id} fill={stage.color}>
+            <g
+              key={stage.id}
+              fill={stage.color}
+              opacity={dimmed ? 0.35 : 1}
+              className="transition-opacity duration-200"
+            >
               <path
-                d={bandPath(hl * 1.28, hr * 1.35, i * col, col)}
-                opacity={0.12}
+                d={flowPath(x0, x1, stage.h0 * 1.22, stage.h1 * 1.22)}
+                opacity={0.07}
               />
               <path
-                d={bandPath(hl * 1.12, hr * 1.18, i * col, col)}
-                opacity={0.25}
+                d={flowPath(x0, x1, stage.h0 * 1.1, stage.h1 * 1.1)}
+                opacity={0.14}
               />
-              <path d={bandPath(hl, hr, i * col, col)} />
+              <path d={flowPath(x0, x1, stage.h0, stage.h1)} />
             </g>
           );
         })}
+        {/* Column divider */}
+        <line
+          x1={col}
+          y1={0}
+          x2={col}
+          y2={H}
+          stroke="hsl(var(--border))"
+          strokeWidth={1}
+          vectorEffect="non-scaling-stroke"
+        />
       </svg>
 
-      <div className="pointer-events-none absolute inset-0 grid grid-cols-2">
+      {/* Percent pills */}
+      <div className="pointer-events-none absolute inset-0">
         {stages.map((stage, i) => (
-          <div key={stage.id} className="relative grid place-items-center">
-            {i < stages.length - 1 && (
-              <span className="border-border bg-card absolute top-1/2 -right-3 z-10 grid size-6 -translate-y-1/2 place-items-center rounded-full border">
-                <ChevronRight className="text-muted-foreground size-3.5" />
-              </span>
-            )}
-            <span className="text-sm font-medium text-white drop-shadow-sm">
-              {stage.percent}
-            </span>
-          </div>
+          <span
+            key={stage.id}
+            className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-200 bg-white px-2.5 py-0.5 text-xs font-semibold text-zinc-700 tabular-nums shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+            style={{ left: `${((i + 0.5) / stages.length) * 100}%` }}
+          >
+            {stage.percent}
+          </span>
         ))}
       </div>
 
-      {/* Hover hit targets + tooltip (same pattern as timeseries chart) */}
+      {/* Hover hit targets + tooltip */}
       <div className="absolute inset-0 grid grid-cols-2">
         {stages.map((stage, i) => (
           <div
@@ -170,13 +178,13 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
         <div
           className="pointer-events-none absolute z-30"
           style={{
-            left: `calc(${active * 50}% + ${cursor.x}px)`,
+            left: `calc(${(active + 0.5) * 50}% )`,
             top: Math.max(8, cursor.y - 64),
             transform: "translateX(-50%)",
           }}
           role="tooltip"
         >
-          <div className="min-w-[140px] rounded-md border bg-white py-2 shadow-xs">
+          <div className="min-w-[140px] rounded-md border bg-white py-2">
             <p className="text-foreground m-0 px-3 text-sm font-normal">
               {activeStage.label}
             </p>

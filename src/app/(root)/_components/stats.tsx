@@ -1,9 +1,9 @@
 "use client";
-import { Card } from "@/components/ui/card";
-import { motion, useInView, useSpring } from "framer-motion";
-import { useEffect, useRef, memo } from "react";
+import { motion, useInView, useSpring } from "motion/react";
+import { useEffect, useRef, memo, type ComponentType } from "react";
 import useSWR from "swr";
-import { Users, Link, BarChart3 } from "lucide-react";
+import { Users, Link } from "lucide-react";
+import { AnalyticsIcon } from "@/components/web/_links/link-card-components";
 
 interface AnimatedNumberProps {
   value: number;
@@ -29,33 +29,42 @@ const fetcher = async (url: string): Promise<SiteStats> => {
 const StatCard = memo(
   ({
     stat,
-    borderClassName,
+    showDivider,
   }: {
     stat: {
       title: string;
       count: number;
       suffix: string;
-      icon: typeof Users;
+      icon: ComponentType<{ className?: string }>;
       iconColor: string;
       iconBg: string;
     };
-    borderClassName: string;
-  }) => (
-    <motion.div variants={animations.item} className="mt-3 sm:mt-4">
-      <Card
-        className={`bg-zinc- flex overflow-hidden rounded-none px-2 py-1 shadow-none backdrop-blur-sm transition-all sm:px-4 ${borderClassName}`}
+    showDivider: boolean;
+  }) => {
+    const Icon = stat.icon;
+    return (
+      <motion.div
+        variants={animations.item}
+        className={
+          showDivider
+            ? "border-t border-zinc-200/70 pt-8 md:border-t-0 md:border-l md:pt-0 md:pl-8 dark:border-zinc-800"
+            : ""
+        }
       >
-        <div className="">
-          <div className="text-start">
-            <p className="text-primary font-mono text-lg font-medium sm:text-xl">
-              <AnimatedNumber value={stat.count} suffix={stat.suffix} />
-            </p>
-            <h3 className="text-muted-foreground mt-1 text-sm">{stat.title}</h3>
-          </div>
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span
+            className={`flex size-10 items-center justify-center rounded-xl ${stat.iconBg} dark:bg-zinc-800`}
+          >
+            <Icon className={`size-5 ${stat.iconColor} dark:text-zinc-200`} />
+          </span>
+          <p className="text-3xl font-medium tracking-tight tabular-nums sm:text-4xl">
+            <AnimatedNumber value={stat.count} suffix={stat.suffix} />
+          </p>
+          <h3 className="text-muted-foreground text-sm">{stat.title}</h3>
         </div>
-      </Card>
-    </motion.div>
-  ),
+      </motion.div>
+    );
+  },
 );
 
 StatCard.displayName = "StatCard";
@@ -138,51 +147,44 @@ export default function Stats() {
       title: "Clicks Tracked",
       count: data.clicks,
       suffix: "+",
-      icon: BarChart3,
+      icon: AnalyticsIcon,
       iconColor: "text-green-500",
       iconBg: "bg-green-50",
     },
   ] as const;
 
   return (
-    <section className="relative mx-auto mt-10 max-w-6xl px-3 py-2 sm:mt-12 sm:px-4">
+    <section className="relative mx-auto max-w-6xl px-3 py-10 sm:px-4 sm:py-16">
       <motion.div
-        className="text-center"
+        className="mx-auto max-w-2xl text-center"
         initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: "-80px" }}
         transition={{ duration: 0.5 }}
       >
-        <h2 className="text-2xl font-medium tracking-tight sm:text-4xl">
+        <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+          Open startup
+        </p>
+        <h2 className="mt-2 text-2xl font-medium tracking-tight text-balance sm:text-4xl">
           Growing in the open
         </h2>
-        <p className="text-muted-foreground mt-3 text-sm md:text-base">
-          Live totals from the Slugy platform
+        <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
+          Live totals from the Slugy platform — no vanity metrics.
         </p>
       </motion.div>
 
       <motion.div
-        className=""
+        className="mx-auto mt-8 max-w-4xl sm:mt-10"
         variants={animations.container}
         initial="hidden"
-        animate="show"
+        whileInView="show"
+        viewport={{ once: true, margin: "-80px" }}
       >
-        <Card className="mt-2 overflow-hidden border-none bg-transparent p-0 shadow-none">
-          <div className="relative">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 md:grid-cols-3 md:gap-4">
-              {statsData.map((stat, index) => (
-                <StatCard
-                  key={stat.title}
-                  stat={stat}
-                  borderClassName={
-                    index === 0
-                      ? "border-none"
-                      : "border-t sm:border-l sm:border-t-0"
-                  }
-                />
-              ))}
-            </div>
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-0">
+          {statsData.map((stat, index) => (
+            <StatCard key={stat.title} stat={stat} showDivider={index > 0} />
+          ))}
+        </div>
       </motion.div>
     </section>
   );

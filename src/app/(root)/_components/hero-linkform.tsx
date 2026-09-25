@@ -178,7 +178,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     <div>
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] border bg-zinc-100 p-2 shadow-sm sm:p-2.5"
+        className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] bg-zinc-100/80 p-2 shadow-sm sm:p-2.5"
       >
         <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
           <Input
@@ -193,20 +193,12 @@ const HeroLinkForm = memo(function HeroLinkForm() {
           <Button
             type="submit"
             disabled={isFormDisabled}
-            className="rounded-lg bg-orange-500 text-sm transition-colors hover:bg-orange-600 disabled:opacity-50"
+            className="rounded-lg text-sm transition-colors disabled:opacity-50"
           >
             {isSubmitting && (
               <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
             )}
             Shorten{" "}
-            <Image
-              src="/icons/star.svg"
-              alt=""
-              width={16}
-              height={16}
-              priority
-              sizes="16px"
-            />
           </Button>
         </div>
         <div className="mx-auto mt-4 max-w-[580px] space-y-2">

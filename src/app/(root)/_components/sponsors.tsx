@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Reveal } from "./reveal";
 
 const sponsors = [
   {
@@ -13,7 +14,7 @@ const sponsors = [
 export default function Sponsors() {
   return (
     <section className="border-y border-zinc-200/70 bg-zinc-50/60 dark:border-zinc-800 dark:bg-zinc-900/30">
-      <div className="mx-auto max-w-6xl px-4 py-10 text-center">
+      <Reveal className="mx-auto max-w-6xl px-4 py-10 text-center sm:py-16">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Supported by
         </p>
@@ -37,7 +38,7 @@ export default function Sponsors() {
             </a>
           ))}
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

@@ -1,6 +1,8 @@
 "use client";
 import MaxWidthContainer from "@/components/max-width-container";
 import { useState } from "react";
+import { motion } from "motion/react";
+import { EASE } from "@/app/(root)/_components/reveal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -152,9 +154,15 @@ export default function PricingSection() {
   );
 
   return (
-    <section className="mt-12 py-8 sm:py-10">
+    <section className="py-10 sm:py-16">
       <MaxWidthContainer>
-        <div className="mb-6 text-center sm:mb-8">
+        <motion.div
+          className="mb-6 text-center sm:mb-8"
+          initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
+          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7, ease: EASE }}
+        >
           <h2 className="text-2xl font-medium text-balance sm:text-4xl">
             Flexible Pricing for Everyone
           </h2>
@@ -168,7 +176,7 @@ export default function PricingSection() {
             </span>{" "}
             {PRICING_COPY.promoSuffix}
           </p>
-        </div>
+        </motion.div>
 
         {/* Tabs for monthly & yearly */}
         <Tabs
@@ -188,20 +196,69 @@ export default function PricingSection() {
             </TabsList>
           </div>
 
-          <div className="mx-auto mt-8 grid w-full max-w-5xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-3 md:gap-5">
-            {free && <PlanCard plan={free} billing={billing} />}
-            {pro && <PlanCard plan={pro} billing={billing} bestValue />}
-            {business && (
-              <PlanCard
-                plan={business}
-                billing={billing}
-                plusHeader="Everything in Pro, plus:"
-                plusFeatures={
-                  businessExtras.length > 0 ? businessExtras : undefined
-                }
-              />
+          <motion.div
+            className="mx-auto mt-8 grid w-full max-w-5xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-3 md:gap-5"
+            initial="hidden"
+            whileInView="show"
+            viewport={{ once: true, margin: "-80px" }}
+            variants={{
+              hidden: {},
+              show: { transition: { staggerChildren: 0.12 } },
+            }}
+          >
+            {free && (
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    transition: { duration: 0.65, ease: EASE },
+                  },
+                }}
+              >
+                <PlanCard plan={free} billing={billing} />
+              </motion.div>
             )}
-          </div>
+            {pro && (
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    transition: { duration: 0.65, ease: EASE },
+                  },
+                }}
+              >
+                <PlanCard plan={pro} billing={billing} bestValue />
+              </motion.div>
+            )}
+            {business && (
+              <motion.div
+                variants={{
+                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
+                  show: {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    transition: { duration: 0.65, ease: EASE },
+                  },
+                }}
+              >
+                <PlanCard
+                  plan={business}
+                  billing={billing}
+                  plusHeader="Everything in Pro, plus:"
+                  plusFeatures={
+                    businessExtras.length > 0 ? businessExtras : undefined
+                  }
+                />
+              </motion.div>
+            )}
+          </motion.div>
         </Tabs>
       </MaxWidthContainer>
     </section>

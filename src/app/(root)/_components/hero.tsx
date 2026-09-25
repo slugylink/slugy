@@ -11,6 +11,16 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1];
+const blurIn = {
+  opacity: 0,
+  y: 14,
+  filter: "blur(6px)",
+};
+const blurOut = {
+  opacity: 1,
+  y: 0,
+  filter: "blur(0px)",
+};
 
 const heroData = {
   announcement: {
@@ -51,7 +61,7 @@ const heroData = {
 
 const Hero = memo(function Hero() {
   const handleViewDemo = () => {
-    const demoSection = document.getElementById("demo");
+    const demoSection = document.getElementById("features");
     if (!demoSection) return;
     demoSection.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -82,16 +92,16 @@ const Hero = memo(function Hero() {
             <h1 className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]">
               <m.span
                 className="block"
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={blurIn}
+                animate={blurOut}
                 transition={{ duration: 0.65, ease: easeOutExpo, delay: 0.12 }}
               >
                 <span className="text-balance">{heroData.heading1}</span>
               </m.span>
               <m.span
                 className={cn(heroData.heading2Gradient, "block font-medium")}
-                initial={{ opacity: 0, y: 14 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={blurIn}
+                animate={blurOut}
                 transition={{ duration: 0.65, ease: easeOutExpo, delay: 0.22 }}
               >
                 {heroData.heading2}
@@ -101,16 +111,16 @@ const Hero = memo(function Hero() {
             <div className="mx-auto max-w-2xl text-zinc-700">
               <m.p
                 className="mt-4 px-1 text-sm sm:mt-4 sm:text-base md:px-0 md:text-lg"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.32 }}
               >
                 {heroData.subheading1}
               </m.p>
               <m.div
                 className="mt-6 flex flex-row items-center justify-center gap-3 sm:mt-7"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, y: 10, filter: "blur(6px)" }}
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.4 }}
               >
                 <Button
@@ -132,8 +142,8 @@ const Hero = memo(function Hero() {
           </div>
 
           <m.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: 12, filter: "blur(6px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
             transition={{ duration: 0.6, ease: easeOutExpo, delay: 0.48 }}
           >
             <HeroLinkForm />

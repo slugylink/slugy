@@ -16,7 +16,13 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/format-number";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
-import { LineChart, Lock, Milestone, TriangleAlert } from "lucide-react";
+import {
+  ChartSpline,
+  ChevronRight,
+  Funnel,
+  Lock,
+  TriangleAlert,
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import NumberFlow from "@number-flow/react";
 import { useQueryState, parseAsString } from "nuqs";
@@ -292,7 +298,7 @@ const AnalyticsChart = ({
           type="button"
           onClick={() => selectEvent("clicks")}
           className={cn(
-            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
+            "relative flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
             !isFunnel && event !== "clicks" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
           )}
@@ -309,6 +315,11 @@ const AnalyticsChart = ({
             format={{ maximumFractionDigits: 0 }}
             className="text-2xl sm:text-3xl"
           />
+          {isFunnel && (
+            <span className="border-border bg-card absolute top-1/2 -right-3 z-10 grid size-6 -translate-y-1/2 place-items-center rounded-full border">
+              <ChevronRight className="text-muted-foreground size-3.5" />
+            </span>
+          )}
         </button>
         <button
           type="button"
@@ -348,11 +359,12 @@ const AnalyticsChart = ({
         </button>
       </CardHeader>
       <CardContent className="relative p-0 pr-2 pb-4">
-        {/* <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white">
+        <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white dark:bg-zinc-950">
           <button
             type="button"
             onClick={() => selectView("timeseries")}
             aria-label="Time series chart"
+            title="Time series"
             className={cn(
               "grid size-8 place-items-center transition-colors",
               !isFunnel
@@ -360,12 +372,13 @@ const AnalyticsChart = ({
                 : "text-muted-foreground hover:bg-muted",
             )}
           >
-            <LineChart className="size-3.5" />
+            <ChartSpline className="size-3.5" />
           </button>
           <button
             type="button"
             onClick={() => selectView("funnel")}
             aria-label="Conversion funnel"
+            title="Funnel"
             className={cn(
               "grid size-8 place-items-center border-l transition-colors",
               isFunnel
@@ -373,9 +386,9 @@ const AnalyticsChart = ({
                 : "text-muted-foreground hover:bg-muted",
             )}
           >
-            <Milestone className="size-3.5" />
+            <Funnel className="size-3.5" />
           </button>
-        </div> */}
+        </div>
 
         <div className="relative h-[320px] w-full sm:h-[500px]">
           {isLoading && (

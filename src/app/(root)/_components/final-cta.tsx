@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FaGithub } from "react-icons/fa6";
 import { Reveal } from "./reveal";
 
-export default function OpenSource() {
+export default function FinalCta() {
   return (
     <section className="mx-auto max-w-6xl px-4 py-10 sm:py-16">
       <Reveal y={32}>
@@ -14,14 +14,13 @@ export default function OpenSource() {
           />
           <div className="relative z-10 mx-auto max-w-2xl">
             <p className="text-xs font-semibold tracking-widest text-zinc-400 uppercase">
-              Open Source
+              Get started
             </p>
             <h2 className="mt-2 text-2xl font-medium text-balance text-white sm:text-4xl">
-              Give every link a job
+              Start shortening in seconds
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-sm text-zinc-400 sm:text-base">
-              Free short links, analytics, QR codes, and bio pages. Open source,
-              fast, and easy to use.
+              Branded links, QR codes, and analytics that prove what worked.
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Button

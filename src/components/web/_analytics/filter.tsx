@@ -19,7 +19,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-import { Calendar, ChevronDown, ChevronsUp, Filter, Lock } from "lucide-react";
+import {
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+  ChevronsUp,
+  ListFilter,
+  Lock,
+  Search,
+} from "lucide-react";
 import Image from "next/image";
 import ContinentFlag from "./continent-flag";
 import { NotoGlobeShowingAmericas } from "@/utils/icons/globe-icon";
@@ -162,7 +170,7 @@ const FilterOptionItem = ({
     <DropdownMenuCheckboxItem
       checked={isSelected}
       onSelect={onSelect}
-      className="px-3 py-1.5 pl-8 transition-all duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+      className="rounded-md px-3 py-1.5 pl-8 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
     >
       <div className="flex cursor-pointer items-center gap-2">
         {category.id === "slug_key" && (
@@ -231,8 +239,9 @@ export const TimePeriodSelector = ({
   isPro,
 }: TimePeriodSelectorProps) => (
   <Select value={timePeriod} onValueChange={onTimePeriodChange}>
-    <SelectTrigger className="w-fit text-sm shadow-none transition-all duration-200 ease-in-out hover:border-zinc-300 hover:shadow-sm">
-      <Calendar /> <SelectValue placeholder="Select time range" />
+    <SelectTrigger className="h-9 w-fit rounded-lg border-zinc-200 bg-white text-sm font-medium hover:bg-zinc-50">
+      <Calendar className="h-4 w-4 text-zinc-500" />{" "}
+      <SelectValue placeholder="Select time range" />
     </SelectTrigger>
     <SelectContent className="animate-in fade-in slide-in-from-top-2 w-fit cursor-pointer duration-150 ease-out">
       <div
@@ -390,7 +399,7 @@ const FilterGroups = ({
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="flex cursor-pointer items-center rounded-lg p-2 font-medium transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -402,7 +411,15 @@ const FilterGroups = ({
                   }}
                 >
                   {category.icon}
-                  <span className="ml-2 font-normal">{category.label}</span>
+                  <span className="ml-2 text-sm font-normal">
+                    {category.label}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {category.options.length}
+                    </span>
+                    <ChevronRight className="text-muted-foreground h-4 w-4" />
+                  </span>
                 </DropdownMenuLabel>
               </div>
             ))}
@@ -432,7 +449,7 @@ const FilterGroups = ({
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="flex cursor-pointer items-center rounded-lg p-2 font-medium transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -444,7 +461,15 @@ const FilterGroups = ({
                   }}
                 >
                   {category.icon}
-                  <span className="ml-2 font-normal">{category.label}</span>
+                  <span className="ml-2 text-sm font-normal">
+                    {category.label}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {category.options.length}
+                    </span>
+                    <ChevronRight className="text-muted-foreground h-4 w-4" />
+                  </span>
                 </DropdownMenuLabel>
               </div>
             ))}
@@ -474,7 +499,7 @@ const FilterGroups = ({
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="flex cursor-pointer items-center rounded-lg p-2 font-medium transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -486,7 +511,15 @@ const FilterGroups = ({
                   }}
                 >
                   {category.icon}
-                  <span className="ml-2 font-normal">{category.label}</span>
+                  <span className="ml-2 text-sm font-normal">
+                    {category.label}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {category.options.length}
+                    </span>
+                    <ChevronRight className="text-muted-foreground h-4 w-4" />
+                  </span>
                 </DropdownMenuLabel>
               </div>
             ))}
@@ -511,7 +544,7 @@ const FilterGroups = ({
                 }}
               >
                 <DropdownMenuLabel
-                  className="flex cursor-pointer items-center rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:translate-x-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="flex cursor-pointer items-center rounded-lg p-2 font-medium transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                   onClick={() => onCategoryClick(category.id)}
                   tabIndex={0}
                   role="button"
@@ -523,7 +556,15 @@ const FilterGroups = ({
                   }}
                 >
                   {category.icon}
-                  <span className="ml-2 font-normal">{category.label}</span>
+                  <span className="ml-2 text-sm font-normal">
+                    {category.label}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1.5">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-100 px-1.5 text-[11px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                      {category.options.length}
+                    </span>
+                    <ChevronRight className="text-muted-foreground h-4 w-4" />
+                  </span>
                 </DropdownMenuLabel>
               </div>
             ))}
@@ -781,37 +822,38 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
   const selectedFilterCount = Object.values(selectedFilters).flat().length;
 
   return (
-    <div className="flex w-full flex-col items-start justify-between space-y-2">
-      <div className="flex w-full items-center justify-between space-x-2">
+    <div className="mt-8 flex w-full flex-col gap-2">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <div className="relative">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="flex items-center font-normal transition-all duration-200 ease-in-out hover:border-zinc-300 hover:shadow-sm"
+                className="flex h-9 items-center gap-2 rounded-lg border-zinc-200 bg-white px-3 text-sm font-medium hover:bg-zinc-50"
               >
-                <Filter strokeWidth={1.5} className="h-4 w-4" />
+                <ListFilter className="h-4 w-4 text-zinc-500" />
                 Filter
                 {selectedFilterCount > 0 && (
-                  <span className="bg-primary text-primary-foreground flex h-[18px] w-[18px] items-center justify-center rounded-full text-center text-[11px]">
+                  <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-900 px-1.5 text-[11px] font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">
                     {selectedFilterCount}
                   </span>
                 )}
-                <ChevronDown className="ml-1 h-4 w-4" />
+                <ChevronDown className="h-4 w-4 text-zinc-500" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
-              className="animate-in fade-in slide-in-from-top-2 relative w-[212px] overflow-x-hidden p-2 duration-200 ease-out"
+              className="animate-in fade-in slide-in-from-top-2 relative overflow-x-hidden rounded-xl border-zinc-200 p-2 duration-200 ease-out"
               align="start"
               onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <div
-                className="mb-2 font-normal"
+                className="relative mb-2"
                 onMouseDown={(e) => e.stopPropagation()}
               >
+                <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="text"
-                  placeholder="Filter..."
+                  placeholder="Search filters..."
                   value={searchQuery}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
@@ -821,7 +863,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                     e.stopPropagation();
                     setSearchQuery(e.target.value);
                   }}
-                  className="focus:ring-primary w-full rounded-md border border-zinc-200 px-3 py-1.5 text-sm transition-all duration-200 ease-in-out focus:border-zinc-300 focus:shadow-sm focus:ring-[1px] focus:outline-none"
+                  className="h-9 w-full rounded-lg border-zinc-200 bg-zinc-50 pr-3 pl-9 text-sm focus:bg-white focus:ring-[1px] focus:outline-none"
                   autoComplete="off"
                   aria-label="Filter options"
                 />
@@ -835,12 +877,12 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                       <DropdownMenuGroup key={category.id}>
                         <div className="sticky top-0 z-50 mb-2">
                           <DropdownMenuLabel
-                            className="bg-primary-foreground flex cursor-pointer items-center justify-between rounded-md p-2 font-medium transition-all duration-200 ease-in-out hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            className="flex cursor-pointer items-center justify-between rounded-lg bg-zinc-50 p-2 font-medium transition-colors hover:bg-zinc-100 dark:bg-zinc-800/60 dark:hover:bg-zinc-800"
                             onClick={() => setActiveCategory(null)}
                           >
                             <div className="flex items-center">
                               {category.icon}
-                              <span className="ml-2 font-normal">
+                              <span className="ml-2 text-sm font-medium">
                                 {category.label}
                               </span>
                             </div>
@@ -914,7 +956,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
                 <Button
                   size="icon"
                   variant="outline"
-                  className="ml-2"
+                  className="h-9 w-9 rounded-lg border-zinc-200 bg-white hover:bg-zinc-50"
                   aria-label="Generate Report"
                 >
                   <HiSparkles />

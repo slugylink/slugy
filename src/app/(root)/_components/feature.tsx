@@ -1,66 +1,68 @@
 "use client";
 import React, { memo } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
+import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import FeatureLinkCard, {
-  DEMO_LINKS,
-} from "@/components/web/_features/feature-link-card";
-import FeatureQRCodeDesign from "@/components/web/_features/feature-qr-code-design";
-import FeatureAnalyticsChart from "@/components/web/_features/feature-chart";
-import FeatureLinkPreview from "@/components/web/_features/feature-preview";
+import { EASE, Reveal, Stagger, StaggerItem } from "./reveal";
 
 interface Row {
   eyebrow: string;
   title: string;
   description: string;
+  bullets: string[];
   cta: string;
+  href: string;
   visual: React.ReactNode;
 }
 
 const ROWS: Row[] = [
   {
-    eyebrow: "Slugy Links",
+    eyebrow: "Branded links",
     title: "Links that look like you",
     description:
-      "Shared workspaces, custom domains, and bulk creation — every link on brand, whoever ships it.",
-    cta: "Explore Links",
+      "Custom domains and branded slugs — every link on brand, whoever ships it.",
+    bullets: [
+      "Custom domains + branded slugs",
+      "UTM builder + bulk creation",
+      "Shared workspaces for teams",
+    ],
+    cta: "Create a branded link",
+    href: "https://app.slugy.co",
     visual: (
-      <div className="space-y-2">
-        <FeatureLinkCard className="mx-auto" link={DEMO_LINKS[0]} />
-        <FeatureLinkCard className="mx-auto w-[97%]" link={DEMO_LINKS[1]} />
-      </div>
+      <Image
+        src="/images/features/f1_converted.webp"
+        alt="Slugy links dashboard with branded links and click counts"
+        width={1270}
+        height={960}
+        quality={90}
+        className="mx-auto h-auto w-full rounded-lg"
+        sizes="(max-width: 768px) 100vw, 520px"
+      />
     ),
   },
   {
-    eyebrow: "Slugy Analytics",
+    eyebrow: "Click analytics",
     title: "Every click, accounted for",
-    description:
-      "Referrers, campaigns, geo routing, and reports you can send to clients — live.",
-    cta: "Explore Analytics",
-    visual: <FeatureAnalyticsChart timePeriod="7d" />,
-  },
-  {
-    eyebrow: "Bio Links",
-    title: "Your whole internet, on one page",
-    description:
-      "A bio page, branded links, and QR codes for every post — everything you share behind a single URL.",
-    cta: "Explore Bio Links",
+    description: "Referrers, campaigns, and geo — live, and ready to share.",
+    bullets: [
+      "Referrer + campaign + geo breakdown",
+      "Shareable client-ready reports",
+      "QR vs link attribution",
+    ],
+    cta: "See live analytics",
+    href: "https://app.slugy.co",
     visual: (
-      <div className="mx-auto max-w-[300px]">
-        <FeatureLinkPreview
-          username={"sandip"}
-          links={[
-            { id: "1", title: "Portfolio", url: "https://slugy.co/sandip" },
-            { id: "2", title: "Github", url: "https://slugy.co/git" },
-          ]}
-          socials={[]}
-          name={"Sandip"}
-          bio={"Full Stack Developer"}
-          logo={"/logo.svg"}
-          initialTheme={"prism"}
-        />
-      </div>
+      <Image
+        src="/images/features/f2_converted.webp"
+        alt="Slugy analytics funnel showing clicks converting to leads"
+        width={1270}
+        height={960}
+        quality={90}
+        className="mx-auto h-auto w-full rounded-lg"
+        sizes="(max-width: 768px) 100vw, 520px"
+      />
     ),
   },
 ];
@@ -69,65 +71,65 @@ const MINIS = [
   {
     eyebrow: "QR codes",
     title: "From link to scan in one click",
-    description:
-      "A print-ready code rides along with every short link, styled to match your brand.",
+    description: "A print-ready, on-brand QR with every short link.",
+    cta: "Create a QR code",
+    href: "https://app.slugy.co",
     visual: (
-      <div className="mx-auto max-w-[280px]">
-        <FeatureQRCodeDesign code="app" />
-      </div>
+      <Image
+        src="/images/features/f3_converted.webp"
+        alt="Slugy QR code designer with color and style options"
+        width={1270}
+        height={960}
+        quality={90}
+        className="mx-auto h-auto w-full rounded-lg"
+        sizes="(max-width: 768px) 100vw, 400px"
+      />
     ),
   },
   {
-    eyebrow: "Control",
-    title: "Password, expiry & geo",
-    description:
-      "Protect sensitive links, auto-expire campaigns, and route countries to the right destination.",
+    eyebrow: "Bio links",
+    title: "One page for all your links",
+    description: "Your posts, videos, and QR codes behind a single URL.",
+    cta: "Build your bio page",
+    href: "https://app.slugy.co",
     visual: (
-      <div className="mx-auto max-w-[280px] space-y-2 rounded-xl border bg-zinc-50/60 p-4 dark:bg-zinc-900/40">
-        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
-          <span className="truncate font-medium">slugy.co/launch</span>
-          <span className="ml-2 shrink-0 rounded-full bg-zinc-900 px-2 py-0.5 text-[11px] text-white dark:bg-zinc-100 dark:text-zinc-900">
-            Password
-          </span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
-          <span className="truncate font-medium">slugy.co/sale</span>
-          <span className="ml-2 shrink-0 rounded-full bg-orange-100 px-2 py-0.5 text-[11px] text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">
-            Expires Fri
-          </span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border bg-white px-3 py-2 text-sm dark:bg-zinc-950">
-          <span className="truncate font-medium">slugy.co/global</span>
-          <span className="ml-2 shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
-            12 countries
-          </span>
-        </div>
-      </div>
+      <Image
+        src="/images/features/f4_converted.webp"
+        alt="Slugy bio link pages in different themes"
+        width={1270}
+        height={960}
+        quality={90}
+        className="mx-auto h-auto w-full rounded-lg"
+        sizes="(max-width: 768px) 100vw, 400px"
+      />
     ),
   },
 ];
 
 const Features = memo(function Features() {
   return (
-    <div className="dark:bg-background mx-auto mt-4 max-w-6xl px-2 py-10 sm:mt-6 sm:px-4 sm:py-16">
-      <div className="mx-auto max-w-2xl text-center">
+    <div className="dark:bg-background mx-auto mt-8 max-w-6xl px-2 py-10 sm:px-4 sm:py-16">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <h2 className="text-2xl font-medium text-balance sm:text-4xl">
-          Built for creators, marketers, and teams
+          One toolkit for every link
         </h2>
         <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
-          Whatever you share and wherever you share it — one toolkit covers
-          every link.
+          Shorten, share, and track — all on brand.
         </p>
-      </div>
+      </Reveal>
 
       <div className="mt-8 overflow-hidden rounded-[20px] border sm:mt-10">
         {ROWS.map((row, i) => (
-          <div
+          <motion.div
             key={row.eyebrow}
             className={cn(
               "grid grid-cols-1 items-center gap-6 p-6 sm:p-10 md:grid-cols-2",
               i > 0 && "border-t",
             )}
+            initial={{ opacity: 0, y: 32, filter: "blur(6px)" }}
+            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.7, ease: EASE }}
           >
             <div className={cn(i % 2 === 1 && "md:order-2")}>
               <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
@@ -139,27 +141,38 @@ const Features = memo(function Features() {
               <p className="text-muted-foreground mt-3 max-w-md text-sm leading-relaxed sm:text-base">
                 {row.description}
               </p>
+              <ul className="mt-4 space-y-1.5">
+                {row.bullets.map((bullet) => (
+                  <li
+                    key={bullet}
+                    className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300"
+                  >
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
               <Link
-                href="/#features"
-                className="mt-3 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+                href={row.href}
+                className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
               >
                 {row.cta} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
             <div
               className={cn(
-                "rounded-xl border bg-zinc-50/60 p-4 dark:bg-zinc-900/40",
+                "overflow-hidden rounded-xl border bg-zinc-50/60 dark:bg-zinc-900/40",
                 i % 2 === 1 && "md:order-1",
               )}
             >
               {row.visual}
             </div>
-          </div>
+          </motion.div>
         ))}
 
-        <div className="grid grid-cols-1 border-t md:grid-cols-2">
+        <Stagger className="grid grid-cols-1 border-t md:grid-cols-2">
           {MINIS.map((mini, i) => (
-            <div
+            <StaggerItem
               key={mini.eyebrow}
               className={cn(
                 "p-6 sm:p-10",
@@ -176,9 +189,17 @@ const Features = memo(function Features() {
               <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-center text-sm leading-relaxed">
                 {mini.description}
               </p>
-            </div>
+              <div className="mt-3 text-center">
+                <Link
+                  href={mini.href}
+                  className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+                >
+                  {mini.cta} <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </StaggerItem>
           ))}
-        </div>
+        </Stagger>
       </div>
     </div>
   );

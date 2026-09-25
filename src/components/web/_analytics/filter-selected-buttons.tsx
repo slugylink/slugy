@@ -36,15 +36,24 @@ const CONTINENT_NAMES = Object.freeze({
 } as const);
 
 const CATEGORY_BG_CLASSES = Object.freeze({
-  slug_key: "bg-orange-200/40 hover:bg-orange-200/50",
-  destination_key: "bg-orange-200/40 hover:bg-orange-200/50",
-  continent_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
-  country_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
-  city_key: "bg-green-200/40 hover:bg-green-200/50 capitalize",
-  browser_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
-  os_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
-  device_key: "bg-blue-200/40 hover:bg-blue-200/50 capitalize",
-  referrer_key: "bg-red-200/40 hover:bg-red-200/50",
+  slug_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  destination_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  continent_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  country_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  city_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  browser_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  os_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  device_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
+  referrer_key:
+    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
 } as const);
 
 interface FilterButtonProps {
@@ -58,7 +67,7 @@ const FilterButton = ({
   category,
   value,
   getOptionLabel,
-  onRemoveFilter
+  onRemoveFilter,
 }: FilterButtonProps) => {
   const optionLabel = getOptionLabel(category, value);
 
@@ -67,8 +76,9 @@ const FilterButton = ({
       size="sm"
       variant="secondary"
       className={cn(
-        "flex items-center gap-1.5 py-1 pr-1 pl-2 font-normal transition-all",
-        CATEGORY_BG_CLASSES[category.id as keyof typeof CATEGORY_BG_CLASSES] ?? "",
+        "flex h-7 items-center gap-1.5 rounded-md border border-transparent py-0 pr-1.5 pl-2 text-xs font-normal transition-colors",
+        CATEGORY_BG_CLASSES[category.id as keyof typeof CATEGORY_BG_CLASSES] ??
+          "",
       )}
       type="button"
       aria-label={`Remove filter: ${optionLabel}`}
@@ -150,7 +160,10 @@ const FilterSelectedButtons = ({
     return maps;
   })();
 
-  const getOptionByValue = (category: FilterCategory, value: string): FilterOption | undefined => {
+  const getOptionByValue = (
+    category: FilterCategory,
+    value: string,
+  ): FilterOption | undefined => {
     return optionLookupMaps.get(category.id)?.get(value);
   };
 
@@ -202,19 +215,19 @@ const FilterSelectedButtons = ({
   if (selectedFilterCount === 0) return null;
 
   return (
-    <div className="mt-3">
-      <ScrollArea className="max-w-full pb-2">
-        <div className="flex flex-wrap gap-2">
+    <div className="mt-2">
+      <ScrollArea className="max-w-full pb-1">
+        <div className="flex flex-wrap items-center gap-1.5">
           {filtersByCategory.map(({ category, values }) => (
             <div
               key={category.id}
-              className="flex flex-wrap items-center gap-2"
+              className="flex flex-wrap items-center gap-1.5"
               aria-label={`Selected filters for ${category.label}`}
             >
               <Button
                 size="sm"
                 variant="outline"
-                className="bg-muted/50 font-normal"
+                className="h-7 rounded-md border-zinc-200 bg-white text-xs font-medium"
                 aria-disabled="true"
                 tabIndex={-1}
               >
