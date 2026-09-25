@@ -20,6 +20,7 @@ const shareSettingsSchema = z.object({
   isPublic: z.boolean(),
   allowIndexing: z.boolean().optional().default(false),
   password: z.string().max(72).nullable().optional(),
+  showLeads: z.boolean().optional().default(false),
 });
 
 async function getLinkInWorkspace(linkId: string, workspaceId: string) {
@@ -64,6 +65,7 @@ export async function GET(
         // Never leak the hash — the modal treats the mask as "unchanged".
         password: maskLinkPassword(shared?.password),
         publicId: shared?.publicId ?? null,
+        showLeads: shared?.showLeads ?? false,
       },
       { status: 200 },
     );
@@ -110,7 +112,7 @@ export async function POST(
       );
     }
 
-    const { isPublic, allowIndexing } = parsed.data;
+    const { isPublic, allowIndexing, showLeads } = parsed.data;
     let password = parsed.data.password ?? null;
     if (password !== null && password.length > 0 && password.length < 4) {
       return jsonWithETag(
@@ -141,6 +143,7 @@ export async function POST(
             // Only public reports can be indexed; private ones never are.
             allowIndexing: isPublic && allowIndexing,
             password: storedPassword,
+            showLeads,
             deletedAt: null,
           },
         })
@@ -151,6 +154,7 @@ export async function POST(
             isPublic,
             allowIndexing: isPublic && allowIndexing,
             password: storedPassword,
+            showLeads,
           },
         });
 
@@ -161,6 +165,7 @@ export async function POST(
         allowIndexing: shared.allowIndexing,
         password: maskLinkPassword(shared.password),
         publicId: shared.publicId,
+        showLeads: shared.showLeads,
       },
       { status: 200 },
     );

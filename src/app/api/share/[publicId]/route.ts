@@ -4,6 +4,7 @@ import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { verifyLinkPassword } from "@/lib/link-password";
 import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 import {
   clampStartDateByRetention,
   clampPeriodByRetention,
@@ -260,6 +261,79 @@ export async function GET(
       ) as unknown as Record<string, unknown>;
     }
 
+    // Leads are only visible when BOTH hold: the owner's plan allows lead
+    // tracking AND the owner toggled leads on for this specific report.
+    const leadTracking = canUseLeadTracking(planType);
+    const showLeads = leadTracking && shared.showLeads;
+
+    let leads: {
+      total: number;
+      overTime: Array<{ time: string; clicks: number }>;
+    } | null = null;
+
+    if (showLeads) {
+      if (hasTinybird) {
+        const leadResult = await tinybird.leadsAnalytics.query({
+          workspace_id: shared.link.workspaceId,
+          date_range: retentionPeriod,
+          slug: shared.link.slug,
+          domain: shared.link.domain,
+          url: "",
+          country: "",
+          city: "",
+          continent: "",
+          device: "",
+          browser: "",
+          os: "",
+          referer: "",
+        });
+        const leadRows = (leadResult.data ?? []).map((row) => ({
+          ...row,
+          clicks: Number(row.clicks),
+        }));
+        const transformed = transformTinybirdAnalytics(
+          leadRows,
+          ["totalClicks", "clicksOverTime"],
+          retentionPeriod,
+        ) as {
+          totalClicks?: number;
+          clicksOverTime?: Array<{ time: string | Date; clicks: number }>;
+        };
+        leads = {
+          total: transformed.totalClicks ?? 0,
+          overTime: (transformed.clicksOverTime ?? []).map((d) => ({
+            time:
+              d.time instanceof Date ? d.time.toISOString() : String(d.time),
+            clicks: d.clicks,
+          })),
+        };
+      } else {
+        // Prisma fallback: bucket lead events by day/hour in JS.
+        const events = await db.leadEvent.findMany({
+          where: { linkId: shared.link.id, createdAt: { gte: startDate } },
+          select: { createdAt: true },
+          orderBy: { createdAt: "asc" },
+        });
+        const buckets = new Map<string, number>();
+        for (const e of events) {
+          const d = new Date(e.createdAt);
+          const key =
+            timePeriod === "24h"
+              ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`
+              : `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          buckets.set(key, (buckets.get(key) ?? 0) + 1);
+        }
+        const overTime = [...buckets.entries()]
+          .map(([key, clicks]) => {
+            const [y, m, day, h] = key.split("-").map(Number);
+            const time = new Date(y!, m!, day!, h ?? 0);
+            return { time: time.toISOString(), clicks };
+          })
+          .sort((a, b) => a.time.localeCompare(b.time));
+        leads = { total: events.length, overTime };
+      }
+    }
+
     const payload = {
       link: {
         slug: shared.link.slug,
@@ -274,6 +348,9 @@ export async function GET(
       allowIndexing: shared.allowIndexing,
       timePeriod,
       analytics,
+      leadTracking,
+      showLeads,
+      leads,
     };
 
     try {

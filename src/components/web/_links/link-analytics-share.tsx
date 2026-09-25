@@ -32,6 +32,7 @@ interface SharedAnalyticsSettings {
   /** Masked when set server-side, plaintext only for a new password. */
   password?: string | null;
   publicId?: string | null;
+  showLeads: boolean;
 }
 
 interface ShareResponse {
@@ -39,6 +40,7 @@ interface ShareResponse {
   allowIndexing: boolean;
   password?: string | null;
   publicId?: string | null;
+  showLeads: boolean;
 }
 
 interface ShareAnalyticsModalProps {
@@ -47,6 +49,8 @@ interface ShareAnalyticsModalProps {
   linkId: string;
   slug: string;
   url: string;
+  /** Whether the link has conversion tracking on (lead data exists). */
+  trackConversion?: boolean;
   onSettingsUpdated?: (settings: ShareResponse) => void;
 }
 
@@ -57,6 +61,7 @@ const EMPTY_SETTINGS: SharedAnalyticsSettings = {
   allowIndexing: false,
   password: null,
   publicId: null,
+  showLeads: false,
 };
 
 function shareUrlFor(publicId?: string | null): string | null {
@@ -69,6 +74,7 @@ export default function ShareAnalyticsModal({
   linkId,
   slug,
   url,
+  trackConversion = true,
   onSettingsUpdated,
 }: ShareAnalyticsModalProps) {
   const { workspaceslug } = useWorkspaceStore();
@@ -109,6 +115,7 @@ export default function ShareAnalyticsModal({
         allowIndexing: response.data.allowIndexing,
         password: response.data.password ?? null,
         publicId: response.data.publicId ?? null,
+        showLeads: response.data.showLeads ?? false,
       };
       setSnapshot(server);
       setDraft(server);
@@ -159,6 +166,7 @@ export default function ShareAnalyticsModal({
           isPublic: draft.isPublic,
           allowIndexing: draft.allowIndexing,
           password: draft.password,
+          showLeads: draft.showLeads,
         },
       );
       const saved: SharedAnalyticsSettings = {
@@ -166,6 +174,7 @@ export default function ShareAnalyticsModal({
         allowIndexing: response.data.allowIndexing,
         password: response.data.password ?? null,
         publicId: response.data.publicId ?? null,
+        showLeads: response.data.showLeads ?? false,
       };
       setSnapshot(saved);
       setDraft(saved);
@@ -382,6 +391,31 @@ export default function ShareAnalyticsModal({
                 )}
               </div>
             )}
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label
+                  htmlFor="show-leads"
+                  className="cursor-pointer font-normal"
+                >
+                  Include leads in report
+                </Label>
+                {!trackConversion && (
+                  <p className="text-muted-foreground mt-0.5 text-xs">
+                    Enable conversion tracking on this link first.
+                  </p>
+                )}
+              </div>
+              <Switch
+                id="show-leads"
+                checked={draft.showLeads}
+                onCheckedChange={(checked) =>
+                  setDraft((prev) => ({ ...prev, showLeads: checked }))
+                }
+                disabled={isBusy || !trackConversion}
+                aria-label="Include leads in report"
+              />
+            </div>
 
             {/* <div className="flex items-center justify-between">
               <Label

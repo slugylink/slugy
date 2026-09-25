@@ -483,6 +483,7 @@ export default function LinkCard({
           linkId={link.id}
           slug={link.slug}
           url={link.url}
+          trackConversion={link.trackConversion}
         />
       )}
     </TooltipProvider>

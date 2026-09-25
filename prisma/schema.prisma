@@ -466,6 +466,7 @@ model SharedAnalytics {
   isPublic      Boolean   @default(true)
   allowIndexing Boolean   @default(false)
   password      String?
+  showLeads     Boolean   @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   deletedAt     DateTime?

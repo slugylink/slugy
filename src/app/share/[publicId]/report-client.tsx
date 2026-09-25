@@ -61,6 +61,14 @@ interface ReportPayload {
   workspace: { name: string; logo: string | null };
   /** Effective period after the owner's retention clamp. */
   timePeriod?: TimePeriod;
+  /** Owner's plan allows lead tracking at all. */
+  leadTracking?: boolean;
+  /** Owner toggled leads on for this specific report. */
+  showLeads?: boolean;
+  leads?: {
+    total: number;
+    overTime: Array<{ time: string; clicks: number }>;
+  } | null;
   analytics: {
     totalClicks?: number;
     clicksOverTime?: Array<{ time: string; clicks: number }>;
@@ -188,6 +196,24 @@ function ReportClient({ publicId }: { publicId: string }) {
         clicks: item.clicks,
       })),
     [report?.analytics.clicksOverTime],
+  );
+
+  // Same contract as the dashboard Chart: the event toggle switches the
+  // series between clicks and (shared) leads.
+  const [eventParam] = useQueryState("event", parseAsString);
+  const viewingLeads = eventParam === "leads";
+  const canShowLeads = Boolean(
+    report?.leadTracking && report?.showLeads && report?.leads,
+  );
+  const activeChartData = useMemo(
+    () =>
+      viewingLeads && canShowLeads
+        ? (report?.leads?.overTime ?? []).map((item) => ({
+            time: String(item.time),
+            clicks: item.clicks,
+          }))
+        : chartData,
+    [viewingLeads, canShowLeads, report?.leads?.overTime, chartData],
   );
 
   // Use the server's effective period so retention-clamped reports bucket
@@ -340,11 +366,12 @@ function ReportClient({ publicId }: { publicId: string }) {
         <section>
           <div className="my-6 space-y-4">
             <Chart
-              data={chartData}
+              data={activeChartData}
               totalClicks={report?.analytics.totalClicks ?? 0}
+              totalLeads={canShowLeads ? (report?.leads?.total ?? 0) : null}
               timePeriod={effectivePeriod}
               isLoading={loading && !report}
-              canUseLeadTracking={false}
+              canUseLeadTracking={canShowLeads}
             />
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
