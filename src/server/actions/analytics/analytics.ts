@@ -1,4 +1,5 @@
 import { sub, type Duration } from "date-fns";
+import { canonicalizeRefererDisplay } from "@/lib/analytics/referrer";
 
 // Supported analytics time periods
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -232,7 +233,10 @@ function processAnalyticsData(
     updateMetric(aggregationMaps.devices, record.device ?? "Unknown");
     updateMetric(aggregationMaps.browsers, record.browser ?? "Unknown");
     updateMetric(aggregationMaps.oses, record.os ?? "Unknown");
-    updateMetric(aggregationMaps.referrers, record.referer ?? "Unknown");
+    updateMetric(
+      aggregationMaps.referrers,
+      canonicalizeRefererDisplay(record.referer),
+    );
 
     if (aggregationMaps.destinations) {
       const url = linkIdToUrl.get(record.linkId) ?? "Unknown";

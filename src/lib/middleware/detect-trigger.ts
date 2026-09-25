@@ -135,9 +135,54 @@ export function detectTrigger(
     return "email";
   }
 
-  // Social media detection
+  // Social media detection (header first — actual click location wins)
   if (SOCIAL_DOMAINS.some((domain) => refererHost.endsWith(domain))) {
     return "social";
+  }
+
+  // In-app browsers (X, LinkedIn, Instagram, WhatsApp…) often strip the
+  // Referer header — attribute tagged shares via utm_source instead.
+  const utmSource = (getParam("utm_source") ?? "").toLowerCase().trim();
+  if (utmSource) {
+    const socialUtms = [
+      "x",
+      "twitter",
+      "tw",
+      "instagram",
+      "ig",
+      "facebook",
+      "fb",
+      "linkedin",
+      "li",
+      "tiktok",
+      "tt",
+      "youtube",
+      "yt",
+      "reddit",
+      "whatsapp",
+      "wa",
+      "telegram",
+      "tg",
+      "pinterest",
+      "discord",
+      "slack",
+      "x.com",
+      "twitter.com",
+      "instagram.com",
+      "facebook.com",
+      "linkedin.com",
+      "lnkd.in",
+      "t.co",
+      "tiktok.com",
+      "youtube.com",
+      "youtu.be",
+      "reddit.com",
+      "whatsapp.com",
+      "wa.me",
+      "telegram.org",
+      "t.me",
+    ];
+    if (socialUtms.includes(utmSource)) return "social";
   }
 
   // Campaign detection (UTM parameters on short link or destination)

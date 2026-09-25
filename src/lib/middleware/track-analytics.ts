@@ -12,13 +12,13 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 import { db } from "@/server/db";
+import { resolveReferer } from "@/lib/analytics/referrer";
 import {
   getWorkspaceLimitsCache,
   setWorkspaceLimitsCache,
 } from "@/lib/cache-utils/workspace-cache";
 
 const UNKNOWN_VALUE = "unknown";
-const DIRECT_REFERER = "Direct";
 const RATE_LIMIT_WINDOW_SECONDS = 8;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 const DEFAULT_DOMAIN = "slugy.co";
@@ -128,29 +128,6 @@ function extractRefParam(urlString: string): string | null {
   }
 }
 
-function normalizeReferer(rawValue: string | null): string {
-  const trimmed = rawValue?.trim();
-  if (!trimmed) return DIRECT_REFERER;
-
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      return new URL(trimmed).origin;
-    } catch {
-      return trimmed;
-    }
-  }
-
-  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(trimmed)) {
-    try {
-      return new URL(`https://${trimmed}`).origin;
-    } catch {
-      return trimmed;
-    }
-  }
-
-  return trimmed;
-}
-
 async function checkAnalyticsRateLimit(
   ipAddress: string,
   slug: string,
@@ -234,11 +211,21 @@ async function dispatchAnalytics(
   const geoData = getGeoData(req);
   const ipAddress = getIpAddress(req);
   const utmParams = extractUTMParams(req.nextUrl.toString(), url);
+  const searchParams = req.nextUrl.searchParams;
   const refParam =
-    req.nextUrl.searchParams.get("ref")?.trim() ||
+    searchParams.get("ref")?.trim() ||
+    searchParams.get("via")?.trim() ||
+    searchParams.get("source")?.trim() ||
     extractRefParam(url)?.trim() ||
     null;
-  const headerReferer = req.headers.get("referer");
+  const headerReferer =
+    req.headers.get("referer") ?? req.headers.get("referrer");
+  let destinationHost: string | null = null;
+  try {
+    destinationHost = new URL(url).hostname;
+  } catch {
+    destinationHost = null;
+  }
 
   const analytics: AnalyticsData = {
     ipAddress,
@@ -248,7 +235,12 @@ async function dispatchAnalytics(
     device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
     browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
     os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
-    referer: normalizeReferer(refParam || headerReferer),
+    referer: resolveReferer({
+      refParam,
+      headerReferer,
+      utmSource: utmParams.utm_source,
+      excludeHosts: [req.nextUrl.hostname, destinationHost],
+    }),
     trigger,
   };
 

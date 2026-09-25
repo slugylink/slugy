@@ -16,6 +16,7 @@ import {
   cacheClickAttribution,
   type CachedClickAttribution,
 } from "@/lib/leads/click-cache";
+import { resolveReferer } from "@/lib/analytics/referrer";
 import {
   SLUGY_ID_COOKIE,
   SLUGY_ID_COOKIE_MAX_AGE,
@@ -24,14 +25,12 @@ import {
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
-const DIRECT_REFERER = "Direct";
 const RATE_LIMIT_WINDOW_SECONDS = 8;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 const DEFAULT_DOMAIN = "slugy.co";
 const DEFAULT_DEVICE = "desktop";
 const DEFAULT_BROWSER = "chrome";
 const DEFAULT_OS = "windows";
-const MAX_REFERER_LENGTH = 512;
 
 interface AnalyticsData {
   ipAddress: string;
@@ -58,41 +57,6 @@ interface GeoData {
   city: string;
   continent: string;
   region: string;
-}
-
-function truncateValue(value: string, maxLength: number): string {
-  return value.length > maxLength ? value.slice(0, maxLength) : value;
-}
-
-// Normalize referer into a stable analytics source value.
-function normalizeReferer(rawValue: string | null): string {
-  const trimmed = rawValue?.trim();
-  if (!trimmed) return DIRECT_REFERER;
-
-  const decoded = truncateValue(
-    safeDecodeURIComponent(trimmed),
-    MAX_REFERER_LENGTH,
-  );
-  if (!decoded) return DIRECT_REFERER;
-
-  if (/^https?:\/\//i.test(decoded)) {
-    try {
-      return new URL(decoded).origin;
-    } catch {
-      return decoded;
-    }
-  }
-
-  // Common case: hostname-like values (e.g. "google.com")
-  if (/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(decoded)) {
-    try {
-      return new URL(`https://${decoded}`).origin;
-    } catch {
-      return decoded;
-    }
-  }
-
-  return decoded;
 }
 
 // Safely decode URI component
@@ -316,13 +280,32 @@ function buildAnalyticsData(
 ): AnalyticsData {
   const ua = userAgent(req);
   const geoData = getGeoData(req);
-  // Priority: short-link ?ref= → destination ?ref= → Referer header → Direct
+  // Priority: explicit ?ref= (?via=/?source= aliases, short link or
+  // destination) → Referer header → utm_source → Direct. The utm_source
+  // fallback matters because in-app browsers (X, LinkedIn, Instagram,
+  // WhatsApp…) often send no Referer header at all.
+  const params = req.nextUrl.searchParams;
   const refParam =
-    req.nextUrl.searchParams.get("ref")?.trim() ||
+    params.get("ref")?.trim() ||
+    params.get("via")?.trim() ||
+    params.get("source")?.trim() ||
     extractRefParam(destinationUrl)?.trim() ||
     null;
-  const headerReferer = req.headers.get("referer");
-  const referer = normalizeReferer(refParam || headerReferer);
+  const headerReferer =
+    req.headers.get("referer") ?? req.headers.get("referrer");
+  const utmParams = extractUTMParams(req.nextUrl.toString(), destinationUrl);
+  let destinationHost: string | null = null;
+  try {
+    destinationHost = new URL(destinationUrl).hostname;
+  } catch {
+    destinationHost = null;
+  }
+  const referer = resolveReferer({
+    refParam,
+    headerReferer,
+    utmSource: utmParams.utm_source,
+    excludeHosts: [req.nextUrl.hostname, destinationHost],
+  });
 
   return {
     ipAddress: getIpAddress(req),

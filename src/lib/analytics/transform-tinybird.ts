@@ -1,5 +1,6 @@
-export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
+import { canonicalizeRefererDisplay } from "@/lib/analytics/referrer";
 
+export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 export type AnalyticsMetric =
   | "totalClicks"
   | "clicksOverTime"
@@ -189,9 +190,10 @@ export function transformTinybirdAnalytics(
     }
 
     if (referrersMap && item.referer) {
-      const existing = referrersMap.get(item.referer);
+      const key = canonicalizeRefererDisplay(item.referer);
+      const existing = referrersMap.get(key);
       if (existing) existing.clicks += clicks;
-      else referrersMap.set(item.referer, { referrer: item.referer, clicks });
+      else referrersMap.set(key, { referrer: key, clicks });
     }
 
     if (destinationsMap && item["meta.url"]) {
