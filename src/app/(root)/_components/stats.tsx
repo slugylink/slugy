@@ -16,6 +16,7 @@ interface SiteStats {
   users: number;
   links: number;
   clicks: number;
+  cachedAt?: string;
 }
 
 const fetcher = async (url: string): Promise<SiteStats> => {
@@ -107,7 +108,9 @@ function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
 export default function Stats() {
   const { data } = useSWR<SiteStats>("/api/public/stats", fetcher, {
     revalidateOnFocus: false,
-    dedupingInterval: 60 * 60 * 1000,
+    revalidateOnReconnect: false,
+    // Browser cache is 24h; don't refetch within that window.
+    dedupingInterval: 24 * 60 * 60 * 1000,
   });
 
   // No verified numbers yet (API unreachable) → render nothing instead of
