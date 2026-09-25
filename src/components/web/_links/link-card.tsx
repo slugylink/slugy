@@ -13,6 +13,7 @@ import {
   Trash,
   Archive,
   Pencil,
+  Share2,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -50,6 +51,11 @@ const EditLinkForm = dynamic(
   { ssr: false },
 );
 
+const ShareAnalyticsModal = dynamic(
+  () => import("@/components/web/_links/link-analytics-share"),
+  { ssr: false },
+);
+
 // Constants
 const COPY_TIMEOUT = 2000;
 const DEFAULT_DOMAIN = "slugy.co";
@@ -72,6 +78,7 @@ interface LinkData {
   createdAt?: Date | null;
   creatorId?: string | null;
   isArchived?: boolean;
+  isAnalyticsShared?: boolean | null;
   creator: Creator | null;
   domain?: string | null;
   expiresAt?: Date | null;
@@ -274,6 +281,10 @@ export default function LinkCard({
       toggleDialog("delete", true);
       toggleDialog("dropdown", false);
     },
+    shareAnalytics: () => {
+      toggleDialog("shareAnalytics", true);
+      toggleDialog("dropdown", false);
+    },
   };
 
   // Dropdown menu items
@@ -281,6 +292,11 @@ export default function LinkCard({
     { icon: Pencil, label: "Edit", onClick: actionHandlers.edit },
     { icon: QrCode, label: "QR Code", onClick: actionHandlers.qrCode },
     { icon: LinkIcon, label: "Copy link", onClick: actionHandlers.copy },
+    {
+      icon: Share2,
+      label: "Share analytics",
+      onClick: actionHandlers.shareAnalytics,
+    },
     { type: "separator" },
     {
       icon: Archive,
@@ -365,7 +381,8 @@ export default function LinkCard({
             isPublic={isPublic}
             pathname={pathname}
             slug={link.slug}
-            onShareAnalytics={() => {}}
+            onShareAnalytics={() => toggleDialog("shareAnalytics", true)}
+            analyticsShared={Boolean(link.isAnalyticsShared)}
           />
 
           <DropdownMenu
@@ -458,6 +475,16 @@ export default function LinkCard({
         onConfirm={handleDeleteConfirm}
         isDeleting={isDeleting}
       />
+
+      {isDialogOpen("shareAnalytics") && (
+        <ShareAnalyticsModal
+          open={isDialogOpen("shareAnalytics")}
+          onOpenChange={(open) => toggleDialog("shareAnalytics", open)}
+          linkId={link.id}
+          slug={link.slug}
+          url={link.url}
+        />
+      )}
     </TooltipProvider>
   );
 }

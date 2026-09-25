@@ -66,6 +66,9 @@ const LINK_SELECT_FIELDS = {
       },
     },
   },
+  SharedAnalytics: {
+    select: { isPublic: true },
+  },
   creator: {
     select: {
       name: true,
@@ -180,6 +183,7 @@ export async function queryWorkspaceLinks(
     ...link,
     password: maskLinkPassword(link.password),
     geo: parseGeoFromCache(link.geo),
+    isAnalyticsShared: link.SharedAnalytics?.isPublic ?? false,
   }));
 
   return toJsonSafe({

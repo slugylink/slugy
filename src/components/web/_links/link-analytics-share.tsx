@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Check, Copy, Globe, CornerDownRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { mutate } from "swr";
 
 import {
   Dialog,
@@ -21,18 +22,23 @@ import { useRouter } from "next/navigation";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { useWorkspaceStore } from "@/store/workspace";
 
+/** Server-masked value meaning "a password is set, unchanged". */
+const PASSWORD_MASK = "********";
+const MIN_PASSWORD_LENGTH = 4;
+
 interface SharedAnalyticsSettings {
   isPublic: boolean;
   allowIndexing: boolean;
+  /** Masked when set server-side, plaintext only for a new password. */
   password?: string | null;
-  publicId?: string;
+  publicId?: string | null;
 }
 
 interface ShareResponse {
   isPublic: boolean;
   allowIndexing: boolean;
   password?: string | null;
-  publicId?: string;
+  publicId?: string | null;
 }
 
 interface ShareAnalyticsModalProps {
@@ -44,6 +50,19 @@ interface ShareAnalyticsModalProps {
   onSettingsUpdated?: (settings: ShareResponse) => void;
 }
 
+type Status = "loading" | "ready" | "saving";
+
+const EMPTY_SETTINGS: SharedAnalyticsSettings = {
+  isPublic: false,
+  allowIndexing: false,
+  password: null,
+  publicId: null,
+};
+
+function shareUrlFor(publicId?: string | null): string | null {
+  return publicId ? `https://slugy.co/share/${publicId}` : null;
+}
+
 export default function ShareAnalyticsModal({
   open,
   onOpenChange,
@@ -53,176 +72,174 @@ export default function ShareAnalyticsModal({
   onSettingsUpdated,
 }: ShareAnalyticsModalProps) {
   const { workspaceslug } = useWorkspaceStore();
-  const [settings, setSettings] = useState<SharedAnalyticsSettings>({
-    isPublic: true,
-    allowIndexing: false,
-    password: null,
-  });
-  const [isCopied, setIsCopied] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [passwordError, setPasswordError] = useState<string | null>(null);
   const router = useRouter();
+
+  // `snapshot` = last server state, `draft` = editable copy. Save is only
+  // enabled when they differ, so untouched opens never fire a request.
+  const [snapshot, setSnapshot] =
+    useState<SharedAnalyticsSettings>(EMPTY_SETTINGS);
+  const [draft, setDraft] = useState<SharedAnalyticsSettings>(EMPTY_SETTINGS);
+  const [status, setStatus] = useState<Status>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  // Validate password when it changes
+  // Guards: ignore stale fetches when the modal is retargeted quickly,
+  // and clean up the copy-feedback timer on unmount.
+  const fetchIdRef = useRef(0);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (settings.password !== null && settings.password !== undefined) {
-      if (settings.password.length < 4) {
-        setPasswordError("Password must be at least 4 characters long");
-      } else {
-        setPasswordError(null);
-      }
-    } else {
-      setPasswordError(null);
-    }
-  }, [settings.password]);
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const fetchSettings = useCallback(async () => {
     if (!workspaceslug || !linkId) return;
-
+    const fetchId = ++fetchIdRef.current;
+    setStatus("loading");
+    setLoadError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-
       const response = await axios.get<ShareResponse>(
         `/api/workspace/${workspaceslug}/link/${linkId}/share`,
       );
-
-      if (response.data) {
-        setSettings(response.data);
-        if (response.data.publicId) {
-          setShareUrl(`https://slugy.co/share/${response.data.publicId}`);
-        }
-      }
+      if (fetchIdRef.current !== fetchId) return;
+      const server: SharedAnalyticsSettings = {
+        isPublic: response.data.isPublic,
+        allowIndexing: response.data.allowIndexing,
+        password: response.data.password ?? null,
+        publicId: response.data.publicId ?? null,
+      };
+      setSnapshot(server);
+      setDraft(server);
+      setStatus("ready");
     } catch (error) {
+      if (fetchIdRef.current !== fetchId) return;
       console.error("Error fetching share settings:", error);
-      setError("Failed to load sharing settings. Please try again.");
+      setLoadError("Failed to load sharing settings. Please try again.");
+      setStatus("ready");
       toast.error("Failed to load sharing settings");
-    } finally {
-      setIsLoading(false);
     }
   }, [workspaceslug, linkId]);
 
-  // Fetch settings when modal opens
+  // Fresh state on every open — never flash the previous link's settings.
   useEffect(() => {
     if (open) {
+      setSnapshot(EMPTY_SETTINGS);
+      setDraft(EMPTY_SETTINGS);
+      setIsCopied(false);
+      setLoadError(null);
+      setIsPasswordVisible(false);
       void fetchSettings();
     }
-  }, [open, fetchSettings]);
+  }, [open, linkId, fetchSettings]);
+
+  const passwordEnabled = draft.password !== null;
+  const passwordValue = draft.password ?? "";
+  const passwordInvalid =
+    passwordEnabled &&
+    passwordValue !== PASSWORD_MASK &&
+    passwordValue.length < MIN_PASSWORD_LENGTH;
+
+  const isDirty = useMemo(
+    () => JSON.stringify(snapshot) !== JSON.stringify(draft),
+    [snapshot, draft],
+  );
+
+  const shareUrl = draft.isPublic ? shareUrlFor(draft.publicId) : null;
 
   const saveSettings = async () => {
-    if (!workspaceslug || !linkId) {
-      toast.error("Missing workspace or link information");
-      return;
-    }
-
-    // Validate password before saving
-    if (
-      settings.password !== null &&
-      settings.password !== undefined &&
-      settings.password.length < 4
-    ) {
-      setError("Password must be at least 4 characters");
-      return;
-    }
-
+    if (!workspaceslug || !linkId || passwordInvalid) return;
+    setStatus("saving");
+    setLoadError(null);
     try {
-      setIsSaving(true);
-      setError(null);
-
       const response = await axios.post<ShareResponse>(
         `/api/workspace/${workspaceslug}/link/${linkId}/share`,
-        settings,
+        {
+          isPublic: draft.isPublic,
+          allowIndexing: draft.allowIndexing,
+          password: draft.password,
+        },
       );
-
-      if (response.data?.publicId) {
-        const newShareUrl = `https://slugy.co/share/${response.data.publicId}`;
-        setShareUrl(newShareUrl);
-        setSettings(response.data);
-        toast.success("Share settings saved successfully!");
-        router.refresh();
-        // Call the callback with updated settings
-        if (onSettingsUpdated) {
-          onSettingsUpdated(response.data);
-        }
-      } else {
-        throw new Error("No public ID returned from server");
-      }
+      const saved: SharedAnalyticsSettings = {
+        isPublic: response.data.isPublic,
+        allowIndexing: response.data.allowIndexing,
+        password: response.data.password ?? null,
+        publicId: response.data.publicId ?? null,
+      };
+      setSnapshot(saved);
+      setDraft(saved);
+      toast.success("Share settings saved successfully!");
+      // Refresh the links list so the shared-state badge updates.
+      void mutate(
+        (key) => typeof key === "string" && key.includes("/link/get"),
+      );
+      router.refresh();
+      onSettingsUpdated?.(response.data);
     } catch (error) {
       console.error("Error saving share settings:", error);
-      setError("Failed to save share settings. Please try again.");
+      setLoadError("Failed to save share settings. Please try again.");
       toast.error("Failed to save share settings");
     } finally {
-      setIsSaving(false);
+      setStatus((s) => (s === "saving" ? "ready" : s));
     }
   };
 
   const handleCopy = () => {
     if (!shareUrl) return;
-
     navigator.clipboard
       .writeText(shareUrl)
       .then(() => {
         setIsCopied(true);
         toast.success("Share link copied to clipboard");
-        setTimeout(() => setIsCopied(false), 2000);
+        if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+        copyTimerRef.current = setTimeout(() => setIsCopied(false), 2000);
       })
       .catch(() => {
         toast.error("Failed to copy to clipboard");
       });
   };
 
-  // Reset state when modal closes
-  useEffect(() => {
-    if (!open) {
-      setIsCopied(false);
-      setError(null);
-    }
-  }, [open]);
-
-  const handlePasswordChange = (checked: boolean) => {
-    setSettings({
-      ...settings,
-      password: checked ? "" : null,
-    });
+  const handlePasswordToggle = (checked: boolean) => {
+    setDraft((prev) => ({
+      ...prev,
+      // Turning it back on restores the server mask (keep existing)
+      // instead of forcing the user to retype a password.
+      password: checked ? (prev.password ?? snapshot.password ?? "") : null,
+    }));
   };
 
   const handlePublicChange = (checked: boolean) => {
-    setSettings({
-      ...settings,
+    setDraft((prev) => ({
+      ...prev,
       isPublic: checked,
-      // Reset password if making private
-      ...(checked === false && { password: null }),
-    });
+      // Private reports are never indexed and need no password.
+      ...(checked === false && {
+        password: null,
+        allowIndexing: false,
+      }),
+    }));
   };
 
-  const handleTogglePassword = () => {
-    setIsPasswordVisible(!isPasswordVisible);
-  };
-
-  // Check if save button should be disabled
-  const isSaveDisabled =
-    isSaving ||
-    (settings.password !== null &&
-      settings.password !== undefined &&
-      settings.password.length < 4);
+  const isBusy = status !== "ready";
+  const isSaveDisabled = isBusy || !isDirty || passwordInvalid;
+  const showLoading = status === "loading";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl font-medium">Share Analytics</DialogTitle>
-          <DialogDescription className="text-muted-foreground">
+          <DialogTitle className="text-xl font-medium">
+            Share Analytics
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-sm">
             Make your analytics dashboard available to others
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
+        {loadError && (
           <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 dark:bg-red-900/20 dark:text-red-400">
-            {error}
+            {loadError}
           </div>
         )}
 
@@ -260,17 +277,17 @@ export default function ShareAnalyticsModal({
           </div>
           <Switch
             id="public-sharing"
-            checked={settings.isPublic}
+            checked={draft.isPublic}
             onCheckedChange={handlePublicChange}
+            disabled={isBusy}
             aria-label="Enable public sharing"
           />
         </div>
 
-        {isLoading && !shareUrl && settings.isPublic ? (
+        {showLoading ? (
           <SkeletonShareUrl />
         ) : (
-          shareUrl &&
-          settings.isPublic && (
+          shareUrl && (
             <div className="flex items-center space-x-2">
               <Input
                 value={shareUrl}
@@ -295,7 +312,7 @@ export default function ShareAnalyticsModal({
           )
         )}
 
-        {settings.isPublic && (
+        {draft.isPublic && !showLoading && (
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Settings</h3>
 
@@ -308,51 +325,81 @@ export default function ShareAnalyticsModal({
               </Label>
               <Switch
                 id="password-protection"
-                checked={settings.password !== null}
-                onCheckedChange={handlePasswordChange}
+                checked={passwordEnabled}
+                onCheckedChange={handlePasswordToggle}
+                disabled={isBusy}
                 aria-label="Enable password protection"
               />
             </div>
 
-            {settings.password !== null && (
+            {passwordEnabled && (
               <div className="space-y-2">
                 <div className="relative w-full">
                   <Input
                     type={isPasswordVisible ? "text" : "password"}
-                    placeholder="Set password (min 4 characters)"
-                    value={settings.password ?? ""}
-                    onChange={(e) =>
-                      setSettings({ ...settings, password: e.target.value })
+                    placeholder={
+                      passwordValue === PASSWORD_MASK
+                        ? "Password is set (type to change)"
+                        : "Set password (min 4 characters)"
                     }
+                    value={passwordValue}
+                    onChange={(e) =>
+                      setDraft((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
+                    onFocus={(e) => {
+                      // Selecting the mask on focus makes replacing it easy.
+                      if (e.target.value === PASSWORD_MASK) e.target.select();
+                    }}
                     className={`w-full pr-10 transition-all duration-200 ${
-                      passwordError
+                      passwordInvalid
                         ? "border-red-500 focus-visible:ring-red-500"
                         : ""
                     }`}
-                    aria-invalid={passwordError ? "true" : "false"}
+                    aria-invalid={passwordInvalid ? "true" : "false"}
                     aria-describedby={
-                      passwordError ? "password-error" : undefined
+                      passwordInvalid ? "password-error" : undefined
                     }
                   />
                   {isPasswordVisible ? (
                     <EyeOff
-                      onClick={handleTogglePassword}
+                      onClick={() => setIsPasswordVisible(false)}
                       className="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 cursor-pointer"
                     />
                   ) : (
                     <Eye
-                      onClick={handleTogglePassword}
+                      onClick={() => setIsPasswordVisible(true)}
                       className="text-muted-foreground absolute top-2.5 right-3 h-4 w-4 cursor-pointer"
                     />
                   )}
                 </div>
-                {passwordError && (
+                {passwordInvalid && (
                   <p id="password-error" className="text-sm text-red-500">
-                    {passwordError}
+                    Password must be at least 4 characters long
                   </p>
                 )}
               </div>
             )}
+
+            {/* <div className="flex items-center justify-between">
+              <Label
+                htmlFor="allow-indexing"
+                className="cursor-pointer font-normal"
+              >
+                Allow search engine indexing
+              </Label>
+              <Switch
+                id="allow-indexing"
+                checked={draft.allowIndexing}
+                onCheckedChange={(checked) =>
+                  setDraft((prev) => ({ ...prev, allowIndexing: checked }))
+                }
+                disabled={isBusy}
+                aria-label="Allow search engine indexing"
+              />
+            </div> */}
           </div>
         )}
 
@@ -361,8 +408,10 @@ export default function ShareAnalyticsModal({
           onClick={saveSettings}
           disabled={isSaveDisabled}
         >
-          {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
-          Save
+          {status === "saving" && (
+            <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
+          )}
+          {isDirty ? "Save" : "Saved"}
         </Button>
       </DialogContent>
     </Dialog>

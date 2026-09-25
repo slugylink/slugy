@@ -7,6 +7,7 @@ export interface Link {
   expiresAt?: Date | null;
   isArchived?: boolean;
   isPublic: boolean;
+  isAnalyticsShared?: boolean;
   creator: { name: string | null; image: string | null } | null;
   qrCode: {
     id: string;

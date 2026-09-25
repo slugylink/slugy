@@ -31,6 +31,7 @@ export const PUBLIC_PREFIXES = [
   "/_next",
   "/static",
   "/blogs/",
+  "/share/",
   "/favicon.ico",
   "/robots.txt",
   "/sitemap.xml",

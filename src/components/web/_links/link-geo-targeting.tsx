@@ -12,7 +12,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -55,6 +54,15 @@ function rowsToGeo(rows: GeoRow[]): GeoTargetMap | null {
   return Object.keys(result).length > 0 ? result : null;
 }
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol;
+    return protocol === "http:" || protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export default function LinkGeoTargeting({
   geo,
   setGeo,
@@ -91,6 +99,10 @@ export default function LinkGeoTargeting({
       }
       if (row.url.trim() && !row.country) {
         setError("Select a country for each URL");
+        return;
+      }
+      if (row.url.trim() && !isHttpUrl(row.url.trim())) {
+        setError("URLs must start with http:// or https://");
         return;
       }
     }
@@ -147,18 +159,11 @@ export default function LinkGeoTargeting({
           Send visitors from selected countries to different URLs. Everyone else
           goes to the default destination.
         </p>
-        <div className="max-h-[50vh] space-y-3 overflow-y-auto pr-1">
-          {rows.map((row, index) => (
-            <div
-              key={row.id}
-              className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_auto] items-end gap-2"
-            >
-              <div>
-                {index === 0 && (
-                  <Label className="mb-2 block text-sm font-medium">
-                    Country
-                  </Label>
-                )}
+        <div className="max-h-[50vh] space-y-2 overflow-y-auto pr-1">
+          {rows.map((row) => (
+            <div key={row.id} className="flex items-center gap-2">
+              {/* Country + URL joined like the domain/slug input */}
+              <div className="flex flex-1 flex-row">
                 <Select
                   value={row.country || undefined}
                   onValueChange={(value) => {
@@ -171,8 +176,8 @@ export default function LinkGeoTargeting({
                   }}
                   disabled={locked}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select" />
+                  <SelectTrigger className="w-[130px] shrink-0 rounded-r-none border-r-0 shadow-none sm:w-[150px]">
+                    <SelectValue placeholder="Country" />
                   </SelectTrigger>
                   <SelectContent className="max-h-64">
                     {COUNTRIES.map((country) => {
@@ -191,11 +196,6 @@ export default function LinkGeoTargeting({
                     })}
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                {index === 0 && (
-                  <Label className="mb-2 block text-sm font-medium">URL</Label>
-                )}
                 <Input
                   type="url"
                   placeholder="https://example.com"
@@ -211,6 +211,7 @@ export default function LinkGeoTargeting({
                   }}
                   autoComplete="off"
                   disabled={locked}
+                  className="min-w-0 flex-1 rounded-l-none shadow-none"
                 />
               </div>
               <Button
@@ -222,6 +223,7 @@ export default function LinkGeoTargeting({
                 onClick={() =>
                   setRows((prev) => prev.filter((item) => item.id !== row.id))
                 }
+                aria-label="Remove country"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

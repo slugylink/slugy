@@ -225,7 +225,7 @@ interface TimePeriodSelectorProps {
   isPro: boolean;
 }
 
-const TimePeriodSelector = ({
+export const TimePeriodSelector = ({
   timePeriod,
   onTimePeriodChange,
   isPro,

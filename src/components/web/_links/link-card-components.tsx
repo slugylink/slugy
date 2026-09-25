@@ -6,6 +6,7 @@ import {
   BookText,
   ForwardIcon,
   CornerDownRight,
+  Share2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +50,8 @@ interface AnalyticsBadgeProps {
   pathname: string;
   slug: string;
   onShareAnalytics: () => void;
+  /** True when the link has public analytics sharing enabled. */
+  analyticsShared?: boolean;
 }
 
 interface SelectionCheckboxProps {
@@ -157,40 +159,61 @@ export const AnalyticsBadge = ({
   pathname,
   slug,
   onShareAnalytics,
+  analyticsShared,
 }: AnalyticsBadgeProps) => (
-  <Badge
-    variant="outline"
-    className="flex cursor-pointer items-center justify-center gap-x-1 rounded-md bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
-  >
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Link href={`${pathname}/analytics?slug_key=${slug}`}>
-          <div className="flex items-center justify-center gap-x-1 text-[13px]">
-            <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""} />
-            {formatNumber(clicks)}
-            <span className="hidden sm:inline">clicks</span>
-          </div>
-        </Link>
-      </TooltipTrigger>
-      <TooltipContent>Click to see analytics</TooltipContent>
-    </Tooltip>
-    {isPublic && (
+  <div className="flex items-center gap-1.5">
+    {analyticsShared && (
       <>
-        <Separator
-          orientation="vertical"
-          className="h-4 bg-zinc-500 dark:bg-zinc-400"
-        />
         <Tooltip>
-          <TooltipTrigger asChild>
-            <div onClick={onShareAnalytics} className="cursor-pointer">
-              <ForwardIcon size={16} strokeWidth={1.5} />
-            </div>
+          <TooltipTrigger asChild className="">
+            <Badge
+              onClick={onShareAnalytics}
+              className="size-6 cursor-pointer rounded-md border border-green-200 bg-green-50 p-0"
+            >
+              <Share2
+                size={20}
+                strokeWidth={1.5}
+                className="text-green-600 dark:text-green-500"
+              />
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent>Analytics shared publicly</TooltipContent>
+        </Tooltip>
+      </>
+    )}
+    {isPublic && !analyticsShared && (
+      <>
+        <Tooltip>
+          <TooltipTrigger asChild className="">
+            <Badge
+              onClick={onShareAnalytics}
+              className="size-6 cursor-pointer rounded-md border border-green-200 bg-green-50 p-0"
+            >
+              <Share2 size={16} strokeWidth={1.5} />
+            </Badge>
           </TooltipTrigger>
           <TooltipContent>Share analytics</TooltipContent>
         </Tooltip>
       </>
     )}
-  </Badge>
+    <Badge
+      variant="outline"
+      className="flex cursor-pointer items-center justify-center gap-x-1 rounded-md bg-zinc-100/50 text-sm font-normal text-zinc-700 shadow-none hover:bg-zinc-200/50 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+    >
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link href={`${pathname}/analytics?slug_key=${slug}`}>
+            <div className="flex items-center justify-center gap-x-1 text-[13px]">
+              <AnalyticsIcon className={clicks > 0 ? "text-blue-500" : ""} />
+              {formatNumber(clicks)}
+              <span className="hidden sm:inline">clicks</span>
+            </div>
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent>Click to see analytics</TooltipContent>
+      </Tooltip>
+    </Badge>
+  </div>
 );
 
 // Selection Checkbox Component
