@@ -240,6 +240,17 @@ export async function POST(
       );
     }
 
+    // Server-side size cap (client enforces 5MB too — never trust the client).
+    const MAX_CSV_BYTES = 5 * 1024 * 1024;
+    const MAX_CSV_ROWS = 5000;
+    if (file.size > MAX_CSV_BYTES) {
+      return jsonWithETag(
+        req,
+        { message: "File is too large. Maximum size is 5MB." },
+        { status: 413 },
+      );
+    }
+
     // Read and parse CSV
     const csvText = await file.text();
     const records = csvParse(csvText, {
@@ -257,9 +268,13 @@ export async function POST(
     }
 
     // Add warning for very large files
-    if (records.length > 5000) {
-      console.warn(
-        `Large CSV import detected: ${records.length} records. This may take several minutes to process.`,
+    if (records.length > MAX_CSV_ROWS) {
+      return jsonWithETag(
+        req,
+        {
+          message: `CSV has too many rows (${records.length}). Maximum is ${MAX_CSV_ROWS} per import — split the file and retry.`,
+        },
+        { status: 400 },
       );
     }
 
@@ -411,12 +426,15 @@ export async function POST(
       );
     }
 
-    // Pre-check for existing slugs in the database to provide clearer errors up-front
+    // Pre-check for existing slugs in the database to provide clearer errors up-front.
+    // Slugs are unique per (slug, domain) — scope to the import domain so
+    // the same slug on another domain doesn't false-positive.
     const requestedSlugs = linksToCreate.map((l) => l.slug);
     if (requestedSlugs.length > 0) {
       const existing = await db.link.findMany({
         where: {
           slug: { in: requestedSlugs },
+          domain: "slugy.co",
         },
         select: { slug: true },
       });
@@ -546,6 +564,7 @@ export async function POST(
       );
     }
     let totalCreatedCount = 0;
+    let skippedCount = 0;
     const createdSlugs: string[] = [];
     const slugToId = new Map<string, string>();
     const tagNameToId = new Map<string, string>();
@@ -621,14 +640,17 @@ export async function POST(
             slugToId.set(created.slug, created.id);
             createdSlugs.push(created.slug);
           } catch (error) {
-            // Skip duplicates (slug already exists)
+            // Race on (slug, domain) after the pre-check — count it as
+            // skipped instead of silently dropping it.
             if (
               error &&
               typeof error === "object" &&
               "code" in error &&
               error.code === "P2002"
-            )
+            ) {
+              skippedCount += 1;
               continue;
+            }
             throw error;
           }
         }
@@ -742,7 +764,12 @@ export async function POST(
     return jsonWithETag(
       req,
       {
-        message: `Successfully imported ${totalCreatedCount} links`,
+        message:
+          skippedCount > 0
+            ? `Successfully imported ${totalCreatedCount} links (${skippedCount} skipped - slug already exists)`
+            : `Successfully imported ${totalCreatedCount} links`,
+        createdCount: totalCreatedCount,
+        skippedCount,
       },
       { status: 200 },
     );
