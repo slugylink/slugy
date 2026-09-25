@@ -67,7 +67,12 @@ export async function GET(
         publicId: shared?.publicId ?? null,
         showLeads: shared?.showLeads ?? false,
       },
-      { status: 200 },
+      {
+        status: 200,
+        // Cacheable + revalidatable: dialog reopens come from the browser
+        // cache or a cheap 304 instead of a fresh DB read every time.
+        headers: { "Cache-Control": "private, max-age=60, must-revalidate" },
+      },
     );
   } catch (error) {
     console.error("Error fetching share settings:", error);

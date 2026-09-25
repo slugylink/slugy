@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Check, Copy, Globe, CornerDownRight, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
-import { mutate } from "swr";
+import useSWR, { mutate } from "swr";
 
 import {
   Dialog,
@@ -85,14 +85,15 @@ export default function ShareAnalyticsModal({
   const [snapshot, setSnapshot] =
     useState<SharedAnalyticsSettings>(EMPTY_SETTINGS);
   const [draft, setDraft] = useState<SharedAnalyticsSettings>(EMPTY_SETTINGS);
-  const [status, setStatus] = useState<Status>("loading");
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+  const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   // Guards: ignore stale fetches when the modal is retargeted quickly,
   // and clean up the copy-feedback timer on unmount.
-  const fetchIdRef = useRef(0);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
@@ -100,36 +101,59 @@ export default function ShareAnalyticsModal({
     };
   }, []);
 
-  const fetchSettings = useCallback(async () => {
-    if (!workspaceslug || !linkId) return;
-    const fetchId = ++fetchIdRef.current;
-    setStatus("loading");
-    setLoadError(null);
-    try {
-      const response = await axios.get<ShareResponse>(
-        `/api/workspace/${workspaceslug}/link/${linkId}/share`,
-      );
-      if (fetchIdRef.current !== fetchId) return;
-      const server: SharedAnalyticsSettings = {
-        isPublic: response.data.isPublic,
-        allowIndexing: response.data.allowIndexing,
-        password: response.data.password ?? null,
-        publicId: response.data.publicId ?? null,
-        showLeads: response.data.showLeads ?? false,
-      };
-      setSnapshot(server);
-      setDraft(server);
-      setStatus("ready");
-    } catch (error) {
-      if (fetchIdRef.current !== fetchId) return;
-      console.error("Error fetching share settings:", error);
-      setLoadError("Failed to load sharing settings. Please try again.");
-      setStatus("ready");
-      toast.error("Failed to load sharing settings");
-    }
-  }, [workspaceslug, linkId]);
+  // SWR caching: reopening the dialog (or switching between links and back)
+  // reuses the cached settings instead of firing a request every time.
+  // The API also returns ETag + Cache-Control, so even a revalidation is a
+  // cheap 304 with no body when nothing changed.
+  const shareKey =
+    open && workspaceslug && linkId
+      ? `/api/workspace/${workspaceslug}/link/${linkId}/share`
+      : null;
+  const {
+    data: shareData,
+    error: shareError,
+    isLoading: shareLoading,
+    mutate: mutateShare,
+  } = useSWR<ShareResponse>(
+    shareKey,
+    (url: string) => axios.get<ShareResponse>(url).then((res) => res.data),
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      dedupingInterval: 60_000,
+    },
+  );
 
-  // Fresh state on every open — never flash the previous link's settings.
+  // Sync server state into snapshot/draft when it arrives (or changes).
+  useEffect(() => {
+    if (!open || !shareData) return;
+    const server: SharedAnalyticsSettings = {
+      isPublic: shareData.isPublic,
+      allowIndexing: shareData.allowIndexing,
+      password: shareData.password ?? null,
+      publicId: shareData.publicId ?? null,
+      showLeads: shareData.showLeads ?? false,
+    };
+    setSnapshot(server);
+    // Don't clobber in-progress edits when a background revalidation lands.
+    setDraft((prev) =>
+      JSON.stringify(prev) === JSON.stringify(snapshotRef.current)
+        ? server
+        : prev,
+    );
+    setLoadError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, shareData]);
+
+  useEffect(() => {
+    if (shareError) {
+      console.error("Error fetching share settings:", shareError);
+      setLoadError("Failed to load sharing settings. Please try again.");
+    }
+  }, [shareError]);
+
+  // Fresh (empty) state on every open — never flash the previous link's
+  // settings while SWR resolves (instant when cached).
   useEffect(() => {
     if (open) {
       setSnapshot(EMPTY_SETTINGS);
@@ -137,9 +161,14 @@ export default function ShareAnalyticsModal({
       setIsCopied(false);
       setLoadError(null);
       setIsPasswordVisible(false);
-      void fetchSettings();
     }
-  }, [open, linkId, fetchSettings]);
+  }, [open, linkId]);
+
+  const status: Status = shareLoading
+    ? "loading"
+    : isSaving
+      ? "saving"
+      : "ready";
 
   const passwordEnabled = draft.password !== null;
   const passwordValue = draft.password ?? "";
@@ -157,7 +186,7 @@ export default function ShareAnalyticsModal({
 
   const saveSettings = async () => {
     if (!workspaceslug || !linkId || passwordInvalid) return;
-    setStatus("saving");
+    setIsSaving(true);
     setLoadError(null);
     try {
       const response = await axios.post<ShareResponse>(
@@ -178,6 +207,8 @@ export default function ShareAnalyticsModal({
       };
       setSnapshot(saved);
       setDraft(saved);
+      // Update the SWR cache so reopening the dialog needs no refetch.
+      void mutateShare(response.data, false);
       toast.success("Share settings saved successfully!");
       // Refresh the links list so the shared-state badge updates.
       void mutate(
@@ -190,7 +221,7 @@ export default function ShareAnalyticsModal({
       setLoadError("Failed to save share settings. Please try again.");
       toast.error("Failed to save share settings");
     } finally {
-      setStatus((s) => (s === "saving" ? "ready" : s));
+      setIsSaving(false);
     }
   };
 

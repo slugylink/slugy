@@ -17,6 +17,7 @@ import {
   invalidateWorkspaceCache,
 } from "@/lib/cache-utils/workspace-cache";
 import { sendWorkspaceWelcomeEmail } from "@/server/actions/email";
+import { ensureFreeSubscription } from "@/lib/subscription/free-entitlement";
 
 // Revalidate all workspace-related cache tags
 async function revalidateWorkspaceTags() {
@@ -81,6 +82,15 @@ export async function createWorkspace({
       revalidateWorkspaceTags(),
     ]);
     revalidatePath(`/${workspace.slug}`);
+
+    // Guarantee a subscription exists before the plans step: brand-new
+    // users get Free here so "Continue with Free" can never fail on a
+    // missing plan row. Non-fatal — limit checks self-heal anyway.
+    try {
+      await ensureFreeSubscription(userId);
+    } catch (error) {
+      console.error("[workspace] Failed to ensure free subscription:", error);
+    }
 
     // Background tasks — isolated so one failure does not cancel the others
     waitUntil(
