@@ -59,6 +59,8 @@ const VALID_PERIODS: readonly TimePeriod[] = [
 interface ReportPayload {
   link: { slug: string; url: string; domain: string; createdAt: string };
   workspace: { name: string; logo: string | null };
+  /** Effective period after the owner's retention clamp. */
+  timePeriod?: TimePeriod;
   analytics: {
     totalClicks?: number;
     clicksOverTime?: Array<{ time: string; clicks: number }>;
@@ -188,14 +190,18 @@ function ReportClient({ publicId }: { publicId: string }) {
     [report?.analytics.clicksOverTime],
   );
 
+  // Use the server's effective period so retention-clamped reports bucket
+  // their chart consistently with the data returned.
+  const effectivePeriod = report?.timePeriod ?? period;
+
   const sharedProps = useMemo(
     () => ({
       workspaceslug: "",
       searchParams: {},
-      timePeriod: period,
+      timePeriod: effectivePeriod,
       isLoading: loading && !report,
     }),
-    [period, loading, report],
+    [effectivePeriod, loading, report],
   );
 
   const shortUrl = report
@@ -336,7 +342,7 @@ function ReportClient({ publicId }: { publicId: string }) {
             <Chart
               data={chartData}
               totalClicks={report?.analytics.totalClicks ?? 0}
-              timePeriod={period}
+              timePeriod={effectivePeriod}
               isLoading={loading && !report}
               canUseLeadTracking={false}
             />

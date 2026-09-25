@@ -4,7 +4,12 @@ import { z } from "zod";
 import { redis } from "@/lib/redis";
 import { verifyLinkPassword } from "@/lib/link-password";
 import { getSubscriptionWithPlan } from "@/server/actions/subscription";
-import { clampStartDateByRetention } from "@/lib/subscription/retention";
+import {
+  clampStartDateByRetention,
+  clampPeriodByRetention,
+} from "@/lib/subscription/retention";
+import { tinybird } from "@/lib/tinybird/could/tinybird";
+import { transformTinybirdAnalytics } from "@/lib/analytics/transform-tinybird";
 import {
   formatAnalyticsResponse,
   getStartDate,
@@ -77,6 +82,7 @@ export async function GET(
             url: true,
             domain: true,
             createdAt: true,
+            workspaceId: true,
             workspace: {
               select: { name: true, slug: true, logo: true, userId: true },
             },
@@ -114,10 +120,14 @@ export async function GET(
     const ownerSub = await getSubscriptionWithPlan(
       shared.link.workspace.userId,
     );
+    const planType = ownerSub.subscription?.plan?.planType;
     const startDate = clampStartDateByRetention(
-      ownerSub.subscription?.plan?.planType,
+      planType,
       getStartDate(timePeriod),
     );
+
+    // Bucket-clamped period for the Tinybird path (retention buckets).
+    const retentionPeriod = clampPeriodByRetention(planType, timePeriod);
 
     // Short-TTL cache: reports are read-heavy and shared externally, so
     // repeat views (same period + filters) should not re-run groupBy.
@@ -153,63 +163,102 @@ export async function GET(
       // Redis down — fall through to DB.
     }
 
-    const rawAggregates = await db.analytics.groupBy({
-      by: [
-        "linkId",
-        "clickedAt",
-        "country",
-        "city",
-        "continent",
-        "device",
-        "browser",
-        "os",
-        "referer",
-      ],
-      where: {
-        linkId: shared.link.id,
-        clickedAt: { gte: startDate },
-        ...(parsed.data.country_key
-          ? { country: parsed.data.country_key }
-          : {}),
-        ...(parsed.data.city_key ? { city: parsed.data.city_key } : {}),
-        ...(parsed.data.continent_key
-          ? { continent: parsed.data.continent_key }
-          : {}),
-        ...(parsed.data.device_key ? { device: parsed.data.device_key } : {}),
-        ...(parsed.data.browser_key
-          ? { browser: parsed.data.browser_key }
-          : {}),
-        ...(parsed.data.os_key ? { os: parsed.data.os_key } : {}),
-        ...(parsed.data.referrer_key
-          ? { referer: parsed.data.referrer_key }
-          : {}),
-      },
-      _count: true,
-    });
-
     const links = [
       { id: shared.link.id, slug: shared.link.slug, url: shared.link.url },
     ];
-    const linkClicksMap = new Map<string, number>();
-    for (const entry of rawAggregates) {
-      linkClicksMap.set(
-        entry.linkId,
-        (linkClicksMap.get(entry.linkId) ?? 0) + entry._count,
-      );
-    }
 
-    const aggregationMaps = processAnalyticsData(
-      rawAggregates,
-      timePeriod,
-      links,
-      SHARE_METRICS,
+    // Prefer Tinybird — the exact source the dashboard uses, so shared and
+    // in-app numbers always agree. (Postgres is backfilled by cron every
+    // few hours and would otherwise lag.)
+    const hasTinybird = Boolean(
+      process.env.TINYBIRD_TOKEN || process.env.TINYBIRD_API_KEY,
     );
-    const analytics = formatAnalyticsResponse(
-      aggregationMaps,
-      links,
-      linkClicksMap,
-      SHARE_METRICS,
-    );
+
+    let analytics: Record<string, unknown>;
+
+    if (hasTinybird) {
+      const result = await tinybird.analyticsPipe.query({
+        workspace_id: shared.link.workspaceId,
+        date_range: retentionPeriod,
+        // (slug, domain) is unique per link → exact single-link scope.
+        slug: shared.link.slug,
+        domain: shared.link.domain,
+        url: "",
+        country: parsed.data.country_key ?? "",
+        city: parsed.data.city_key ?? "",
+        continent: parsed.data.continent_key ?? "",
+        device: parsed.data.device_key ?? "",
+        browser: parsed.data.browser_key ?? "",
+        os: parsed.data.os_key ?? "",
+        referer: parsed.data.referrer_key ?? "",
+      });
+
+      const rows = (result.data ?? []).map((row) => ({
+        ...row,
+        clicks: Number(row.clicks),
+      }));
+
+      analytics = transformTinybirdAnalytics(
+        rows,
+        SHARE_METRICS,
+        retentionPeriod,
+      );
+    } else {
+      const rawAggregates = await db.analytics.groupBy({
+        by: [
+          "linkId",
+          "clickedAt",
+          "country",
+          "city",
+          "continent",
+          "device",
+          "browser",
+          "os",
+          "referer",
+        ],
+        where: {
+          linkId: shared.link.id,
+          clickedAt: { gte: startDate },
+          ...(parsed.data.country_key
+            ? { country: parsed.data.country_key }
+            : {}),
+          ...(parsed.data.city_key ? { city: parsed.data.city_key } : {}),
+          ...(parsed.data.continent_key
+            ? { continent: parsed.data.continent_key }
+            : {}),
+          ...(parsed.data.device_key ? { device: parsed.data.device_key } : {}),
+          ...(parsed.data.browser_key
+            ? { browser: parsed.data.browser_key }
+            : {}),
+          ...(parsed.data.os_key ? { os: parsed.data.os_key } : {}),
+          ...(parsed.data.referrer_key
+            ? { referer: parsed.data.referrer_key }
+            : {}),
+        },
+        _count: true,
+      });
+
+      const linkClicksMap = new Map<string, number>();
+      for (const entry of rawAggregates) {
+        linkClicksMap.set(
+          entry.linkId,
+          (linkClicksMap.get(entry.linkId) ?? 0) + entry._count,
+        );
+      }
+
+      const aggregationMaps = processAnalyticsData(
+        rawAggregates,
+        timePeriod,
+        links,
+        SHARE_METRICS,
+      );
+      analytics = formatAnalyticsResponse(
+        aggregationMaps,
+        links,
+        linkClicksMap,
+        SHARE_METRICS,
+      ) as unknown as Record<string, unknown>;
+    }
 
     const payload = {
       link: {
