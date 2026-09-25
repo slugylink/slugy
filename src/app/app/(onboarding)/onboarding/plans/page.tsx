@@ -82,11 +82,12 @@ export default async function OnboardingPlansPage({
     userEntitlement?.subscription?.status?.toLowerCase() ?? "";
   const planType = userEntitlement?.subscription?.plan?.planType?.toLowerCase();
   // Only a *paid* entitlement skips the plans page — a Free entitlement
-  // (auto-provisioned) must still let the user choose Pro.
+  // (auto-provisioned) must still let the user choose Pro. Legacy lifetime
+  // Basic counts as paid so those users are never asked to pay again.
   const hasPaidEntitlement = Boolean(
     userEntitlement?.subscription?.id &&
       ["active", "trialing"].includes(subscriptionStatus) &&
-      (planType === "pro" || planType === "business"),
+      (planType === "pro" || planType === "business" || planType === "basic"),
   );
 
   if (hasPaidEntitlement) {

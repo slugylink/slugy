@@ -32,6 +32,12 @@ interface PriceData {
   recurring_interval?: PriceInterval;
 }
 
+interface PolarProduct {
+  id?: string;
+  name?: string;
+  prices?: unknown[];
+}
+
 function transformPrice(price: unknown): TransformedPrice {
   const p = price as PriceData;
 
@@ -51,12 +57,6 @@ function transformPrice(price: unknown): TransformedPrice {
     currency,
     interval,
   };
-}
-
-interface PolarProduct {
-  id?: string;
-  name?: string;
-  prices?: unknown[];
 }
 
 async function listPolarProducts(): Promise<PolarProduct[]> {
@@ -85,6 +85,83 @@ async function listPolarProducts(): Promise<PolarProduct[]> {
   }
 }
 
+/** Polar product name → our plan bucket. */
+function planTypeFromProductName(
+  name?: string,
+): "basic" | "pro" | "business" | null {
+  const normalized = (name ?? "").toLowerCase().trim();
+  if (!normalized) return null;
+  if (normalized.includes("business")) return "business";
+  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("pro")) return "pro";
+  return null;
+}
+
+/**
+ * Sync each plan's Polar price IDs so webhooks can match incoming events
+ * ("Plan not found for price ID"). Matches per product, never mixes tiers.
+ */
+async function syncPlanPriceIds(products: PolarProduct[]): Promise<void> {
+  type Bucket = { monthlyPriceId: string | null; yearlyPriceId: string | null };
+  const byPlanType: Partial<Record<"basic" | "pro" | "business", Bucket>> = {};
+
+  for (const product of products) {
+    const planType = planTypeFromProductName(product.name);
+    if (!planType) continue;
+
+    const bucket: Bucket = byPlanType[planType] ?? {
+      monthlyPriceId: null,
+      yearlyPriceId: null,
+    };
+
+    for (const price of product.prices ?? []) {
+      const raw = price as {
+        id?: string;
+        recurring_interval?: string;
+        recurringInterval?: string;
+      };
+      const id = raw.id ?? "";
+      if (!id) continue;
+      const interval = (raw.recurringInterval ??
+        raw.recurring_interval ??
+        "") as string;
+      if (interval === "month") bucket.monthlyPriceId = id;
+      else if (interval === "year") bucket.yearlyPriceId = id;
+      else if (planType === "basic") {
+        // One-time "forever" Basic product (non-recurring).
+        bucket.monthlyPriceId = bucket.monthlyPriceId ?? id;
+        bucket.yearlyPriceId = bucket.yearlyPriceId ?? id;
+      } else {
+        // Non-recurring paid product → treat as monthly.
+        bucket.monthlyPriceId = bucket.monthlyPriceId ?? id;
+      }
+    }
+
+    byPlanType[planType] = bucket;
+  }
+
+  await Promise.all(
+    (
+      Object.entries(byPlanType) as Array<
+        ["basic" | "pro" | "business", Bucket]
+      >
+    ).map(async ([planType, bucket]) => {
+      if (!bucket.monthlyPriceId && !bucket.yearlyPriceId) return;
+      const plan = await db.plan.findFirst({ where: { planType } });
+      if (!plan) return;
+      await db.plan.update({
+        where: { id: plan.id },
+        data: {
+          ...(bucket.monthlyPriceId && {
+            monthlyPriceId: bucket.monthlyPriceId,
+          }),
+          ...(bucket.yearlyPriceId && { yearlyPriceId: bucket.yearlyPriceId }),
+        },
+      });
+    }),
+  );
+}
+
 export default async function Upgrade({
   params,
 }: {
@@ -103,46 +180,18 @@ export default async function Upgrade({
       : null;
   const hasActiveSubscription =
     billingResult.data?.subscription?.hasActiveSubscription === true;
-  const currentPlanType =
-    hasActiveSubscription && (planType === "basic" || planType === "pro")
-      ? planType
-      : null;
-  const isPaidPlan = currentPlanType === "pro";
 
-  // Sync Pro plan price IDs from Polar so webhooks can match (Plan not found for price ID)
-  let monthlyPriceId: string | null = null;
-  let yearlyPriceId: string | null = null;
-  for (const product of items) {
-    for (const price of product.prices ?? []) {
-      const raw = price as {
-        id?: string;
-        recurring_interval?: string;
-        recurringInterval?: string;
-      };
-      const id = raw.id ?? "";
-      const interval = (raw.recurringInterval ??
-        raw.recurring_interval ??
-        "") as string;
-      if (!id) continue;
-      if (interval === "month") monthlyPriceId = id;
-      if (interval === "year") yearlyPriceId = id;
-    }
-  }
-  if (monthlyPriceId || yearlyPriceId) {
-    try {
-      const pro = await db.plan.findFirst({ where: { planType: "pro" } });
-      if (pro) {
-        await db.plan.update({
-          where: { id: pro.id },
-          data: {
-            ...(monthlyPriceId && { monthlyPriceId }),
-            ...(yearlyPriceId && { yearlyPriceId }),
-          },
-        });
-      }
-    } catch (error) {
-      console.error("Failed to sync Pro price IDs:", error);
-    }
+  const PAID_PLANS = new Set(["pro", "business"]);
+  const currentPlanType: "free" | "basic" | "pro" | "business" | null =
+    hasActiveSubscription && planType
+      ? (planType as "free" | "basic" | "pro" | "business")
+      : "free";
+  const isPaidPlan = currentPlanType ? PAID_PLANS.has(currentPlanType) : false;
+
+  try {
+    await syncPlanPriceIds(items);
+  } catch (error) {
+    console.error("Failed to sync plan price IDs:", error);
   }
 
   const productData: TransformedProduct[] = items.map((product) => ({

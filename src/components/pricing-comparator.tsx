@@ -132,11 +132,6 @@ function PriceHeader({
         <PromoPrice price={price} promoPrice={promoPrice} />
       </span>
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
-      {promoPrice != null && (
-        <span className="text-primary block text-xs font-medium">
-          {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off first month
-        </span>
-      )}
       <Button asChild variant={buttonVariant} size="sm">
         <Link href={buttonUrl}>{buttonText}</Link>
       </Button>

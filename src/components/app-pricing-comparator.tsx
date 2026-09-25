@@ -2,20 +2,17 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import NumberFlow from "@number-flow/react";
 import { PromoPrice } from "@/components/promo-price";
 import { Check } from "lucide-react";
 
 import {
-  BASIC_PLAN,
-  PRO_PLAN,
-  PRICING_COMPARISON_FEATURES,
+  plans,
   PRICING_COPY,
-  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
+  type Plan,
   type PricingFeatureValue,
 } from "@/constants/data/price";
 import { Button } from "@/components/ui/button";
@@ -25,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
 type PriceInterval = "month" | "year" | null;
+type PaidPlanType = "pro" | "business";
 
 interface ProductPrice {
   id: string;
@@ -43,61 +41,56 @@ interface PricingComparatorProps {
   products?: ProductData[];
   workspace?: string;
   isPaidPlan?: boolean;
-  currentPlanType?: "basic" | "pro" | null;
+  currentPlanType?: "free" | "basic" | "pro" | "business" | null;
   successUrlPath?: string;
 }
 
-function getPlanTypeFromProductName(name?: string): "basic" | "pro" | null {
+/** Product name → paid plan bucket (Polar products). */
+function getPlanTypeFromProductName(name?: string): PaidPlanType | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
-  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("business")) return "business";
   if (normalized.includes("pro")) return "pro";
   return null;
 }
 
+/**
+ * Resolve the Polar product IDs to send to checkout for a paid plan.
+ * Prefers the plan's configured price ID, then falls back to matching the
+ * Polar product name + billing interval.
+ */
 function getProductIdsByPlanType(
-  planType: "basic" | "pro",
+  planType: PaidPlanType,
   products?: ProductData[],
   billing: BillingPeriod = "monthly",
 ): string[] {
-  if (planType === "basic") {
-    const basicFromPolar =
-      products
-        ?.filter((p) => getPlanTypeFromProductName(p.name) === "basic")
-        .map((p) => p.id)
-        .filter(Boolean) ?? [];
-    if (basicFromPolar.length > 0) return basicFromPolar;
-    return [BASIC_PLAN.monthlyPriceId].filter(Boolean);
-  }
-
-  const priceId =
-    billing === "yearly" ? PRO_PLAN.yearlyPriceId : PRO_PLAN.monthlyPriceId;
-  if (priceId) return [priceId];
+  const plan = plans.find((p) => p.planType === planType);
+  const configured =
+    billing === "yearly" ? plan?.yearlyPriceId : plan?.monthlyPriceId;
+  if (configured) return [configured];
 
   const interval = billing === "yearly" ? "year" : "month";
   return (
     products
       ?.filter((product) => {
-        if (getPlanTypeFromProductName(product.name) !== "pro") return false;
-        return product.prices.some((price) => price.interval === interval);
+        if (getPlanTypeFromProductName(product.name) !== planType) return false;
+        return product.prices.some(
+          (price) => price.interval === interval || price.interval === null,
+        );
       })
       .map((product) => product.id)
       .filter(Boolean) ?? []
   );
 }
 
-function buildProCtaUrl(
+function buildCheckoutUrl(
+  planType: PaidPlanType,
   products?: ProductData[],
   workspace?: string,
-  isPaidPlan?: boolean,
   successUrlPath?: string,
   billing: BillingPeriod = "monthly",
 ): string {
-  if (isPaidPlan && workspace) {
-    return `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`;
-  }
-
-  const productIds = getProductIdsByPlanType("pro", products, billing);
+  const productIds = getProductIdsByPlanType(planType, products, billing);
   if (productIds.length === 0) return CHECKOUT_BASE_URL;
 
   const params = new URLSearchParams();
@@ -113,53 +106,80 @@ function buildProCtaUrl(
   return `${CHECKOUT_BASE_URL}?${params.toString()}`;
 }
 
-function buildBasicCtaUrl(
-  products?: ProductData[],
-  workspace?: string,
-  successUrlPath?: string,
-): string {
-  if (!workspace) return PRICING_COPY.loginUrl;
-
-  const productIds = getProductIdsByPlanType("basic", products);
-  if (productIds.length === 0) return CHECKOUT_BASE_URL;
-
-  const params = new URLSearchParams();
-  params.set("products", productIds.join(","));
-  if (successUrlPath) {
-    params.set("successUrl", successUrlPath);
-  } else {
-    params.set("successUrl", `/${workspace}/settings/billing`);
-  }
-
-  return `${CHECKOUT_BASE_URL}?${params.toString()}`;
+function manageUrl(workspace?: string): string {
+  return workspace
+    ? `${MANAGE_BASE_URL}?returnUrl=${encodeURIComponent(`/${workspace}/settings/billing`)}`
+    : MANAGE_BASE_URL;
 }
 
-function PlanCtaButton({
-  href,
-  label,
-  isCurrent,
-  variant,
+function PlanCta({
+  plan,
+  currentPlanType,
+  products,
+  workspace,
+  successUrlPath,
+  billing,
   className,
 }: {
-  href: string;
-  label: string;
-  isCurrent: boolean;
-  variant: "outline" | "default";
+  plan: Plan;
+  currentPlanType: PricingComparatorProps["currentPlanType"];
+  products?: ProductData[];
+  workspace?: string;
+  successUrlPath?: string;
+  billing: BillingPeriod;
   className?: string;
 }) {
-  if (isCurrent) {
+  const isCurrent = currentPlanType === plan.planType;
+
+  if (plan.planType === "free") {
     return (
       <Button variant="outline" size="sm" className={className} disabled>
-        Currently active
+        {isCurrent ? "Currently active" : "Included"}
       </Button>
     );
   }
 
+  if (isCurrent) {
+    return (
+      <Button asChild variant="outline" size="sm" className={className}>
+        <Link href={manageUrl(workspace)}>Manage</Link>
+      </Button>
+    );
+  }
+
+  // `plans` only contains free/pro/business; guard for legacy "basic".
+  if (plan.planType !== "pro" && plan.planType !== "business") {
+    return (
+      <Button variant="outline" size="sm" className={className} disabled>
+        Unavailable
+      </Button>
+    );
+  }
+
+  const href = buildCheckoutUrl(
+    plan.planType,
+    products,
+    workspace,
+    successUrlPath,
+    billing,
+  );
+
   return (
-    <Button asChild variant={variant} size="sm" className={className}>
-      <Link href={href}>{label}</Link>
+    <Button
+      asChild
+      variant={plan.isRecommended ? "default" : "outline"}
+      size="sm"
+      className={className}
+    >
+      <Link href={href}>{plan.buttonLabel}</Link>
     </Button>
   );
+}
+
+function formatClicks(clicks: number): string {
+  if (clicks < 1000) return `${clicks} clicks`;
+  const value = clicks / 1000;
+  return `${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(1)}k clicks`;
 }
 
 function FeatureCell({ value }: { value: PricingFeatureValue }) {
@@ -181,27 +201,45 @@ export default function AppPricingComparator({
   successUrlPath,
 }: PricingComparatorProps) {
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
-  const isBasicCurrent = currentPlanType === "basic";
-  const isProCurrent = currentPlanType === "pro" || Boolean(isPaidPlan);
 
-  const features = PRICING_COMPARISON_FEATURES;
-  const proPrice = getPlanPrice(PRO_PLAN, billingPeriod);
-  const proPromoPrice = getPlanPromoPrice(PRO_PLAN, billingPeriod);
-  const proSubtitle = getPlanPriceSubtitle(PRO_PLAN, billingPeriod);
-  const proCtaUrl = useMemo(
-    () =>
-      buildProCtaUrl(
-        products,
-        workspace,
-        isPaidPlan,
-        successUrlPath,
-        billingPeriod,
-      ),
-    [products, workspace, isPaidPlan, successUrlPath, billingPeriod],
+  // A paid plan (legacy flag) always counts as Pro at minimum.
+  const activePlan: PricingComparatorProps["currentPlanType"] =
+    currentPlanType ?? (isPaidPlan ? "pro" : "free");
+
+  const highlightIndex = Math.max(
+    0,
+    plans.findIndex((p) => p.isRecommended),
   );
-  const basicCtaUrl = useMemo(
-    () => buildBasicCtaUrl(products, workspace, successUrlPath),
-    [products, workspace, successUrlPath],
+
+  const compareRows = useMemo(
+    () => [
+      { feature: "Workspaces", get: (p: Plan) => p.maxWorkspaces },
+      {
+        feature: "Links",
+        get: (p: Plan) => `${p.maxLinksPerWorkspace} new / month`,
+      },
+      {
+        feature: "Tracked clicks",
+        get: (p: Plan) => formatClicks(p.maxClicksPerWorkspace),
+      },
+      {
+        feature: "Analytics Retention",
+        get: (p: Plan) => p.analyticsRetention,
+      },
+      { feature: "Bio Links", get: (p: Plan) => p.maxBioLinks },
+      { feature: "Link Tags", get: (p: Plan) => p.maxLinkTags },
+      { feature: "Custom Domains", get: (p: Plan) => p.maxCustomDomains },
+      { feature: "Team members", get: (p: Plan) => p.maxUsers },
+      { feature: "UTM Templates", get: (p: Plan) => p.maxUTM },
+      {
+        feature: "Custom Link Preview",
+        get: (p: Plan) => p.customizeLinkPreview,
+      },
+      { feature: "Link Expiration", get: (p: Plan) => p.linkExp },
+      { feature: "Password Protection", get: (p: Plan) => p.linkPassword },
+      { feature: "Geo Targeting", get: (p: Plan) => p.linkGeoTargeting },
+    ],
+    [],
   );
 
   return (
@@ -214,6 +252,7 @@ export default function AppPricingComparator({
           </span>{" "}
           {PRICING_COPY.promoSuffix}
         </p>
+
         <div className="mb-6 flex justify-center pt-3 sm:mb-8">
           <Tabs
             value={billingPeriod}
@@ -236,150 +275,152 @@ export default function AppPricingComparator({
           </Tabs>
         </div>
 
-        <div className="space-y-4 md:hidden">
-          <div className="grid gap-3">
-            <div className="rounded-lg border p-4">
-              <p className="font-medium">{BASIC_PLAN.name}</p>
+        {/* Mobile: stacked cards */}
+        <div className="grid gap-4 md:hidden">
+          {plans.map((plan) => (
+            <div
+              key={plan.planType}
+              className={
+                plan.isRecommended
+                  ? "bg-muted rounded-lg border p-4"
+                  : "rounded-lg border p-4"
+              }
+            >
+              <div className="flex items-center gap-2">
+                <p className="font-medium">{plan.name}</p>
+                {plan.isRecommended && (
+                  <Badge className="bg-orange-200 px-2 py-0 text-[10px] font-semibold tracking-wide text-orange-900 uppercase hover:bg-orange-200">
+                    Best value
+                  </Badge>
+                )}
+              </div>
               <p className="mt-1 text-2xl font-medium">
-                <NumberFlow
-                  value={BASIC_PLAN.monthlyPrice}
-                  locales="en-US"
-                  format={PRICING_CURRENCY_FORMAT}
+                <PromoPrice
+                  price={getPlanPrice(plan, billingPeriod)}
+                  promoPrice={getPlanPromoPrice(plan, billingPeriod)}
                 />
+                <span className="text-muted-foreground ml-1 text-sm font-normal">
+                  {getPlanPriceSubtitle(plan, billingPeriod) === "Forever"
+                    ? ""
+                    : getPlanPriceSubtitle(plan, billingPeriod)}
+                </span>
               </p>
-              <p className="text-muted-foreground text-xs">
-                {getPlanPriceSubtitle(BASIC_PLAN, billingPeriod)}
-              </p>
-              <PlanCtaButton
-                href={basicCtaUrl}
-                label={BASIC_PLAN.buttonLabel}
-                isCurrent={isBasicCurrent}
-                variant="outline"
-                className="mt-3 w-full"
+              <ul className="mt-3 space-y-1.5">
+                {plan.features.slice(0, 6).map((feat) => (
+                  <li key={feat} className="flex items-start gap-2 text-sm">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{feat}</span>
+                  </li>
+                ))}
+              </ul>
+              <PlanCta
+                plan={plan}
+                currentPlanType={activePlan}
+                products={products}
+                workspace={workspace}
+                successUrlPath={successUrlPath}
+                billing={billingPeriod}
+                className="mt-4 w-full"
               />
             </div>
-
-            <div className="bg-muted rounded-lg border p-4">
-              <p className="font-medium">{PRO_PLAN.name}</p>
-              <p className="mt-1 text-2xl font-medium">
-                <PromoPrice price={proPrice} promoPrice={proPromoPrice} />
-              </p>
-              <p className="text-muted-foreground text-xs">{proSubtitle}</p>
-              {proPromoPrice != null && (
-                <p className="text-primary mt-1 text-xs font-medium">
-                  {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
-                  first month
-                </p>
-              )}
-              <PlanCtaButton
-                href={proCtaUrl}
-                label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}
-                isCurrent={false}
-                variant={isProCurrent ? "outline" : "default"}
-                className="mt-3 w-full"
-              />
-            </div>
-          </div>
-
-          <div className="rounded-lg border">
-            <div className="border-b px-4 py-3 font-medium">Features</div>
-            <div className="divide-y">
-              {features.map((feature) => (
-                <div
-                  key={feature.feature}
-                  className="space-y-2 px-4 py-3 text-sm"
-                >
-                  <p className="text-muted-foreground">{feature.feature}</p>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="rounded-md border px-2 py-1">
-                      <span className="text-muted-foreground mr-1">Basic:</span>
-                      <FeatureCell value={feature.basic} />
-                    </div>
-                    <div className="rounded-md border px-2 py-1">
-                      <span className="text-muted-foreground mr-1">Pro:</span>
-                      <FeatureCell value={feature.pro} />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
 
+        {/* Desktop: comparison table */}
         <div className="hidden w-full overflow-auto md:block lg:overflow-visible">
-          <table className="w-full border-separate border-spacing-x-3 md:w-full dark:[--color-muted:var(--color-zinc-900)]">
+          <table className="w-full border-separate border-spacing-x-3 dark:[--color-muted:var(--color-zinc-900)]">
             <thead className="bg-background sticky top-0">
               <tr className="*:py-4 *:text-left *:font-medium">
-                <th className="lg:w-2/5" />
-                <th className="space-y-3 bg-white">
-                  <span className="block">{BASIC_PLAN.name}</span>
-                  <span className="block text-2xl font-medium">
-                    <NumberFlow
-                      value={BASIC_PLAN.monthlyPrice}
-                      locales="en-US"
-                      format={PRICING_CURRENCY_FORMAT}
-                    />
-                  </span>
-                  <span className="text-muted-foreground block text-xs">
-                    {getPlanPriceSubtitle(BASIC_PLAN, billingPeriod)}
-                  </span>
-                  <PlanCtaButton
-                    href={basicCtaUrl}
-                    label={BASIC_PLAN.buttonLabel}
-                    isCurrent={isBasicCurrent}
-                    variant="outline"
-                  />
-                </th>
-
-                <th className="bg-muted space-y-2 rounded-t-(--radius) px-4">
-                  <span className="block">{PRO_PLAN.name}</span>
-                  <span className="block text-2xl font-medium">
-                    <PromoPrice price={proPrice} promoPrice={proPromoPrice} />
-                  </span>
-                  <span className="text-muted-foreground block text-sm">
-                    {proSubtitle}
-                  </span>
-                  {proPromoPrice != null && (
-                    <span className="text-primary block text-xs font-medium">
-                      {PRICING_COPY.promoCode} · ${PRICING_COPY.promoAmount} off
-                      first month
+                <th className="lg:w-1/4" />
+                {plans.map((plan, i) => (
+                  <th
+                    key={plan.planType}
+                    className={
+                      i === highlightIndex
+                        ? "bg-muted space-y-3 rounded-t-(--radius) px-4"
+                        : "space-y-3 bg-white px-2"
+                    }
+                  >
+                    <span className="flex items-center gap-2">
+                      {plan.name}
+                      {plan.isRecommended && (
+                        <Badge className="bg-orange-200 px-2 py-0 text-[10px] font-semibold tracking-wide text-orange-900 uppercase hover:bg-orange-200">
+                          Best value
+                        </Badge>
+                      )}
                     </span>
-                  )}
-                  <PlanCtaButton
-                    href={proCtaUrl}
-                    label={isProCurrent ? "Manage" : PRO_PLAN.buttonLabel}
-                    isCurrent={false}
-                    variant={isProCurrent ? "outline" : "default"}
-                  />
-                </th>
+                    <span className="block text-2xl font-medium">
+                      <PromoPrice
+                        price={getPlanPrice(plan, billingPeriod)}
+                        promoPrice={getPlanPromoPrice(plan, billingPeriod)}
+                      />
+                    </span>
+                    <span className="text-muted-foreground block text-xs">
+                      {getPlanPriceSubtitle(plan, billingPeriod)}
+                    </span>
+                    <PlanCta
+                      plan={plan}
+                      currentPlanType={activePlan}
+                      products={products}
+                      workspace={workspace}
+                      successUrlPath={successUrlPath}
+                      billing={billingPeriod}
+                    />
+                  </th>
+                ))}
               </tr>
             </thead>
 
             <tbody className="text-caption text-sm">
               <tr className="*:py-3">
                 <td className="font-medium">Features</td>
-                <td />
-                <td className="bg-muted border-none px-4" />
+                {plans.map((plan, i) => (
+                  <td
+                    key={plan.planType}
+                    className={
+                      i === highlightIndex
+                        ? "bg-muted border-none px-4"
+                        : undefined
+                    }
+                  />
+                ))}
               </tr>
 
-              {features.map((feature) => (
-                <tr key={feature.feature} className="*:border-b *:py-3">
-                  <td className="text-muted-foreground">{feature.feature}</td>
-                  <td>
-                    <FeatureCell value={feature.basic} />
-                  </td>
-                  <td className="bg-muted border-none px-4">
-                    <div className="-mb-3 border-b py-3">
-                      <FeatureCell value={feature.pro} />
-                    </div>
-                  </td>
+              {compareRows.map((row) => (
+                <tr key={row.feature} className="*:border-b *:py-3">
+                  <td className="text-muted-foreground">{row.feature}</td>
+                  {plans.map((plan, i) => {
+                    const value = row.get(plan);
+                    return i === highlightIndex ? (
+                      <td
+                        key={plan.planType}
+                        className="bg-muted border-none px-4"
+                      >
+                        <div className="-mb-3 border-b py-3">
+                          <FeatureCell value={value} />
+                        </div>
+                      </td>
+                    ) : (
+                      <td key={plan.planType} className="px-2">
+                        <FeatureCell value={value} />
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
 
               <tr className="*:py-6">
                 <td />
-                <td />
-                <td className="bg-muted rounded-b-(--radius) border-none px-4" />
+                {plans.map((plan, i) => (
+                  <td
+                    key={plan.planType}
+                    className={
+                      i === highlightIndex
+                        ? "bg-muted rounded-b-(--radius) border-none px-4"
+                        : undefined
+                    }
+                  />
+                ))}
               </tr>
             </tbody>
           </table>

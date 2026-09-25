@@ -1,4 +1,4 @@
-import { BASIC_PLAN, PRICING_COPY, PRO_PLAN } from "@/constants/data/price";
+import { PRICING_COPY, PRO_PLAN } from "@/constants/data/price";
 import { polarClient } from "@/lib/polar";
 
 let cachedDiscountId: string | null | undefined;
@@ -54,30 +54,21 @@ export async function resolvePromoDiscountId(): Promise<string | undefined> {
   }
 }
 
+/**
+ * The GETPRO promo is "$3 off your first month of Pro" — it must only apply
+ * to the Pro monthly product, never yearly or other tiers.
+ */
 export function shouldApplyCheckoutPromo(
   productIds: string[],
   billing?: string | null,
 ): boolean {
-  if (billing === "yearly") return false;
+  if (billing !== "monthly") return false;
+  if (productIds.length === 0) return false;
 
-  const basicIds = new Set(
-    [BASIC_PLAN.monthlyPriceId, BASIC_PLAN.yearlyPriceId].filter(Boolean),
-  );
   const monthlyProId = PRO_PLAN.monthlyPriceId;
-  const yearlyProId = PRO_PLAN.yearlyPriceId;
+  // If we know the Pro monthly price ID, require it explicitly.
+  if (monthlyProId) return productIds.includes(monthlyProId);
 
-  if (productIds.length > 0 && productIds.every((id) => basicIds.has(id))) {
-    return false;
-  }
-
-  if (
-    yearlyProId &&
-    productIds.includes(yearlyProId) &&
-    (!monthlyProId || !productIds.includes(monthlyProId))
-  ) {
-    return false;
-  }
-
-  if (billing === "monthly") return productIds.length > 0;
-  return Boolean(monthlyProId && productIds.includes(monthlyProId));
+  // Otherwise fall back to any monthly checkout (matched by name upstream).
+  return true;
 }
