@@ -224,8 +224,14 @@ export const PRO_PLAN: Plan = {
     "Perfect for individuals and small teams who need advanced features.",
   monthlyPrice: PRO_MONTHLY_PRICE,
   yearlyPrice: PRO_YEARLY_PRICE,
-  monthlyPriceId: process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID || "",
-  yearlyPriceId: process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID || "",
+  monthlyPriceId:
+    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRICE_ID ||
+    process.env.NEXT_PUBLIC_PRO_MONTHLY_PRODUCT_ID ||
+    "",
+  yearlyPriceId:
+    process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID ||
+    process.env.NEXT_PUBLIC_PRO_YEARLY_PRODUCT_ID ||
+    "",
   isRecommended: true,
   buttonLabel: "Get Pro",
   isReady: true,

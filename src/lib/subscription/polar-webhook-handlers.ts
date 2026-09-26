@@ -13,6 +13,7 @@ import {
   syncSubscriptionFromPolar,
   hasForeverDiscount,
   isLifetimeBillingPeriod,
+  getPlanTypeByProductName,
 } from "@/lib/subscription/reconcile";
 
 export const LOG_PREFIX = "[Polar]";
@@ -35,8 +36,10 @@ type PolarSubscription = {
   customerId?: string;
   customer_id?: string;
   priceId?: string;
-  prices?: { id?: string }[];
-  product?: { name?: string; prices?: { id?: string }[] };
+  prices?: { id?: string; productId?: string }[];
+  productId?: string;
+  product_id?: string;
+  product?: { id?: string; name?: string; prices?: { id?: string }[] };
   currentPeriodStart?: string;
   current_period_start?: string;
   currentPeriodEnd?: string;
@@ -98,14 +101,28 @@ async function findPlanByPriceId(priceId: string) {
   return plans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
 
-function getPlanTypeByProductName(
-  name?: string,
-): "basic" | "pro" | "business" | null {
-  const normalized = (name ?? "").toLowerCase().trim();
-  if (!normalized) return null;
-  if (normalized.includes("basic")) return "basic";
-  if (normalized.includes("business")) return "business";
-  if (normalized.includes("pro")) return "pro";
+/**
+ * Resolve the DB plan for a Polar subscription. Prefers the price id mapping
+ * (with an on-demand Polar price sync), then falls back to the product name —
+ * this is what keeps webhooks working when stored price IDs are stale or the
+ * checkout was created from a product id.
+ */
+async function resolvePlanForSubscription(
+  sub: PolarSubscription,
+): Promise<Awaited<ReturnType<typeof db.plan.findFirst>> | null> {
+  const priceId = getPriceId(sub);
+  if (priceId) {
+    const byPrice = await findPlanByPriceIdWithSync(priceId);
+    if (byPrice) return byPrice;
+  }
+
+  const productName = sub.product?.name;
+  const planType = getPlanTypeByProductName(productName);
+  if (planType) {
+    const plan = await db.plan.findFirst({ where: { planType } });
+    if (plan) return plan;
+  }
+
   return null;
 }
 
@@ -450,13 +467,11 @@ async function handleOrderPaid(order: PolarOrder) {
     }
   }
 
-  if (
-    !existing ||
-    (existing.plan.planType !== "pro" && existing.plan.planType !== "business")
-  )
-    return;
+  if (!existing) return;
 
-  if (!existing.subscriptionId) {
+  // Point the local row at the freshly paid subscription before syncing so we
+  // never re-read a stale (possibly canceled) subscription id.
+  if (existing.subscriptionId !== subscriptionId) {
     await db.subscription.update({
       where: { id: existing.id },
       data: { subscriptionId },
@@ -475,21 +490,19 @@ async function handleSubscriptionCreated(sub: PolarSubscription) {
     console.error(`${LOG_PREFIX} No user ID in subscription metadata`);
     return;
   }
-  const priceId = getPriceId(sub);
-  if (!priceId) {
-    console.error(`${LOG_PREFIX} No price ID in subscription`);
-    return;
-  }
-  const plan = await findPlanByPriceIdWithSync(priceId);
+  const plan = await resolvePlanForSubscription(sub);
   if (!plan) {
     console.error(
-      `${LOG_PREFIX} Plan not found for price ID:`,
-      priceId,
+      `${LOG_PREFIX} Plan not found for subscription:`,
+      sub.id,
+      "Price:",
+      getPriceId(sub),
       "Product:",
       sub.product?.name,
     );
     return;
   }
+  const priceId = getPriceId(sub) ?? plan.monthlyPriceId ?? "";
   const fields = getSubscriptionFields(sub);
   const periodStart = fields.periodStart ?? new Date();
   const periodEnd = getNormalizedPeriodEnd(
@@ -601,15 +614,18 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
   }
 
   const priceId = getPriceId(sub);
-  let updatedPlan: Awaited<ReturnType<typeof findPlanByPriceId>> = null;
-  if (priceId && priceId !== existing.priceId) {
-    updatedPlan = await findPlanByPriceIdWithSync(priceId);
-  }
+  const resolvedSubscriptionPlan = await resolvePlanForSubscription(sub);
+  const existingPlanType = existing.plan.planType?.toLowerCase();
+  const resolvedPlanType = resolvedSubscriptionPlan?.planType?.toLowerCase();
+  const planChanged =
+    Boolean(resolvedSubscriptionPlan) && resolvedPlanType !== existingPlanType;
+  const updatedPlan = planChanged ? resolvedSubscriptionPlan : null;
 
   const updateData: Record<string, unknown> = {
     status: access.status,
     cancelAtPeriodEnd: access.cancelAtPeriodEnd,
-    ...(updatedPlan && { planId: updatedPlan.id, priceId }),
+    ...(updatedPlan && { planId: updatedPlan.id }),
+    ...(updatedPlan && priceId ? { priceId } : {}),
   };
   const resolvedPlan =
     updatedPlan ??
@@ -651,14 +667,14 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
       console.error(`${LOG_PREFIX} Cannot create subscription - no user ID`);
       return;
     }
-    const priceId = getPriceId(sub);
-    if (!priceId) {
-      console.error(`${LOG_PREFIX} Cannot create subscription - no price ID`);
-      return;
-    }
-    const plan = await findPlanByPriceIdWithSync(priceId);
+    const plan = await resolvePlanForSubscription(sub);
     if (!plan) {
-      console.error(`${LOG_PREFIX} Plan not found for price:`, priceId);
+      console.error(
+        `${LOG_PREFIX} Cannot create subscription - plan not found for price:`,
+        getPriceId(sub),
+        "product:",
+        sub.product?.name,
+      );
       return;
     }
     const fields = getSubscriptionFields(sub);
@@ -673,7 +689,7 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
       data: {
         referenceId: userId,
         planId: plan.id,
-        priceId,
+        priceId: getPriceId(sub) ?? plan.monthlyPriceId ?? undefined,
         subscriptionId: sub.id,
         customerId: fields.customerId ?? undefined,
         status: "active",
@@ -695,13 +711,10 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
     if (fields.periodStart) updateData.periodStart = fields.periodStart;
     if (fields.periodEnd) updateData.periodEnd = fields.periodEnd;
     const priceId = getPriceId(sub);
-    let plan: Awaited<ReturnType<typeof findPlanByPriceIdWithSync>> = null;
-    if (priceId) {
-      plan = await findPlanByPriceIdWithSync(priceId);
-      if (plan) {
-        updateData.planId = plan.id;
-        updateData.priceId = priceId;
-      }
+    const plan = await resolvePlanForSubscription(sub);
+    if (plan) {
+      updateData.planId = plan.id;
+      if (priceId) updateData.priceId = priceId;
     }
     await db.subscription.update({
       where: { id: existing.id },

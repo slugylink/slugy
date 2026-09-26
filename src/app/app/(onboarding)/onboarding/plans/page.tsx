@@ -5,6 +5,7 @@ import { polarClient } from "@/lib/polar";
 import AppPricingComparator from "@/components/app-pricing-comparator";
 import ContinueFreeButton from "./continue-free-button";
 import { db } from "@/server/db";
+import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
 
 type PriceInterval = "month" | "year" | null;
 
@@ -64,6 +65,9 @@ export default async function OnboardingPlansPage({
   if (!workspace?.trim()) {
     redirect("/onboarding/create-workspace");
   }
+
+  // Heal a missed checkout webhook before deciding whether to ask for payment.
+  await reconcileUserEntitlement(session.user.id);
 
   const userEntitlement = await db.user.findUnique({
     where: { id: session.user.id },

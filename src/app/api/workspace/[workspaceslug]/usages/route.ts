@@ -2,6 +2,7 @@ import { jsonWithETag } from "@/lib/http";
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
+import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
 
 // ============================================================================
 // Types
@@ -128,6 +129,8 @@ export async function GET(
     }
 
     // Usage + subscription are workspace-scoped → use the owner's record.
+    await reconcileUserEntitlement(workspace.userId);
+
     const [usage, subscription] = await Promise.all([
       getUsageData(workspaceslug, workspace.userId),
       getSubscriptionData(workspace.userId),

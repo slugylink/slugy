@@ -1,8 +1,11 @@
-import { Interval, Prisma } from "@prisma/client";
+import { Interval, PlanType, Prisma } from "@prisma/client";
 
 import { polarClient } from "@/lib/polar";
 import { downgradeToBasicLimits } from "@/lib/subscription/basic-entitlement";
-import { syncUserLimits } from "@/lib/subscription/limits-sync";
+import {
+  revalidateSubscriptionCache,
+  syncUserLimits,
+} from "@/lib/subscription/limits-sync";
 import { db } from "@/server/db";
 
 const subscriptionPlanSelect = {
@@ -55,10 +58,23 @@ type PolarSubscriptionSnapshot = {
   canceledAt: Date | null;
   recurringInterval: string;
   prices: { id?: string }[];
+  productName?: string;
   hasForeverDiscount: boolean;
 };
 
 const LIFETIME_PERIOD_YEARS = 100;
+
+/** Polar product names are "Pro [monthly]" / "Business" / "Basic [yearly]"… */
+export function getPlanTypeByProductName(
+  name?: string | null,
+): "basic" | "pro" | "business" | null {
+  const normalized = (name ?? "").toLowerCase().trim();
+  if (!normalized) return null;
+  if (normalized.includes("business")) return "business";
+  if (normalized.includes("basic")) return "basic";
+  if (normalized.includes("pro")) return "pro";
+  return null;
+}
 
 function coercePolarDate(value: unknown): Date | undefined {
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -181,6 +197,7 @@ function toPolarSnapshot(
     canceledAt: coercePolarDate(remote.canceledAt) ?? null,
     recurringInterval: remote.recurringInterval,
     prices: remote.prices,
+    productName: remote.product?.name,
     hasForeverDiscount: hasForeverDiscount(remote),
   };
 }
@@ -274,6 +291,26 @@ export async function syncSubscriptionFromPolar(
     }
   }
 
+  // Price mapping didn't identify a paid plan (stale/empty price IDs) — fall
+  // back to the Polar product name so we never strand a paying customer.
+  const currentPlanType = subscription.plan.planType?.toLowerCase();
+  if (
+    (currentPlanType === "free" || currentPlanType === "basic") &&
+    remote.productName
+  ) {
+    const byName = getPlanTypeByProductName(remote.productName);
+    if (byName && byName !== "basic") {
+      const namePlan = await db.plan.findFirst({
+        where: { planType: byName },
+        select: { id: true, planType: true },
+      });
+      if (namePlan) {
+        nextPlanId = namePlan.id;
+        nextPlanType = namePlan.planType;
+      }
+    }
+  }
+
   if (remoteStatus === "inactive") {
     await downgradeToBasicLimits({
       subscriptionId: subscription.id,
@@ -312,13 +349,221 @@ export function isLifetimeBillingPeriod(
   periodEnd: Date | null | undefined,
 ): boolean {
   const normalized = planType?.toLowerCase();
-  if (normalized === "basic" || normalized === "free") return true;
+  // Basic is a one-time lifetime entitlement.
+  if (normalized === "basic") return true;
+  // Free is NOT a paid entitlement — it just has a far-future period so the
+  // row never expires. Treating it as "lifetime" leaked the "(discounted Pro)"
+  // label and skipped downgrade logic.
+  if (!normalized || normalized === "free") return false;
   if (!periodStart || !periodEnd) return false;
 
   const years =
     (periodEnd.getTime() - periodStart.getTime()) /
     (365.25 * 24 * 60 * 60 * 1000);
   return years >= LIFETIME_PERIOD_YEARS - 1;
+}
+
+/** Extract the active price id attached to a Polar subscription, if any. */
+function getRemotePriceId(remote: PolarSubscriptionRemote): string | null {
+  return remote.prices?.find((price) => Boolean(price.id))?.id ?? null;
+}
+
+/**
+ * Map a Polar subscription to a DB plan. Prefers the price id mapping, then
+ * falls back to the product name (e.g. "Pro [monthly]" → pro). The fallback
+ * is what recovers subscriptions when stored plan price IDs are stale/wrong.
+ */
+async function resolvePlanFromRemote(
+  remote: PolarSubscriptionRemote,
+): Promise<{ id: string; planType: string } | null> {
+  const priceId = getRemotePriceId(remote);
+  if (priceId) {
+    const byPrice = await db.plan.findFirst({
+      where: { OR: [{ monthlyPriceId: priceId }, { yearlyPriceId: priceId }] },
+      select: { id: true, planType: true },
+    });
+    if (byPrice) return byPrice;
+  }
+
+  const planType = getPlanTypeByProductName(remote.product?.name);
+  if (!planType) return null;
+  return db.plan.findFirst({
+    where: { planType },
+    select: { id: true, planType: true },
+  });
+}
+
+async function fetchBestActiveSubscription(
+  customerId: string,
+): Promise<PolarSubscriptionRemote | null> {
+  try {
+    const iterator = await polarClient.subscriptions.list({
+      customerId,
+      limit: 20,
+    });
+
+    const collected: PolarSubscriptionRemote[] = [];
+    for await (const page of iterator) {
+      collected.push(...(page.result?.items ?? []));
+    }
+
+    return pickBestPolarSubscription(collected);
+  } catch (error) {
+    console.warn("[Subscription Reconcile] Entitlement lookup failed:", {
+      customerId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return null;
+  }
+}
+
+/** Find the Polar customer tied to our user id (checkout sets externalId). */
+async function fetchCustomerIdByExternalId(
+  userId: string,
+): Promise<string | null> {
+  try {
+    const customer = await polarClient.customers.getExternal({
+      externalId: userId,
+    });
+    return customer?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+const ENTITLEMENT_RECONCILE_TTL_MS = 60 * 1000;
+const entitlementReconcileAttempts = new Map<string, number>();
+
+/**
+ * Upgrade-only self-healing entitlement reconcile. If the stored entitlement
+ * is Free / missing / expired but Polar has an active paid subscription for
+ * the customer, pull it into the DB. Never downgrades here — downgrades are
+ * owned by verified webhooks. Throttled per user to bound Polar API calls.
+ */
+export async function reconcileUserEntitlement(
+  userId: string,
+): Promise<SubscriptionWithPlan | null> {
+  try {
+    const subscription = await db.subscription.findUnique({
+      where: { referenceId: userId },
+      select: subscriptionWithPlanSelect,
+    });
+
+    const now = new Date();
+    const planType = subscription?.plan.planType?.toLowerCase();
+    const status = subscription?.status?.toLowerCase() ?? "";
+    const isPaidPlan = planType === "pro" || planType === "business";
+    const isActive = status === "active" || status === "trialing";
+
+    const isHealthyPaid =
+      Boolean(subscription) &&
+      isActive &&
+      isPaidPlan &&
+      (subscription!.periodEnd > now ||
+        isLifetimeBillingPeriod(
+          planType,
+          subscription!.periodStart,
+          subscription!.periodEnd,
+        ));
+
+    if (isHealthyPaid) return subscription;
+
+    const lastAttempt = entitlementReconcileAttempts.get(userId) ?? 0;
+    if (now.getTime() - lastAttempt < ENTITLEMENT_RECONCILE_TTL_MS) {
+      return subscription;
+    }
+    entitlementReconcileAttempts.set(userId, now.getTime());
+    if (entitlementReconcileAttempts.size > 10_000) {
+      entitlementReconcileAttempts.clear();
+    }
+
+    let customerId = subscription?.customerId ?? null;
+    if (!customerId) {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { customerId: true },
+      });
+      customerId = user?.customerId ?? null;
+    }
+
+    // Try the stored customer first, then fall back to the checkout external id
+    // (covers stale/missing user.customerId after an earlier purchase).
+    let remote = customerId
+      ? await fetchBestActiveSubscription(customerId)
+      : null;
+    if (!remote) {
+      const externalCustomerId = await fetchCustomerIdByExternalId(userId);
+      if (externalCustomerId && externalCustomerId !== customerId) {
+        remote = await fetchBestActiveSubscription(externalCustomerId);
+      }
+    }
+    if (!remote) return subscription;
+
+    const resolvedPlan = await resolvePlanFromRemote(remote);
+    if (!resolvedPlan) return subscription;
+
+    const periodStart =
+      coercePolarDate(remote.currentPeriodStart) ?? new Date();
+    const periodEnd = resolveStoredPeriodEnd(remote, periodStart, periodStart);
+    const remoteStatus = normalizeDbStatus(
+      remote.status,
+      periodEnd,
+      now,
+      remote.cancelAtPeriodEnd,
+      hasForeverDiscount(remote),
+    );
+
+    const priceId = getRemotePriceId(remote);
+    const updated = await db.subscription.upsert({
+      where: { referenceId: userId },
+      create: {
+        referenceId: userId,
+        planId: resolvedPlan.id,
+        priceId: priceId ?? undefined,
+        subscriptionId: remote.id,
+        customerId: remote.customerId,
+        status: remoteStatus,
+        provider: "polar",
+        periodStart,
+        periodEnd,
+        billingInterval: normalizeBillingInterval(remote.recurringInterval),
+        cancelAtPeriodEnd: remote.cancelAtPeriodEnd,
+        canceledAt: coercePolarDate(remote.canceledAt) ?? null,
+      },
+      update: {
+        planId: resolvedPlan.id,
+        subscriptionId: remote.id,
+        customerId: remote.customerId,
+        status: remoteStatus,
+        provider: "polar",
+        periodStart,
+        periodEnd,
+        billingInterval: normalizeBillingInterval(remote.recurringInterval),
+        cancelAtPeriodEnd: remote.cancelAtPeriodEnd,
+        ...(priceId ? { priceId } : {}),
+      },
+      select: subscriptionWithPlanSelect,
+    });
+
+    await db.user.update({
+      where: { id: userId },
+      data: { customerId: remote.customerId },
+    });
+    await syncUserLimits(userId, resolvedPlan.planType as PlanType);
+    try {
+      await revalidateSubscriptionCache();
+    } catch {
+      // Cache revalidation is best-effort outside a request scope.
+    }
+
+    return updated;
+  } catch (error) {
+    console.error("[Subscription Reconcile] Entitlement reconcile failed:", {
+      userId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return null;
+  }
 }
 
 export async function reconcileSubscriptionIfStale(

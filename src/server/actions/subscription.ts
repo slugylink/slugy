@@ -7,12 +7,17 @@ import { headers } from "next/headers";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
 import {
   reconcileSubscriptionIfStale,
+  reconcileUserEntitlement,
   subscriptionWithPlanSelect,
   isLifetimeBillingPeriod,
 } from "@/lib/subscription/reconcile";
 
 export async function getActiveSubscription(userId: string) {
   try {
+    // Powers the client subscription store / upgrade popup — self-heal first so
+    // a missed webhook doesn't leave the UI stuck on Free/Basic.
+    await reconcileUserEntitlement(userId);
+
     const rawSubscription = await db.subscription.findFirst({
       where: {
         referenceId: userId,
@@ -45,6 +50,10 @@ export async function getActiveSubscription(userId: string) {
 
 export async function getSubscriptionWithPlan(userId: string) {
   try {
+    // Self-heal from Polar when the stored entitlement is Free/missing/expired
+    // (e.g. a missed or failed webhook). Upgrade-only + throttled.
+    await reconcileUserEntitlement(userId);
+
     const rawSubscription = await db.subscription.findFirst({
       where: {
         referenceId: userId,

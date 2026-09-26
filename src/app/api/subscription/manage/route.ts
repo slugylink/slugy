@@ -2,6 +2,7 @@ import { CustomerPortal } from "@polar-sh/nextjs";
 import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
 
 const MIN_TOKEN_LENGTH = 20;
 const DEFAULT_SANDBOX_MODE = "sandbox";
@@ -46,6 +47,10 @@ async function getCustomerId(): Promise<string> {
   if (!session?.user?.id) {
     throw new Error("Unauthorized");
   }
+
+  // Make sure the stored Polar customer id is current before opening the
+  // portal (a stale id otherwise fails with "Customer does not exist").
+  await reconcileUserEntitlement(session.user.id);
 
   const { db } = await import("@/server/db");
   const user = await db.user.findUnique({
