@@ -21,6 +21,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { FaCircleCheck } from "react-icons/fa6";
 import SocialLoginButtons from "./social-login-buttons";
 import { validateEmail } from "@/server/actions/validate-email";
+import { getSlugyId } from "@/lib/leads/attribution";
 
 const signupSchema = z.object({
   name: z
@@ -389,6 +390,15 @@ export function SignupForm({
             toast.success(
               "Account created! Please check your email to complete your registration.",
             );
+            // Fire-and-forget lead attribution (server is idempotent).
+            const clickId = getSlugyId();
+            if (clickId) {
+              fetch("/api/leads/track-signup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ clickId }),
+              }).catch(() => {});
+            }
             reset();
             dispatch({ type: "SET_SHOW_PASSWORD", payload: false });
           },

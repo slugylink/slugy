@@ -455,6 +455,9 @@ async function handleRootDomain(
     if (token) {
       const appUrl = new URL(req.url);
       appUrl.hostname = SUBDOMAINS.app;
+      // Preserve ?slugy_id= (and other params) across the root → app hop
+      // so signup attribution survives the subdomain change.
+      appUrl.search = url.search;
       const workspaceSlug = getWorkspaceCookie(req);
       if (workspaceSlug) {
         appUrl.pathname = `/${workspaceSlug}`;

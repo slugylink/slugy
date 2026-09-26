@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Providers } from "./provider";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { Toaster } from "@/components/ui/sonner";
+import { CaptureSlugyId } from "@/components/web/_analytics/capture-slugy-id";
 
 export { metadata } from "./metadata";
 
@@ -50,6 +51,7 @@ export default function RootLayout({
         <NuqsAdapter>
           <Providers>
             {children}
+            <CaptureSlugyId />
             <Toaster />
             <SpeedInsights />
             <Analytics />

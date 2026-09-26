@@ -127,6 +127,13 @@ function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
+    // Share attribution between slugy.co and app.slugy.co in production.
+    // Localhost subdomains can't share cookies, so stay host-only there.
+    ...(process.env.NODE_ENV === "production" &&
+    process.env.NEXT_PUBLIC_ROOT_DOMAIN &&
+    !process.env.NEXT_PUBLIC_ROOT_DOMAIN.includes("localhost")
+      ? { domain: `.${process.env.NEXT_PUBLIC_ROOT_DOMAIN.trim()}` }
+      : {}),
   });
 }
 

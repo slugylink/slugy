@@ -7,7 +7,8 @@ import { cn } from "@/lib/utils";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import NumberFlow from "@number-flow/react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { withSlugyId } from "@/lib/leads/attribution";
 
 type GetStartedButtonProps = {
   isGitVisible?: boolean;
@@ -51,8 +52,15 @@ export default function GetStartedButton({
   );
 
   const appUrl = useAppUrl();
-  const loginUrl = `${appUrl}/login`;
-  const signupUrl = `${appUrl}/signup`;
+  const [loginUrl, setLoginUrl] = useState(`${appUrl}/login`);
+  const [signupUrl, setSignupUrl] = useState(`${appUrl}/signup`);
+
+  // Carry ?slugy_id= from a short-link landing into the app subdomain.
+  // (Covers localhost where the cookie can't be shared cross-subdomain.)
+  useEffect(() => {
+    setLoginUrl(withSlugyId(`${appUrl}/login`));
+    setSignupUrl(withSlugyId(`${appUrl}/signup`));
+  }, [appUrl]);
 
   const prefetch = useCallback(() => {
     fetch(appUrl, { method: "GET", mode: "no-cors" }).catch(() => {});
