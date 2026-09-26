@@ -165,6 +165,24 @@ function normalizeChartData(
   }));
 }
 
+/**
+ * Sales series plots revenue amounts (Dub-style), carrying the sale count
+ * per bucket for the tooltip ("16 ($241)").
+ */
+function normalizeRevenueChartData(
+  revenueOverTime:
+    | Array<{ time: Date | string; revenue: number; sales: number }>
+    | undefined,
+) {
+  if (!revenueOverTime?.length) return undefined;
+  return revenueOverTime.map((item) => ({
+    time:
+      item.time instanceof Date ? item.time.toISOString() : String(item.time),
+    clicks: item.revenue,
+    sales: item.sales,
+  }));
+}
+
 function buildFilterCategories(data: FilterSource): FilterCategory[] {
   return [
     {
@@ -337,10 +355,21 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     [filterSource],
   );
 
-  const chartData = useMemo(
-    () => normalizeChartData(activeData?.clicksOverTime),
-    [activeData?.clicksOverTime],
-  );
+  const chartData = useMemo(() => {
+    if (viewingSales) {
+      const revenueSeries = isDemo
+        ? DEMO_ANALYTICS_DATA.sales.revenueOverTime
+        : sales.data?.revenueOverTime;
+      const normalized = normalizeRevenueChartData(revenueSeries);
+      if (normalized) return normalized;
+    }
+    return normalizeChartData(activeData?.clicksOverTime);
+  }, [
+    viewingSales,
+    isDemo,
+    sales.data?.revenueOverTime,
+    activeData?.clicksOverTime,
+  ]);
 
   const hasResolvedData = Boolean(activeData);
   const showInitialLoadingState =
@@ -389,7 +418,9 @@ export const AnalyticsClient = memo(function AnalyticsClient({
           }
           totalRevenue={
             canUseSalesAnalytics && (isSales || isFunnel)
-              ? (sales.data?.totalRevenue ?? null)
+              ? isDemo
+                ? (DEMO_ANALYTICS_DATA.sales.totalRevenue ?? null)
+                : (sales.data?.totalRevenue ?? null)
               : null
           }
           isRefreshing={chartRefreshing}

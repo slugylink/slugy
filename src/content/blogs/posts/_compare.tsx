@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -55,6 +56,105 @@ export function Facts({ rows }: { rows: Array<[string, string]> }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+export function PricingTable({
+  competitor,
+  rows,
+  note,
+}: {
+  competitor: string;
+  rows: Array<[plan: string, slugy: string, other: string]>;
+  note?: string;
+}) {
+  return (
+    <div className="mt-6">
+      <div className="border-border overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[560px] table-fixed text-left text-sm">
+          <thead>
+            <tr className="bg-muted/40 text-foreground">
+              <th className="w-24 px-3 py-2.5 font-medium">Plan</th>
+              <th className="bg-orange-50/70 px-3 py-2.5 font-semibold dark:bg-orange-950/20">
+                Slugy
+              </th>
+              <th className="px-3 py-2.5 font-medium">{competitor}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([plan, slugy, other], i) => (
+              <tr
+                key={plan}
+                className={i > 0 ? "border-border border-t" : undefined}
+              >
+                <td className="text-foreground w-24 px-3 py-3 align-top font-medium whitespace-nowrap">
+                  {plan}
+                </td>
+                <td className="bg-orange-50/70 px-3 py-3 align-top leading-6 text-zinc-700 dark:bg-orange-950/20 dark:text-zinc-300">
+                  {slugy}
+                </td>
+                <td className="text-muted-foreground px-3 py-3 align-top leading-6">
+                  {other}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {note && (
+        <p className="text-muted-foreground mt-2 text-xs leading-5">{note}</p>
+      )}
+    </div>
+  );
+}
+
+export function Steps({ items }: { items: ReactNode[] }) {
+  return (
+    <ol className="mt-4 space-y-3">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-3">
+          <span className="bg-foreground text-background mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs font-semibold tabular-nums">
+            {i + 1}
+          </span>
+          <span className="text-muted-foreground text-[15px] leading-7 sm:text-base">
+            {item}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function Shot({
+  src,
+  alt,
+  caption,
+  width,
+  height,
+}: {
+  src: string;
+  alt: string;
+  caption: string;
+  width: number;
+  height: number;
+}) {
+  return (
+    <figure className="mt-6">
+      <div className="border-border overflow-hidden rounded-lg border shadow-sm">
+        <Image
+          src={src}
+          alt={alt}
+          width={width}
+          height={height}
+          loading="lazy"
+          sizes="(max-width: 768px) 100vw, 768px"
+          className="h-auto w-full"
+        />
+      </div>
+      <figcaption className="text-muted-foreground mt-2 text-center text-xs leading-5">
+        {caption}
+      </figcaption>
+    </figure>
   );
 }
 

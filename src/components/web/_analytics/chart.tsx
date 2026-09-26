@@ -40,12 +40,15 @@ type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 interface ChartDataPoint {
   time: string;
   clicks: number;
+  /** Sale count per bucket (sales event only — `clicks` carries revenue). */
+  sales?: number;
 }
 
 interface ProcessedDataPoint {
   time: string;
   timestamp: number;
   clicks: number;
+  sales: number;
 }
 
 interface ChartProps {
@@ -73,6 +76,7 @@ interface CustomTooltipProps extends TooltipProps<number, string> {
     value: number;
     name: string;
     dataKey: string;
+    payload?: { sales?: number };
   }>;
   label?: string;
 }
@@ -114,6 +118,13 @@ const CHART_CONFIG = {
   },
   ANIMATION_THRESHOLD: 1000,
 } as const;
+
+const formatCurrency = (value: number): string =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(value);
 
 const getDateKey = (date: Date, timePeriod: TimePeriod): string => {
   const y = date.getFullYear();
@@ -199,12 +210,14 @@ const AnalyticsChart = ({
           time: "",
           timestamp: 0,
           clicks: item.clicks ?? 0,
+          sales: item.sales ?? 0,
         };
       }
       return {
         time: date.toISOString(),
         timestamp: date.getTime(),
         clicks: item.clicks ?? 0,
+        sales: item.sales ?? 0,
       };
     });
 
@@ -217,6 +230,7 @@ const AnalyticsChart = ({
       const existing = deduplicatedMap.get(dateKey);
       if (existing) {
         existing.clicks += item.clicks;
+        existing.sales += item.sales;
       } else {
         const bucketTimestamp = getBucketTimestamp(date, timePeriod);
         deduplicatedMap.set(dateKey, {
@@ -276,6 +290,8 @@ const AnalyticsChart = ({
 
         const formattedDate = formatTime(label);
         const value = payload[0]?.value;
+        const isSales = event === "sales";
+        const salesCount = payload[0]?.payload?.sales;
 
         return (
           <div
@@ -292,7 +308,11 @@ const AnalyticsChart = ({
                 style={{ backgroundColor: theme.primary }}
               />
               <span>{theme.label}:</span>
-              {formatNumber(value!)}
+              {isSales && typeof salesCount === "number"
+                ? `${formatNumber(salesCount)} (${formatCurrency(value ?? 0)})`
+                : isSales
+                  ? formatCurrency(value ?? 0)
+                  : formatNumber(value!)}
             </div>
           </div>
         );
@@ -300,7 +320,7 @@ const AnalyticsChart = ({
         return null;
       }
     },
-    [formatTime, theme.label, theme.primary],
+    [formatTime, theme.label, theme.primary, event],
   );
 
   const tickCount = CHART_CONFIG.TICK_COUNTS[timePeriod] ?? 6;
@@ -395,30 +415,29 @@ const AnalyticsChart = ({
             <span className="text-muted-foreground text-2xl sm:text-3xl">
               0
             </span>
-          ) : propTotalSales == null ? (
+          ) : propTotalRevenue == null ? (
             <span className="text-muted-foreground text-2xl sm:text-3xl">
               0
             </span>
           ) : (
-            <NumberFlow
-              value={propTotalSales}
-              format={{ maximumFractionDigits: 0 }}
-              className="text-2xl sm:text-3xl"
-            />
+            <>
+              <NumberFlow
+                value={propTotalRevenue}
+                format={{
+                  style: "currency",
+                  currency: "USD",
+                  maximumFractionDigits: 0,
+                }}
+                className="text-2xl sm:text-3xl"
+              />
+              {propTotalSales != null && (
+                <span className="text-muted-foreground text-xs font-normal">
+                  {formatNumber(propTotalSales)}{" "}
+                  {propTotalSales === 1 ? "sale" : "sales"}
+                </span>
+              )}
+            </>
           )}
-          {canUseSalesAnalytics &&
-          event === "sales" &&
-          propTotalRevenue != null &&
-          propTotalRevenue > 0 ? (
-            <span className="text-muted-foreground text-xs font-normal">
-              {new Intl.NumberFormat("en-US", {
-                style: "currency",
-                currency: "USD",
-                maximumFractionDigits: 0,
-              }).format(propTotalRevenue)}{" "}
-              revenue
-            </span>
-          ) : null}
         </button>
       </CardHeader>
       <CardContent className="relative p-0 pr-2 pb-4">
@@ -563,9 +582,13 @@ const AnalyticsChart = ({
                   tickLine={false}
                   allowDecimals={false}
                   domain={[0, "auto"]}
-                  tickFormatter={(value) => formatNumber(Number(value))}
+                  tickFormatter={(value) =>
+                    event === "sales"
+                      ? formatCurrency(Number(value))
+                      : formatNumber(Number(value))
+                  }
                   style={{ fontSize: "12px", fill: CHART_THEME.muted }}
-                  width={30}
+                  width={event === "sales" ? 44 : 30}
                 />
                 <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.35} />
                 <Tooltip

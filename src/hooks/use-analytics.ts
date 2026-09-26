@@ -28,6 +28,11 @@ export interface AnalyticsData {
 export interface SalesAnalyticsData extends Partial<AnalyticsData> {
   totalRevenue?: number;
   totalSales?: number;
+  revenueOverTime?: Array<{
+    time: Date | string;
+    revenue: number;
+    sales: number;
+  }>;
 }
 
 interface UseAnalyticsParams {
@@ -183,9 +188,18 @@ const fetchAnalyticsData = async (
   const data = await response.json();
 
   if (metrics?.length) {
-    const result: Partial<AnalyticsData> = {};
+    const result: Partial<AnalyticsData> & Partial<SalesAnalyticsData> = {};
     for (const metric of metrics) {
       result[metric] = data[metric] ?? METRIC_FALLBACKS[metric];
+    }
+    // Sales responses carry revenue series/totals outside the metric set —
+    // retain them so the Sales tab can plot amounts like Dub.co.
+    if (analyticsEvent === "sales") {
+      result.totalRevenue = data.totalRevenue ?? 0;
+      result.totalSales = data.totalSales ?? data.totalClicks ?? 0;
+      result.revenueOverTime = Array.isArray(data.revenueOverTime)
+        ? data.revenueOverTime
+        : [];
     }
     return result;
   }

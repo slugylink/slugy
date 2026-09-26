@@ -23,6 +23,8 @@ export interface TinybirdAnalyticsRow {
   link_id: string;
   day: string;
   clicks: number;
+  /** Revenue amount for this row (sales analytics only). */
+  revenue?: number;
   "meta.slug": string;
   "meta.url": string;
   domain: string;
@@ -38,6 +40,12 @@ export interface TinybirdAnalyticsRow {
   utm_campaign?: string;
   utm_term?: string;
   utm_content?: string;
+}
+
+export interface RevenueOverTimePoint {
+  time: Date;
+  revenue: number;
+  sales: number;
 }
 
 function getTimeKey(day: string, timePeriod: TimePeriod): string {
@@ -117,6 +125,11 @@ export function transformTinybirdAnalytics(
     : null;
 
   let totalClicks = 0;
+  // Revenue is only present on sales-analytics rows. When it is, we also
+  // build a revenue-over-time series (amount, Dub-style) alongside counts.
+  let hasRevenue = false;
+  let totalRevenue = 0;
+  const revenueTimeMap = new Map<string, { revenue: number; sales: number }>();
 
   for (const item of tinybirdData) {
     const clicks = item.clicks;
@@ -125,6 +138,16 @@ export function transformTinybirdAnalytics(
     if (timeMap) {
       const timeKey = getTimeKey(item.day, timePeriod);
       timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + clicks);
+    }
+
+    if (typeof item.revenue === "number" && Number.isFinite(item.revenue)) {
+      hasRevenue = true;
+      totalRevenue += item.revenue;
+      const timeKey = getTimeKey(item.day, timePeriod);
+      const bucket = revenueTimeMap.get(timeKey) ?? { revenue: 0, sales: 0 };
+      bucket.revenue += item.revenue;
+      bucket.sales += clicks;
+      revenueTimeMap.set(timeKey, bucket);
     }
 
     if (linksMap) {
@@ -261,6 +284,17 @@ export function transformTinybirdAnalytics(
   if (timeMap) {
     result.clicksOverTime = Array.from(timeMap.entries())
       .map(([time, clicks]) => ({ time: new Date(time), clicks }))
+      .sort((a, b) => a.time.getTime() - b.time.getTime());
+  }
+
+  if (hasRevenue) {
+    result.totalRevenue = totalRevenue;
+    result.revenueOverTime = Array.from(revenueTimeMap.entries())
+      .map(([time, bucket]) => ({
+        time: new Date(time),
+        revenue: bucket.revenue,
+        sales: bucket.sales,
+      }))
       .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
 
