@@ -216,16 +216,17 @@ const QRCodePreview = memo(
     containerRef: RefObject<HTMLDivElement | null>;
     isFetching: boolean;
   }) => (
-    <div className="bg-muted/60 relative flex w-full items-center justify-center rounded-xl border p-4">
+    <div className="relative flex w-full items-center justify-center overflow-hidden rounded-xl border bg-zinc-50 p-4 dark:bg-zinc-900">
+      <div aria-hidden className="qr-dot-bg absolute inset-0" />
       {isFetching && (
         <div className="bg-background/80 absolute inset-0 z-10 flex items-center justify-center rounded-xl backdrop-blur-sm">
           <LoaderCircle className="h-5 w-5 animate-spin" />
         </div>
       )}
-      <div className="rounded-lg bg-white p-2 shadow-sm ring-1 ring-zinc-200">
+      <div className="relative bg-white p-2">
         <div
           ref={containerRef}
-          className="flex aspect-square h-[168px] w-[168px] items-center justify-center overflow-hidden [&>svg]:h-full [&>svg]:w-full"
+          className="flex aspect-square size-36! items-center justify-center overflow-hidden [&>svg]:h-full [&>svg]:w-full"
         />
       </div>
     </div>
@@ -676,8 +677,8 @@ export default function QRCodeDesigner({
                       {Array.from({ length: 9 }).map((_, i) => (
                         <span
                           key={i}
-                          style={{ backgroundColor: formState.fgColor }}
-                          className={cn("h-[5px] w-[5px]", option.preview)}
+                          // style={{ backgroundColor: formState.fgColor }}
+                          // className={cn("h-[5px] w-[5px]", option.preview)}
                         />
                       ))}
                     </span>

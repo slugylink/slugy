@@ -152,17 +152,11 @@ export default function ShareAnalyticsModal({
     }
   }, [shareError]);
 
-  // Fresh (empty) state on every open — never flash the previous link's
-  // settings while SWR resolves (instant when cached).
-  useEffect(() => {
-    if (open) {
-      setSnapshot(EMPTY_SETTINGS);
-      setDraft(EMPTY_SETTINGS);
-      setIsCopied(false);
-      setLoadError(null);
-      setIsPasswordVisible(false);
-    }
-  }, [open, linkId]);
+  // NOTE: no "reset to empty on open" here on purpose. This modal
+  // unmounts on close (see LinkCard's conditional render), so every open
+  // is already a fresh mount — and SWR reuses the cached settings
+  // instantly. A reset effect would run AFTER the sync effect above and
+  // clobber the restored server state back to "sharing off".
 
   const status: Status = shareLoading
     ? "loading"

@@ -20,6 +20,7 @@ export const PUBLIC_ROUTES = new Set([
   "/about",
   "/contact",
   "/blogs",
+  "/tools",
   "/sponsors",
   "/sentry-example-page",
 ]);
@@ -31,6 +32,8 @@ export const PUBLIC_PREFIXES = [
   "/_next",
   "/static",
   "/blogs/",
+  "/tools/",
+  "/alternative/",
   "/share/",
   "/favicon.ico",
   "/robots.txt",

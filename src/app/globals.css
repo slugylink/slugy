@@ -397,6 +397,25 @@
   background-size: 12px 12px;
 }
 
+/* Dub-style dotted backdrop for QR preview panels */
+.qr-dot-bg {
+  background-image: radial-gradient(
+    circle,
+    rgb(0 0 0 / 0.14) 1.1px,
+    transparent 1.3px
+  );
+  background-size: 14px 14px;
+}
+
+.dark .qr-dot-bg {
+  background-image: radial-gradient(
+    circle,
+    rgb(255 255 255 / 0.16) 1.1px,
+    transparent 1.3px
+  );
+  background-size: 14px 14px;
+}
+
 
 html::-webkit-scrollbar {
   width: 4px !important;
