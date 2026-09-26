@@ -42,8 +42,11 @@ export interface PricingComparisonRow {
 export const PRICING_COPY = {
   promoCode: "GETPRO",
   promoPrefix: "Use code",
-  promoSuffix: "to get $3 off your first month of Pro.",
+  promoSuffix: "to lock Pro at $5/month — forever.",
   promoAmount: 3,
+  promoPrice: 5,
+  promoDuration: "forever",
+  promoMaxRedemptions: 25,
   yearlySavings: "2 Months Free",
   loginUrl: "https://app.slugy.co/login",
 } as const;

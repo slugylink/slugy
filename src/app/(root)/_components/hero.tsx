@@ -9,6 +9,7 @@ import HeroLinkForm from "./hero-linkform";
 import { LazyMotion, domAnimation, m } from "motion/react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
+import { PromoPill } from "./promo-live";
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const blurIn = {
@@ -71,8 +72,8 @@ const Hero = memo(function Hero() {
       <section className="mx-auto max-w-6xl px-3 sm:px-4">
         <div className="relative h-full w-full">
           <div className="mt-6 text-center sm:mt-8">
-            <m.div
-              className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-12"
+            {/* <m.div
+              className="z-10 mb-4 flex items-center justify-center sm:mb-5"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.05 }}
@@ -87,6 +88,15 @@ const Hero = memo(function Hero() {
                   <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
                 </AnimatedShinyText>
               </div>
+            </m.div> */}
+
+            <m.div
+              className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-10"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.12 }}
+            >
+              <PromoPill />
             </m.div>
 
             <h1 className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]">
