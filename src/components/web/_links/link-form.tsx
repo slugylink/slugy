@@ -359,7 +359,10 @@ interface LinkFormMainPanelsProps {
   qrCodeKey: number;
   domain: string;
   currentCode: string;
-  qrCodeCustomization: string | Record<string, string | number> | undefined;
+  qrCodeCustomization:
+    | string
+    | Record<string, string | number | boolean>
+    | undefined;
   linkId?: string;
   normalizedUrl: string;
   previewImage?: string;
@@ -864,7 +867,10 @@ const LinkFormFields = ({
     urlValidation,
   } = state;
 
-  type QrCustomization = string | Record<string, string | number> | undefined;
+  type QrCustomization =
+    | string
+    | Record<string, string | number | boolean>
+    | undefined;
   const initialQrCodeCustomization = isLinkData(form.formState.defaultValues)
     ? form.formState.defaultValues.qrCode?.customization
     : undefined;
@@ -1228,6 +1234,7 @@ const LinkFormFields = ({
                 linkId={linkId}
                 domain={domain}
                 code={currentCode}
+                workspaceslug={workspaceslug}
                 onOpenChange={(open) =>
                   dispatch({ type: "set_qr_code_dialog_open", payload: open })
                 }

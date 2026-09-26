@@ -452,6 +452,7 @@ export default function LinkCard({
               linkId={link.id}
               domain={link.domain || DEFAULT_DOMAIN}
               code={link.slug}
+              workspaceslug={workspaceslug}
               onOpenChange={(open: boolean) => toggleDialog("qrCode", open)}
             />
           </DialogContent>

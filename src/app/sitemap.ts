@@ -41,6 +41,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    {
+      url: `${baseUrl}/tools`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/tools/qr-code-generator`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/tools/utm-builder`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
     ...posts,
     {
       url: `${baseUrl}/custom-domain`,

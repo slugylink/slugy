@@ -68,6 +68,8 @@ const Footer = () => {
       links: [
         { href: "#features", label: "Features" },
         { href: "/pricing", label: "Pricing" },
+        { href: "/tools/qr-code-generator", label: "QR Code Generator" },
+        { href: "/tools/utm-builder", label: "UTM Builder" },
       ],
     },
     {
@@ -101,9 +103,12 @@ const Footer = () => {
   const pathname = usePathname();
 
   if (
-    !["/", "/tools/metadatas", "/pricing", "/sponsors"].includes(pathname) &&
+    !["/", "/tools/metadatas", "/pricing", "/sponsors", "/tools"].includes(
+      pathname,
+    ) &&
     pathname !== "/blogs" &&
-    !pathname.startsWith("/blogs/")
+    !pathname.startsWith("/blogs/") &&
+    !pathname.startsWith("/tools/")
   ) {
     return null;
   }

@@ -5,7 +5,9 @@ import {
   LineChartIcon,
   Link2Icon,
   NewspaperIcon,
-  // QrCodeIcon,
+  QrCodeIcon,
+  TablePropertiesIcon,
+  WrenchIcon,
 } from "lucide-react";
 
 export const NAV_LINKS = [
@@ -31,6 +33,24 @@ export const NAV_LINKS = [
         tagline: "Your links in one place for easy sharing.",
         href: "/#features",
         icon: FolderIcon,
+      },
+    ],
+  },
+  {
+    title: "Free Tools",
+    href: "/tools",
+    menu: [
+      {
+        title: "QR Code Generator",
+        tagline: "Free custom QR codes — PNG & SVG, no login.",
+        href: "/tools/qr-code-generator",
+        icon: QrCodeIcon,
+      },
+      {
+        title: "UTM Builder",
+        tagline: "Campaign URLs validated for GA4.",
+        href: "/tools/utm-builder",
+        icon: TablePropertiesIcon,
       },
     ],
   },

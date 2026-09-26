@@ -270,3 +270,27 @@ export async function validateWorkspaceSlug(userId: string, slug: string) {
     return { success: false, workspace: null };
   }
 }
+
+export async function getWorkspaceLogo(workspaceslug: string) {
+  try {
+    const authResult = await getAuthSession();
+    if (!authResult.success) {
+      return { success: false, logo: null as string | null };
+    }
+
+    const userId = authResult.session.user.id;
+
+    const workspace = await db.workspace.findFirst({
+      where: {
+        slug: workspaceslug,
+        OR: [{ userId }, { members: { some: { userId } } }],
+      },
+      select: { logo: true },
+    });
+
+    return { success: true, logo: workspace?.logo ?? null };
+  } catch (error) {
+    console.error("Error fetching workspace logo:", error);
+    return { success: false, logo: null as string | null };
+  }
+}

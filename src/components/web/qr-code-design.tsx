@@ -26,10 +26,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { HexColorPicker } from "react-colorful";
-import { Download, Check } from "lucide-react";
+import { Download, Check, Pipette } from "lucide-react";
 import { getQrCode, saveQrCode } from "@/server/actions/save-qrcode";
+import { getWorkspaceLogo } from "@/server/actions/workspace/workspace";
+import { useWorkspaceStore } from "@/store/workspace";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // Types
@@ -48,17 +52,23 @@ interface FormState {
   fgColor: string;
   size: number;
   dotStyle: DotType;
+  showLogo: boolean;
 }
 
 interface QRCodeDesignerProps {
   linkId: string;
   domain: string;
   code: string;
+  /** Pre-resolved workspace logo URL. When omitted, resolved via workspaceslug. */
+  workspaceLogo?: string | null;
+  /** Workspace slug used to resolve the logo. Falls back to the workspace store. */
+  workspaceslug?: string | null;
   onOpenChange: (open: boolean) => void;
   onCustomizationSaved?: (customization: {
     fgColor: string;
     size: number;
     dotStyle: DotType;
+    showLogo: boolean;
   }) => void;
   hideActions?: boolean;
 }
@@ -68,7 +78,7 @@ interface QRCodeDesignerProps {
 // ============================================================================
 
 const QR_CONFIG = {
-  DEFAULT_SIZE: 300,
+  DEFAULT_SIZE: 512,
   BACKGROUND_COLOR: "#ffffff",
   MIN_SIZE: 256,
   MAX_SIZE: 2048,
@@ -78,19 +88,26 @@ const QR_CONFIG = {
 } as const;
 
 const COLORS = [
-  "#000000", // Black
-  "#FF0000", // Red
-  "#ecb731", // Gold
-  "#0abf53", // Green
-  "#1DA1F2", // Blue
-  "#833AB4", // Purple
+  "#000000",
+  "#1d4ed8",
+  "#059669",
+  "#dc2626",
+  "#7c3aed",
+  "#ea580c",
 ] as const;
 
-const DOT_STYLE_OPTIONS: ReadonlyArray<{ value: DotType; label: string }> = [
-  { value: "square", label: "Square" },
-  { value: "dots", label: "Dots" },
-  { value: "classy", label: "Classy" },
-  { value: "extra-rounded", label: "Rounded" },
+const SIZES = [256, 512, 1024, 2048] as const;
+
+const DOT_STYLE_OPTIONS: ReadonlyArray<{
+  value: DotType;
+  label: string;
+  preview: string;
+}> = [
+  { value: "square", label: "Square", preview: "rounded-[2px]" },
+  { value: "dots", label: "Dots", preview: "rounded-full" },
+  { value: "rounded", label: "Rounded", preview: "rounded-[5px]" },
+  { value: "classy", label: "Classy", preview: "rounded-[2px_6px_2px_6px]" },
+  { value: "extra-rounded", label: "Soft", preview: "rounded-[7px]" },
 ] as const;
 
 const DEFAULT_QR_OPTIONS: Options = {
@@ -161,9 +178,35 @@ function blobToImage(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Fetch a remote logo and inline it as a data URL so the rendered QR SVG
+ * stays self-contained (sharp PNG export, no canvas tainting).
+ */
+function fetchImageAsDataUrl(src: string): Promise<string> {
+  if (src.startsWith("data:")) return Promise.resolve(src);
+  return fetch(src, { mode: "cors" }).then(async (res) => {
+    if (!res.ok) throw new Error("Logo fetch failed");
+    const blob = await res.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Logo read failed"));
+      reader.readAsDataURL(blob);
+    });
+  });
+}
+
 // ============================================================================
 // Sub-Components
 // ============================================================================
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-muted-foreground text-[11px] font-medium tracking-[0.08em] uppercase">
+      {children}
+    </p>
+  );
+}
 
 const QRCodePreview = memo(
   ({
@@ -173,55 +216,24 @@ const QRCodePreview = memo(
     containerRef: RefObject<HTMLDivElement | null>;
     isFetching: boolean;
   }) => (
-    <div className="bg-/50 relative flex aspect-[16/5] w-full items-center justify-center rounded-xl border py-3">
+    <div className="bg-muted/60 relative flex w-full items-center justify-center rounded-xl border p-4">
       {isFetching && (
-        <div className="bg-background/80 absolute top-0 left-0 flex aspect-video h-full w-full items-center justify-center rounded-xl backdrop-blur-sm">
+        <div className="bg-background/80 absolute inset-0 z-10 flex items-center justify-center rounded-xl backdrop-blur-sm">
           <LoaderCircle className="h-5 w-5 animate-spin" />
         </div>
       )}
-      <div
-        ref={containerRef}
-        className="flex aspect-square h-[150px] w-[150px] items-center justify-center rounded-lg bg-white p-1"
-      />
+      <div className="rounded-lg bg-white p-2 shadow-sm ring-1 ring-zinc-200">
+        <div
+          ref={containerRef}
+          className="flex aspect-square h-[168px] w-[168px] items-center justify-center overflow-hidden [&>svg]:h-full [&>svg]:w-full"
+        />
+      </div>
     </div>
   ),
 );
 QRCodePreview.displayName = "QRCodePreview";
 
-const ColorPicker = memo(
-  ({
-    color,
-    onChange,
-  }: {
-    color: string;
-    onChange: (color: string) => void;
-  }) => (
-    <Popover>
-      <PopoverTrigger asChild>
-        <div
-          style={{ borderColor: color }}
-          className="flex w-full items-center gap-0 overflow-hidden rounded-md border-2 sm:w-auto"
-        >
-          <div
-            className="h-[32px] min-w-[31px] cursor-pointer"
-            style={{ backgroundColor: color }}
-          />
-          <Input
-            value={color}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-fit w-full min-w-0 border-none focus:outline-none focus-visible:ring-0 sm:w-[132px]"
-          />
-        </div>
-      </PopoverTrigger>
-      <PopoverContent className="w-fit p-0">
-        <HexColorPicker color={color} onChange={onChange} />
-      </PopoverContent>
-    </Popover>
-  ),
-);
-ColorPicker.displayName = "ColorPicker";
-
-const ColorButtons = memo(
+const ColorSwatches = memo(
   ({
     colors,
     selectedColor,
@@ -231,31 +243,59 @@ const ColorButtons = memo(
     selectedColor: string;
     onColorSelect: (color: string) => void;
   }) => (
-    <div className="relative z-[2] flex w-full gap-1.5 overflow-x-auto pb-1">
+    <div className="ml-2 flex flex-wrap items-center gap-1.5">
       {colors.map((color) => (
         <button
           key={color}
           type="button"
           aria-label={`Select color ${color}`}
-          className={`flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 transition-all ${
-            selectedColor === color ? "border-primary" : "border-transparent"
-          }`}
-          style={{ backgroundColor: color }}
           onClick={() => onColorSelect(color)}
+          style={{ backgroundColor: color }}
+          className={cn(
+            "flex size-7 cursor-pointer items-center justify-center rounded-full transition-all",
+            selectedColor.toLowerCase() === color.toLowerCase()
+              ? "ring-foreground ring-offset-background ring-2 ring-offset-2"
+              : "ring-1 ring-black/10 hover:scale-105 dark:ring-white/20",
+          )}
         >
-          <Check
-            size={16}
-            strokeWidth={2.5}
-            className={`h-4 w-4 ${
-              selectedColor === color ? "text-white" : "text-transparent"
-            }`}
-          />
+          {selectedColor.toLowerCase() === color.toLowerCase() && (
+            <Check className="h-3.5 w-3.5 text-white mix-blend-difference" />
+          )}
         </button>
       ))}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Pick a custom color"
+            style={{ backgroundColor: selectedColor }}
+            className={cn(
+              "flex size-7 cursor-pointer items-center justify-center rounded-full transition-all",
+              !colors.some(
+                (c) => c.toLowerCase() === selectedColor.toLowerCase(),
+              )
+                ? "ring-foreground ring-offset-background ring-2 ring-offset-2"
+                : "ring-1 ring-black/10 hover:scale-105 dark:ring-white/20",
+            )}
+          >
+            <Pipette className="h-3.5 w-3.5 text-white mix-blend-difference" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-fit p-3" align="start">
+          <HexColorPicker color={selectedColor} onChange={onColorSelect} />
+          <Input
+            value={selectedColor}
+            onChange={(e) => onColorSelect(e.target.value)}
+            className="mt-2 h-8 font-mono text-xs uppercase"
+            maxLength={7}
+            aria-label="Custom color hex"
+          />
+        </PopoverContent>
+      </Popover>
     </div>
   ),
 );
-ColorButtons.displayName = "ColorButtons";
+ColorSwatches.displayName = "ColorSwatches";
 
 // ============================================================================
 // Main Component
@@ -265,11 +305,15 @@ export default function QRCodeDesigner({
   linkId,
   domain,
   code,
+  workspaceLogo,
+  workspaceslug: workspaceslugProp,
   onOpenChange,
   onCustomizationSaved,
   hideActions = false,
 }: QRCodeDesignerProps) {
   const url = `https://${domain}/${code}?ref=qr`;
+  const storeSlug = useWorkspaceStore((s) => s.workspaceslug);
+  const slugForLogo = workspaceslugProp ?? storeSlug ?? null;
 
   // State
   const [isSaving, setIsSaving] = useState(false);
@@ -278,22 +322,21 @@ export default function QRCodeDesigner({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
-    dotStyle: "square",
+    dotStyle: "extra-rounded",
+    showLogo: false,
   }));
   const [formState, setFormState] = useState<FormState>(() => ({
     url,
     fgColor: "#000000",
     size: QR_CONFIG.DEFAULT_SIZE,
-    dotStyle: "square",
+    dotStyle: "extra-rounded",
+    showLogo: false,
   }));
-  const [options, setOptions] = useState<Options>(() => ({
-    ...DEFAULT_QR_OPTIONS,
-    data: url,
-    dotsOptions: {
-      color: "#000000",
-      type: "square",
-    },
-  }));
+  const [workspaceLogoUrl, setWorkspaceLogoUrl] = useState<string | null>(
+    workspaceLogo ?? null,
+  );
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
+  const [logoIsRemote, setLogoIsRemote] = useState(false);
   // Refs
   const containerRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
@@ -303,9 +346,45 @@ export default function QRCodeDesigner({
     return (
       formState.fgColor !== initialState.fgColor ||
       formState.size !== initialState.size ||
-      formState.dotStyle !== initialState.dotStyle
+      formState.dotStyle !== initialState.dotStyle ||
+      formState.showLogo !== initialState.showLogo
     );
   }, [formState, initialState]);
+
+  // Single source of truth for the QR render options — derived from form
+  // state instead of patched by separate writers (no ordering races).
+  // `imageOptions` is always a full object: qr-code-styling v1 reads
+  // `imageOptions.hideBackgroundDots` unguarded inside `update()`.
+  const options: Options = useMemo(() => {
+    const exportSize = Math.max(
+      QR_CONFIG.MIN_SIZE,
+      Math.min(
+        QR_CONFIG.MAX_SIZE,
+        Number(formState.size) || QR_CONFIG.DEFAULT_SIZE,
+      ),
+    );
+    const image = formState.showLogo && logoDataUrl ? logoDataUrl : undefined;
+    return {
+      ...DEFAULT_QR_OPTIONS,
+      data: url,
+      width: exportSize,
+      height: exportSize,
+      dotsOptions: {
+        color: formState.fgColor,
+        type: formState.dotStyle,
+      },
+      image,
+      imageOptions: {
+        hideBackgroundDots: true,
+        imageSize: 0.4,
+        margin: 8,
+        // Intentionally no `crossOrigin` and `saveAsBlob: false`: the
+        // library has no image `onerror` handler, so a CORS-blocked logo
+        // would hang `append()` forever and leave a blank preview.
+        saveAsBlob: false,
+      },
+    };
+  }, [url, formState, logoDataUrl]);
 
   // ============================================================================
   // Handlers
@@ -338,21 +417,11 @@ export default function QRCodeDesigner({
         fgColor: qrCodeData.fgColor as string,
         size: qrCodeData.size as number,
         dotStyle: qrCodeData.dotStyle as DotType,
+        showLogo: (qrCodeData.showLogo as boolean) ?? false,
       };
 
       setInitialState(updatedFormState);
       setFormState(updatedFormState);
-
-      setOptions((prev) => ({
-        ...prev,
-        width: qrCodeData.size as number,
-        height: qrCodeData.size as number,
-        dotsOptions: {
-          ...prev.dotsOptions,
-          color: qrCodeData.fgColor as string,
-          type: qrCodeData.dotStyle as DotType,
-        },
-      }));
     } catch (error) {
       console.error("Failed to fetch QR code:", error);
       toast.error("Failed to load QR code settings");
@@ -362,29 +431,9 @@ export default function QRCodeDesigner({
   }, [linkId, url]);
 
   const handleFormChange = useCallback(
-    (field: keyof FormState, value: string | number) => {
+    (field: keyof FormState, value: string | number | boolean) => {
+      // Render options derive from formState via useMemo — nothing else to sync.
       setFormState((prev) => ({ ...prev, [field]: value }));
-
-      setOptions((prev) => {
-        const newOptions = { ...prev };
-
-        if (field === "size") {
-          const normalizedSize = Math.max(
-            QR_CONFIG.MIN_SIZE,
-            Math.min(QR_CONFIG.MAX_SIZE, Number(value)),
-          );
-          newOptions.width = normalizedSize;
-          newOptions.height = normalizedSize;
-        } else if (field === "fgColor" || field === "dotStyle") {
-          newOptions.dotsOptions = {
-            ...prev.dotsOptions,
-            ...(field === "fgColor" && { color: value.toString() }),
-            ...(field === "dotStyle" && { type: value as DotType }),
-          };
-        }
-
-        return newOptions;
-      });
     },
     [],
   );
@@ -416,7 +465,14 @@ export default function QRCodeDesigner({
 
       exportCanvas.toBlob(
         (blob) => {
-          if (!blob) return;
+          if (!blob) {
+            toast.error(
+              logoIsRemote
+                ? "Export blocked: logo host must allow CORS. Preview is unaffected."
+                : "Failed to render QR code image",
+            );
+            return;
+          }
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -433,7 +489,7 @@ export default function QRCodeDesigner({
       console.error("Error downloading QR code:", error);
       toast.error("Failed to download QR code");
     }
-  }, []);
+  }, [logoIsRemote]);
 
   const handleSave = useCallback(async () => {
     if (!qrCodeRef.current || !containerRef.current) return;
@@ -456,6 +512,7 @@ export default function QRCodeDesigner({
               fgColor: formState.fgColor,
               size: formState.size,
               dotStyle: formState.dotStyle,
+              showLogo: formState.showLogo,
             },
           });
         } finally {
@@ -468,6 +525,7 @@ export default function QRCodeDesigner({
           fgColor: formState.fgColor,
           size: formState.size,
           dotStyle: formState.dotStyle,
+          showLogo: formState.showLogo,
         });
         toast.success("QR code saved successfully");
         onOpenChange(false);
@@ -494,6 +552,55 @@ export default function QRCodeDesigner({
     }
   }, [code, fetchQrCode]);
 
+  // Resolve the workspace logo: explicit prop wins, otherwise fetch by slug.
+  useEffect(() => {
+    if (workspaceLogo !== undefined) {
+      setWorkspaceLogoUrl(workspaceLogo);
+      return;
+    }
+    if (!slugForLogo) {
+      setWorkspaceLogoUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void getWorkspaceLogo(slugForLogo).then((res) => {
+      if (!cancelled) setWorkspaceLogoUrl(res.success ? res.logo : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceLogo, slugForLogo]);
+
+  // Inline the logo as a data URL so the SVG stays self-contained.
+  // Falls back to the remote URL (preview still renders; export needs CORS).
+  useEffect(() => {
+    if (!workspaceLogoUrl) {
+      setLogoDataUrl(null);
+      setLogoIsRemote(false);
+      return;
+    }
+    let cancelled = false;
+    void fetchImageAsDataUrl(workspaceLogoUrl)
+      .then((dataUrl) => {
+        if (cancelled) return;
+        setLogoDataUrl(dataUrl);
+        setLogoIsRemote(!dataUrl.startsWith("data:"));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLogoDataUrl(workspaceLogoUrl);
+        setLogoIsRemote(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceLogoUrl]);
+
+  // (Logo application lives in the derived `options` above — web quirk
+  // notes: `update()` reads `imageOptions.hideBackgroundDots` unguarded,
+  // and `loadImage()` has no `onerror`, so `crossOrigin` stays unset and
+  // `saveAsBlob` stays false to avoid hanging `append()` on CORS hosts.)
+
   useEffect(() => {
     updateQRCode();
   }, [updateQRCode]);
@@ -511,81 +618,141 @@ export default function QRCodeDesigner({
   // ============================================================================
 
   return (
-    <div className="space-y-3 overflow-x-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <span className="">Preview</span>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-5 overflow-x-hidden">
+      {/* Preview */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <SectionLabel>Preview</SectionLabel>
           <Button
             onClick={downloadHighQualityQR}
             variant="ghost"
             size="icon"
-            title="Download High Quality QR Code"
+            className="h-7 w-7"
+            title="Download high quality PNG"
+            aria-label="Download high quality PNG"
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-3.5 w-3.5" />
           </Button>
         </div>
+        <QRCodePreview containerRef={containerRef} isFetching={isFetching} />
       </div>
 
-      {/* Preview */}
-      <QRCodePreview containerRef={containerRef} isFetching={isFetching} />
-
-      {/* Color Picker */}
-      <div className="space-y-2">
-        <Label className="text-sm">Color</Label>
-        <div className="flex items-center gap-2">
-          <ColorPicker
-            color={formState.fgColor}
-            onChange={(color) => handleFormChange("fgColor", color)}
-          />
-          <div className="w-full min-w-0">
-            <ColorButtons
-              colors={COLORS}
-              selectedColor={formState.fgColor}
-              onColorSelect={(color) => handleFormChange("fgColor", color)}
-            />
-          </div>
+      {/* Color */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <Label className="text-[13px] font-medium">Color</Label>
+          <code className="text-muted-foreground font-mono text-xs uppercase">
+            {formState.fgColor}
+          </code>
         </div>
+        <ColorSwatches
+          colors={COLORS}
+          selectedColor={formState.fgColor}
+          onColorSelect={(color) => handleFormChange("fgColor", color)}
+        />
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-sm">Style</Label>
+      {/* Pattern */}
+      <div className="space-y-2.5">
+        <Label className="text-[13px] font-medium">Pattern</Label>
         <Select
           value={formState.dotStyle}
-          onValueChange={(value) => handleFormChange("dotStyle", value)}
+          onValueChange={(value) =>
+            handleFormChange("dotStyle", value as DotType)
+          }
         >
-          <SelectTrigger className="py-0">
-            <SelectValue placeholder="Select dot type" />
+          <SelectTrigger className="h-10 w-full">
+            <SelectValue placeholder="Select pattern" />
           </SelectTrigger>
           <SelectContent>
             {DOT_STYLE_OPTIONS.map((option) => (
               <SelectItem key={option.value} value={option.value}>
-                {option.label}
+                <span className="flex items-center gap-2.5">
+                  <span
+                    className="rounded bg-white p-1 ring-1 ring-zinc-200"
+                    aria-hidden
+                  >
+                    <span className="grid grid-cols-3 gap-[2px]">
+                      {Array.from({ length: 9 }).map((_, i) => (
+                        <span
+                          key={i}
+                          style={{ backgroundColor: formState.fgColor }}
+                          className={cn("h-[5px] w-[5px]", option.preview)}
+                        />
+                      ))}
+                    </span>
+                  </span>
+                  {option.label}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
+      {/* Logo */}
+      {(slugForLogo || workspaceLogoUrl) && (
+        <div className="flex items-center justify-between">
+          <Label htmlFor="qr-logo-toggle" className="text-[13px] font-medium">
+            Workspace logo
+          </Label>
+          <Switch
+            id="qr-logo-toggle"
+            checked={formState.showLogo}
+            onCheckedChange={(checked) => handleFormChange("showLogo", checked)}
+            disabled={!workspaceLogoUrl}
+            aria-label="Show workspace logo in QR code center"
+          />
+        </div>
+      )}
+
+      {/* Export size */}
+      {/* <div className="space-y-2.5">
+        <Label className="text-[13px] font-medium">Export size</Label>
+        <div className="flex flex-wrap gap-1.5">
+          {SIZES.map((sizeOption) => {
+            const active = formState.size === sizeOption;
+            return (
+              <button
+                key={sizeOption}
+                type="button"
+                onClick={() => handleFormChange("size", sizeOption)}
+                aria-pressed={active}
+                className={cn(
+                  "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+                  active
+                    ? "border-foreground bg-foreground text-background shadow-sm"
+                    : "text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                )}
+              >
+                {sizeOption}px
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Higher resolution for print, smaller for web use.
+        </p>
+      </div> */}
+
       {/* Footer */}
       {!hideActions && (
-        <div className="flex justify-end gap-2 pt-4">
-          <Button
-            variant="outline"
-            className="w-fit"
-            onClick={() => onOpenChange(false)}
-            disabled={isSaving}
-          >
-            Cancel
-          </Button>
-          <Button
-            className="w-fit"
-            disabled={isSaving || !isFormDirty}
-            onClick={handleSave}
-          >
-            {isSaving && <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />}
-            Save
-          </Button>
+        <div className="flex items-center justify-end gap-2 pt-4">
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isSaving}
+            >
+              Cancel
+            </Button>
+            <Button disabled={isSaving || !isFormDirty} onClick={handleSave}>
+              {isSaving && (
+                <LoaderCircle className="mr-1 h-4 w-4 animate-spin" />
+              )}
+              Save
+            </Button>
+          </div>
         </div>
       )}
     </div>

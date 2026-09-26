@@ -38,10 +38,14 @@ const VISIBLE_PATHS = new Set([
   "/tools/metadatas",
   "/pricing",
   "/sponsors",
+  "/tools",
+  "/tools/qr-code-generator",
+  "/tools/utm-builder",
 ]);
 
 function isMarketingChromeVisible(pathname: string) {
   if (VISIBLE_PATHS.has(pathname)) return true;
+  if (pathname.startsWith("/tools/")) return true;
   return pathname === "/blogs" || pathname.startsWith("/blogs/");
 }
 
@@ -67,35 +71,35 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
 
   return (
     <>
-      <NavigationMenuTrigger className="bg-transparent font-normal">
+      <NavigationMenuTrigger className="text-muted-foreground hover:text-foreground data-[state=open]:text-foreground h-9 bg-transparent px-3 text-[13px] font-medium transition-colors">
         {link.title}
       </NavigationMenuTrigger>
       <NavigationMenuContent>
         <ul
           className={cn(
-            "grid gap-1 p-2",
+            "grid gap-0.5",
             isFeatures
-              ? "md:w-[400px] lg:w-[500px] lg:grid-cols-[.75fr_1fr]"
-              : "w-[300px] grid-cols-1",
+              ? "md:w-[480px] lg:w-[520px] lg:grid-cols-[200px_1fr]"
+              : "w-[320px] grid-cols-1",
           )}
         >
           {isFeatures && (
-            <li className="row-span-4">
+            <li className="row-span-3 mr-1.5">
               <NavigationMenuLink asChild>
                 <Link
                   href="/#features"
-                  className="from-muted/50 to-muted flex h-full w-full flex-col justify-end gap-3 rounded-lg bg-gradient-to-b p-4 no-underline outline-none select-none focus:shadow-md"
+                  className="flex h-full w-full flex-col justify-end gap-3 rounded-lg border border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-white p-3.5 no-underline outline-none select-none focus:shadow-md dark:border-white/10 dark:from-zinc-900 dark:to-zinc-950"
                 >
                   <div
                     aria-hidden
-                    className="rounded-lg border bg-white/80 p-3 shadow-sm dark:bg-zinc-900"
+                    className="rounded-lg border border-zinc-200/70 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-zinc-900"
                   >
                     <div className="flex items-center gap-2">
-                      <div className="h-6 w-6 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" />
-                      <div className="h-2 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />
-                      <div className="h-2 w-8 rounded-full bg-blue-500/70" />
+                      <div className="h-5 w-5 shrink-0 rounded-full bg-zinc-900 dark:bg-zinc-100" />
+                      <div className="h-1.5 flex-1 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+                      <div className="h-1.5 w-8 rounded-full bg-blue-500/70" />
                     </div>
-                    <div className="mt-2 flex h-10 items-end gap-1">
+                    <div className="mt-2 flex h-9 items-end gap-1">
                       {[35, 55, 40, 70, 52, 85, 64, 95].map((h, i) => (
                         <div
                           key={i}
@@ -106,10 +110,10 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
                     </div>
                   </div>
                   <div>
-                    <div className="mt-1 mb-1 text-lg font-medium">
+                    <div className="mt-1 mb-0.5 text-[15px] font-medium">
                       All Features
                     </div>
-                    <p className="text-muted-foreground text-sm leading-tight">
+                    <p className="text-muted-foreground text-xs leading-snug">
                       Manage links, track performance, and more.
                     </p>
                   </div>
@@ -146,7 +150,7 @@ function DesktopMenu() {
                 <Link
                   href={link.href}
                   className={cn(
-                    "group hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground data-[active]:bg-accent/50 data-[state=open]:bg-accent/50 inline-flex h-10 w-max items-center justify-center rounded-md bg-transparent px-4 py-2 text-sm font-normal transition-colors focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+                    "group hover:bg-accent hover:text-foreground focus:bg-accent focus:text-foreground text-muted-foreground hover:text-foreground inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-3 py-2 text-[13px] font-medium transition-colors focus:outline-none disabled:pointer-events-none disabled:opacity-50",
                   )}
                 >
                   {link.title}
@@ -172,23 +176,29 @@ function MobileMenuContent() {
                 value={`item-${i}`}
                 key={section.title}
               >
-                <AccordionTrigger className="border-none px-4 text-base font-medium">
+                <AccordionTrigger className="border-none px-4 py-3 text-[15px] font-medium">
                   {section.title}
                 </AccordionTrigger>
                 <AccordionContent>
-                  <div className="flex flex-col space-y-2 pb-2">
+                  <div className="flex flex-col gap-0.5 px-2 pb-2">
                     {section.menu.map((item) => (
                       <Link
                         key={item.title}
                         href={item.href}
-                        className="text-muted-foreground hover:text-primary flex items-center gap-2 px-4 py-2 text-sm"
+                        className="hover:bg-accent flex items-center gap-3 rounded-lg px-2 py-2"
                       >
-                        {item.icon && <item.icon className="h-4 w-4" />}
-                        <div className="flex flex-col">
-                          <span className="text-foreground font-medium">
+                        {item.icon && (
+                          <span className="border-border bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border">
+                            <item.icon className="text-muted-foreground h-4 w-4" />
+                          </span>
+                        )}
+                        <div className="flex min-w-0 flex-col gap-0.5">
+                          <span className="text-foreground text-[13px] font-medium">
                             {item.title}
                           </span>
-                          <span className="text-xs">{item.tagline}</span>
+                          <span className="text-muted-foreground line-clamp-1 text-xs">
+                            {item.tagline}
+                          </span>
                         </div>
                       </Link>
                     ))}
@@ -199,7 +209,7 @@ function MobileMenuContent() {
               <div key={section.title} className="px-4 py-3">
                 <Link
                   href={section.href}
-                  className="block border-none text-base font-medium"
+                  className="block border-none text-[15px] font-medium"
                 >
                   {section.title}
                 </Link>
