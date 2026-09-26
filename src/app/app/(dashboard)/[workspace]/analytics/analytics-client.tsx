@@ -228,9 +228,10 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   workspace,
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
-  const { isPro, fetchSubscription } = useSubscriptionStore();
+  const { isPro, isBusiness, fetchSubscription } = useSubscriptionStore();
   const isDemo = searchParams.get("demo") === "true";
   const canUseLeadTracking = isPro || isDemo;
+  const canUseSalesAnalytics = isBusiness || isDemo;
 
   useEffect(() => {
     void fetchSubscription();
@@ -247,8 +248,10 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     [searchParams],
   );
   const isLeads = event === "leads";
+  const isSales = event === "sales";
   const isFunnel = searchParams.get("view") === "funnel";
   const viewingLeads = isLeads && canUseLeadTracking;
+  const viewingSales = isSales && canUseSalesAnalytics;
 
   const filterParams = useMemo(
     () => extractFilterParams(searchParams),
@@ -259,7 +262,8 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     workspaceslug: workspace,
     timePeriod,
     searchParams: filterParams,
-    metrics: isLeads ? (["totalClicks"] as const) : ANALYTICS_METRICS,
+    metrics:
+      isLeads || isSales ? (["totalClicks"] as const) : ANALYTICS_METRICS,
     analyticsEvent: "clicks",
     enabled: !isDemo,
   });
@@ -273,7 +277,16 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     enabled: !isDemo && canUseLeadTracking && (isLeads || isFunnel),
   });
 
-  const active = viewingLeads ? leads : clicks;
+  const sales = useAnalytics({
+    workspaceslug: workspace,
+    timePeriod,
+    searchParams: filterParams,
+    metrics: isSales ? ANALYTICS_METRICS : (["totalClicks"] as const),
+    analyticsEvent: "sales",
+    enabled: !isDemo && canUseSalesAnalytics && (isSales || isFunnel),
+  });
+
+  const active = viewingSales ? sales : viewingLeads ? leads : clicks;
   const activeData = isDemo ? DEMO_ANALYTICS_DATA[event] : active.data;
 
   const [cachedLeadsTotal, setCachedLeadsTotal] = useState<number | null>(null);
@@ -283,12 +296,16 @@ export const AnalyticsClient = memo(function AnalyticsClient({
     }
   }, [canUseLeadTracking, leads.data?.totalClicks]);
 
+  const funnelNeedsSales = isFunnel && canUseSalesAnalytics;
   const funnelLoading =
     isFunnel &&
     canUseLeadTracking &&
-    (clicks.isLoading || leads.isLoading) &&
-    clicks.data?.totalClicks == null &&
-    leads.data?.totalClicks == null;
+    (clicks.isLoading ||
+      leads.isLoading ||
+      (funnelNeedsSales && sales.isLoading)) &&
+    (clicks.data?.totalClicks == null ||
+      leads.data?.totalClicks == null ||
+      (funnelNeedsSales && sales.data?.totalClicks == null));
 
   const filterSource = useMemo<FilterSource>(
     () => ({
@@ -363,9 +380,22 @@ export const AnalyticsClient = memo(function AnalyticsClient({
                 : (leads.data?.totalClicks ?? null)
               : cachedLeadsTotal
           }
+          totalSales={
+            canUseSalesAnalytics && (isSales || isFunnel)
+              ? isDemo
+                ? DEMO_ANALYTICS_DATA.sales.totalClicks
+                : (sales.data?.totalSales ?? sales.data?.totalClicks ?? null)
+              : null
+          }
+          totalRevenue={
+            canUseSalesAnalytics && (isSales || isFunnel)
+              ? (sales.data?.totalRevenue ?? null)
+              : null
+          }
           isRefreshing={chartRefreshing}
           error={active.error ?? undefined}
           canUseLeadTracking={canUseLeadTracking}
+          canUseSalesAnalytics={canUseSalesAnalytics}
           workspaceSlug={workspace}
         />
 

@@ -5,6 +5,7 @@ import { authenticateApiKey } from "@/lib/api-keys/auth";
 import { trackLead } from "@/lib/leads/record-lead";
 import {
   canUseLeadTracking,
+  canUseSalesAnalytics,
   getWorkspaceOwnerPlanType,
 } from "@/lib/subscription/entitlements";
 
@@ -15,6 +16,8 @@ const trackLeadSchema = z.object({
   customerEmail: z.string().email().optional().nullable(),
   customerName: z.string().max(255).optional().nullable(),
   metadata: z.record(z.unknown()).optional().nullable(),
+  saleAmount: z.number().positive().max(1000000000).optional().nullable(),
+  saleCurrency: z.string().min(3).max(3).optional().nullable(),
 });
 
 const CORS_HEADERS = {
@@ -43,7 +46,9 @@ export async function POST(request: NextRequest) {
       auth.apiKey.workspaceId,
     );
     if (!canUseLeadTracking(ownerPlanType)) {
-      return apiErrors.forbidden("Lead tracking requires a Pro plan.");
+      return apiErrors.forbidden(
+        "Lead tracking requires a Pro or Business plan.",
+      );
     }
 
     const queryClickId = request.nextUrl.searchParams.get("clickId");
@@ -67,6 +72,14 @@ export async function POST(request: NextRequest) {
     const parsed = trackLeadSchema.safeParse(merged);
     if (!parsed.success) {
       return apiErrors.validationError(parsed.error.flatten());
+    }
+
+    // Revenue attribution (sales) is Business only.
+    if (
+      parsed.data.saleAmount != null &&
+      !canUseSalesAnalytics(ownerPlanType)
+    ) {
+      return apiErrors.forbidden("Sales attribution requires a Business plan.");
     }
 
     const result = await trackLead(auth.apiKey.workspaceId, parsed.data);

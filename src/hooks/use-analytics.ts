@@ -4,6 +4,8 @@ import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
+export type AnalyticsEvent = "clicks" | "leads" | "sales";
+
 export interface AnalyticsData {
   totalClicks: number;
   clicksOverTime: Array<{ time: Date; clicks: number }>;
@@ -23,6 +25,11 @@ export interface AnalyticsData {
   utmContents: Array<{ content: string; clicks: number }>;
 }
 
+export interface SalesAnalyticsData extends Partial<AnalyticsData> {
+  totalRevenue?: number;
+  totalSales?: number;
+}
+
 interface UseAnalyticsParams {
   workspaceslug: string;
   timePeriod: TimePeriod;
@@ -30,7 +37,7 @@ interface UseAnalyticsParams {
   enabled?: boolean;
   metrics?: readonly (keyof AnalyticsData)[];
   useTinybird?: boolean;
-  analyticsEvent?: "clicks" | "leads";
+  analyticsEvent?: AnalyticsEvent;
 }
 
 // Constants
@@ -123,8 +130,8 @@ const fetchAnalyticsData = async (
   params: Record<string, string>,
   metrics?: Array<keyof AnalyticsData>,
   useTinybird: boolean = true,
-  analyticsEvent: "clicks" | "leads" = "clicks",
-): Promise<Partial<AnalyticsData>> => {
+  analyticsEvent: AnalyticsEvent = "clicks",
+): Promise<Partial<AnalyticsData> & Partial<SalesAnalyticsData>> => {
   const searchParams = new URLSearchParams();
 
   // Only add non-default/non-empty parameters
@@ -144,11 +151,13 @@ const fetchAnalyticsData = async (
   }
 
   const endpoint =
-    analyticsEvent === "leads"
-      ? `/api/workspace/${workspaceslug}/analytics/leads`
-      : useTinybird
-        ? `/api/workspace/${workspaceslug}/analytics/tinybird`
-        : `/api/workspace/${workspaceslug}/analytics`;
+    analyticsEvent === "sales"
+      ? `/api/workspace/${workspaceslug}/analytics/sales`
+      : analyticsEvent === "leads"
+        ? `/api/workspace/${workspaceslug}/analytics/leads`
+        : useTinybird
+          ? `/api/workspace/${workspaceslug}/analytics/tinybird`
+          : `/api/workspace/${workspaceslug}/analytics`;
 
   const queryString = searchParams.toString();
   const url = `${endpoint}${queryString ? `?${queryString}` : ""}`;
@@ -242,11 +251,13 @@ export function useAnalytics({
     );
     const sortedMetrics = [...metrics].sort().join(",");
     return [
-      analyticsEvent === "leads"
-        ? "analytics-leads"
-        : useTinybird
-          ? "analytics-tinybird"
-          : "analytics",
+      analyticsEvent === "sales"
+        ? "analytics-sales"
+        : analyticsEvent === "leads"
+          ? "analytics-leads"
+          : useTinybird
+            ? "analytics-tinybird"
+            : "analytics",
       sortedMetrics,
       workspaceslug,
       serializedParams,
@@ -261,7 +272,7 @@ export function useAnalytics({
   ]);
 
   const { data, error, isLoading, mutate, isValidating } = useSWR<
-    Partial<AnalyticsData>,
+    Partial<AnalyticsData> & Partial<SalesAnalyticsData>,
     Error
   >(
     swrKey,

@@ -7,7 +7,7 @@ import {
   tinybirdLeadsFilterParams,
 } from "@/lib/analytics/query-params";
 import {
-  canUseLeadTracking,
+  canUseSalesAnalytics,
   getWorkspaceOwnerPlanTypeBySlug,
 } from "@/lib/subscription/entitlements";
 import {
@@ -25,7 +25,7 @@ const PRIVATE_NO_STORE = {
 
 export const dynamic = "force-dynamic";
 
-const analyticsPropsSchema = salesLeadFilterFieldsSchema
+const salesPropsSchema = salesLeadFilterFieldsSchema
   .extend({
     metrics: z
       .array(
@@ -53,6 +53,10 @@ const analyticsPropsSchema = salesLeadFilterFieldsSchema
   })
   .strict();
 
+/**
+ * Business-only sales analytics: revenue-attributed lead events
+ * (sale_amount > 0) broken down by the standard analytics dimensions.
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ workspaceslug: string }> },
@@ -85,7 +89,7 @@ export async function GET(
         : undefined,
     };
 
-    const props = analyticsPropsSchema.parse(raw);
+    const props = salesPropsSchema.parse(raw);
 
     const access = await requireWorkspaceAccess(workspaceslug);
     if (!access.ok) {
@@ -95,10 +99,8 @@ export async function GET(
     const workspaceId = access.workspace.id;
 
     const planType = await getWorkspaceOwnerPlanTypeBySlug(workspaceslug);
-    if (!canUseLeadTracking(planType)) {
-      return apiErrors.forbidden(
-        "Lead analytics requires a Pro or Business plan.",
-      );
+    if (!canUseSalesAnalytics(planType)) {
+      return apiErrors.forbidden("Sales analytics requires a Business plan.");
     }
 
     const timePeriod = clampPeriodByRetention(planType, props.timePeriod);
@@ -116,6 +118,11 @@ export async function GET(
       "oses",
       "referrers",
       "destinations",
+      "utmSources",
+      "utmMediums",
+      "utmCampaigns",
+      "utmTerms",
+      "utmContents",
     ];
 
     const normalizedMetrics = Array.from(
@@ -128,7 +135,7 @@ export async function GET(
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
 
-    const result = await tinybird.leadsAnalytics.query({
+    const result = await tinybird.salesAnalytics.query({
       workspace_id: workspaceId,
       ...tinybirdLeadsFilterParams(effectiveProps),
     });
@@ -136,6 +143,10 @@ export async function GET(
     const rows = (result.data ?? []).map((row) => ({
       ...row,
       clicks: Number(row.clicks),
+      revenue: Number(row.revenue ?? 0),
+      unique_customers: Number(row.unique_customers ?? 0),
+      "meta.slug": row.sales_slug ?? "",
+      "meta.url": row.sales_url ?? "",
     }));
 
     const analyticsData = transformTinybirdAnalytics(
@@ -144,20 +155,26 @@ export async function GET(
       timePeriod,
     );
 
-    return NextResponse.json(analyticsData, {
-      status: 200,
-      headers: {
-        ...PRIVATE_NO_STORE,
-        "X-Analytics-Event": "leads",
+    const totalRevenue = rows.reduce((sum, row) => sum + row.revenue, 0);
+    const totalSales = rows.reduce((sum, row) => sum + row.clicks, 0);
+
+    return NextResponse.json(
+      { ...analyticsData, totalRevenue, totalSales },
+      {
+        status: 200,
+        headers: {
+          ...PRIVATE_NO_STORE,
+          "X-Analytics-Event": "sales",
+        },
       },
-    });
+    );
   } catch (err) {
-    console.error("Leads analytics API error:", err);
+    console.error("Sales analytics API error:", err);
     if (err instanceof z.ZodError) {
       return apiErrors.validationError(err.errors, "Invalid parameters");
     }
     return apiErrors.serviceUnavailable(
-      "Leads analytics temporarily unavailable",
+      "Sales analytics temporarily unavailable",
     );
   }
 }

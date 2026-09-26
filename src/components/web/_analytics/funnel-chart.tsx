@@ -6,11 +6,21 @@ import { formatNumber } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
 
 export interface FunnelStageInput {
-  id: "clicks" | "leads";
+  id: "clicks" | "leads" | "sales";
   label: string;
   value: number;
   color: string;
 }
+
+const STAGE_META: Array<{
+  id: FunnelStageInput["id"];
+  label: string;
+  color: string;
+}> = [
+  { id: "clicks", label: "Clicks", color: "#2563eb" },
+  { id: "leads", label: "Leads", color: "#ab3bdf" },
+  { id: "sales", label: "Sales", color: "#10b981" },
+];
 
 const W = 900;
 const H = 320;
@@ -38,48 +48,73 @@ function formatPercent(n: number): string {
 
 interface FunnelChartProps {
   clicks: number;
-  leads: number;
+  leads?: number;
+  sales?: number;
+  /** Which downstream stages the viewer may see (plan gating). */
+  showLeads?: boolean;
+  showSales?: boolean;
   className?: string;
 }
 
-export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
+export function FunnelChart({
+  clicks,
+  leads = 0,
+  sales = 0,
+  showLeads = true,
+  showSales = false,
+  className,
+}: FunnelChartProps) {
   const [active, setActive] = useState<number | null>(null);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
 
+  const visibleStages = useMemo(
+    () =>
+      STAGE_META.filter(
+        (stage) =>
+          stage.id === "clicks" ||
+          (stage.id === "leads" && showLeads) ||
+          (stage.id === "sales" && showSales),
+      ),
+    [showLeads, showSales],
+  );
+
   const stages = useMemo(() => {
-    const safeClicks = Math.max(0, clicks);
-    const safeLeads = Math.max(0, leads);
-    const leadRate =
-      safeClicks > 0 ? (safeLeads / safeClicks) * 100 : safeLeads > 0 ? 100 : 0;
-
-    const raw: FunnelStageInput[] = [
-      { id: "clicks", label: "Clicks", value: safeClicks, color: "#2563eb" },
-      { id: "leads", label: "Leads", value: safeLeads, color: "#ab3bdf" },
-    ];
-
-    // Both bands scale with their values relative to the largest stage,
-    // so the funnel shape always reflects the real clicks/leads split.
-    // Non-zero stages keep a minimum height so small conversions stay visible.
-    const maxValue = Math.max(safeClicks, safeLeads, 1);
+    const safe: Record<FunnelStageInput["id"], number> = {
+      clicks: Math.max(0, clicks),
+      leads: Math.max(0, leads),
+      sales: Math.max(0, sales),
+    };
+    const top = safe.clicks;
+    const maxValue = Math.max(
+      ...visibleStages.map((stage) => safe[stage.id]),
+      1,
+    );
+    // Bands scale with their values relative to the largest visible stage,
+    // so the funnel shape always reflects the real split. Non-zero stages
+    // keep a minimum height so small conversions stay visible.
     const MIN_RATIO = 0.12;
     const ratioOf = (v: number) =>
       v <= 0 ? 0 : Math.max(v / maxValue, MIN_RATIO);
+    const heights = visibleStages.map(
+      (stage) => MAXH * ratioOf(safe[stage.id]),
+    );
 
-    const b0 = MAXH * ratioOf(safeClicks);
-    const b1 = MAXH * ratioOf(safeLeads);
-    const b2 = b1 * 0.45;
-
-    return raw.map((stage, i) => ({
+    return visibleStages.map((stage, i) => ({
       ...stage,
-      percent: i === 0 ? "100%" : formatPercent(leadRate),
-      h0: i === 0 ? b0 : b1,
-      h1: i === 0 ? b1 : b2,
+      value: safe[stage.id],
+      percent:
+        i === 0
+          ? "100%"
+          : formatPercent(top > 0 ? (safe[stage.id] / top) * 100 : 0),
+      h0: heights[i]!,
+      h1: i + 1 < heights.length ? heights[i + 1]! : heights[i]! * 0.45,
     }));
-  }, [clicks, leads]);
+  }, [clicks, leads, sales, visibleStages]);
 
   const isEmpty = stages.every((s) => s.value === 0);
   const col = W / stages.length;
   const activeStage = active != null ? stages[active] : null;
+  const funnelLabel = `Conversion funnel from ${stages.map((s) => s.label.toLowerCase()).join(" to ")}`;
 
   if (isEmpty) {
     return (
@@ -89,7 +124,7 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
           className,
         )}
         role="img"
-        aria-label="Conversion funnel from clicks to leads"
+        aria-label={funnelLabel}
       >
         No funnel data yet.
       </div>
@@ -106,7 +141,7 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
         preserveAspectRatio="none"
         className="relative h-full w-full"
         role="img"
-        aria-label="Conversion funnel from clicks to leads"
+        aria-label={funnelLabel}
       >
         {stages.map((stage, i) => {
           const x0 = i * col;
@@ -131,16 +166,19 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
             </g>
           );
         })}
-        {/* Column divider */}
-        <line
-          x1={col}
-          y1={0}
-          x2={col}
-          y2={H}
-          stroke="hsl(var(--border))"
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
+        {/* Column dividers */}
+        {stages.slice(1).map((stage, i) => (
+          <line
+            key={stage.id}
+            x1={(i + 1) * col}
+            y1={0}
+            x2={(i + 1) * col}
+            y2={H}
+            stroke="hsl(var(--border))"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
       </svg>
 
       {/* Percent pills */}
@@ -157,7 +195,12 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
       </div>
 
       {/* Hover hit targets + tooltip */}
-      <div className="absolute inset-0 grid grid-cols-2">
+      <div
+        className="absolute inset-0 grid"
+        style={{
+          gridTemplateColumns: `repeat(${stages.length}, minmax(0, 1fr))`,
+        }}
+      >
         {stages.map((stage, i) => (
           <div
             key={stage.id}
@@ -178,7 +221,7 @@ export function FunnelChart({ clicks, leads, className }: FunnelChartProps) {
         <div
           className="pointer-events-none absolute z-30"
           style={{
-            left: `calc(${(active + 0.5) * 50}% )`,
+            left: `calc(${((active + 0.5) / stages.length) * 100}% )`,
             top: Math.max(8, cursor.y - 64),
             transform: "translateX(-50%)",
           }}

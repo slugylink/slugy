@@ -53,6 +53,9 @@ interface ChartProps {
   totalClicks?: number;
   /** null = not loaded yet (lazy leads fetch) */
   totalLeads?: number | null;
+  /** null = not loaded yet (lazy sales fetch, Business only) */
+  totalSales?: number | null;
+  totalRevenue?: number | null;
   timePeriod?: TimePeriod;
   workspaceslug?: string;
   searchParams?: Record<string, string>;
@@ -60,6 +63,7 @@ interface ChartProps {
   isRefreshing?: boolean;
   error?: Error;
   canUseLeadTracking?: boolean;
+  canUseSalesAnalytics?: boolean;
   workspaceSlug?: string;
 }
 
@@ -83,6 +87,11 @@ const EVENT_THEME = {
     primary: "#ab3bdf",
     gradientId: "colorLeads",
     label: "Leads",
+  },
+  sales: {
+    primary: "#10b981",
+    gradientId: "colorSales",
+    label: "Sales",
   },
 } as const;
 
@@ -145,11 +154,14 @@ const AnalyticsChart = ({
   data: propData,
   totalClicks: propTotalClicks,
   totalLeads: propTotalLeads,
+  totalSales: propTotalSales,
+  totalRevenue: propTotalRevenue,
   timePeriod = "24h",
   isLoading,
   isRefreshing,
   error,
   canUseLeadTracking = true,
+  canUseSalesAnalytics = false,
   workspaceSlug,
 }: ChartProps) => {
   const [eventParam, setEventParam] = useQueryState("event", parseAsString);
@@ -159,6 +171,8 @@ const AnalyticsChart = ({
   const isFunnel = view === "funnel";
   const showLeadUpgrade =
     !canUseLeadTracking && (event === "leads" || isFunnel);
+  const showSalesUpgrade = !canUseSalesAnalytics && event === "sales";
+  const showUpgrade = showLeadUpgrade || showSalesUpgrade;
   const theme = EVENT_THEME[event];
 
   const selectEvent = useCallback(
@@ -293,7 +307,7 @@ const AnalyticsChart = ({
 
   return (
     <Card className="w-full border p-0 shadow-none">
-      <CardHeader className="relative grid grid-cols-2 gap-0 px-0">
+      <CardHeader className="relative grid grid-cols-3 gap-0 px-0">
         <button
           type="button"
           onClick={() => selectEvent("clicks")}
@@ -325,7 +339,7 @@ const AnalyticsChart = ({
           type="button"
           onClick={() => selectEvent("leads")}
           className={cn(
-            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
+            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
             !isFunnel && event !== "leads" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
             !canUseLeadTracking && "relative",
@@ -356,6 +370,55 @@ const AnalyticsChart = ({
               className="text-2xl sm:text-3xl"
             />
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => selectEvent("sales")}
+          className={cn(
+            "flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
+            !isFunnel && event !== "sales" && "opacity-50 hover:opacity-80",
+            isFunnel && "opacity-100",
+            !canUseSalesAnalytics && "relative",
+          )}
+        >
+          <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
+            <div
+              className="h-2.5 w-2.5 sm:mb-1"
+              style={{ backgroundColor: EVENT_THEME.sales.primary }}
+            />
+            <span>Sales</span>
+            {!canUseSalesAnalytics && (
+              <Lock className="text-muted-foreground size-3" />
+            )}
+          </div>
+          {!canUseSalesAnalytics ? (
+            <span className="text-muted-foreground text-2xl sm:text-3xl">
+              0
+            </span>
+          ) : propTotalSales == null ? (
+            <span className="text-muted-foreground text-2xl sm:text-3xl">
+              0
+            </span>
+          ) : (
+            <NumberFlow
+              value={propTotalSales}
+              format={{ maximumFractionDigits: 0 }}
+              className="text-2xl sm:text-3xl"
+            />
+          )}
+          {canUseSalesAnalytics &&
+          event === "sales" &&
+          propTotalRevenue != null &&
+          propTotalRevenue > 0 ? (
+            <span className="text-muted-foreground text-xs font-normal">
+              {new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: "USD",
+                maximumFractionDigits: 0,
+              }).format(propTotalRevenue)}{" "}
+              revenue
+            </span>
+          ) : null}
         </button>
       </CardHeader>
       <CardContent className="relative p-0 pr-2 pb-4">
@@ -412,7 +475,7 @@ const AnalyticsChart = ({
             </div>
           )}
 
-          {showLeadUpgrade && (
+          {showUpgrade && (
             <div className="bg-background/80 absolute inset-0 z-20 flex flex-col items-center justify-center gap-4 px-6 backdrop-blur-sm">
               <div className="flex max-w-md flex-col items-center gap-3 text-center">
                 <div className="bg-muted flex size-12 items-center justify-center rounded-full">
@@ -420,17 +483,22 @@ const AnalyticsChart = ({
                 </div>
                 <div className="space-y-1">
                   <p className="text-foreground text-base font-medium">
-                    Conversion Tracking
+                    {showSalesUpgrade
+                      ? "Sales Analytics"
+                      : "Conversion Tracking"}
                   </p>
                   <p className="text-muted-foreground max-w-sm text-sm">
-                    Upgrade to our Pro Plan and start tracking conversion events
-                    with Slugy
+                    {showSalesUpgrade
+                      ? "Upgrade to our Business Plan and track revenue-attributed sales with Slugy"
+                      : "Upgrade to our Pro Plan and start tracking conversion events with Slugy"}
                   </p>
                 </div>
                 {workspaceSlug ? (
                   <Button asChild size="sm">
                     <Link href={`/${workspaceSlug}/settings/billing/upgrade`}>
-                      Upgrade to Pro
+                      {showSalesUpgrade
+                        ? "Upgrade to Business"
+                        : "Upgrade to Pro"}
                     </Link>
                   </Button>
                 ) : null}
@@ -443,6 +511,9 @@ const AnalyticsChart = ({
               <FunnelChart
                 clicks={propTotalClicks ?? 0}
                 leads={propTotalLeads ?? 0}
+                sales={propTotalSales ?? 0}
+                showLeads={canUseLeadTracking}
+                showSales={canUseSalesAnalytics}
               />
             ) : null
           ) : processedData.length > 0 ? (

@@ -69,7 +69,7 @@ const UpgardePage = () => {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:mx-auto lg:max-w-4xl">
+      <div className="grid gap-6 md:grid-cols-2 lg:mx-auto lg:max-w-6xl lg:grid-cols-3">
         {plans.map((plan) => (
           <Card
             key={plan.name}

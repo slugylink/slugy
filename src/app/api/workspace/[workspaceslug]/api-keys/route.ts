@@ -44,7 +44,7 @@ export async function GET(
   if (!canUseLeadTracking(planType)) {
     return jsonWithETag(
       req,
-      { error: "Lead tracking requires a Pro plan." },
+      { error: "Lead tracking requires a Pro or Business plan." },
       { status: 403 },
     );
   }
@@ -102,7 +102,7 @@ export async function POST(
   if (!canUseLeadTracking(planType)) {
     return jsonWithETag(
       req,
-      { error: "Lead tracking requires a Pro plan." },
+      { error: "Lead tracking requires a Pro or Business plan." },
       { status: 403 },
     );
   }

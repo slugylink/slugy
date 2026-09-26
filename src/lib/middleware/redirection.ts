@@ -328,6 +328,11 @@ async function trackAnalytics(
       browser: analytics.browser,
       os: analytics.os,
       referer: analytics.referer,
+      utm_source: utmParams.utm_source ?? "",
+      utm_medium: utmParams.utm_medium ?? "",
+      utm_campaign: utmParams.utm_campaign ?? "",
+      utm_term: utmParams.utm_term ?? "",
+      utm_content: utmParams.utm_content ?? "",
       timestamp,
     };
 

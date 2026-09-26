@@ -1,4 +1,4 @@
-export type AnalyticsEvent = "clicks" | "leads";
+export type AnalyticsEvent = "clicks" | "leads" | "sales";
 export type AnalyticsView = "timeseries" | "funnel";
 
 export interface DemoAnalyticsData {
@@ -678,12 +678,109 @@ export const DEMO_ANALYTICS_DATA: Record<AnalyticsEvent, DemoAnalyticsData> = {
       },
     ],
   },
+
+  sales: {
+    totalClicks: 18,
+
+    clicksOverTime: [
+      { time: times[4]!, clicks: 1 },
+      { time: times[11]!, clicks: 2 },
+      { time: times[18]!, clicks: 3 },
+      { time: times[24]!, clicks: 5 },
+      { time: times[28]!, clicks: 7 },
+    ],
+
+    links: demoLinks.slice(0, 3).map((link, index) => ({
+      ...link,
+      clicks: [8, 6, 4][index]!,
+    })),
+
+    cities: [
+      { city: "New York", country: "us", clicks: 7 },
+      { city: "London", country: "gb", clicks: 5 },
+      { city: "Toronto", country: "ca", clicks: 4 },
+      { city: "Singapore", country: "sg", clicks: 2 },
+    ],
+
+    countries: [
+      { country: "us", clicks: 8 },
+      { country: "gb", clicks: 5 },
+      { country: "ca", clicks: 3 },
+      { country: "sg", clicks: 2 },
+    ],
+
+    continents: [
+      { continent: "North America", clicks: 11 },
+      { continent: "Europe", clicks: 5 },
+      { continent: "Asia", clicks: 2 },
+    ],
+
+    devices: [
+      { device: "Desktop", clicks: 11 },
+      { device: "Mobile", clicks: 6 },
+      { device: "Tablet", clicks: 1 },
+    ],
+
+    browsers: [
+      { browser: "Chrome", clicks: 10 },
+      { browser: "Safari", clicks: 5 },
+      { browser: "Edge", clicks: 3 },
+    ],
+
+    oses: [
+      { os: "Windows", clicks: 7 },
+      { os: "macOS", clicks: 6 },
+      { os: "iOS", clicks: 5 },
+    ],
+
+    referrers: [
+      { referrer: "Google", clicks: 8 },
+      { referrer: "Direct", clicks: 6 },
+      { referrer: "LinkedIn", clicks: 4 },
+    ],
+
+    destinations: demoLinks.slice(0, 3).map((link, index) => ({
+      destination: link.url,
+      clicks: [8, 6, 4][index]!,
+    })),
+
+    utmSources: [
+      { source: "google", clicks: 8 },
+      { source: "linkedin", clicks: 4 },
+      { source: "newsletter", clicks: 6 },
+    ],
+
+    utmMediums: [
+      { medium: "cpc", clicks: 8 },
+      { medium: "email", clicks: 6 },
+      { medium: "referral", clicks: 4 },
+    ],
+
+    utmCampaigns: [
+      { campaign: "summer-sale", clicks: 9 },
+      { campaign: "product-launch", clicks: 6 },
+      { campaign: "newsletter", clicks: 3 },
+    ],
+
+    utmTerms: [
+      { term: "short links", clicks: 5 },
+      { term: "link management", clicks: 4 },
+    ],
+
+    utmContents: [
+      { content: "search-ad", clicks: 8 },
+      { content: "email-cta", clicks: 6 },
+      { content: "profile-bio", clicks: 4 },
+    ],
+  },
 };
 
 export function parseAnalyticsEvent(
   value: string | null | undefined,
 ): AnalyticsEvent {
-  return value === "leads" ? "leads" : "clicks";
+  if (value === "leads") return "leads";
+  if (value === "sales") return "sales";
+  return "clicks";
 }
 
 export function parseAnalyticsView(

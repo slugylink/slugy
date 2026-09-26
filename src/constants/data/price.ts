@@ -35,8 +35,9 @@ export interface Plan {
 
 export interface PricingComparisonRow {
   feature: string;
-  basic: PricingFeatureValue;
+  free: PricingFeatureValue;
   pro: PricingFeatureValue;
+  business: PricingFeatureValue;
 }
 
 export const PRICING_COPY = {
@@ -89,6 +90,21 @@ export function getPlanPriceSubtitle(
 ): string {
   if (plan.planType === "free" || plan.planType === "basic") return "Forever";
   return billing === "yearly" ? "/year" : "/month";
+}
+
+/** Analytics event access per tier: free → clicks, pro → + leads, business → + sales. */
+export function getPlanAnalyticsTier(planType: PlanType): string {
+  if (planType === "business") return "Clicks + Leads + Sales";
+  if (planType === "pro") return "Clicks + Leads";
+  return "Clicks";
+}
+
+export function planHasLeadTracking(planType: PlanType): boolean {
+  return planType === "pro" || planType === "business";
+}
+
+export function planHasSalesAnalytics(planType: PlanType): boolean {
+  return planType === "business";
 }
 
 function formatClicks(clicks: number): string {
@@ -225,6 +241,8 @@ export const PRO_PLAN: Plan = {
     "3 workspaces",
     "250 new links/month",
     "10k tracked clicks/month",
+    "Click + lead analytics",
+    "Lead conversion tracking",
     "Custom link preview",
     "Link expiration",
     "Password protection",
@@ -274,6 +292,8 @@ export const BUSINESS_PLAN: Plan = {
     "10 workspaces",
     "1500 new links/month",
     "50k tracked clicks/month",
+    "Click + lead + sales analytics",
+    "Sales analytics with revenue attribution",
     "Custom link preview",
     "Link expiration",
     "Password protection",
@@ -294,65 +314,95 @@ export const plans: Plan[] = [FREE_PLAN, PRO_PLAN, BUSINESS_PLAN];
 export const PRICING_COMPARISON_FEATURES: PricingComparisonRow[] = [
   {
     feature: "Workspaces",
-    basic: BASIC_PLAN.maxWorkspaces,
+    free: FREE_PLAN.maxWorkspaces,
     pro: PRO_PLAN.maxWorkspaces,
+    business: BUSINESS_PLAN.maxWorkspaces,
   },
   {
     feature: "Links",
-    basic: `${BASIC_PLAN.maxLinksPerWorkspace} / workspace`,
+    free: `${FREE_PLAN.maxLinksPerWorkspace} / workspace`,
     pro: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
+    business: `${BUSINESS_PLAN.maxLinksPerWorkspace} / workspace`,
   },
   {
     feature: "Analytics",
-    basic: formatClicks(BASIC_PLAN.maxClicksPerWorkspace),
+    free: formatClicks(FREE_PLAN.maxClicksPerWorkspace),
     pro: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
+    business: formatClicks(BUSINESS_PLAN.maxClicksPerWorkspace),
   },
+  {
+    feature: "Analytics events",
+    free: getPlanAnalyticsTier("free"),
+    pro: getPlanAnalyticsTier("pro"),
+    business: getPlanAnalyticsTier("business"),
+  },
+  {
+    feature: "Lead conversion tracking",
+    free: false,
+    pro: true,
+    business: true,
+  },
+  { feature: "Sales analytics", free: false, pro: false, business: true },
   {
     feature: "Analytics Retention",
-    basic: BASIC_PLAN.analyticsRetention,
+    free: FREE_PLAN.analyticsRetention,
     pro: PRO_PLAN.analyticsRetention,
+    business: BUSINESS_PLAN.analyticsRetention,
   },
-  { feature: "Advanced Analytics", basic: false, pro: true },
+  { feature: "Advanced Analytics", free: false, pro: true, business: true },
   {
     feature: "Bio Links",
-    basic: BASIC_PLAN.maxBioLinks,
+    free: FREE_PLAN.maxBioLinks,
     pro: PRO_PLAN.maxBioLinks,
+    business: BUSINESS_PLAN.maxBioLinks,
   },
   {
     feature: "Link Tags",
-    basic: BASIC_PLAN.maxLinkTags,
+    free: FREE_PLAN.maxLinkTags,
     pro: PRO_PLAN.maxLinkTags,
+    business: BUSINESS_PLAN.maxLinkTags,
   },
   {
     feature: "Custom Domains",
-    basic: BASIC_PLAN.maxCustomDomains,
+    free: FREE_PLAN.maxCustomDomains,
     pro: PRO_PLAN.maxCustomDomains,
+    business: BUSINESS_PLAN.maxCustomDomains,
   },
-  { feature: "Users", basic: BASIC_PLAN.maxUsers, pro: PRO_PLAN.maxUsers },
+  {
+    feature: "Users",
+    free: FREE_PLAN.maxUsers,
+    pro: PRO_PLAN.maxUsers,
+    business: BUSINESS_PLAN.maxUsers,
+  },
   {
     feature: "UTM Templates",
-    basic: BASIC_PLAN.maxUTM,
+    free: FREE_PLAN.maxUTM,
     pro: PRO_PLAN.maxUTM,
+    business: BUSINESS_PLAN.maxUTM,
   },
   {
     feature: "Custom Link Preview",
-    basic: BASIC_PLAN.customizeLinkPreview,
+    free: FREE_PLAN.customizeLinkPreview,
     pro: PRO_PLAN.customizeLinkPreview,
+    business: BUSINESS_PLAN.customizeLinkPreview,
   },
   {
     feature: "Link Expiration",
-    basic: BASIC_PLAN.linkExp,
+    free: FREE_PLAN.linkExp,
     pro: PRO_PLAN.linkExp,
+    business: BUSINESS_PLAN.linkExp,
   },
   {
     feature: "Password Protection",
-    basic: BASIC_PLAN.linkPassword,
+    free: FREE_PLAN.linkPassword,
     pro: PRO_PLAN.linkPassword,
+    business: BUSINESS_PLAN.linkPassword,
   },
   {
     feature: "Geo Targeting",
-    basic: BASIC_PLAN.linkGeoTargeting,
+    free: FREE_PLAN.linkGeoTargeting,
     pro: PRO_PLAN.linkGeoTargeting,
+    business: BUSINESS_PLAN.linkGeoTargeting,
   },
 ];
 

@@ -200,6 +200,8 @@ export const slugyLeadEvents = defineDatasource("slugy_lead_events", {
     domain: t.string().lowCardinality(),
     event_name: t.string().lowCardinality(),
     customer_external_id: t.string(),
+    sale_amount: t.float64(),
+    sale_currency: t.string().lowCardinality(),
     country: t.string().lowCardinality(),
     city: t.string(),
     continent: t.string().lowCardinality(),
@@ -207,6 +209,11 @@ export const slugyLeadEvents = defineDatasource("slugy_lead_events", {
     browser: t.string().lowCardinality(),
     os: t.string().lowCardinality(),
     referer: t.string(),
+    utm_source: t.string().lowCardinality(),
+    utm_medium: t.string().lowCardinality(),
+    utm_campaign: t.string().lowCardinality(),
+    utm_term: t.string().lowCardinality(),
+    utm_content: t.string().lowCardinality(),
   },
   engine: engine.mergeTree({
     sortingKey: ["timestamp", "link_id", "workspace_id"],
@@ -254,6 +261,26 @@ const analyticsParams = {
   browser: p.string().optional(""),
   os: p.string().optional(""),
   referer: p.string().optional(""),
+} as const;
+
+// Sales-lead analytics (Pro + Business): click dimensions plus the sales
+// attribution dimensions stored on slugy_lead_events.
+const leadsOutput = {
+  ...analyticsOutput,
+  event_name: t.string(),
+  sample_customer_id: t.string(),
+  unique_customers: t.uint64(),
+} as const;
+
+const leadsParams = {
+  ...analyticsParams,
+  event_name: p.string().optional(""),
+  customer_external_id: p.string().optional(""),
+  utm_source: p.string().optional(""),
+  utm_medium: p.string().optional(""),
+  utm_campaign: p.string().optional(""),
+  utm_term: p.string().optional(""),
+  utm_content: p.string().optional(""),
 } as const;
 
 // ============================================================================
@@ -357,8 +384,9 @@ export type AnalyticsPipeParams = InferParams<typeof analyticsPipe>;
 export type AnalyticsPipeOutput = InferOutputRow<typeof analyticsPipe>;
 
 export const leadsAnalytics = defineEndpoint("leads_analytics", {
-  description: "Aggregated lead conversion analytics by dimension",
-  params: analyticsParams,
+  description:
+    "Aggregated sales-lead conversion analytics by dimension (Pro + Business)",
+  params: leadsParams,
   nodes: [
     node({
       name: "endpoint",
@@ -382,6 +410,7 @@ export const leadsAnalytics = defineEndpoint("leads_analytics", {
             ELSE toString(toDate(timestamp))
           END AS day,
           count() AS clicks,
+          uniq(customer_external_id) AS unique_customers,
           any(slug) AS \`meta.slug\`,
           any(url) AS \`meta.url\`,
           domain,
@@ -391,7 +420,14 @@ export const leadsAnalytics = defineEndpoint("leads_analytics", {
           device,
           browser,
           os,
-          referer
+          referer,
+          event_name,
+          any(customer_external_id) AS sample_customer_id,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
         FROM slugy_lead_events
         WHERE
           workspace_id = {{String(workspace_id)}}
@@ -406,6 +442,13 @@ export const leadsAnalytics = defineEndpoint("leads_analytics", {
           AND ({{String(browser, '')}} = '' OR browser = {{String(browser, '')}})
           AND ({{String(os, '')}} = '' OR os = {{String(os, '')}})
           AND ({{String(referer, '')}} = '' OR referer = {{String(referer, '')}})
+          AND ({{String(event_name, '')}} = '' OR event_name = {{String(event_name, '')}})
+          AND ({{String(customer_external_id, '')}} = '' OR customer_external_id = {{String(customer_external_id, '')}})
+          AND ({{String(utm_source, '')}} = '' OR utm_source = {{String(utm_source, '')}})
+          AND ({{String(utm_medium, '')}} = '' OR utm_medium = {{String(utm_medium, '')}})
+          AND ({{String(utm_campaign, '')}} = '' OR utm_campaign = {{String(utm_campaign, '')}})
+          AND ({{String(utm_term, '')}} = '' OR utm_term = {{String(utm_term, '')}})
+          AND ({{String(utm_content, '')}} = '' OR utm_content = {{String(utm_content, '')}})
         GROUP BY
           link_id,
           day,
@@ -416,16 +459,145 @@ export const leadsAnalytics = defineEndpoint("leads_analytics", {
           device,
           browser,
           os,
-          referer
+          referer,
+          event_name,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
         ORDER BY day DESC, clicks DESC
       `,
     }),
   ],
-  output: analyticsOutput,
+  output: leadsOutput,
 });
 
 export type LeadsAnalyticsParams = InferParams<typeof leadsAnalytics>;
 export type LeadsAnalyticsOutput = InferOutputRow<typeof leadsAnalytics>;
+
+// Sales analytics (Business only): revenue-attributed lead events.
+// A sale is a lead event with sale_amount > 0.
+const salesOutput = {
+  link_id: t.string(),
+  day: t.string(),
+  clicks: t.uint64(),
+  revenue: t.float64(),
+  unique_customers: t.uint64(),
+  sales_slug: t.string(),
+  sales_url: t.string(),
+  domain: t.string(),
+  country: t.string(),
+  city: t.string(),
+  continent: t.string(),
+  device: t.string(),
+  browser: t.string(),
+  os: t.string(),
+  referer: t.string(),
+  event_name: t.string(),
+  sample_customer_id: t.string(),
+  sale_currency: t.string(),
+  utm_source: t.string(),
+  utm_medium: t.string(),
+  utm_campaign: t.string(),
+  utm_term: t.string(),
+  utm_content: t.string(),
+} as const;
+
+export const salesAnalytics = defineEndpoint("sales_analytics", {
+  description: "Aggregated sales analytics by dimension (Business only)",
+  params: leadsParams,
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+        WITH
+          now() AS current_ts,
+          {{String(date_range, '24h')}} AS dr,
+          CASE
+            WHEN dr = '24h' THEN current_ts - INTERVAL 24 HOUR
+            WHEN dr = '7d' THEN current_ts - INTERVAL 7 DAY
+            WHEN dr = '30d' THEN current_ts - INTERVAL 30 DAY
+            WHEN dr = '3m' THEN current_ts - INTERVAL 90 DAY
+            WHEN dr = '12m' THEN current_ts - INTERVAL 365 DAY
+            WHEN dr = 'all' THEN toDateTime('2025-01-01 00:00:00')
+            ELSE current_ts - INTERVAL 7 DAY
+          END AS start_ts
+        SELECT
+          link_id,
+          CASE
+            WHEN dr = '24h' THEN toString(toStartOfHour(timestamp))
+            ELSE toString(toDate(timestamp))
+          END AS day,
+          count() AS clicks,
+          sum(sale_amount) AS revenue,
+          uniq(customer_external_id) AS unique_customers,
+          any(slug) AS sales_slug,
+          any(url) AS sales_url,
+          domain,
+          country,
+          city,
+          continent,
+          device,
+          browser,
+          os,
+          referer,
+          event_name,
+          any(customer_external_id) AS sample_customer_id,
+          any(sale_currency) AS sale_currency,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
+        FROM slugy_lead_events
+        WHERE
+          workspace_id = {{String(workspace_id)}}
+          AND timestamp >= start_ts
+          AND sale_amount > 0
+          AND ({{String(slug, '')}} = '' OR slug = {{String(slug, '')}})
+          AND ({{String(url, '')}} = '' OR url = {{String(url, '')}})
+          AND ({{String(domain, '')}} = '' OR domain = {{String(domain, '')}})
+          AND ({{String(country, '')}} = '' OR country = {{String(country, '')}})
+          AND ({{String(city, '')}} = '' OR city = {{String(city, '')}})
+          AND ({{String(continent, '')}} = '' OR continent = {{String(continent, '')}})
+          AND ({{String(device, '')}} = '' OR device = {{String(device, '')}})
+          AND ({{String(browser, '')}} = '' OR browser = {{String(browser, '')}})
+          AND ({{String(os, '')}} = '' OR os = {{String(os, '')}})
+          AND ({{String(referer, '')}} = '' OR referer = {{String(referer, '')}})
+          AND ({{String(event_name, '')}} = '' OR event_name = {{String(event_name, '')}})
+          AND ({{String(customer_external_id, '')}} = '' OR customer_external_id = {{String(customer_external_id, '')}})
+          AND ({{String(utm_source, '')}} = '' OR utm_source = {{String(utm_source, '')}})
+          AND ({{String(utm_medium, '')}} = '' OR utm_medium = {{String(utm_medium, '')}})
+          AND ({{String(utm_campaign, '')}} = '' OR utm_campaign = {{String(utm_campaign, '')}})
+          AND ({{String(utm_term, '')}} = '' OR utm_term = {{String(utm_term, '')}})
+          AND ({{String(utm_content, '')}} = '' OR utm_content = {{String(utm_content, '')}})
+        GROUP BY
+          link_id,
+          day,
+          domain,
+          country,
+          city,
+          continent,
+          device,
+          browser,
+          os,
+          referer,
+          event_name,
+          utm_source,
+          utm_medium,
+          utm_campaign,
+          utm_term,
+          utm_content
+        ORDER BY day DESC, clicks DESC
+      `,
+    }),
+  ],
+  output: salesOutput,
+});
+
+export type SalesAnalyticsParams = InferParams<typeof salesAnalytics>;
+export type SalesAnalyticsOutput = InferOutputRow<typeof salesAnalytics>;
 
 // ============================================================================
 // Client
@@ -448,5 +620,6 @@ export const tinybird = new Tinybird({
     slugyLinksMetadataMvPipe,
     analyticsPipe,
     leadsAnalytics,
+    salesAnalytics,
   },
 });

@@ -746,6 +746,8 @@ model LeadEvent {
   eventName          String
   customerEmail      String?
   customerName       String?
+  saleAmount         Float    @default(0)
+  saleCurrency       String?
   metadata           Json?
   createdAt          DateTime @default(now())
 

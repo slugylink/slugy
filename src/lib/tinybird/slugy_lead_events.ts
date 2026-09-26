@@ -26,6 +26,13 @@ export async function sendLeadEvent(event: LeadEventPayload): Promise<void> {
       browser: event.browser ?? "",
       os: event.os ?? "",
       referer: event.referer ?? "",
+      utm_source: event.utm_source ?? "",
+      utm_medium: event.utm_medium ?? "",
+      utm_campaign: event.utm_campaign ?? "",
+      utm_term: event.utm_term ?? "",
+      utm_content: event.utm_content ?? "",
+      sale_amount: event.sale_amount ?? 0,
+      sale_currency: event.sale_currency ?? "",
     });
   } catch (error) {
     console.error("[Tinybird] lead_events ingest error:", error);

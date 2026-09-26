@@ -238,6 +238,15 @@ export default function AppPricingComparator({
       { feature: "Link Expiration", get: (p: Plan) => p.linkExp },
       { feature: "Password Protection", get: (p: Plan) => p.linkPassword },
       { feature: "Geo Targeting", get: (p: Plan) => p.linkGeoTargeting },
+      { feature: "Click analytics", get: () => true },
+      {
+        feature: "Lead conversion tracking",
+        get: (p: Plan) => p.planType === "pro" || p.planType === "business",
+      },
+      {
+        feature: "Sales analytics",
+        get: (p: Plan) => p.planType === "business",
+      },
     ],
     [],
   );

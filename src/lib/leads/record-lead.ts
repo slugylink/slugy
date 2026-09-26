@@ -11,6 +11,9 @@ export interface TrackLeadInput {
   customerEmail?: string | null;
   customerName?: string | null;
   metadata?: Record<string, unknown> | null;
+  /** Revenue attribution — Business only (sales analytics). */
+  saleAmount?: number | null;
+  saleCurrency?: string | null;
 }
 
 export type TrackLeadResult =
@@ -56,6 +59,14 @@ export async function trackLead(
   const timestamp = new Date().toISOString();
   let leadEventId: string;
   let created = false;
+  const saleAmount =
+    typeof input.saleAmount === "number" &&
+    Number.isFinite(input.saleAmount) &&
+    input.saleAmount > 0
+      ? input.saleAmount
+      : 0;
+  const saleCurrency =
+    input.saleCurrency?.trim().toUpperCase().slice(0, 3) || "";
 
   try {
     const leadEvent = await db.$transaction(async (tx) => {
@@ -93,6 +104,8 @@ export async function trackLead(
           eventName,
           customerEmail: input.customerEmail ?? undefined,
           customerName: input.customerName ?? undefined,
+          saleAmount,
+          saleCurrency: saleCurrency || undefined,
           metadata: input.metadata
             ? (JSON.parse(
                 JSON.stringify(input.metadata),
@@ -151,6 +164,13 @@ export async function trackLead(
         browser: attribution.browser,
         os: attribution.os,
         referer: attribution.referer,
+        utm_source: attribution.utm_source ?? "",
+        utm_medium: attribution.utm_medium ?? "",
+        utm_campaign: attribution.utm_campaign ?? "",
+        utm_term: attribution.utm_term ?? "",
+        utm_content: attribution.utm_content ?? "",
+        sale_amount: saleAmount,
+        sale_currency: saleCurrency,
       }),
     ]);
   }

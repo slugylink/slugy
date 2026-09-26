@@ -23,6 +23,7 @@ interface SubscriptionStoreState {
   subscription: ActiveSubscription | null;
   planType: PlanType | null;
   isPro: boolean;
+  isBusiness: boolean;
   isLoading: boolean;
   error: string | null;
   hasFetched: boolean;
@@ -39,11 +40,13 @@ function applySubscription(
   // Business includes everything Pro unlocks in the UI.
   const normalized = planType?.toString().toLowerCase();
   const isPro = normalized === "pro" || normalized === "business";
+  const isBusiness = normalized === "business";
 
   set({
     subscription,
     planType,
     isPro,
+    isBusiness,
     hasFetched: true,
     isLoading: false,
     error: null,
@@ -55,6 +58,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
     subscription: null,
     planType: null,
     isPro: false,
+    isBusiness: false,
     isLoading: false,
     error: null,
     hasFetched: false,
@@ -64,6 +68,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
         subscription: null,
         planType: null,
         isPro: false,
+        isBusiness: false,
         isLoading: false,
         error: null,
         hasFetched: false,
@@ -121,6 +126,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
           subscription: null,
           planType: null,
           isPro: false,
+          isBusiness: false,
           hasFetched: true,
           isLoading: false,
           error: "Failed to load subscription",

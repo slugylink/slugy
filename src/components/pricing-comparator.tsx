@@ -79,6 +79,15 @@ const COMPARE_ROWS: CompareRow[] = [
   { feature: "Link Expiration", get: (p) => p.linkExp },
   { feature: "Password Protection", get: (p) => p.linkPassword },
   { feature: "Geo Targeting", get: (p) => p.linkGeoTargeting },
+  { feature: "Click analytics", get: () => true },
+  {
+    feature: "Lead conversion tracking",
+    get: (p) => p.planType === "pro" || p.planType === "business",
+  },
+  {
+    feature: "Sales analytics",
+    get: (p) => p.planType === "business",
+  },
 ];
 
 function FeatureValue({ value }: { value: PricingFeatureValue }) {

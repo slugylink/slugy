@@ -15,6 +15,11 @@ export interface CachedClickAttribution {
   browser: string;
   os: string;
   referer: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_term?: string;
+  utm_content?: string;
   timestamp: string;
 }
 
@@ -67,6 +72,11 @@ export async function resolveClickAttribution(
       browser: true,
       os: true,
       referer: true,
+      utm_source: true,
+      utm_medium: true,
+      utm_campaign: true,
+      utm_term: true,
+      utm_content: true,
       clickedAt: true,
       link: {
         select: {
@@ -96,6 +106,11 @@ export async function resolveClickAttribution(
     browser: row.browser ?? "",
     os: row.os ?? "",
     referer: row.referer ?? "Direct",
+    utm_source: row.utm_source ?? "",
+    utm_medium: row.utm_medium ?? "",
+    utm_campaign: row.utm_campaign ?? "",
+    utm_term: row.utm_term ?? "",
+    utm_content: row.utm_content ?? "",
     timestamp: row.clickedAt.toISOString(),
   };
 }

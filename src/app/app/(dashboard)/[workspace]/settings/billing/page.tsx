@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { DiamondPlus, Globe, Link2, Tag, Users } from "lucide-react";
+import { BarChart3, DiamondPlus, Globe, Link2, Tag, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import type { LucideIcon } from "lucide-react";
 import { getBillingData } from "@/server/actions/subscription";
 import { getUsages } from "@/server/actions/usages/get-usages";
+import { getPlanAnalyticsTier, type PlanType } from "@/constants/data/price";
 import { redirect } from "next/navigation";
 
 type UsageMetric = {
@@ -37,9 +38,17 @@ export default async function Billing({
 
   const { plan, usage, limits, billingCycle, subscription } = result.data;
 
-  // Both Basic and Pro are paid plans now (no free tier).
+  const normalizedPlanType = (
+    ["free", "basic", "pro", "business"].includes(
+      plan.planType?.toLowerCase() ?? "",
+    )
+      ? plan.planType.toLowerCase()
+      : "free"
+  ) as PlanType;
+
+  // Paid plans: pro + business (free/basic are unpaid).
   const isPaidPlan =
-    plan.planType && ["basic", "pro"].includes(plan.planType.toLowerCase());
+    plan.planType && ["pro", "business"].includes(plan.planType.toLowerCase());
   const canManagePortal = subscription?.canManagePortal === true;
 
   // Check if subscription is canceled but still active (grace period)
@@ -120,6 +129,11 @@ export default async function Billing({
                   : "Not available"}
               </p>
             )}
+            <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
+              <BarChart3 className="size-3.5" />
+              <span className="font-medium">Analytics:</span>{" "}
+              {getPlanAnalyticsTier(normalizedPlanType)}
+            </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             {isPaidPlan && canManagePortal ? (
