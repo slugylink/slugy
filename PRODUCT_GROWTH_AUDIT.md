@@ -101,16 +101,17 @@ Here's what is missing, checked against your current code:
 5. Templates - NOT DONE
    No Create from template. Need:
 
-- UTM campaign builder
+<!-- - UTM campaign builder -->
+
 - event QR poster
 - agency client report
 - launch link pack
-- campaign templates with pre-filled UTM naming rules
+<!-- - campaign templates with pre-filled UTM naming rules -->
 
 6. Highest-value additions - ALL MISSING
    Checked in src/:
-1. Bulk link creation + import - you only have bulk delete api/.../link/delete and bulk archive, no bulk create / CSV import.
-1. Shareable branded client reports - public link or scheduled email - not found.
+   <!-- 1. Bulk link creation + import - you only have bulk delete api/.../link/delete and bulk archive, no bulk create / CSV import. -->
+   <!-- 1. Shareable branded client reports - public link or scheduled email - not found. -->
 1. Link alerts - crossed 1,000 clicks / destination broken - not found, only UI alert.tsx.
 1. Integrations + webhooks - only polar/webhook for billing. No Zapier, Make, Google Sheets, Slack outgoing.
 1. Referral reward - extra links / domains / Pro month - not found.

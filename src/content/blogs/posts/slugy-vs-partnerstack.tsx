@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsPartnerstackPost() {
   return (
@@ -58,6 +68,69 @@ export default function SlugyVsPartnerstackPost() {
           ["Branded links + QR", "Slugy"],
           ["Per-link click analytics", "Slugy"],
           ["Open source", "Slugy is open source"],
+        ]}
+      />
+
+      <Shot
+        src="/images/card2.png"
+        alt="Slugy links dashboard tracking partner links with click counts"
+        caption="Every partner link tracked in one dashboard, before payouts are calculated."
+        width={1270}
+        height={760}
+      />
+
+      <H2 id="pricing">What the combination costs</H2>
+      <P>
+        PartnerStack is sales-led with custom pricing for partner programs. The
+        Slugy link layer starts free — branded partner links and click analytics
+        at $0, Pro at $8/month ($5/month forever with GETPRO) when you need
+        signup attribution and volume.
+      </P>
+      <PricingTable
+        competitor="PartnerStack"
+        rows={[
+          [
+            "Entry",
+            "Slugy Free $0 — branded links, QR, per-link clicks",
+            "PartnerStack custom pricing — program management + marketplace",
+          ],
+          [
+            "Growth",
+            "Slugy Pro $8/mo ($5/mo forever with GETPRO) — lead tracking",
+            "Scales with your partner program — talk to their sales team",
+          ],
+        ]}
+        note="PartnerStack prices by program size — checked September 2026. Slugy numbers are from slugy.co/pricing."
+      />
+
+      <H2 id="setup">Setting them up together</H2>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">
+              Put Slugy in front of partner URLs.
+            </strong>{" "}
+            Create branded links on one custom domain for every partner&apos;s
+            tracking URL.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Watch pre-conversion traffic.
+            </strong>{" "}
+            See clicks by partner, referrer, and geo in Slugy before
+            PartnerStack reports the outcome.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Reuse QR and bio assets.
+            </strong>{" "}
+            Give partners event-ready QR codes and link-in-bio pages from the
+            same workspace.
+          </>,
+          <>
+            <strong className="text-foreground">Scale with CSV.</strong> Import
+            hundreds of partner links at once when the program grows.
+          </>,
         ]}
       />
 

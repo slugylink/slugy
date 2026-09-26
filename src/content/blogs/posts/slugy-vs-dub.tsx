@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsDubPost() {
   return (
@@ -59,6 +69,43 @@ export default function SlugyVsDubPost() {
         ]}
       />
 
+      <Shot
+        src="/images/features/f4_converted.webp"
+        alt="Slugy bio page with branded links and per-button analytics"
+        caption="Slugy bio pages live on your own domain, with analytics on every button."
+        width={1270}
+        height={960}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        Dub&apos;s free plan is generous (25 links/month, 1k tracked events),
+        and Slugy&apos;s is built the same way: free to start, then Pro at
+        $8/month ($5/month forever with GETPRO) when you need lead conversion
+        tracking and more volume.
+      </P>
+      <PricingTable
+        competitor="Dub.co"
+        rows={[
+          [
+            "Free",
+            "$0 — 1 workspace, 10 links/mo, 1k clicks/mo, QR + bio included",
+            "$0 — 25 links/mo, 1k events/mo",
+          ],
+          [
+            "Mid tier",
+            "Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo, 10k clicks/mo, lead tracking",
+            "Pro from ~$24/mo — higher limits, more features",
+          ],
+          [
+            "Top tier",
+            "Business $29/mo — 1,500 links/mo, 50k clicks/mo, sales analytics",
+            "Business/enterprise tiers — check current pricing",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Dub's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
       <H2 id="migrating">Migrating from Dub.co to Slugy</H2>
       <P>
         Export your Dub links, connect your custom domain in Slugy, and import
@@ -66,6 +113,28 @@ export default function SlugyVsDubPost() {
         compare data models and self-hosting options side by side before
         committing.
       </P>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export from Dub.co.</strong>{" "}
+            Export your links to CSV from the Dub dashboard.
+          </>,
+          <>
+            <strong className="text-foreground">Connect your domain.</strong>{" "}
+            Add your custom domain in Slugy with the guided DNS setup.
+          </>,
+          <>
+            <strong className="text-foreground">Import the CSV.</strong> Slugs,
+            destinations, and UTM parameters carry over; bio pages and lead
+            tracking can be switched on per link afterwards.
+          </>,
+          <>
+            <strong className="text-foreground">Verify, then switch.</strong>{" "}
+            Spot-check top links and analytics continuity before pointing
+            production traffic at Slugy.
+          </>,
+        ]}
+      />
 
       <H2 id="verdict">Verdict</H2>
       <P>

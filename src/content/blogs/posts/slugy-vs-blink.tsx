@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsBlinkPost() {
   return (
@@ -60,12 +70,71 @@ export default function SlugyVsBlinkPost() {
         ]}
       />
 
+      <Shot
+        src="/images/features/f1_converted.webp"
+        alt="Slugy links dashboard with search, click counts, and link management"
+        caption="Self-serve analytics on every link — no enterprise contract required."
+        width={1270}
+        height={960}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        BL.INK sells to enterprises with SMB plans starting around $48/month and
+        custom enterprise pricing. Slugy is self-serve: free to start, Pro at
+        $8/month ($5/month forever with GETPRO), Business at $29/month — no
+        sales call to see analytics.
+      </P>
+      <PricingTable
+        competitor="BL.INK"
+        rows={[
+          [
+            "Entry",
+            "Free $0 — 10 links/mo, 1k clicks/mo, QR + bio included",
+            "SMB from ~$48/mo — branded links with analytics",
+          ],
+          [
+            "Mid tier",
+            "Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo, lead tracking",
+            "Higher tiers — more volume and controls",
+          ],
+          [
+            "Top tier",
+            "Business $29/mo — 1,500 links/mo, 50k clicks/mo, sales analytics",
+            "Enterprise custom — compliance, SSO, account management",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify BL.INK's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
       <H2 id="migrating">Migrating from BL.INK to Slugy</H2>
       <P>
         Export your links to CSV, reconnect your domain in Slugy, and import.
         Regulated teams should confirm Slugy meets their compliance bar before
         moving — the code is public, which makes that review easier.
       </P>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export from BL.INK.</strong>{" "}
+            Export your links to CSV from the BL.INK console.
+          </>,
+          <>
+            <strong className="text-foreground">Reconnect your domain.</strong>{" "}
+            Add your custom domain in Slugy with the guided DNS setup.
+          </>,
+          <>
+            <strong className="text-foreground">Import via CSV.</strong> Slugs,
+            destinations, and UTM parameters carry over with full history going
+            forward.
+          </>,
+          <>
+            <strong className="text-foreground">Clear compliance first.</strong>{" "}
+            Regulated teams: review the public codebase against your bar before
+            moving production links.
+          </>,
+        ]}
+      />
 
       <H2 id="verdict">Verdict</H2>
       <P>

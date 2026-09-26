@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsRewardfulPost() {
   return (
@@ -58,6 +68,69 @@ export default function SlugyVsRewardfulPost() {
           ["Branded links + QR", "Slugy"],
           ["Per-link click analytics", "Slugy"],
           ["Open source", "Slugy is open source"],
+        ]}
+      />
+
+      <Shot
+        src="/images/card1.png"
+        alt="Branded Slugy affiliate links with per-link click counts"
+        caption="One branded link per partner, each with its own click counts."
+        width={1573}
+        height={1080}
+      />
+
+      <H2 id="pricing">What the combination costs</H2>
+      <P>
+        Rewardful starts around $49/month for Stripe-connected affiliate
+        programs. The Slugy layer on top starts free — branded links, QR codes,
+        and per-partner click analytics at $0, with Pro at $8/month ($5/month
+        forever with GETPRO) when you want signup attribution per link.
+      </P>
+      <PricingTable
+        competitor="Rewardful"
+        rows={[
+          [
+            "Entry",
+            "Slugy Free $0 — branded links, QR, per-link clicks",
+            "Rewardful from ~$49/mo — affiliate tracking + payouts",
+          ],
+          [
+            "Growth",
+            "Slugy Pro $8/mo ($5/mo forever with GETPRO) — lead tracking per link",
+            "Higher Rewardful tiers — more affiliates and revenue",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Rewardful's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
+      <H2 id="setup">Setting them up together</H2>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">
+              Create a link per partner.
+            </strong>{" "}
+            In Slugy, make one branded link per affiliate
+            (yourbrand.co/partner-name) pointing at their Rewardful referral
+            URL.
+          </>,
+          <>
+            <strong className="text-foreground">Share the short link.</strong>{" "}
+            Partners share the branded URL everywhere; clicks, referrers, and
+            geo show up in Slugy instantly.
+          </>,
+          <>
+            <strong className="text-foreground">Reconcile with payouts.</strong>{" "}
+            Compare Slugy&apos;s per-partner traffic with Rewardful&apos;s
+            commission reports to spot your real drivers.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Attribute signups on Pro.
+            </strong>{" "}
+            Enable lead tracking to tie signups to the exact shared link,
+            alongside Rewardful&apos;s data.
+          </>,
         ]}
       />
 

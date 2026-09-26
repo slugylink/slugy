@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsBitlyPost() {
   return (
@@ -62,6 +72,43 @@ export default function SlugyVsBitlyPost() {
         ]}
       />
 
+      <Shot
+        src="/images/card2.png"
+        alt="Slugy links dashboard showing branded short links with per-link click counts"
+        caption="The Slugy dashboard: every link shows live click counts next to its destination."
+        width={1270}
+        height={760}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        Slugy Pro costs $8/month ($80/year) — $5/month forever with code GETPRO
+        — against Bitly Core from around $10/month and Growth at $29/month. Both
+        have free plans; the difference is what the free and mid tiers actually
+        include.
+      </P>
+      <PricingTable
+        competitor="Bitly"
+        rows={[
+          [
+            "Free",
+            "$0 — 1 workspace, 10 links/mo, 1k clicks/mo, QR + bio included",
+            "$0 — 5 links/mo, 2 QR codes/mo",
+          ],
+          [
+            "Mid tier",
+            "Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo, 10k clicks/mo, lead tracking",
+            "Core from ~$10/mo — branded links, more volume",
+          ],
+          [
+            "Top tier",
+            "Business $29/mo — 1,500 links/mo, 50k clicks/mo, sales analytics",
+            "Growth $29/mo and up — advanced analytics, more seats",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Bitly's current pricing page before deciding; Slugy numbers are from slugy.co/pricing."
+      />
+
       <H2 id="migrating">Migrating from Bitly to Slugy</H2>
       <P>
         Export your links from Bitly as a CSV, connect your custom domain in
@@ -70,6 +117,30 @@ export default function SlugyVsBitlyPost() {
         both sides, so check the current pricing pages before you move a large
         workspace.
       </P>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export from Bitly.</strong> In
+            your Bitly account, export your links to CSV (look for Export under
+            settings or the links dashboard).
+          </>,
+          <>
+            <strong className="text-foreground">Connect your domain.</strong>{" "}
+            Add your custom domain in Slugy and follow the guided DNS setup so
+            existing slugs keep resolving.
+          </>,
+          <>
+            <strong className="text-foreground">Import the CSV.</strong> Upload
+            the file in Slugy — slugs, destinations, and UTM parameters carry
+            over automatically.
+          </>,
+          <>
+            <strong className="text-foreground">Verify, then switch.</strong>{" "}
+            Spot-check your highest-traffic links, keep Bitly active until
+            clicks settle, then cancel.
+          </>,
+        ]}
+      />
 
       <H2 id="verdict">Verdict</H2>
       <P>

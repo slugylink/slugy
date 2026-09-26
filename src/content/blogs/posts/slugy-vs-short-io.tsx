@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsShortIoPost() {
   return (
@@ -57,12 +67,73 @@ export default function SlugyVsShortIoPost() {
         ]}
       />
 
+      <Shot
+        src="/images/card1.png"
+        alt="Slugy link cards showing short links with live click counts"
+        caption="Every Slugy link card shows live click counts next to its destination."
+        width={1573}
+        height={1080}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        Short.io prices by link volume with paid plans starting around
+        $14/month. Slugy Pro is a flat $8/month ($5/month forever with GETPRO)
+        for 250 new links/month and 10k tracked clicks — with QR, bio, and lead
+        tracking included rather than tiered add-ons.
+      </P>
+      <PricingTable
+        competitor="Short.io"
+        rows={[
+          [
+            "Free",
+            "$0 — 10 links/mo, 1k clicks/mo, QR + bio included",
+            "$0 — limited volume to try the platform",
+          ],
+          [
+            "Mid tier",
+            "Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo, lead tracking",
+            "Paid from ~$14/mo — more links and custom domains",
+          ],
+          [
+            "Top tier",
+            "Business $29/mo — 1,500 links/mo, 50k clicks/mo, sales analytics",
+            "Team/enterprise tiers — check current pricing",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Short.io's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
       <H2 id="migrating">Migrating from Short.io to Slugy</H2>
       <P>
         Export your links, reconnect your custom domain in Slugy, and import via
         CSV. If you rely on mobile deep-link routing, verify Slugy covers your
         schemes before moving production traffic.
       </P>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export from Short.io.</strong>{" "}
+            Export your links to CSV from the Short.io dashboard.
+          </>,
+          <>
+            <strong className="text-foreground">Reconnect your domain.</strong>{" "}
+            Add your custom domain in Slugy with the guided DNS setup.
+          </>,
+          <>
+            <strong className="text-foreground">Import via CSV.</strong> Slugs,
+            destinations, and UTM parameters carry over; API keys are available
+            when you need automation again.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Verify deep links, then switch.
+            </strong>{" "}
+            If you rely on mobile deep-link routing, confirm your schemes work
+            before moving production traffic.
+          </>,
+        ]}
+      />
 
       <H2 id="verdict">Verdict</H2>
       <P>

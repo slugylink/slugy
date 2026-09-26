@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsToltPost() {
   return (
@@ -53,6 +63,66 @@ export default function SlugyVsToltPost() {
           ["Branded links + QR", "Slugy"],
           ["Per-link click analytics", "Slugy"],
           ["Free starting tier", "Both start free — compare limits"],
+        ]}
+      />
+
+      <Shot
+        src="/images/features/f3_converted.webp"
+        alt="Slugy QR code designer with brand colors and styles"
+        caption="Branded QR codes for launch events, styled to match each affiliate."
+        width={1270}
+        height={960}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        Tolt starts around $29/month for lightweight affiliate tracking. Slugy
+        starts free — branded links, QR, and analytics at $0 with no credit card
+        — and Pro is $8/month ($5/month forever with GETPRO) when you need
+        volume and signup attribution.
+      </P>
+      <PricingTable
+        competitor="Tolt"
+        rows={[
+          [
+            "Entry",
+            "Slugy Free $0 — 10 links/mo, 1k clicks/mo, QR + bio",
+            "Tolt free tier — limited affiliates to start",
+          ],
+          [
+            "Paid start",
+            "Slugy Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo",
+            "Tolt from ~$29/mo — affiliate tracking + payouts",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Tolt's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
+      <H2 id="setup">Setting them up together</H2>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Start both free.</strong> Launch
+            the Tolt program and create your first branded Slugy links the same
+            afternoon.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Brand every partner share.
+            </strong>{" "}
+            Your domain on each affiliate link, with QR codes for launch events
+            and bio pages for creators.
+          </>,
+          <>
+            <strong className="text-foreground">Measure upstream.</strong>{" "}
+            Per-link clicks show what affiliates drive before Tolt reports
+            commissions.
+          </>,
+          <>
+            <strong className="text-foreground">Upgrade only one side.</strong>{" "}
+            Most lean setups pay for Tolt and run links on Slugy&apos;s free
+            plan until volume demands Pro.
+          </>,
         ]}
       />
 

@@ -6,25 +6,32 @@ export class S3Service {
   private bucketName: string;
   private accountId: string;
 
-  constructor(bucketName: string) {
+  constructor(bucketName: string, endpointOverride?: string) {
     if (!bucketName) {
       throw new Error("Bucket name is required for S3Service");
     }
-    
+
     this.bucketName = bucketName;
     this.accountId = process.env.CLOUDFLARE_ACCOUNT_ID!;
-    
-    if (!this.accountId) {
+
+    if (!this.accountId && !endpointOverride) {
       throw new Error("CLOUDFLARE_ACCOUNT_ID environment variable is required");
     }
-    
-    if (!process.env.CLOUDFLARE_R2_ACCESS_KEY_ID || !process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY) {
-      throw new Error("CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY environment variables are required");
+
+    if (
+      !process.env.CLOUDFLARE_R2_ACCESS_KEY_ID ||
+      !process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+    ) {
+      throw new Error(
+        "CLOUDFLARE_R2_ACCESS_KEY_ID and CLOUDFLARE_R2_SECRET_ACCESS_KEY environment variables are required",
+      );
     }
-    
+
+    const endpoint =
+      endpointOverride ?? `https://${this.accountId}.r2.cloudflarestorage.com`;
     this.s3 = new AWS.S3({
       region: "auto", // Cloudflare R2 uses "auto" region
-      endpoint: `https://${this.accountId}.r2.cloudflarestorage.com`,
+      endpoint,
       accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID,
       secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY,
       signatureVersion: "v4",
@@ -108,6 +115,34 @@ export class S3Service {
       await this.s3.deleteObject(params).promise();
     } catch (error) {
       console.error("Error deleting file from S3:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Allow browser (DuckDB-Wasm) GET/HEAD reads from any origin.
+   * Idempotent — safe to call before serving public test files.
+   */
+  async ensureBrowserReadCors() {
+    try {
+      await this.s3
+        .putBucketCors({
+          Bucket: this.bucketName,
+          CORSConfiguration: {
+            CORSRules: [
+              {
+                AllowedOrigins: ["*"],
+                AllowedMethods: ["GET", "HEAD"],
+                AllowedHeaders: ["*"],
+                ExposeHeaders: ["ETag", "Content-Length", "Content-Range"],
+                MaxAgeSeconds: 3600,
+              },
+            ],
+          },
+        })
+        .promise();
+    } catch (error) {
+      console.error("Error setting bucket CORS:", error);
       throw error;
     }
   }

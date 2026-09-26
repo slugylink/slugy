@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsRebrandlyPost() {
   return (
@@ -57,12 +67,70 @@ export default function SlugyVsRebrandlyPost() {
         ]}
       />
 
+      <Shot
+        src="/images/features/f2_converted.webp"
+        alt="Slugy analytics funnel showing clicks converting to leads and sales"
+        caption="Slugy's funnel view: clicks to leads to sales, per link and per campaign."
+        width={1270}
+        height={960}
+      />
+
+      <H2 id="pricing">Pricing side by side</H2>
+      <P>
+        Rebrandly prices per branded-link volume with paid plans starting around
+        $13/month. Slugy Pro is a flat $8/month ($5/month forever with GETPRO)
+        with 250 new links/month, 10k tracked clicks, and conversion tracking
+        included — no per-link metering to watch.
+      </P>
+      <PricingTable
+        competitor="Rebrandly"
+        rows={[
+          [
+            "Free",
+            "$0 — 10 links/mo, 1k clicks/mo, QR + bio included",
+            "$0 — limited branded links to try the platform",
+          ],
+          [
+            "Mid tier",
+            "Pro $8/mo ($5/mo forever with GETPRO) — 250 links/mo, lead tracking",
+            "Paid from ~$13/mo — more branded links and domains",
+          ],
+          [
+            "Top tier",
+            "Business $29/mo — 1,500 links/mo, 50k clicks/mo, sales analytics",
+            "Team/enterprise tiers — check current pricing",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify Rebrandly's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
       <H2 id="migrating">Migrating from Rebrandly to Slugy</H2>
       <P>
         Export your Rebrandly links to CSV, point your custom domain at Slugy
         with the guided DNS setup, and import. Branded slugs and destinations
         carry over; check both pricing pages for current plan limits first.
       </P>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export from Rebrandly.</strong>{" "}
+            Export your branded links to CSV from the Rebrandly dashboard.
+          </>,
+          <>
+            <strong className="text-foreground">Move your domain.</strong> Point
+            your custom domain at Slugy and complete the guided DNS setup —
+            branded slugs keep working.
+          </>,
+          <>
+            <strong className="text-foreground">Import the CSV.</strong>{" "}
+            Destinations and UTM parameters carry over automatically.
+          </>,
+          <>
+            <strong className="text-foreground">Verify, then switch.</strong>{" "}
+            Test branded links across campaigns before cancelling Rebrandly.
+          </>,
+        ]}
+      />
 
       <H2 id="verdict">Verdict</H2>
       <P>

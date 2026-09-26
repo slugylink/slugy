@@ -1,4 +1,14 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Cta,
+  Facts,
+  H2,
+  P,
+  PricingTable,
+  Shot,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsFirstpromoterPost() {
   return (
@@ -56,6 +66,69 @@ export default function SlugyVsFirstpromoterPost() {
           ["Branded links + QR", "Slugy"],
           ["Per-link click analytics", "Slugy"],
           ["Open source", "Slugy is open source"],
+        ]}
+      />
+
+      <Shot
+        src="/images/features/f2_converted.webp"
+        alt="Slugy conversion funnel from clicks to leads to sales"
+        caption="Clicks to leads to sales: the upstream half FirstPromoter never sees."
+        width={1270}
+        height={960}
+      />
+
+      <H2 id="pricing">What the combination costs</H2>
+      <P>
+        FirstPromoter starts around $49/month for affiliate tracking and
+        payouts. Slugy covers the upstream click layer starting free, with Pro
+        at $8/month ($5/month forever with GETPRO) adding signup attribution per
+        link.
+      </P>
+      <PricingTable
+        competitor="FirstPromoter"
+        rows={[
+          [
+            "Entry",
+            "Slugy Free $0 — branded links, QR, per-link clicks",
+            "FirstPromoter from ~$49/mo — affiliate tracking + payouts",
+          ],
+          [
+            "Growth",
+            "Slugy Pro $8/mo ($5/mo forever with GETPRO) — lead tracking",
+            "Higher FirstPromoter tiers — more affiliates and sales volume",
+          ],
+        ]}
+        note="Prices change often — checked September 2026. Verify FirstPromoter's current pricing page; Slugy numbers are from slugy.co/pricing."
+      />
+
+      <H2 id="setup">Setting them up together</H2>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">
+              Brand the referral URLs.
+            </strong>{" "}
+            Replace raw FirstPromoter referral links with memorable Slugy links
+            on your own domain.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Watch traffic before sales land.
+            </strong>{" "}
+            Referrer and geo breakdowns show which affiliates drive visits, days
+            before commissions post.
+          </>,
+          <>
+            <strong className="text-foreground">
+              Attribute signups on Pro.
+            </strong>{" "}
+            Tie signups to exact links to enrich what FirstPromoter reports
+            downstream.
+          </>,
+          <>
+            <strong className="text-foreground">Extend offline.</strong> QR
+            codes and bio pages take affiliates beyond the browser.
+          </>,
         ]}
       />
 
