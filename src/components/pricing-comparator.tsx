@@ -6,6 +6,8 @@ import {
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
+  isPlanComingSoon,
+  getPlanCtaLabel,
   type BillingPeriod,
   type Plan,
   type PricingFeatureValue,
@@ -119,7 +121,8 @@ function PriceHeader({
   const subtitle = getPlanPriceSubtitle(plan, billing);
   const paid = plan.planType === "pro" || plan.planType === "business";
   const shouldManage = paid && Boolean(isPaidPlan);
-  const buttonText = shouldManage ? "Manage" : plan.buttonLabel;
+  const disabled = shouldManage ? false : isPlanComingSoon(plan);
+  const buttonText = shouldManage ? "Manage" : getPlanCtaLabel(plan);
   const buttonVariant = shouldManage || !highlighted ? "outline" : "default";
   const buttonUrl = buildButtonUrl(plan.planType, isPaidPlan, workspace);
 
@@ -141,9 +144,15 @@ function PriceHeader({
         <PromoPrice price={price} promoPrice={promoPrice} />
       </span>
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
-      <Button asChild variant={buttonVariant} size="sm">
-        <Link href={buttonUrl}>{buttonText}</Link>
-      </Button>
+      {disabled ? (
+        <Button variant={buttonVariant} size="sm" disabled>
+          {buttonText}
+        </Button>
+      ) : (
+        <Button asChild variant={buttonVariant} size="sm">
+          <Link href={buttonUrl}>{buttonText}</Link>
+        </Button>
+      )}
     </th>
   );
 }

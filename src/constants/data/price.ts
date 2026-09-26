@@ -107,6 +107,16 @@ export function planHasSalesAnalytics(planType: PlanType): boolean {
   return planType === "business";
 }
 
+/** Business is not purchasable yet — every CTA must render it disabled. */
+export function isPlanComingSoon(plan: Plan): boolean {
+  return plan.planType === "business" || !plan.isReady;
+}
+
+export function getPlanCtaLabel(plan: Plan): string {
+  if (plan.planType === "business") return "Coming soon";
+  return plan.buttonLabel;
+}
+
 function formatClicks(clicks: number): string {
   if (clicks < 1000) return `${clicks} clicks`;
   const value = clicks / 1000;
@@ -265,8 +275,8 @@ export const BUSINESS_PLAN: Plan = {
   monthlyPriceId: process.env.NEXT_PUBLIC_BUSINESS_MONTHLY_PRICE_ID || "",
   yearlyPriceId: process.env.NEXT_PUBLIC_BUSINESS_YEARLY_PRICE_ID || "",
   isRecommended: false,
-  buttonLabel: "Get Business",
-  isReady: true,
+  buttonLabel: "Coming soon",
+  isReady: false,
   yearlyDiscount: getYearlyDiscountPercent(
     BUSINESS_MONTHLY_PRICE,
     BUSINESS_YEARLY_PRICE,

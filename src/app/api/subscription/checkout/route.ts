@@ -3,7 +3,7 @@ import { Checkout } from "@polar-sh/nextjs";
 import { headers } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { PRICING_COPY } from "@/constants/data/price";
+import { PRICING_COPY, BUSINESS_PLAN } from "@/constants/data/price";
 import {
   resolvePromoDiscountId,
   shouldApplyCheckoutPromo,
@@ -135,6 +135,22 @@ export async function GET(req: NextRequest) {
   // Build checkout URL with customer info and products
   const checkoutUrl = buildCheckoutUrl(req, user);
   const productIds = checkoutUrl.searchParams.getAll("products");
+
+  // Business is coming soon — never create a checkout for it.
+  const businessPriceIds = [
+    BUSINESS_PLAN.monthlyPriceId,
+    BUSINESS_PLAN.yearlyPriceId,
+  ].filter(Boolean);
+  if (
+    businessPriceIds.length > 0 &&
+    productIds.some((id) => businessPriceIds.includes(id))
+  ) {
+    return NextResponse.json(
+      { error: "Business plan is coming soon" },
+      { status: 400 },
+    );
+  }
+
   const billing = checkoutUrl.searchParams.get("billing");
   const applyPromo = shouldApplyCheckoutPromo(productIds, billing);
 

@@ -14,6 +14,8 @@ import {
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
+  isPlanComingSoon,
+  getPlanCtaLabel,
   type BillingPeriod,
   type Plan,
 } from "@/constants/data/price";
@@ -113,19 +115,24 @@ function PlanCard({
         <p className="text-muted-foreground mt-3 min-h-10 text-sm">
           {plan.description}
         </p>
-        <Button
-          asChild
-          size="lg"
-          variant={bestValue ? "default" : "outline"}
-          className={
-            bestValue
-              ? "mt-4 w-full"
-              : "mt-4 w-full bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
-          }
-          disabled={!plan.isReady}
-        >
-          <Link href={PRICING_COPY.loginUrl}>{plan.buttonLabel}</Link>
-        </Button>
+        {isPlanComingSoon(plan) ? (
+          <Button size="lg" variant="outline" className="mt-4 w-full" disabled>
+            {getPlanCtaLabel(plan)}
+          </Button>
+        ) : (
+          <Button
+            asChild
+            size="lg"
+            variant={bestValue ? "default" : "outline"}
+            className={
+              bestValue
+                ? "mt-4 w-full"
+                : "mt-4 w-full bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            }
+          >
+            <Link href={PRICING_COPY.loginUrl}>{getPlanCtaLabel(plan)}</Link>
+          </Button>
+        )}
       </div>
 
       <div className="px-1 pt-5">

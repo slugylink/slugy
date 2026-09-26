@@ -5,6 +5,8 @@ import {
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
+  isPlanComingSoon,
+  getPlanCtaLabel,
 } from "@/constants/data/price";
 import { PromoPrice } from "@/components/promo-price";
 import React, { useState } from "react";
@@ -109,7 +111,10 @@ const UpgardePage = () => {
             <Button
               onClick={() => handleClick(plan.monthlyPriceId)}
               disabled={
-                !session?.user || activePlanName === plan.planType || subLoading
+                !session?.user ||
+                activePlanName === plan.planType ||
+                subLoading ||
+                isPlanComingSoon(plan)
               }
               variant={plan.monthlyPrice === 0 ? "outline" : "default"}
               className="w-full"
@@ -117,7 +122,7 @@ const UpgardePage = () => {
               {activePlanName === plan.planType
                 ? "Currently active"
                 : session?.user
-                  ? plan.buttonLabel
+                  ? getPlanCtaLabel(plan)
                   : "Please log in"}
             </Button>
 

@@ -11,6 +11,8 @@ import {
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
+  isPlanComingSoon,
+  getPlanCtaLabel,
   type BillingPeriod,
   type Plan,
   type PricingFeatureValue,
@@ -130,6 +132,15 @@ function PlanCta({
   className?: string;
 }) {
   const isCurrent = currentPlanType === plan.planType;
+
+  // Business is coming soon — never link it to checkout.
+  if (isPlanComingSoon(plan) && !isCurrent) {
+    return (
+      <Button variant="outline" size="sm" className={className} disabled>
+        {getPlanCtaLabel(plan)}
+      </Button>
+    );
+  }
 
   if (plan.planType === "free") {
     return (
