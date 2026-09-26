@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, type ReactNode, useEffect } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -14,6 +16,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -24,7 +27,10 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronsUp,
+  Download,
+  EllipsisVertical,
   ListFilter,
+  LoaderCircle,
   Lock,
   Search,
 } from "lucide-react";
@@ -576,6 +582,61 @@ const FilterGroups = ({
 
 const FilterActions = ({ filterCategories }: FilterActionsProps) => {
   const { isPro, fetchSubscription } = useSubscriptionStore();
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportCsv = () => {
+    const workspaceslug =
+      params?.workspace ?? params?.workspaceslug ?? params?.slug;
+    const slug = Array.isArray(workspaceslug)
+      ? workspaceslug[0]
+      : workspaceslug;
+    if (!slug) {
+      toast.error("Failed to export analytics");
+      return;
+    }
+    setIsExporting(true);
+    const query = searchParams.toString();
+    // Preserve current time_period / filters / event, like Dub.co does.
+    const url = `/api/workspace/${slug}/analytics/export${query ? `?${query}` : ""}`;
+
+    const promise = (async () => {
+      const res = await fetch(url);
+      if (!res.ok) {
+        let message = "Failed to export analytics";
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) message = body.error;
+        } catch {
+          // non-JSON error — keep default message
+        }
+        throw new Error(message);
+      }
+      const blob = await res.blob();
+      if (blob.size === 0) throw new Error("No analytics data to export");
+      const objectUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = objectUrl;
+      const disposition = res.headers.get("Content-Disposition");
+      const match = disposition?.match(/filename="?([^";]+)"?/);
+      a.download = match?.[1] ?? `slugy-analytics-${slug}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(objectUrl);
+      document.body.removeChild(a);
+      return "Analytics exported successfully.";
+    })();
+
+    toast.promise(promise, {
+      loading: "Exporting analytics... This may take up to a minute.",
+      success: (msg: string) => msg,
+      error: (err: Error) => err.message || "Failed to export analytics",
+    });
+
+    promise.finally(() => setIsExporting(false));
+  };
 
   useEffect(() => {
     void fetchSubscription();
@@ -950,27 +1011,41 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  className="h-9 w-9 rounded-lg border-zinc-200 bg-white hover:bg-zinc-50"
-                  aria-label="Generate Report"
-                >
-                  <HiSparkles />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Generate Report</TooltipContent>
-            </Tooltip>
-          </div>
-
           <TimePeriodSelector
             timePeriod={timePeriod}
             onTimePeriodChange={handleTimePeriodChange}
             isPro={isPro}
           />
+
+          <div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 rounded-lg border-zinc-200 bg-white hover:bg-zinc-50"
+                  aria-label="export as csv"
+                  disabled={isExporting}
+                >
+                  {isExporting ? (
+                    <LoaderCircle className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <EllipsisVertical />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={handleExportCsv}
+                  disabled={isExporting}
+                >
+                  <Download className="h-4 w-4" />
+                  Export as CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
 
