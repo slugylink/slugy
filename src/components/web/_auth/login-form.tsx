@@ -19,6 +19,7 @@ import {
   hardNavigate,
   POST_LOGIN_PATH,
 } from "@/lib/auth-client";
+import { clearWorkspaceSlugCookie } from "@/lib/workspace-cookie";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { toast } from "sonner";
 import { Eye, EyeOff } from "lucide-react";
@@ -265,6 +266,9 @@ export function LoginForm({
             }
             dispatch({ type: "SET_LAST_PROVIDER", payload: "credential" });
             dispatch({ type: "SET_REDIRECTING", payload: true });
+            // Drop any previous account's workspace slug — "/" resolves the
+            // signed-in user's workspace from scratch (middleware re-sets it).
+            clearWorkspaceSlugCookie();
             hardNavigate(resolveNextPath());
           },
           onError: (err) => {
@@ -309,6 +313,7 @@ export function LoginForm({
         },
         {
           onSuccess: () => {
+            clearWorkspaceSlugCookie();
             toast.success("Magic link sent! Please check your email.");
           },
           onError: (err) => {

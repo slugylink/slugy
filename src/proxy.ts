@@ -4,6 +4,10 @@ import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
 import { getCachedSession } from "@/lib/middleware/get-session";
 import { getClientIp } from "@/lib/middleware/client-ip";
 import { resolveDefaultWorkspaceRedirect } from "@/lib/middleware/get-default-workspace-redirect";
+import {
+  resolveMiddlewareUserId,
+  validateWorkspaceSlugForUser,
+} from "@/lib/middleware/get-default-workspace-redirect";
 import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 import {
   applyWorkspaceCookie,
@@ -295,7 +299,17 @@ async function redirectAuthenticatedUserToWorkspace(
 ): Promise<NextResponse | null> {
   const cookieSlug = getWorkspaceCookie(req);
   if (cookieSlug) {
-    return redirectToWorkspace(cookieSlug, baseUrl, search, redirectStatus);
+    // The cookie is browser state, not auth state — it can hold the PREVIOUS
+    // account's slug after logout/login. Only honor it for the current user.
+    const userId = await resolveMiddlewareUserId(req);
+    const validSlug =
+      userId != null
+        ? await validateWorkspaceSlugForUser(userId, cookieSlug)
+        : null;
+    if (validSlug) {
+      return redirectToWorkspace(validSlug, baseUrl, search, redirectStatus);
+    }
+    // Stale/foreign slug: ignore it and resolve this user's workspace below.
   }
 
   const result = await resolveDefaultWorkspaceRedirect(req);
@@ -444,7 +458,17 @@ async function handleRootDomain(
       appUrl.search = url.search;
       const workspaceSlug = getWorkspaceCookie(req);
       if (workspaceSlug) {
-        appUrl.pathname = `/${workspaceSlug}`;
+        // Same cross-account staleness as the app-subdomain path — only
+        // carry a slug the current user can access, else land on app `/`
+        // and let it resolve (which also refreshes the cookie correctly).
+        const userId = await resolveMiddlewareUserId(req);
+        const validSlug =
+          userId != null
+            ? await validateWorkspaceSlugForUser(userId, workspaceSlug)
+            : null;
+        if (validSlug) {
+          appUrl.pathname = `/${validSlug}`;
+        }
       }
       return redirectTo(appUrl.toString(), redirectStatus);
     }

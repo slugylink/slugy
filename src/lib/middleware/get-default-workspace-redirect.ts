@@ -132,6 +132,19 @@ export async function invalidateMiddlewareWorkspaceRedirectCache(
   } catch {}
 }
 
+/** Session user behind a middleware request (cached session→user mapping). */
+export async function resolveMiddlewareUserId(
+  req: NextRequest,
+): Promise<string | null> {
+  try {
+    const sessionToken = await getSessionToken(req);
+    if (!sessionToken) return null;
+    return await lookupSessionUserId(sessionToken);
+  } catch {
+    return null;
+  }
+}
+
 export async function warmDefaultWorkspaceRedirectCache(
   userId: string,
   slug: string | null,
@@ -140,6 +153,43 @@ export async function warmDefaultWorkspaceRedirectCache(
     userId,
     slug && slug.length > 0 ? slug : MW_REDIRECT_NONE,
   );
+}
+
+/**
+ * Validate a workspace-slug cookie against the CURRENT user. The cookie is
+ * browser state, not auth state — after logout/login as someone else it can
+ * still hold the previous account's slug. Blindly redirecting leaks users
+ * into another account's workspace (or a NotFound page). Returns the slug
+ * only when this user can actually access it.
+ */
+export async function validateWorkspaceSlugForUser(
+  userId: string,
+  slug: string,
+): Promise<string | null> {
+  if (!slug || slug.length > 64) return null;
+
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) return null;
+
+  try {
+    const sql = neon(databaseUrl);
+    const rows = await sql`
+      SELECT w.slug
+      FROM workspace w
+      LEFT JOIN member m
+        ON m."workspaceId" = w.id AND m."userId" = ${userId}
+      WHERE w.slug = ${slug}
+        AND (w."userId" = ${userId} OR m."userId" = ${userId})
+        AND w."deletedAt" IS NULL
+      LIMIT 1
+    `;
+    const valid = rows[0]?.slug;
+    return typeof valid === "string" && valid.length > 0 ? valid : null;
+  } catch {
+    // Fail closed on DB error: fall through to the default-workspace lookup
+    // instead of trusting a potentially foreign slug.
+    return null;
+  }
 }
 
 export async function resolveDefaultWorkspaceRedirect(
