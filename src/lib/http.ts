@@ -83,14 +83,13 @@ function buildHeaders(
     headers.set("ETag", etag);
   }
 
-  // Never cache user-specific API JSON at the CDN.
+  // Default user-specific API JSON to private, no-store — but respect an
+  // EXPLICIT public Cache-Control from the caller. Public report/stats
+  // endpoints deliberately opt into CDN caching per URL (their data is
+  // public-by-capability-URL); stripping it here silently disabled that
+  // caching and funneled every hit to the origin.
   if (!headers.has("Cache-Control")) {
     headers.set("Cache-Control", "private, no-store");
-  } else {
-    const cacheControl = headers.get("Cache-Control") ?? "";
-    if (/\bpublic\b/i.test(cacheControl) || /\bs-maxage=/i.test(cacheControl)) {
-      headers.set("Cache-Control", "private, no-store");
-    }
   }
 
   // Add Vary headers for user-specific data
