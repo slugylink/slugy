@@ -2,9 +2,14 @@ import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
-import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { headers } from "next/headers";
+import {
+  createLinkWithUniqueSlug,
+  SlugConflictError,
+  validateLinkExpiry,
+  validateLinkSlug,
+} from "@/lib/link-slug";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import {
   canUseLeadTracking,
@@ -32,69 +37,93 @@ import {
   type GeoTargetMap,
 } from "@/lib/link-targeting";
 
-const nanoid = customAlphabet(
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  7,
-);
-
 const DEFAULT_DOMAIN = "slugy.co";
 const MAX_TAGS_PER_WORKSPACE = 5;
 
 // Input validation schema
-const createLinkSchema = z.object({
-  url: z
-    .string()
-    .url()
-    .refine(
-      (value) => {
-        try {
-          const protocol = new URL(value).protocol;
-          return protocol === "http:" || protocol === "https:";
-        } catch {
-          return false;
-        }
-      },
-      { message: "Only http(s) URLs are allowed" },
-    ),
-  slug: z
-    .string()
-    .max(50)
-    .optional()
-    .refine((val) => !val || val.length === 0 || val.length >= 3, {
-      message: "Slug must be at least 3 characters if provided",
-    }),
-  image: z.string().url().optional().nullable(),
-  title: z.string().max(100).optional().nullable(),
-  description: z.string().max(500).optional().nullable(),
-  metadesc: z.string().max(500).optional().nullable(),
-  password: z.string().min(3).max(50).optional().nullable(),
-  expiresAt: z.string().datetime().optional().nullable(),
-  expirationUrl: z
-    .string()
-    .url()
-    .refine(
-      (value) => {
-        try {
-          const protocol = new URL(value).protocol;
-          return protocol === "http:" || protocol === "https:";
-        } catch {
-          return false;
-        }
-      },
-      { message: "Only http(s) expiration URLs are allowed" },
-    )
-    .optional()
-    .nullable(),
-  utm_source: z.string().optional().nullable(),
-  utm_medium: z.string().optional().nullable(),
-  utm_campaign: z.string().optional().nullable(),
-  utm_content: z.string().optional().nullable(),
-  utm_term: z.string().optional().nullable(),
-  geo: geoTargetSchema,
-  tags: z.array(z.string()).optional(),
-  customDomainId: z.string().optional().nullable(),
-  trackConversion: z.boolean().optional().default(false),
-});
+const createLinkSchema = z
+  .object({
+    url: z
+      .string()
+      .url()
+      .refine(
+        (value) => {
+          try {
+            const protocol = new URL(value).protocol;
+            return protocol === "http:" || protocol === "https:";
+          } catch {
+            return false;
+          }
+        },
+        { message: "Only http(s) URLs are allowed" },
+      ),
+    slug: z
+      .string()
+      .max(50)
+      .optional()
+      .refine((val) => !val || val.length === 0 || val.length >= 3, {
+        message: "Slug must be at least 3 characters if provided",
+      }),
+    image: z.string().url().optional().nullable(),
+    title: z.string().max(100).optional().nullable(),
+    description: z.string().max(500).optional().nullable(),
+    metadesc: z.string().max(500).optional().nullable(),
+    password: z.string().min(3).max(50).optional().nullable(),
+    expiresAt: z.string().datetime().optional().nullable(),
+    expirationUrl: z
+      .string()
+      .url()
+      .refine(
+        (value) => {
+          try {
+            const protocol = new URL(value).protocol;
+            return protocol === "http:" || protocol === "https:";
+          } catch {
+            return false;
+          }
+        },
+        { message: "Only http(s) expiration URLs are allowed" },
+      )
+      .optional()
+      .nullable(),
+    utm_source: z.string().optional().nullable(),
+    utm_medium: z.string().optional().nullable(),
+    utm_campaign: z.string().optional().nullable(),
+    utm_content: z.string().optional().nullable(),
+    utm_term: z.string().optional().nullable(),
+    geo: geoTargetSchema,
+    tags: z.array(z.string()).optional(),
+    customDomainId: z.string().optional().nullable(),
+    trackConversion: z.boolean().optional().default(false),
+  })
+  .superRefine((data, ctx) => {
+    // Custom slugs share path space with app/marketing routes — a stored but
+    // shadowed slug ("login", "pricing", "b", …) would never redirect.
+    const rawSlug = data.slug?.trim();
+    if (rawSlug) {
+      const slugCheck = validateLinkSlug(rawSlug);
+      if (!slugCheck.ok) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: slugCheck.message,
+          path: ["slug"],
+        });
+      }
+    }
+
+    const expiryCheck = validateLinkExpiry({
+      expiresAt: data.expiresAt,
+      expirationUrl: data.expirationUrl,
+      url: data.url,
+    });
+    if (!expiryCheck.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: expiryCheck.message,
+        path: [expiryCheck.path],
+      });
+    }
+  });
 
 type CreateLinkRequest = z.infer<typeof createLinkSchema>;
 
@@ -356,102 +385,13 @@ export async function POST(
       );
     }
 
-    const slug = validatedData.slug?.trim() || nanoid();
+    const customSlug = validatedData.slug?.trim() || null;
     const domain = customDomainName || DEFAULT_DOMAIN;
     const storedPassword = validatedData.password
       ? hashLinkPassword(validatedData.password)
       : null;
 
-    // Create the link first, then finish counters/side-effects off the critical path.
-    // Interactive Prisma transactions on Neon serverless commonly add multiple seconds.
-    let result;
-    try {
-      const link = await db.link.create({
-        data: {
-          workspaceId: workspaceCheck.workspace.id,
-          userId: session.user.id,
-          url: validatedData.url,
-          slug,
-          domain,
-          image: validatedData.image,
-          title: validatedData.title,
-          description: validatedData.description,
-          metadesc: validatedData.metadesc ?? null,
-          password: storedPassword,
-          ...(validatedData.expiresAt && {
-            expiresAt: new Date(validatedData.expiresAt),
-          }),
-          expirationUrl: validatedData.expirationUrl,
-          utm_source: validatedData.utm_source,
-          utm_medium: validatedData.utm_medium,
-          utm_campaign: validatedData.utm_campaign,
-          utm_content: validatedData.utm_content,
-          utm_term: validatedData.utm_term,
-          geo: geo ?? Prisma.JsonNull,
-          customDomainId: validatedData.customDomainId || null,
-          trackConversion,
-        },
-        select: {
-          id: true,
-          url: true,
-          slug: true,
-          domain: true,
-          clicks: true,
-          isArchived: true,
-          image: true,
-          title: true,
-          description: true,
-          metadesc: true,
-          password: true,
-          expiresAt: true,
-          expirationUrl: true,
-          utm_source: true,
-          utm_medium: true,
-          utm_campaign: true,
-          utm_content: true,
-          utm_term: true,
-          geo: true,
-          trackConversion: true,
-          createdAt: true,
-        },
-      });
-
-      // Tags resolve in waitUntil; return provisional names so the UI can paint immediately.
-      const provisionalTags = (validatedData.tags ?? [])
-        .map((name) => name.trim())
-        .filter(Boolean)
-        .map((name) => ({
-          tag: { id: `pending:${name}`, name, color: null as string | null },
-        }));
-
-      result = {
-        ...link,
-        password: maskLinkPassword(link.password),
-        geo: (link.geo as GeoTargetMap | null) ?? null,
-        tags: provisionalTags,
-        qrCode: { id: "", customization: "" },
-        lastClicked: null,
-        creator: {
-          name: session.user.name ?? null,
-          image: session.user.image ?? null,
-        },
-      };
-    } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "P2002"
-      ) {
-        return jsonWithETag(
-          req,
-          apiErrorPayload("Slug already exists for this domain!", "CONFLICT"),
-          { status: 400 },
-        );
-      }
-      throw error;
-    }
-
+    // Plan tag cap resolves before creation — tags now persist synchronously.
     const ownerPlan = await db.plan.findFirst({
       where: {
         planType:
@@ -462,43 +402,131 @@ export async function POST(
     });
     const maxTags = ownerPlan?.maxTagsPerWorkspace ?? MAX_TAGS_PER_WORKSPACE;
 
+    const linkSelect = {
+      id: true,
+      url: true,
+      slug: true,
+      domain: true,
+      clicks: true,
+      isArchived: true,
+      image: true,
+      title: true,
+      description: true,
+      metadesc: true,
+      password: true,
+      expiresAt: true,
+      expirationUrl: true,
+      utm_source: true,
+      utm_medium: true,
+      utm_campaign: true,
+      utm_content: true,
+      utm_term: true,
+      geo: true,
+      trackConversion: true,
+      createdAt: true,
+    } as const;
+
+    const buildLinkData = (slug: string) => ({
+      workspaceId: workspaceCheck.workspace.id,
+      userId: session.user.id,
+      url: validatedData.url,
+      slug,
+      domain,
+      image: validatedData.image,
+      title: validatedData.title,
+      description: validatedData.description,
+      metadesc: validatedData.metadesc ?? null,
+      password: storedPassword,
+      ...(validatedData.expiresAt && {
+        expiresAt: new Date(validatedData.expiresAt),
+      }),
+      expirationUrl: validatedData.expirationUrl,
+      utm_source: validatedData.utm_source,
+      utm_medium: validatedData.utm_medium,
+      utm_campaign: validatedData.utm_campaign,
+      utm_content: validatedData.utm_content,
+      utm_term: validatedData.utm_term,
+      geo: geo ?? Prisma.JsonNull,
+      customDomainId: validatedData.customDomainId || null,
+      trackConversion,
+    });
+
+    // Random slugs retry on collision; custom slugs 409. Never a bare 400.
+    let link;
+    try {
+      link = await createLinkWithUniqueSlug(customSlug, (slug) =>
+        db.link.create({ data: buildLinkData(slug), select: linkSelect }),
+      );
+    } catch (error: unknown) {
+      if (error instanceof SlugConflictError) {
+        return jsonWithETag(req, apiErrorPayload(error.message, "CONFLICT"), {
+          status: 409,
+        });
+      }
+      throw error;
+    }
+
+    // Tags + counters persist on the critical path. A dropped background
+    // invocation must never leave the link uncounted (usage gates) or
+    // untagged — so the response carries real tag rows, not `pending:` ids.
+    const assignedTags = validatedData.tags?.length
+      ? await resolveWorkspaceTags(
+          db,
+          workspaceCheck.workspace.id,
+          validatedData.tags,
+          maxTags,
+        )
+      : [];
+
+    if (assignedTags.length > 0) {
+      await db.linkTag.createMany({
+        data: assignedTags.map((tag) => ({
+          linkId: link.id,
+          tagId: tag.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const currentUsage = await ensureCurrentUsageRecord(db, {
+      workspaceId: workspaceCheck.workspace.id,
+      userId: workspaceCheck.ownerUserId ?? session.user.id,
+    });
+
+    await Promise.all([
+      db.workspace.update({
+        where: { id: workspaceCheck.workspace.id },
+        data: { linksUsage: { increment: 1 } },
+      }),
+      db.usage.update({
+        where: { id: currentUsage.id },
+        data: { linksCreated: { increment: 1 } },
+      }),
+    ]);
+
+    const tagIds = assignedTags.map((tag) => tag.id);
+
+    const result = {
+      ...link,
+      password: maskLinkPassword(link.password),
+      geo: (link.geo as GeoTargetMap | null) ?? null,
+      tags: assignedTags.map((tag) => ({
+        tag: { id: tag.id, name: tag.name, color: tag.color },
+      })),
+      qrCode: { id: "", customization: "" },
+      lastClicked: null,
+      creator: {
+        name: session.user.name ?? null,
+        image: session.user.image ?? null,
+      },
+    };
+
+    // Rebuildable side-effects only: the redirect path falls back to the DB
+    // on cache miss and repairs Tinybird metadata on first click, so these
+    // can safely run off the critical path.
     waitUntil(
       (async () => {
-        const assignedTags = validatedData.tags?.length
-          ? await resolveWorkspaceTags(
-              db,
-              workspaceCheck.workspace.id,
-              validatedData.tags,
-              maxTags,
-            )
-          : [];
-
-        if (assignedTags.length > 0) {
-          await db.linkTag.createMany({
-            data: assignedTags.map((tag) => ({
-              linkId: result.id,
-              tagId: tag.id,
-            })),
-            skipDuplicates: true,
-          });
-        }
-
-        const tagIds = assignedTags.map((tag) => tag.id);
-
-        const currentUsage = await ensureCurrentUsageRecord(db, {
-          workspaceId: workspaceCheck.workspace.id,
-          userId: workspaceCheck.ownerUserId ?? session.user.id,
-        });
-
         await Promise.all([
-          db.workspace.update({
-            where: { id: workspaceCheck.workspace.id },
-            data: { linksUsage: { increment: 1 } },
-          }),
-          db.usage.update({
-            where: { id: currentUsage.id },
-            data: { linksCreated: { increment: 1 } },
-          }),
           setLinkCache(
             result.slug,
             {

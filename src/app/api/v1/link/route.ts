@@ -1,12 +1,28 @@
 import { db } from "@/server/db";
 import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
-import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { authenticateApiKey } from "@/lib/api-keys/auth";
 import { checkLinkLimit } from "@/server/actions/limit";
-import { getWorkspaceOwnerPlanType } from "@/lib/subscription/entitlements";
+import {
+  canUseLeadTracking,
+  canUsePremiumLinkFeatures,
+  getWorkspaceOwnerPlanType,
+} from "@/lib/subscription/entitlements";
+import {
+  canUseGeoTargeting,
+  geoTargetSchema,
+  normalizeGeoInput,
+  type GeoTargetMap,
+} from "@/lib/link-targeting";
+import { hashLinkPassword } from "@/lib/link-password";
+import {
+  createLinkWithUniqueSlug,
+  SlugConflictError,
+  validateLinkExpiry,
+  validateLinkSlug,
+} from "@/lib/link-slug";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
@@ -15,11 +31,6 @@ import { redis } from "@/lib/redis";
 import { isRecursiveShortLink } from "@/lib/url-policy";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { waitUntil } from "@vercel/functions";
-
-const nanoid = customAlphabet(
-  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
-  7,
-);
 
 const DEFAULT_DOMAIN = "slugy.co";
 const MAX_TAGS_PER_WORKSPACE = 5;
@@ -30,41 +41,87 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 } as const;
 
-const createLinkSchema = z.object({
-  url: z
-    .string()
-    .url()
-    .refine(
-      (value) => {
-        try {
-          const protocol = new URL(value).protocol;
-          return protocol === "http:" || protocol === "https:";
-        } catch {
-          return false;
-        }
-      },
-      { message: "Only http(s) URLs are allowed" },
-    ),
-  slug: z
-    .string()
-    .max(50)
-    .optional()
-    .refine((val) => !val || val.length === 0 || val.length >= 3, {
-      message: "Slug must be at least 3 characters if provided",
-    }),
-  image: z.string().url().optional().nullable(),
-  title: z.string().max(100).optional().nullable(),
-  description: z.string().max(500).optional().nullable(),
-  metadesc: z.string().max(500).optional().nullable(),
-  expiresAt: z.string().datetime().optional().nullable(),
-  utm_source: z.string().optional().nullable(),
-  utm_medium: z.string().optional().nullable(),
-  utm_campaign: z.string().optional().nullable(),
-  utm_content: z.string().optional().nullable(),
-  utm_term: z.string().optional().nullable(),
-  tags: z.array(z.string()).optional(),
-  customDomainId: z.string().optional().nullable(),
-});
+const createLinkSchema = z
+  .object({
+    url: z
+      .string()
+      .url()
+      .refine(
+        (value) => {
+          try {
+            const protocol = new URL(value).protocol;
+            return protocol === "http:" || protocol === "https:";
+          } catch {
+            return false;
+          }
+        },
+        { message: "Only http(s) URLs are allowed" },
+      ),
+    slug: z
+      .string()
+      .max(50)
+      .optional()
+      .refine((val) => !val || val.length === 0 || val.length >= 3, {
+        message: "Slug must be at least 3 characters if provided",
+      }),
+    image: z.string().url().optional().nullable(),
+    title: z.string().max(100).optional().nullable(),
+    description: z.string().max(500).optional().nullable(),
+    metadesc: z.string().max(500).optional().nullable(),
+    expiresAt: z.string().datetime().optional().nullable(),
+    expirationUrl: z
+      .string()
+      .url()
+      .refine(
+        (value) => {
+          try {
+            const protocol = new URL(value).protocol;
+            return protocol === "http:" || protocol === "https:";
+          } catch {
+            return false;
+          }
+        },
+        { message: "Only http(s) expiration URLs are allowed" },
+      )
+      .optional()
+      .nullable(),
+    password: z.string().min(3).max(50).optional().nullable(),
+    geo: geoTargetSchema,
+    trackConversion: z.boolean().optional().default(false),
+    utm_source: z.string().optional().nullable(),
+    utm_medium: z.string().optional().nullable(),
+    utm_campaign: z.string().optional().nullable(),
+    utm_content: z.string().optional().nullable(),
+    utm_term: z.string().optional().nullable(),
+    tags: z.array(z.string()).optional(),
+    customDomainId: z.string().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const rawSlug = data.slug?.trim();
+    if (rawSlug) {
+      const slugCheck = validateLinkSlug(rawSlug);
+      if (!slugCheck.ok) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: slugCheck.message,
+          path: ["slug"],
+        });
+      }
+    }
+
+    const expiryCheck = validateLinkExpiry({
+      expiresAt: data.expiresAt,
+      expirationUrl: data.expirationUrl,
+      url: data.url,
+    });
+    if (!expiryCheck.ok) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: expiryCheck.message,
+        path: [expiryCheck.path],
+      });
+    }
+  });
 
 type CreateLinkRequest = z.infer<typeof createLinkSchema>;
 
@@ -75,7 +132,10 @@ function preprocessEmptyStrings(body: Record<string, unknown>) {
     title: body.title === "" ? null : body.title,
     description: body.description === "" ? null : body.description,
     metadesc: body.metadesc === "" ? null : body.metadesc,
+    password: body.password === "" ? null : body.password,
     expiresAt: body.expiresAt === "" ? null : body.expiresAt,
+    expirationUrl: body.expirationUrl === "" ? null : body.expirationUrl,
+    geo: normalizeGeoInput(body.geo),
   };
 }
 
@@ -93,6 +153,7 @@ async function findVerifiedCustomDomain(customDomainId: string) {
 async function resolveWorkspaceTags(
   workspaceId: string,
   tagNames: string[],
+  maxTags: number = MAX_TAGS_PER_WORKSPACE,
 ): Promise<Array<{ id: string; name: string; color: string | null }>> {
   if (!tagNames.length) return [];
 
@@ -125,7 +186,7 @@ async function resolveWorkspaceTags(
     });
     const canCreateCount = Math.min(
       newTagNames.length,
-      MAX_TAGS_PER_WORKSPACE - currentTagCount,
+      Math.max(0, maxTags - currentTagCount),
     );
     const tagNamesToCreate = newTagNames.slice(0, canCreateCount);
 
@@ -250,127 +311,177 @@ export async function POST(req: Request) {
       );
     }
 
-    const slug = validatedData.slug?.trim() || nanoid();
+    const geo = (validatedData.geo ?? null) as GeoTargetMap | null;
+
+    if (geo && !canUseGeoTargeting(planType)) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload("Geo targeting requires a Pro plan.", "FORBIDDEN"),
+        { status: 403, headers: CORS_HEADERS },
+      );
+    }
+
+    const trackConversion =
+      canUseLeadTracking(planType) && (validatedData.trackConversion ?? false);
+
+    if (
+      !canUsePremiumLinkFeatures(planType) &&
+      (validatedData.password || validatedData.expiresAt)
+    ) {
+      return jsonWithETag(
+        req,
+        apiErrorPayload(
+          "Password protection and link expiration require a Pro plan.",
+          "FORBIDDEN",
+        ),
+        { status: 403, headers: CORS_HEADERS },
+      );
+    }
+
+    const customSlug = validatedData.slug?.trim() || null;
     const domain = customDomainName || DEFAULT_DOMAIN;
+    const storedPassword = validatedData.password
+      ? hashLinkPassword(validatedData.password)
+      : null;
 
-    let result;
+    const ownerPlan = await db.plan.findFirst({
+      where: {
+        planType: (planType as "free" | "basic" | "pro" | "business") ?? "free",
+      },
+      select: { maxTagsPerWorkspace: true },
+    });
+    const maxTags = ownerPlan?.maxTagsPerWorkspace ?? MAX_TAGS_PER_WORKSPACE;
+
+    const linkSelect = {
+      id: true,
+      url: true,
+      slug: true,
+      domain: true,
+      clicks: true,
+      isArchived: true,
+      image: true,
+      title: true,
+      description: true,
+      metadesc: true,
+      password: true,
+      expiresAt: true,
+      expirationUrl: true,
+      utm_source: true,
+      utm_medium: true,
+      utm_campaign: true,
+      utm_content: true,
+      utm_term: true,
+      geo: true,
+      trackConversion: true,
+      createdAt: true,
+    } as const;
+
+    let link;
     try {
-      const link = await db.link.create({
-        data: {
-          workspaceId: workspace.id,
-          userId: workspace.userId,
-          url: validatedData.url,
-          slug,
-          domain,
-          image: validatedData.image,
-          title: validatedData.title,
-          description: validatedData.description,
-          metadesc: validatedData.metadesc ?? null,
-          ...(validatedData.expiresAt && {
-            expiresAt: new Date(validatedData.expiresAt),
-          }),
-          utm_source: validatedData.utm_source,
-          utm_medium: validatedData.utm_medium,
-          utm_campaign: validatedData.utm_campaign,
-          utm_content: validatedData.utm_content,
-          utm_term: validatedData.utm_term,
-          customDomainId: validatedData.customDomainId || null,
-        },
-        select: {
-          id: true,
-          url: true,
-          slug: true,
-          domain: true,
-          clicks: true,
-          isArchived: true,
-          image: true,
-          title: true,
-          description: true,
-          metadesc: true,
-          expiresAt: true,
-          utm_source: true,
-          utm_medium: true,
-          utm_campaign: true,
-          utm_content: true,
-          utm_term: true,
-          createdAt: true,
-        },
-      });
-
-      result = {
-        ...link,
-        shortUrl: `https://${link.domain}/${link.slug}`,
-        tags: (validatedData.tags ?? [])
-          .map((name) => name.trim())
-          .filter(Boolean)
-          .map((name) => ({
-            tag: { id: `pending:${name}`, name, color: null as string | null },
-          })),
-      };
+      link = await createLinkWithUniqueSlug(customSlug, (slug) =>
+        db.link.create({
+          data: {
+            workspaceId: workspace.id,
+            userId: workspace.userId,
+            url: validatedData.url,
+            slug,
+            domain,
+            image: validatedData.image,
+            title: validatedData.title,
+            description: validatedData.description,
+            metadesc: validatedData.metadesc ?? null,
+            password: storedPassword,
+            ...(validatedData.expiresAt && {
+              expiresAt: new Date(validatedData.expiresAt),
+            }),
+            expirationUrl: validatedData.expirationUrl,
+            utm_source: validatedData.utm_source,
+            utm_medium: validatedData.utm_medium,
+            utm_campaign: validatedData.utm_campaign,
+            utm_content: validatedData.utm_content,
+            utm_term: validatedData.utm_term,
+            geo: geo ?? undefined,
+            customDomainId: validatedData.customDomainId || null,
+            trackConversion,
+          },
+          select: linkSelect,
+        }),
+      );
     } catch (error: unknown) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "P2002"
-      ) {
-        return jsonWithETag(
-          req,
-          apiErrorPayload("Slug already exists for this domain!", "CONFLICT"),
-          { status: 400, headers: CORS_HEADERS },
-        );
+      if (error instanceof SlugConflictError) {
+        return jsonWithETag(req, apiErrorPayload(error.message, "CONFLICT"), {
+          status: 409,
+          headers: CORS_HEADERS,
+        });
       }
       throw error;
     }
 
+    // Tags + counters persist on the critical path (see dashboard route) —
+    // the response carries real tag rows, not `pending:` ids.
+    const assignedTags = validatedData.tags?.length
+      ? await resolveWorkspaceTags(workspace.id, validatedData.tags, maxTags)
+      : [];
+
+    if (assignedTags.length > 0) {
+      await db.linkTag.createMany({
+        data: assignedTags.map((tag) => ({
+          linkId: link.id,
+          tagId: tag.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const tagIds = assignedTags.map((tag) => tag.id);
+
+    const currentUsage = await ensureCurrentUsageRecord(db, {
+      workspaceId: workspace.id,
+      userId: workspace.userId,
+    });
+
+    await Promise.all([
+      db.workspace.update({
+        where: { id: workspace.id },
+        data: { linksUsage: { increment: 1 } },
+      }),
+      db.usage.update({
+        where: { id: currentUsage.id },
+        data: { linksCreated: { increment: 1 } },
+      }),
+    ]);
+
+    const result = {
+      ...link,
+      shortUrl: `https://${link.domain}/${link.slug}`,
+      tags: assignedTags.map((tag) => ({
+        tag: { id: tag.id, name: tag.name, color: tag.color },
+      })),
+    };
+
+    // Rebuildable side-effects only (cache falls back to DB, metadata is
+    // repaired on first click) — safe off the critical path.
     waitUntil(
       (async () => {
-        const assignedTags = validatedData.tags?.length
-          ? await resolveWorkspaceTags(workspace.id, validatedData.tags)
-          : [];
-
-        if (assignedTags.length > 0) {
-          await db.linkTag.createMany({
-            data: assignedTags.map((tag) => ({
-              linkId: result.id,
-              tagId: tag.id,
-            })),
-            skipDuplicates: true,
-          });
-        }
-
-        const tagIds = assignedTags.map((tag) => tag.id);
-
-        const currentUsage = await ensureCurrentUsageRecord(db, {
-          workspaceId: workspace.id,
-          userId: workspace.userId,
-        });
-
         await Promise.all([
-          db.workspace.update({
-            where: { id: workspace.id },
-            data: { linksUsage: { increment: 1 } },
-          }),
-          db.usage.update({
-            where: { id: currentUsage.id },
-            data: { linksCreated: { increment: 1 } },
-          }),
           setLinkCache(
             result.slug,
             {
               id: result.id,
               url: result.url,
-              expiresAt: null,
-              expirationUrl: null,
-              password: null,
+              expiresAt: result.expiresAt
+                ? result.expiresAt.toISOString()
+                : null,
+              expirationUrl: result.expirationUrl,
+              password: storedPassword ? "1" : null,
               workspaceId: workspace.id,
               domain,
               title: result.title,
               image: result.image,
               metadesc: result.metadesc,
               description: result.description,
-              geo: null,
-              trackConversion: false,
+              geo: (result.geo as GeoTargetMap | null) ?? null,
+              trackConversion: Boolean(result.trackConversion),
             },
             domain,
           ),
