@@ -19,7 +19,7 @@ enum PlanType {
   free
   basic
   pro
-  business
+  growth
 }
 
 enum Interval {

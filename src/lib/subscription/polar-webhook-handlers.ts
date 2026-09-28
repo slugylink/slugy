@@ -119,12 +119,6 @@ async function resolvePlanForSubscription(
   const productName = sub.product?.name;
   const planType = getPlanTypeByProductName(productName);
   if (planType) {
-    // Business is not purchasable yet — never grant it from a webhook, even
-    // if a checkout URL was forged to bypass the API block.
-    if (planType === "business") {
-      console.warn(`${LOG_PREFIX} Refusing business entitlement (coming soon)`);
-      return null;
-    }
     const plan = await db.plan.findFirst({ where: { planType } });
     if (plan) return plan;
   }
@@ -198,12 +192,12 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
     const items = response?.result?.items ?? [];
 
     const updates: Record<
-      "basic" | "pro" | "business",
+      "basic" | "pro" | "growth",
       { monthlyPriceId: string | null; yearlyPriceId: string | null }
     > = {
       basic: { monthlyPriceId: null, yearlyPriceId: null },
       pro: { monthlyPriceId: null, yearlyPriceId: null },
-      business: { monthlyPriceId: null, yearlyPriceId: null },
+      growth: { monthlyPriceId: null, yearlyPriceId: null },
     };
 
     for (const product of items) {
@@ -231,7 +225,7 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
       }
     }
 
-    for (const planType of ["basic", "pro", "business"] as const) {
+    for (const planType of ["basic", "pro", "growth"] as const) {
       const monthlyPriceId = updates[planType].monthlyPriceId;
       const yearlyPriceId = updates[planType].yearlyPriceId;
       if (!monthlyPriceId && !yearlyPriceId) continue;
@@ -248,7 +242,9 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
       });
     }
 
-    console.log(`${LOG_PREFIX} Synced Basic/Pro plan price IDs from Polar API`);
+    console.log(
+      `${LOG_PREFIX} Synced Basic/Pro/Growth plan price IDs from Polar API`,
+    );
   } catch (err) {
     console.error(`${LOG_PREFIX} Failed to sync plan price IDs:`, err);
   }
@@ -261,7 +257,7 @@ async function findPlanByPriceIdWithSync(priceId: string) {
   plan = await findPlanByPriceId(priceId);
   if (plan) return plan;
   const candidatePlans = await db.plan.findMany({
-    where: { planType: { in: ["basic", "pro", "business"] } },
+    where: { planType: { in: ["basic", "pro", "growth"] } },
   });
   return candidatePlans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }

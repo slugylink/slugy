@@ -33,7 +33,7 @@ function buildButtonUrl(
   workspace: string | undefined,
 ): string {
   if (
-    (planType === "pro" || planType === "business") &&
+    (planType === "pro" || planType === "growth") &&
     isPaidPlan &&
     workspace
   ) {
@@ -84,11 +84,11 @@ const COMPARE_ROWS: CompareRow[] = [
   { feature: "Click analytics", get: () => true },
   {
     feature: "Lead conversion tracking",
-    get: (p) => p.planType === "pro" || p.planType === "business",
+    get: (p) => p.planType === "pro" || p.planType === "growth",
   },
   {
     feature: "Sales analytics",
-    get: (p) => p.planType === "business",
+    get: (p) => p.planType === "growth",
   },
 ];
 
@@ -119,7 +119,7 @@ function PriceHeader({
   const price = getPlanPrice(plan, billing);
   const promoPrice = getPlanPromoPrice(plan, billing);
   const subtitle = getPlanPriceSubtitle(plan, billing);
-  const paid = plan.planType === "pro" || plan.planType === "business";
+  const paid = plan.planType === "pro" || plan.planType === "growth";
   const shouldManage = paid && Boolean(isPaidPlan);
   const disabled = shouldManage ? false : isPlanComingSoon(plan);
   const buttonText = shouldManage ? "Manage" : getPlanCtaLabel(plan);

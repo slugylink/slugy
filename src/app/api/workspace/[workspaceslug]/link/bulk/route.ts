@@ -299,11 +299,8 @@ export async function POST(
       const ownerPlan = await db.plan.findFirst({
         where: {
           planType:
-            (workspaceCheck.planType as
-              | "free"
-              | "basic"
-              | "pro"
-              | "business") ?? "free",
+            (workspaceCheck.planType as "free" | "basic" | "pro" | "growth") ??
+            "free",
         },
         select: { maxTagsPerWorkspace: true },
       });

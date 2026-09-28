@@ -56,7 +56,7 @@ interface ChartProps {
   totalClicks?: number;
   /** null = not loaded yet (lazy leads fetch) */
   totalLeads?: number | null;
-  /** null = not loaded yet (lazy sales fetch, Business only) */
+  /** null = not loaded yet (lazy sales fetch, Growth only) */
   totalSales?: number | null;
   totalRevenue?: number | null;
   timePeriod?: TimePeriod;
@@ -526,7 +526,7 @@ const AnalyticsChart = ({
                   </p>
                   <p className="text-muted-foreground max-w-sm text-sm">
                     {showSalesUpgrade
-                      ? "Upgrade to our Business Plan and track revenue-attributed sales with Slugy"
+                      ? "Upgrade to our Growth Plan and track revenue-attributed sales with Slugy"
                       : "Upgrade to our Pro Plan and start tracking conversion events with Slugy"}
                   </p>
                 </div>
@@ -534,7 +534,7 @@ const AnalyticsChart = ({
                   <Button asChild size="sm">
                     <Link href={`/${workspaceSlug}/settings/billing/upgrade`}>
                       {showSalesUpgrade
-                        ? "Upgrade to Business"
+                        ? "Upgrade to Growth"
                         : "Upgrade to Pro"}
                     </Link>
                   </Button>

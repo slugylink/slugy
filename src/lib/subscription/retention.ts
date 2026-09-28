@@ -6,7 +6,7 @@ const RETENTION_MONTHS: Record<string, number> = {
   free: 1,
   basic: 1,
   pro: 12,
-  business: 24,
+  growth: 24,
 };
 
 export function getRetentionMonths(

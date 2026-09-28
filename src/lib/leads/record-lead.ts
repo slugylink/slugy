@@ -11,7 +11,7 @@ export interface TrackLeadInput {
   customerEmail?: string | null;
   customerName?: string | null;
   metadata?: Record<string, unknown> | null;
-  /** Revenue attribution — Business only (sales analytics). */
+  /** Revenue attribution — Growth only (sales analytics). */
   saleAmount?: number | null;
   saleCurrency?: string | null;
 }

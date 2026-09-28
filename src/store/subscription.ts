@@ -23,7 +23,7 @@ interface SubscriptionStoreState {
   subscription: ActiveSubscription | null;
   planType: PlanType | null;
   isPro: boolean;
-  isBusiness: boolean;
+  isGrowth: boolean;
   isLoading: boolean;
   error: string | null;
   hasFetched: boolean;
@@ -37,16 +37,16 @@ function applySubscription(
 ) {
   const planType =
     (subscription?.plan?.planType as PlanType | undefined) ?? null;
-  // Business includes everything Pro unlocks in the UI.
+  // Growth includes everything Pro unlocks in the UI.
   const normalized = planType?.toString().toLowerCase();
-  const isPro = normalized === "pro" || normalized === "business";
-  const isBusiness = normalized === "business";
+  const isPro = normalized === "pro" || normalized === "growth";
+  const isGrowth = normalized === "growth";
 
   set({
     subscription,
     planType,
     isPro,
-    isBusiness,
+    isGrowth,
     hasFetched: true,
     isLoading: false,
     error: null,
@@ -58,7 +58,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
     subscription: null,
     planType: null,
     isPro: false,
-    isBusiness: false,
+    isGrowth: false,
     isLoading: false,
     error: null,
     hasFetched: false,
@@ -68,7 +68,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
         subscription: null,
         planType: null,
         isPro: false,
-        isBusiness: false,
+        isGrowth: false,
         isLoading: false,
         error: null,
         hasFetched: false,
@@ -126,7 +126,7 @@ export const useSubscriptionStore = create<SubscriptionStoreState>(
           subscription: null,
           planType: null,
           isPro: false,
-          isBusiness: false,
+          isGrowth: false,
           hasFetched: true,
           isLoading: false,
           error: "Failed to load subscription",

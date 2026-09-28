@@ -87,7 +87,7 @@ export default function LeadConversionTrackingPost() {
         <InlineCode>POST</InlineCode> from your server to{" "}
         <InlineCode>https://api.slugy.co/leads_track</InlineCode>. Revenue
         attribution (<InlineCode>saleAmount</InlineCode>) needs{" "}
-        <strong>Business</strong>.
+        <strong>Growth</strong>.
       </Callout>
 
       <H2 id="how-it-works">How lead conversion works</H2>
@@ -119,7 +119,7 @@ export default function LeadConversionTrackingPost() {
       <H2 id="step-1">Step 1: Use a Pro workspace</H2>
       <P>
         The lead-tracking toggle, the Leads metric, and API keys with lead scope
-        require Pro (Business for revenue attribution). Plain link creation
+        require Pro (Growth for revenue attribution). Plain link creation
         through the API works on any plan within its quotas — pick the{" "}
         <strong className="text-foreground">Links</strong> scope when you create
         the key. On Free, the lead surfaces stay locked until you upgrade in
@@ -316,7 +316,7 @@ Content-Type: application/json`}</Code>
                 <InlineCode>saleAmount</InlineCode>
               </td>
               <td className="px-3 py-2">
-                Positive revenue number for sales attribution (Business only)
+                Positive revenue number for sales attribution (Growth only)
               </td>
               <td className="px-3 py-2">No</td>
             </tr>
@@ -347,9 +347,9 @@ Content-Type: application/json`}</Code>
         <InlineCode>429</InlineCode>.
       </P>
 
-      <H2 id="sales">Sales attribution (Business)</H2>
+      <H2 id="sales">Sales attribution (Growth)</H2>
       <P>
-        On a Business workspace, add <InlineCode>saleAmount</InlineCode> (and
+        On a Growth workspace, add <InlineCode>saleAmount</InlineCode> (and
         optionally <InlineCode>saleCurrency</InlineCode>) to the same call. The
         event then feeds the <strong className="text-foreground">Sales</strong>{" "}
         metric — revenue totals and per-sale counts in Analytics — instead of

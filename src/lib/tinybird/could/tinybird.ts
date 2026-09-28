@@ -263,7 +263,7 @@ const analyticsParams = {
   referer: p.string().optional(""),
 } as const;
 
-// Sales-lead analytics (Pro + Business): click dimensions plus the sales
+// Sales-lead analytics (Pro + Growth): click dimensions plus the sales
 // attribution dimensions stored on slugy_lead_events.
 const leadsOutput = {
   ...analyticsOutput,
@@ -385,7 +385,7 @@ export type AnalyticsPipeOutput = InferOutputRow<typeof analyticsPipe>;
 
 export const leadsAnalytics = defineEndpoint("leads_analytics", {
   description:
-    "Aggregated sales-lead conversion analytics by dimension (Pro + Business)",
+    "Aggregated sales-lead conversion analytics by dimension (Pro + Growth)",
   params: leadsParams,
   nodes: [
     node({
@@ -476,7 +476,7 @@ export const leadsAnalytics = defineEndpoint("leads_analytics", {
 export type LeadsAnalyticsParams = InferParams<typeof leadsAnalytics>;
 export type LeadsAnalyticsOutput = InferOutputRow<typeof leadsAnalytics>;
 
-// Sales analytics (Business only): revenue-attributed lead events.
+// Sales analytics (Growth only): revenue-attributed lead events.
 // A sale is a lead event with sale_amount > 0.
 const salesOutput = {
   link_id: t.string(),
@@ -505,7 +505,7 @@ const salesOutput = {
 } as const;
 
 export const salesAnalytics = defineEndpoint("sales_analytics", {
-  description: "Aggregated sales analytics by dimension (Business only)",
+  description: "Aggregated sales analytics by dimension (Growth only)",
   params: leadsParams,
   nodes: [
     node({

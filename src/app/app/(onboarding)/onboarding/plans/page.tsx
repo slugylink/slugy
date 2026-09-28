@@ -115,7 +115,7 @@ export default async function OnboardingPlansPage({
   const hasPaidEntitlement = Boolean(
     userEntitlement?.subscription?.id &&
       ["active", "trialing"].includes(subscriptionStatus) &&
-      (planType === "pro" || planType === "business" || planType === "basic"),
+      (planType === "pro" || planType === "growth" || planType === "basic"),
   );
 
   if (hasPaidEntitlement) {

@@ -3,27 +3,27 @@ import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 
 export function canUseLeadTracking(planType: string | null | undefined) {
   const normalized = planType?.toLowerCase();
-  return normalized === "pro" || normalized === "business";
+  return normalized === "pro" || normalized === "growth";
 }
 
-/** Analytics tiers: free → clicks, pro → clicks + leads, business → + sales. */
+/** Analytics tiers: free → clicks, pro → clicks + leads, growth → + sales. */
 export type AnalyticsTier = "clicks" | "leads" | "sales";
 
 export function analyticsTierForPlan(
   planType: string | null | undefined,
 ): AnalyticsTier {
   const normalized = planType?.toLowerCase();
-  if (normalized === "business") return "sales";
+  if (normalized === "growth") return "sales";
   if (normalized === "pro") return "leads";
   return "clicks";
 }
 
 /**
  * Sales analytics (Tinybird sales_analytics: revenue-attributed lead events).
- * Business only.
+ * Growth only.
  */
 export function canUseSalesAnalytics(planType: string | null | undefined) {
-  return planType?.toLowerCase() === "business";
+  return planType?.toLowerCase() === "growth";
 }
 
 /** Whether a plan may view a given analytics event tab. */
@@ -39,7 +39,7 @@ export function canViewAnalyticsEvent(
 /** Password protection + link expiration are paid features. */
 export function canUsePremiumLinkFeatures(planType: string | null | undefined) {
   const normalized = planType?.toLowerCase();
-  return normalized === "pro" || normalized === "business";
+  return normalized === "pro" || normalized === "growth";
 }
 
 export async function getWorkspaceOwnerUserId(

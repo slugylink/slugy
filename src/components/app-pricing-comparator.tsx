@@ -11,8 +11,6 @@ import {
   getPlanPrice,
   getPlanPromoPrice,
   getPlanPriceSubtitle,
-  isPlanComingSoon,
-  getPlanCtaLabel,
   type BillingPeriod,
   type Plan,
   type PricingFeatureValue,
@@ -24,7 +22,7 @@ import { Badge } from "@/components/ui/badge";
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
 type PriceInterval = "month" | "year" | null;
-type PaidPlanType = "pro" | "business";
+type PaidPlanType = "pro" | "growth";
 
 interface ProductPrice {
   id: string;
@@ -43,15 +41,17 @@ interface PricingComparatorProps {
   products?: ProductData[];
   workspace?: string;
   isPaidPlan?: boolean;
-  currentPlanType?: "free" | "basic" | "pro" | "business" | null;
+  currentPlanType?: "free" | "basic" | "pro" | "growth" | null;
   successUrlPath?: string;
 }
 
-/** Product name → paid plan bucket (Polar products). */
+/** Product name → paid plan bucket (Polar products; "Business" is legacy). */
 function getPlanTypeFromProductName(name?: string): PaidPlanType | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
-  if (normalized.includes("business")) return "business";
+  if (normalized.includes("growth") || normalized.includes("business")) {
+    return "growth";
+  }
   if (normalized.includes("pro")) return "pro";
   return null;
 }
@@ -138,15 +138,6 @@ function PlanCta({
 }) {
   const isCurrent = currentPlanType === plan.planType;
 
-  // Business is coming soon — never link it to checkout.
-  if (isPlanComingSoon(plan) && !isCurrent) {
-    return (
-      <Button variant="outline" size="sm" className={className} disabled>
-        {getPlanCtaLabel(plan)}
-      </Button>
-    );
-  }
-
   if (plan.planType === "free") {
     return (
       <Button variant="outline" size="sm" className={className} disabled>
@@ -163,8 +154,8 @@ function PlanCta({
     );
   }
 
-  // `plans` only contains free/pro/business; guard for legacy "basic".
-  if (plan.planType !== "pro" && plan.planType !== "business") {
+  // `plans` only contains free/pro/growth; guard for legacy "basic".
+  if (plan.planType !== "pro" && plan.planType !== "growth") {
     return (
       <Button variant="outline" size="sm" className={className} disabled>
         Unavailable
@@ -257,11 +248,11 @@ export default function AppPricingComparator({
       { feature: "Click analytics", get: () => true },
       {
         feature: "Lead conversion tracking",
-        get: (p: Plan) => p.planType === "pro" || p.planType === "business",
+        get: (p: Plan) => p.planType === "pro" || p.planType === "growth",
       },
       {
         feature: "Sales analytics",
-        get: (p: Plan) => p.planType === "business",
+        get: (p: Plan) => p.planType === "growth",
       },
     ],
     [],

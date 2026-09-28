@@ -75,9 +75,9 @@ export default function Home() {
           <section id="pricing" className="scroll-mt-20">
             <PricingSection />
           </section>
-          <section id="testimonials" className="scroll-mt-20">
+          {/* <section id="testimonials" className="scroll-mt-20">
             <Testimonials />
-          </section>
+          </section> */}
 
           <section id="stats-metrics" className="scroll-mt-20">
             <Stats />

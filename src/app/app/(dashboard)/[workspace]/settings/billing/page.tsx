@@ -51,16 +51,16 @@ export default async function Billing({
   const canManageBilling = access?.canManageBilling === true;
 
   const normalizedPlanType = (
-    ["free", "basic", "pro", "business"].includes(
+    ["free", "basic", "pro", "growth"].includes(
       plan.planType?.toLowerCase() ?? "",
     )
       ? plan.planType.toLowerCase()
       : "free"
   ) as PlanType;
 
-  // Paid plans: pro + business (free/basic are unpaid).
+  // Paid plans: pro + growth (free/basic are unpaid).
   const isPaidPlan =
-    plan.planType && ["pro", "business"].includes(plan.planType.toLowerCase());
+    plan.planType && ["pro", "growth"].includes(plan.planType.toLowerCase());
   const canManagePortal = subscription?.canManagePortal === true;
 
   // Check if subscription is canceled but still active (grace period)

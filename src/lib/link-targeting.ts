@@ -86,7 +86,7 @@ export function parseGeoFromCache(value: unknown): GeoTargetMap | null {
 
 export function canUseGeoTargeting(planType: string | null | undefined) {
   const normalized = planType?.toLowerCase();
-  return normalized === "pro" || normalized === "business";
+  return normalized === "pro" || normalized === "growth";
 }
 
 /** Resolve final redirect URL: geo match → default. */

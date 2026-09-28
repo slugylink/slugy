@@ -54,7 +54,7 @@ const salesPropsSchema = salesLeadFilterFieldsSchema
   .strict();
 
 /**
- * Business-only sales analytics: revenue-attributed lead events
+ * Growth-only sales analytics: revenue-attributed lead events
  * (sale_amount > 0) broken down by the standard analytics dimensions.
  */
 export async function GET(
@@ -100,7 +100,7 @@ export async function GET(
 
     const planType = await getWorkspaceOwnerPlanTypeBySlug(workspaceslug);
     if (!canUseSalesAnalytics(planType)) {
-      return apiErrors.forbidden("Sales analytics requires a Business plan.");
+      return apiErrors.forbidden("Sales analytics requires a Growth plan.");
     }
 
     const timePeriod = clampPeriodByRetention(planType, props.timePeriod);

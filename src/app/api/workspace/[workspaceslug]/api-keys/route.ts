@@ -105,7 +105,7 @@ export async function POST(
   if (body.leadsPermission === "write" && !canUseLeadTracking(planType)) {
     return jsonWithETag(
       req,
-      { error: "Lead tracking requires a Pro or Business plan." },
+      { error: "Lead tracking requires a Pro or Growth plan." },
       { status: 403 },
     );
   }

@@ -119,10 +119,10 @@ export default async function Upgrade({
   const hasActiveSubscription =
     billingResult.data?.subscription?.hasActiveSubscription === true;
 
-  const PAID_PLANS = new Set(["pro", "business"]);
-  const currentPlanType: "free" | "basic" | "pro" | "business" | null =
+  const PAID_PLANS = new Set(["pro", "growth"]);
+  const currentPlanType: "free" | "basic" | "pro" | "growth" | null =
     hasActiveSubscription && planType
-      ? (planType as "free" | "basic" | "pro" | "business")
+      ? (planType as "free" | "basic" | "pro" | "growth")
       : "free";
   const isPaidPlan = currentPlanType ? PAID_PLANS.has(currentPlanType) : false;
 

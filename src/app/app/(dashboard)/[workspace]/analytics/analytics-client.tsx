@@ -246,10 +246,10 @@ export const AnalyticsClient = memo(function AnalyticsClient({
   workspace,
 }: AnalyticsClientProps) {
   const searchParams = useSearchParams();
-  const { isPro, isBusiness, fetchSubscription } = useSubscriptionStore();
+  const { isPro, isGrowth, fetchSubscription } = useSubscriptionStore();
   const isDemo = searchParams.get("demo") === "true";
   const canUseLeadTracking = isPro || isDemo;
-  const canUseSalesAnalytics = isBusiness || isDemo;
+  const canUseSalesAnalytics = isGrowth || isDemo;
 
   useEffect(() => {
     void fetchSubscription();

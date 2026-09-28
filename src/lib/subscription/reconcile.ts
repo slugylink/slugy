@@ -64,13 +64,18 @@ type PolarSubscriptionSnapshot = {
 
 const LIFETIME_PERIOD_YEARS = 100;
 
-/** Polar product names are "Pro [monthly]" / "Business" / "Basic [yearly]"… */
+/**
+ * Polar product names are "Pro [monthly]" / "Growth" (legacy: "Business") /
+ * "Basic [yearly]"… Both spellings of the top tier resolve to "growth".
+ */
 export function getPlanTypeByProductName(
   name?: string | null,
-): "basic" | "pro" | "business" | null {
+): "basic" | "pro" | "growth" | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
-  if (normalized.includes("business")) return "business";
+  if (normalized.includes("growth") || normalized.includes("business")) {
+    return "growth";
+  }
   if (normalized.includes("basic")) return "basic";
   if (normalized.includes("pro")) return "pro";
   return null;
@@ -261,7 +266,7 @@ export async function syncSubscriptionFromPolar(
     // hasn't run. Lazily close out expired grace periods locally.
     const now = new Date();
     const planType = subscription.plan.planType?.toLowerCase();
-    const isBillable = planType === "pro" || planType === "business";
+    const isBillable = planType === "pro" || planType === "growth";
     const expired =
       subscription.periodEnd <= now &&
       !isLifetimeBillingPeriod(
@@ -412,8 +417,6 @@ async function resolvePlanFromRemote(
 
   const planType = getPlanTypeByProductName(remote.product?.name);
   if (!planType) return null;
-  // Business is not purchasable yet — never self-heal into it.
-  if (planType === "business") return null;
   return db.plan.findFirst({
     where: { planType },
     select: { id: true, planType: true },
@@ -519,7 +522,7 @@ export async function reconcileUserEntitlement(
     const now = new Date();
     const planType = subscription?.plan.planType?.toLowerCase();
     const status = subscription?.status?.toLowerCase() ?? "";
-    const isPaidPlan = planType === "pro" || planType === "business";
+    const isPaidPlan = planType === "pro" || planType === "growth";
     const isActive = status === "active" || status === "trialing";
 
     const isHealthyPaid =
@@ -637,7 +640,7 @@ export async function reconcileSubscriptionIfStale(
   const planType = subscription.plan.planType?.toLowerCase();
   const shouldRefresh =
     subscription.provider === "polar" &&
-    (planType === "pro" || planType === "business") &&
+    (planType === "pro" || planType === "growth") &&
     (subscription.subscriptionId || subscription.customerId) &&
     subscription.periodEnd <= now;
 

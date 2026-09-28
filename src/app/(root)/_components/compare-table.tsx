@@ -44,13 +44,13 @@ const ROWS: Array<{
   },
   {
     label: "Lead conversion tracking",
-    slugy: { type: "check", label: "Pro + Business" },
+    slugy: { type: "check", label: "Pro + Growth" },
     bitly: { type: "none" },
     dub: { type: "text", label: "Business plan and up" },
   },
   {
     label: "Sales analytics with revenue",
-    slugy: { type: "check", label: "Business plan" },
+    slugy: { type: "check", label: "Growth plan" },
     bitly: { type: "none" },
     dub: { type: "none" },
   },

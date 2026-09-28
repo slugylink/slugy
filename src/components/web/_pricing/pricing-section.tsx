@@ -158,9 +158,9 @@ function PlanCard({
 
 export default function PricingSection() {
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [free, pro, business] = plans;
+  const [free, pro, growth] = plans;
   const proFeatures = new Set(pro?.features ?? []);
-  const businessExtras = (business?.features ?? []).filter(
+  const growthExtras = (growth?.features ?? []).filter(
     (f) => !proFeatures.has(f),
   );
 
@@ -209,14 +209,14 @@ export default function PricingSection() {
                 <PlanCard plan={pro} billing={billing} bestValue />
               </StaggerItem>
             )}
-            {business && (
+            {growth && (
               <StaggerItem>
                 <PlanCard
-                  plan={business}
+                  plan={growth}
                   billing={billing}
                   plusHeader="Everything in Pro, plus:"
                   plusFeatures={
-                    businessExtras.length > 0 ? businessExtras : undefined
+                    growthExtras.length > 0 ? growthExtras : undefined
                   }
                 />
               </StaggerItem>

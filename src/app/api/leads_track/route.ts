@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     );
     if (!canUseLeadTracking(ownerPlanType)) {
       return apiErrors.forbidden(
-        "Lead tracking requires a Pro or Business plan.",
+        "Lead tracking requires a Pro or Growth plan.",
       );
     }
 
@@ -95,12 +95,12 @@ export async function POST(request: NextRequest) {
       return apiErrors.validationError(parsed.error.flatten());
     }
 
-    // Revenue attribution (sales) is Business only.
+    // Revenue attribution (sales) is Growth only.
     if (
       parsed.data.saleAmount != null &&
       !canUseSalesAnalytics(ownerPlanType)
     ) {
-      return apiErrors.forbidden("Sales attribution requires a Business plan.");
+      return apiErrors.forbidden("Sales attribution requires a Growth plan.");
     }
 
     const result = await trackLead(auth.apiKey.workspaceId, parsed.data);

@@ -97,7 +97,7 @@ export async function GET(
     const planType = await getWorkspaceOwnerPlanTypeBySlug(workspaceslug);
     if (!canUseLeadTracking(planType)) {
       return apiErrors.forbidden(
-        "Lead analytics requires a Pro or Business plan.",
+        "Lead analytics requires a Pro or Growth plan.",
       );
     }
 
