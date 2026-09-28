@@ -68,6 +68,10 @@ interface ChartProps {
   canUseLeadTracking?: boolean;
   canUseSalesAnalytics?: boolean;
   workspaceSlug?: string;
+  /** Hide the "{n} sales" caption under the revenue total. */
+  hideSalesCount?: boolean;
+  /** Compact header stats (smaller padding + numbers) for narrow embeds. */
+  compactHeader?: boolean;
 }
 
 interface CustomTooltipProps extends TooltipProps<number, string> {
@@ -174,6 +178,8 @@ const AnalyticsChart = ({
   canUseLeadTracking = true,
   canUseSalesAnalytics = false,
   workspaceSlug,
+  hideSalesCount = false,
+  compactHeader = false,
 }: ChartProps) => {
   const [eventParam, setEventParam] = useQueryState("event", parseAsString);
   const [viewParam, setViewParam] = useQueryState("view", parseAsString);
@@ -335,6 +341,7 @@ const AnalyticsChart = ({
             "relative flex h-full w-full cursor-pointer flex-col items-baseline gap-2 border-r border-b p-4 text-left text-[28px] font-medium transition-opacity sm:p-6",
             !isFunnel && event !== "clicks" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
+            compactHeader && "p-3",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -347,7 +354,9 @@ const AnalyticsChart = ({
           <NumberFlow
             value={propTotalClicks ?? 0}
             format={{ maximumFractionDigits: 0 }}
-            className="text-2xl sm:text-3xl"
+            className={
+              compactHeader ? "text-xl sm:text-3xl" : "text-2xl sm:text-3xl"
+            }
           />
           {isFunnel && (
             <span className="border-border bg-card absolute top-1/2 -right-3 z-10 grid size-6 -translate-y-1/2 place-items-center rounded-full border">
@@ -363,6 +372,7 @@ const AnalyticsChart = ({
             !isFunnel && event !== "leads" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
             !canUseLeadTracking && "relative",
+            compactHeader && "p-3",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -387,7 +397,9 @@ const AnalyticsChart = ({
             <NumberFlow
               value={propTotalLeads}
               format={{ maximumFractionDigits: 0 }}
-              className="text-2xl sm:text-3xl"
+              className={
+                compactHeader ? "text-xl sm:text-3xl" : "text-2xl sm:text-3xl"
+              }
             />
           )}
         </button>
@@ -399,6 +411,7 @@ const AnalyticsChart = ({
             !isFunnel && event !== "sales" && "opacity-50 hover:opacity-80",
             isFunnel && "opacity-100",
             !canUseSalesAnalytics && "relative",
+            compactHeader && "p-3",
           )}
         >
           <div className="text-muted-foreground flex items-center gap-2 text-xs font-normal sm:text-sm">
@@ -428,9 +441,11 @@ const AnalyticsChart = ({
                   currency: "USD",
                   maximumFractionDigits: 0,
                 }}
-                className="text-2xl sm:text-3xl"
+                className={
+                  compactHeader ? "text-xl sm:text-3xl" : "text-2xl sm:text-3xl"
+                }
               />
-              {propTotalSales != null && (
+              {propTotalSales != null && !hideSalesCount && (
                 <span className="text-muted-foreground text-xs font-normal">
                   {formatNumber(propTotalSales)}{" "}
                   {propTotalSales === 1 ? "sale" : "sales"}

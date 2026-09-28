@@ -264,6 +264,50 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 1799 1799' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     background-blend-mode: overlay;
   }
+
+  /* Spiderman bio theme: night-city navy, red glow top, blue glow corner, web rays.
+     Ellipse glows span full width; rays get denser + subtler on desktop
+     so they read as webbing instead of a few wide beams. */
+  .bg-spiderman {
+    background-color: #0b1026;
+    background-image:
+      repeating-conic-gradient(from -90deg at 50% 0%, transparent 0deg 5.5deg, rgba(255, 255, 255, 0.05) 5.5deg 6deg),
+      radial-gradient(ellipse 90% 60% at 50% 0%, #e62429 0%, transparent 70%),
+      radial-gradient(ellipse 75% 55% at 85% 100%, #1d4ed8 0%, transparent 70%);
+  }
+  @media (min-width: 768px) {
+    .bg-spiderman {
+      background-image:
+        repeating-conic-gradient(from -90deg at 50% 0%, transparent 0deg 3.5deg, rgba(255, 255, 255, 0.035) 3.5deg 3.75deg),
+        radial-gradient(ellipse 90% 60% at 50% 0%, #e62429 0%, transparent 70%),
+        radial-gradient(ellipse 75% 55% at 85% 100%, #1d4ed8 0%, transparent 70%);
+    }
+  }
+
+  /* Kung Fu Panda bio theme: valley dusk — golden lantern glow,
+     jade depths, faint silk texture. Ellipse glows span full width. */
+  .bg-kungfupanda {
+    background-color: #0c1f16;
+    background-image:
+      repeating-linear-gradient(45deg, transparent 0px, transparent 14px, rgba(255, 255, 255, 0.025) 14px, rgba(255, 255, 255, 0.025) 15px),
+      radial-gradient(ellipse 90% 60% at 50% 0%, #f59e0b 0%, transparent 70%),
+      radial-gradient(ellipse 75% 55% at 15% 100%, #047857 0%, transparent 70%);
+  }
+  @media (min-width: 768px) {
+    .bg-kungfupanda {
+      background-image:
+        repeating-linear-gradient(45deg, transparent 0px, transparent 18px, rgba(255, 255, 255, 0.018) 18px, rgba(255, 255, 255, 0.018) 19px),
+        radial-gradient(ellipse 90% 60% at 50% 0%, #f59e0b 0%, transparent 70%),
+        radial-gradient(ellipse 75% 55% at 15% 100%, #047857 0%, transparent 70%);
+    }
+  }
+
+  /* Brutalist bio theme: solid marker-yellow with faint dot texture */
+  .bg-brutalist {
+    background-color: #ffe600;
+    background-image: radial-gradient(#00000012 1.2px, transparent 1.3px);
+    background-size: 22px 22px;
+  }
 }
 
 /* Custom 3D flip utilities */

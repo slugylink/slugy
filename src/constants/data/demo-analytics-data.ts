@@ -695,10 +695,10 @@ export const DEMO_ANALYTICS_DATA: Record<AnalyticsEvent, DemoAnalyticsData> = {
 
     revenueOverTime: [
       { time: times[4]!, revenue: 49, sales: 1 },
-      { time: times[11]!, revenue: 129, sales: 2 },
-      { time: times[18]!, revenue: 241, sales: 3 },
+      { time: times[11]!, revenue: 220, sales: 2 },
+      { time: times[18]!, revenue: 70, sales: 3 },
       { time: times[24]!, revenue: 399, sales: 5 },
-      { time: times[28]!, revenue: 549, sales: 7 },
+      { time: times[28]!, revenue: 123, sales: 7 },
     ],
 
     links: demoLinks.slice(0, 3).map((link, index) => ({

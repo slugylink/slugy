@@ -9,6 +9,11 @@ export type Theme = {
   readonly buttonStyle: string;
   readonly textColor: string;
   readonly accentColor: string;
+  /**
+   * Optional rotating button colors (e.g. neo-brutalist multi-color links).
+   * When set, link cards cycle through these classes one per link.
+   */
+  readonly buttonPalette?: readonly string[];
 };
 
 // Utility types for better type safety

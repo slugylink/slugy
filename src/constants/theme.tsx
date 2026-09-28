@@ -1,3 +1,6 @@
+import type { Theme } from "@/types/bio-links";
+import { DEFAULT_THEME_ID } from "./bio-links";
+
 export const themes = [
   {
     // Current bio editor design (light dotted grid)
@@ -61,15 +64,15 @@ export const themes = [
     textColor: "text-white",
     accentColor: "text-zinc-100",
   },
-  {
-    id: "monochrome",
-    name: "Monochrome",
-    background: "bg-conic-top-gray",
-    buttonStyle:
-      "bg-white text-zinc-900 font-medium text-center flex justify-center items-center rounded-md",
-    textColor: "text-zinc-900",
-    accentColor: "text-zinc-600",
-  },
+  // {
+  //   id: "monochrome",
+  //   name: "Monochrome",
+  //   background: "bg-conic-top-gray",
+  //   buttonStyle:
+  //     "bg-white text-zinc-900 font-medium text-center flex justify-center items-center rounded-md",
+  //   textColor: "text-zinc-900",
+  //   accentColor: "text-zinc-600",
+  // },
   {
     id: "skyfall",
     name: "Skyfall",
@@ -89,15 +92,15 @@ export const themes = [
     textColor: "text-orange-900",
     accentColor: "text-yellow-400",
   },
-  {
-    id: "oceanic-wave",
-    name: "Oceanic",
-    background: "bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-700",
-    buttonStyle:
-      "bg-white/30 hover:bg-white/60 text-white/90 font-medium text-center flex justify-center items-center rounded-full",
-    textColor: "text-white",
-    accentColor: "text-cyan-200",
-  },
+  // {
+  //   id: "oceanic-wave",
+  //   name: "Oceanic",
+  //   background: "bg-gradient-to-br from-cyan-400 via-blue-500 to-indigo-700",
+  //   buttonStyle:
+  //     "bg-white/30 hover:bg-white/60 text-white/90 font-medium text-center flex justify-center items-center rounded-full",
+  //   textColor: "text-white",
+  //   accentColor: "text-cyan-200",
+  // },
   {
     id: "candy-pop",
     name: "Candy",
@@ -108,15 +111,15 @@ export const themes = [
     textColor: "text-red-800",
     accentColor: "text-red-600",
   },
-  {
-    id: "midnight-prism",
-    name: "Midnight",
-    background: "bg-gradient-to-tr from-zinc-900 via-purple-900 to-blue-900",
-    buttonStyle:
-      "bg-white/10 hover:bg-white/20 text-white font-medium text-start flex justify-start items-center rounded-xl",
-    textColor: "text-white",
-    accentColor: "text-blue-300",
-  },
+  // {
+  //   id: "midnight-prism",
+  //   name: "Midnight",
+  //   background: "bg-gradient-to-tr from-zinc-900 via-purple-900 to-blue-900",
+  //   buttonStyle:
+  //     "bg-white/10 hover:bg-white/20 text-white font-medium text-start flex justify-start items-center rounded-xl",
+  //   textColor: "text-white",
+  //   accentColor: "text-blue-300",
+  // },
   {
     id: "zigzag",
     name: "Zigzag",
@@ -135,4 +138,76 @@ export const themes = [
     textColor: "text-white",
     accentColor: "text-white",
   },
+  {
+    // Spidey suit: night-city navy with red glow + web-ray pattern
+    id: "spiderman",
+    name: "Spiderman",
+    background: "bg-spiderman",
+    buttonStyle:
+      "bg-[#d81f26] hover:bg-[#b01419] text-white font-bold text-center flex justify-center items-center rounded-xl border border-black/50 shadow-[0_2px_12px_rgba(216,31,38,0.45)]",
+    textColor: "text-white",
+    accentColor: "text-red-200",
+  },
+  {
+    // Dragon Warrior: valley dusk with golden lantern glow + jade depths
+    id: "kung-fu-panda",
+    name: "Kung Fu Panda",
+    background: "bg-kungfupanda",
+    buttonStyle:
+      "bg-[#eab308] hover:bg-[#ca8b06] text-stone-900 font-bold text-center flex justify-center items-center rounded-xl border border-black/30 shadow-[0_2px_12px_rgba(234,179,8,0.45)]",
+    textColor: "text-white",
+    accentColor: "text-amber-200",
+  },
+  {
+    // Neo-brutalist: marker yellow, chunky multi-color buttons, hard shadows
+    id: "brutalist",
+    name: "Brutalist",
+    background: "bg-brutalist",
+    buttonStyle:
+      "bg-white text-black font-bold border-2 border-black rounded-xl shadow-[3px_3px_0_#000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0_#000]",
+    buttonPalette: [
+      "bg-[#FF6B6B]",
+      "bg-[#45D8E5]",
+      "bg-[#C084FC]",
+      "bg-[#FFB020]",
+      "bg-[#34D399]",
+    ],
+    textColor: "text-black",
+    accentColor: "text-neutral-800",
+  },
+  {
+    // Vercel-style monochrome: pure black page, white pill buttons
+    id: "mono",
+    name: "Mono",
+    background: "bg-black",
+    buttonStyle:
+      "bg-white hover:bg-zinc-200 text-black font-medium text-center flex justify-center items-center rounded-full",
+    textColor: "text-white",
+    accentColor: "text-neutral-400",
+  },
 ] as const;
+
+/**
+ * Single shared theme resolver (used by public bio pages, legacy route,
+ * editor preview, and theme picker). Unknown or structurally incomplete
+ * ids fall back to the default theme — so the API can persist any string.
+ */
+export function resolveGalleryTheme(
+  themeId: string | Theme | null | undefined,
+): Theme {
+  const fallbackTheme =
+    themes.find((theme) => theme.id === DEFAULT_THEME_ID) ?? themes[0];
+  const resolvedThemeId = typeof themeId === "string" ? themeId : themeId?.id;
+  const selectedTheme =
+    themes.find((theme) => theme.id === resolvedThemeId) ?? fallbackTheme;
+
+  if (
+    !selectedTheme?.background ||
+    !selectedTheme?.textColor ||
+    !selectedTheme?.buttonStyle
+  ) {
+    return fallbackTheme;
+  }
+
+  return selectedTheme;
+}

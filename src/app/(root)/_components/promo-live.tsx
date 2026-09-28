@@ -72,27 +72,27 @@ export function PromoPill({ className }: { className?: string }) {
           : "See promo pricing"
       }
       className={cn(
-        "group inline-flex max-w-full items-center gap-2 rounded-full border border-red-500/25 bg-red-500/[0.07] py-1 pr-3 pl-2.5 text-[11px] font-medium text-red-950 transition-colors hover:bg-red-500/[0.13] sm:text-[13px] dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-100 dark:hover:bg-red-400/15",
+        "group border-white-500/25 bg-white-500/[0.07] text-white-950 hover:bg-white-500/[0.13] dark:border-white-400/25 dark:bg-white-400/10 dark:text-white-100 dark:hover:bg-white-400/15 inline-flex max-w-full items-center gap-2 rounded-full border py-1 pr-1 pl-2.5 text-[11px] font-medium transition-colors sm:text-[13px]",
         className,
       )}
     >
       <LiveDot soldOut={soldOut} />
       <span className="truncate">
-        <span className="rounded bg-red-500/15 px-1.5 py-0.5 font-mono font-bold tracking-wide">
+        {/* <span className="rounded bg-white-500/15 px-1.5 py-0.5 font-mono font-bold tracking-wide">
           {data?.code ?? PRICING_COPY.promoCode}
-        </span>
+        </span> */}
         <span className="mx-1.5">
           Pro ${data?.promoPrice ?? PRICING_COPY.promoPrice}/mo{" "}
           {data?.durationLabel ?? PRICING_COPY.promoDuration}
         </span>
       </span>
-      {count ? (
+      {!count ? (
         <span className="bg-background/80 inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 font-mono text-[10px] tabular-nums sm:text-[11px]">
           {soldOut ? "sold out" : `${count} claimed`}
         </span>
       ) : (
         <span className="bg-background/80 inline-flex shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[10px] sm:text-[11px]">
-          limited · first 25
+          {`0/${30} claimed`}
         </span>
       )}
     </Link>
@@ -110,7 +110,7 @@ export function PromoLiveLine() {
     <div className="mx-auto mt-3 max-w-2xl">
       <p className="text-primary text-sm font-medium">
         {PRICING_COPY.promoPrefix}{" "}
-        <span className="rounded bg-red-500/10 px-2 py-1 font-mono font-bold">
+        <span className="bg-white-500/10 rounded px-2 py-1 font-mono font-bold">
           {data?.code ?? PRICING_COPY.promoCode}
         </span>{" "}
         {PRICING_COPY.promoSuffix}

@@ -10,8 +10,6 @@ import {
 import SocialLinks from "@/components/web/_bio-links/social-links";
 import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
-import { themes } from "@/constants/theme";
-import { DEFAULT_THEME_ID } from "@/constants/bio-links";
 import type { GalleryData, Theme } from "@/types/bio-links";
 import { GLinkDialogBox } from "./add-glink-dialog";
 import { ImagePlus } from "lucide-react";
@@ -31,25 +29,7 @@ interface GalleryProfileViewProps {
   children?: ReactNode;
 }
 
-export function resolveGalleryTheme(
-  themeId: string | Theme | null | undefined,
-): Theme {
-  const fallbackTheme =
-    themes.find((theme) => theme.id === DEFAULT_THEME_ID) ?? themes[0];
-  const resolvedThemeId = typeof themeId === "string" ? themeId : themeId?.id;
-  const selectedTheme =
-    themes.find((theme) => theme.id === resolvedThemeId) ?? fallbackTheme;
-
-  if (
-    !selectedTheme?.background ||
-    !selectedTheme?.textColor ||
-    !selectedTheme?.buttonStyle
-  ) {
-    return fallbackTheme;
-  }
-
-  return selectedTheme;
-}
+export { resolveGalleryTheme } from "@/constants/theme";
 
 export default function GalleryProfileView({
   gallery,

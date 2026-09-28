@@ -1,81 +1,23 @@
 import { type NextRequest } from "next/server";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
+import { getBioPublicCache } from "@/lib/cache-utils/bio-public-cache";
 import {
-  getBioPublicCache,
-  setBioPublicCache,
-} from "@/lib/cache-utils/bio-public-cache";
-import type { CachedBioData, GalleryData } from "@/types/bio-links";
-const MAX_USERNAME_LENGTH = 50;
-const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
-
-function transformCachedData(cachedData: CachedBioData): GalleryData {
-  return {
-    username: cachedData.username,
-    name: cachedData.name,
-    bio: cachedData.bio,
-    logo: cachedData.logo,
-    theme: cachedData.theme,
-    links: cachedData.links.map((link) => ({
-      ...link,
-      style: link.style ?? "link",
-      icon: link.icon ?? null,
-      image: link.image ?? null,
-    })),
-    socials: cachedData.socials.map((social) => ({
-      ...social,
-    })),
-    images: (cachedData.images ?? []).map((image) => ({ ...image })),
-  };
-}
-
-function createCacheData(gallery: GalleryData): CachedBioData {
-  return {
-    username: gallery.username,
-    name: gallery.name,
-    bio: gallery.bio,
-    logo: gallery.logo,
-    theme: gallery.theme,
-    links: gallery.links.map((link) => ({
-      id: link.id,
-      title: link.title,
-      url: link.url,
-      style: link.style,
-      icon: link.icon,
-      image: link.image,
-      position: link.position,
-      isPublic: link.isPublic,
-    })),
-    socials: gallery.socials.map((social) => ({
-      platform: social.platform || "",
-      url: social.url || "",
-      isPublic: social.isPublic,
-    })),
-    images: (gallery.images ?? []).map((image) => ({
-      id: image.id,
-      image: image.image,
-      position: image.position,
-      isPublic: image.isPublic,
-    })),
-  };
-}
-
-function isValidUsername(username: string): boolean {
-  return (
-    username.length > 0 &&
-    username.length <= MAX_USERNAME_LENGTH &&
-    USERNAME_REGEX.test(username)
-  );
-}
+  BIO_GALLERY_SELECT,
+  normalizeBioUsername,
+  transformCachedBioData,
+  writePublicBioCache,
+} from "@/server/public-bio-gallery";
+import type { GalleryData } from "@/types/bio-links";
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ username: string }> },
 ) {
   const params = await context.params;
-  const normalizedUsername = params.username?.toLowerCase().trim();
+  const normalizedUsername = normalizeBioUsername(params.username);
 
-  if (!normalizedUsername || !isValidUsername(normalizedUsername)) {
+  if (!normalizedUsername) {
     return jsonWithETag(
       request,
       { error: "Invalid username format" },
@@ -86,68 +28,21 @@ export async function GET(
   try {
     const cachedData = await getBioPublicCache(normalizedUsername);
     if (cachedData) {
-      return jsonWithETag(request, transformCachedData(cachedData), {
+      return jsonWithETag(request, transformCachedBioData(cachedData), {
         status: 200,
       });
     }
 
     const gallery: GalleryData | null = await db.bio.findUnique({
       where: { username: normalizedUsername },
-      select: {
-        username: true,
-        name: true,
-        bio: true,
-        logo: true,
-        theme: true,
-        links: {
-          where: { isPublic: true },
-          orderBy: { position: "asc" },
-          select: {
-            id: true,
-            title: true,
-            url: true,
-            style: true,
-            icon: true,
-            image: true,
-            position: true,
-            isPublic: true,
-          },
-        },
-        socials: {
-          where: { isPublic: true },
-          orderBy: { platform: "asc" },
-          select: {
-            platform: true,
-            url: true,
-            isPublic: true,
-          },
-        },
-        images: {
-          where: { isPublic: true, deletedAt: null },
-          orderBy: { position: "asc" },
-          select: {
-            id: true,
-            image: true,
-            position: true,
-            isPublic: true,
-          },
-        },
-      },
+      select: BIO_GALLERY_SELECT,
     });
 
     if (!gallery) {
       return jsonWithETag(request, { error: "Bio gallery not found" }, 404);
     }
 
-    const cacheData = createCacheData(gallery);
-    setBioPublicCache(normalizedUsername, {
-      ...cacheData,
-      links: cacheData.links.map((link) => ({ ...link })),
-      socials: cacheData.socials.map((social) => ({ ...social })),
-      images: (cacheData.images ?? []).map((image) => ({ ...image })),
-    }).catch(() => {
-      // Cache write failures should not break API responses.
-    });
+    writePublicBioCache(normalizedUsername, gallery);
 
     return jsonWithETag(request, gallery, {
       status: 200,
@@ -161,7 +56,7 @@ export async function GET(
     try {
       const staleData = await getBioPublicCache(normalizedUsername);
       if (staleData) {
-        return jsonWithETag(request, transformCachedData(staleData), {
+        return jsonWithETag(request, transformCachedBioData(staleData), {
           status: 200,
         });
       }

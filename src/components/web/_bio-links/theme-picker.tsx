@@ -13,6 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useThemeUpdate } from "@/hooks/use-theme-update";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { resolveGalleryTheme } from "./gallery-profile-view";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { cn } from "@/lib/utils";
@@ -54,35 +55,40 @@ export default function ThemePicker({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto px-4 pb-4 sm:grid-cols-3">
-          {themes.map((theme) => {
-            const isActive = theme.id === currentTheme;
-            const preview = resolveGalleryTheme(theme.id);
+        <ScrollArea className="max-h-[calc(100dvh-150px)] min-h-0 flex-1">
+          <div className="grid grid-cols-4 content-start gap-2 p-3">
+            {themes.map((theme) => {
+              const isActive = theme.id === currentTheme;
+              const preview = resolveGalleryTheme(theme.id);
 
-            return (
-              <button
-                key={theme.id}
-                type="button"
-                disabled={isSaving}
-                onClick={() => handleThemeClick(theme.id, currentTheme)}
-                aria-pressed={isActive}
-                className={cn(
-                  "group relative overflow-hidden rounded-xl border text-left transition disabled:cursor-not-allowed disabled:opacity-60",
-                  isActive
-                    ? "border-primary ring-primary/40 ring-2"
-                    : "hover:border-primary/50",
-                )}
-              >
-                <div
-                  className={cn("h-20 w-full bg-zinc-100", preview.background)}
-                />
-                <span className="block truncate px-2 py-2 text-xs font-medium">
-                  {theme.name}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => handleThemeClick(theme.id, currentTheme)}
+                  aria-pressed={isActive}
+                  className={cn(
+                    "group relative overflow-hidden rounded-md border text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+                    isActive
+                      ? "border-primary ring-primary/40 ring-2"
+                      : "hover:border-primary/50",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "aspect-[9/12] w-full bg-zinc-100",
+                      preview.background,
+                    )}
+                  />
+                  <span className="block truncate px-2 py-2 text-xs font-medium">
+                    {theme.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </ScrollArea>
 
         {isSaving && (
           <div className="text-muted-foreground flex items-center justify-center gap-2 pb-4 text-xs">
