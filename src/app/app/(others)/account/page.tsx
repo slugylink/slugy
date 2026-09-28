@@ -32,7 +32,9 @@ export default async function AccountPage() {
   });
 
   if (!account) {
-    return null;
+    // Session without a DB user (deleted/banned mid-session) must clear
+    // cookies via session-cleanup — never render blank or loop to /login.
+    redirect("/api/auth/session-cleanup");
   }
 
   return (

@@ -180,6 +180,31 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // Workspace-scoped purchase: subscriptions are per-user, so buying "for" a
+  // workspace only makes sense for its owner. Members hitting a workspace
+  // upgrade CTA would otherwise upgrade THEMSELVES while looking at the
+  // workspace's plan. (Generic self-purchase without ?workspace= is allowed.)
+  const purchaseWorkspaceSlug = checkoutUrl.searchParams
+    .get("workspace")
+    ?.trim();
+  if (purchaseWorkspaceSlug) {
+    const { getWorkspaceAccess } = await import("@/lib/workspace-access");
+    const purchaseAccess = await getWorkspaceAccess(
+      session.user.id,
+      purchaseWorkspaceSlug,
+    );
+    if (
+      !purchaseAccess.success ||
+      !purchaseAccess.workspace ||
+      purchaseAccess.role !== "owner"
+    ) {
+      return NextResponse.json(
+        { error: "Only the workspace owner can purchase for this workspace" },
+        { status: 403 },
+      );
+    }
+  }
+
   const billing = checkoutUrl.searchParams.get("billing");
   const applyPromo = shouldApplyCheckoutPromo(productIds, billing);
 

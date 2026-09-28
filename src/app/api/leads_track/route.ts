@@ -51,6 +51,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Revoked-workspace keys die with the workspace (authenticateApiKey only
+    // checks the key row itself).
+    const { db } = await import("@/server/db");
+    const workspaceAlive = await db.workspace.findFirst({
+      where: { id: auth.apiKey.workspaceId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!workspaceAlive) {
+      return apiErrors.notFound("Workspace not found");
+    }
+
     const queryClickId = request.nextUrl.searchParams.get("clickId");
     let body: unknown = {};
     try {

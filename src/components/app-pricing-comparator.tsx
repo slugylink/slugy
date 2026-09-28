@@ -99,6 +99,11 @@ function buildCheckoutUrl(
   params.set("products", productIds.join(","));
   params.set("billing", billing);
 
+  // Workspace context for the owner-only purchase gate in checkout/route.
+  if (workspace) {
+    params.set("workspace", workspace);
+  }
+
   if (successUrlPath) {
     params.set("successUrl", successUrlPath);
   } else if (workspace) {

@@ -9,10 +9,10 @@ import {
   verifyDomainOnVercel,
   checkDnsConfiguration,
 } from "@/lib/domain-utils";
-import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
-import { waitUntil } from "@vercel/functions";
 import { checkDomainLimit } from "@/server/actions/limit";
 import { jsonWithETag } from "@/lib/http";
+import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
+import { checkDomainVerifyRateLimit } from "@/lib/middleware/rate-limit";
 import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
 
@@ -90,7 +90,15 @@ export async function GET(
       );
     }
 
-    return jsonWithETag(req, { domains: workspace.customDomains });
+    // DNS TXT tokens are provisioning secrets — members get status only.
+    const access = await getWorkspaceAccess(session.user.id, workspaceslug);
+    const isOwnerOrAdmin = access.success && hasRole(access.role, "admin");
+
+    const domains = isOwnerOrAdmin
+      ? workspace.customDomains
+      : workspace.customDomains.map(({ verificationToken, ...rest }) => rest);
+
+    return jsonWithETag(req, { domains });
   } catch (error) {
     console.error("Error fetching domains:", error);
     const message =
@@ -152,16 +160,36 @@ export async function POST(
       );
     }
 
-    // Create domain in database
-    const customDomain = await db.customDomain.create({
-      data: {
-        domain,
-        workspaceId: workspace.id,
-        verificationToken: vercelResult.verificationRecord?.value || null,
-        verified: false,
-        dnsConfigured: false,
-      },
-    });
+    // Create domain in database — P2002 (concurrent double-add) is a 409,
+    // and a DB failure after a Vercel add compensates by detaching again so
+    // the domain isn't orphaned in Vercel (which would 409 every retry).
+    let customDomain;
+    try {
+      customDomain = await db.customDomain.create({
+        data: {
+          domain,
+          workspaceId: workspace.id,
+          verificationToken: vercelResult.verificationRecord?.value || null,
+          verified: false,
+          dnsConfigured: false,
+        },
+      });
+    } catch (error) {
+      if (
+        error &&
+        typeof error === "object" &&
+        "code" in error &&
+        error.code === "P2002"
+      ) {
+        return jsonWithETag(
+          req,
+          { error: "Domain is already in use" },
+          { status: 409 },
+        );
+      }
+      await removeDomainFromVercel(domain).catch(() => undefined);
+      throw error;
+    }
 
     return jsonWithETag(
       req,
@@ -214,44 +242,34 @@ export async function DELETE(
       return jsonWithETag(req, { error: "Domain not found" }, { status: 404 });
     }
 
+    // Deleting a domain cascade-deletes its links (schema ON DELETE CASCADE)
+    // — refuse while links exist so nobody wipes live short links by
+    // accident. Move or delete the links first.
+    const linkCount = await db.link.count({
+      where: { customDomainId: domainId, workspaceId: workspace.id },
+    });
+    if (linkCount > 0) {
+      return jsonWithETag(
+        req,
+        {
+          error: `This domain has ${linkCount} active short link${linkCount === 1 ? "" : "s"}. Move or delete them before deleting the domain.`,
+          linkCount,
+        },
+        { status: 409 },
+      );
+    }
+
     // Remove from Vercel (continue on failure)
     const vercelResult = await removeDomainFromVercel(customDomain.domain);
     if (!vercelResult.success) {
       console.error("Failed to remove domain from Vercel:", vercelResult.error);
     }
 
-    // Collect affected links BEFORE cascade delete, so we can mark them as deleted in Tinybird
-    const affectedLinks = await db.link.findMany({
-      where: { customDomainId: domainId, workspaceId: workspace.id },
-      include: {
-        customDomain: true,
-        tags: {
-          select: {
-            tag: { select: { id: true } },
-          },
-        },
-      },
-    });
+    // (Link collection for Tinybird tombstones is unnecessary: the guard
+    // above guarantees zero links reference this domain.)
 
-    if (affectedLinks.length > 0) {
-      waitUntil(
-        Promise.allSettled(
-          affectedLinks.map((link) =>
-            deleteLink({
-              id: link.id,
-              domain: link.customDomain?.domain || "slugy.co",
-              slug: link.slug,
-              url: link.url,
-              workspaceId: link.workspaceId,
-              createdAt: link.createdAt,
-              tags: link.tags.map((t) => ({ tagId: t.tag.id })),
-            }),
-          ),
-        ),
-      );
-    }
-
-    // Delete from database
+    // Delete from database (link-count guard above guarantees no links
+    // reference this domain, so nothing needs cache purging).
     await db.customDomain.delete({ where: { id: domainId } });
 
     return jsonWithETag(req, { success: true });
@@ -295,8 +313,9 @@ export async function PATCH(
       );
     }
 
-    // Verify workspace access
-    const workspace = await getWorkspace(workspaceslug, session.user.id);
+    // Verify + toggle change verified flags and hit paid provider APIs —
+    // admin-only (matches add/delete). Members are read-only.
+    const workspace = await getWorkspace(workspaceslug, session.user.id, true);
 
     // Get and verify domain ownership
     const customDomain = await db.customDomain.findUnique({
@@ -309,6 +328,16 @@ export async function PATCH(
 
     // Handle verify action
     if (action === "verify") {
+      // Verification fans out to Vercel + DNS-over-HTTPS — throttle abuse.
+      const verifyLimit = await checkDomainVerifyRateLimit(customDomain.domain);
+      if (!verifyLimit.success) {
+        return jsonWithETag(
+          req,
+          { error: "Too many verification attempts. Try again later." },
+          { status: 429 },
+        );
+      }
+
       // Verify domain on Vercel (primary SSL provider)
       const vercelVerifyResult = await verifyDomainOnVercel(
         customDomain.domain,

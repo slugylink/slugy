@@ -286,6 +286,8 @@ model WorkspaceApiKey {
   id                   String                @id @default(cuid())
   name                 String
   key                  String                @unique
+  keyHash              String?               @unique
+  keyHint              String?
   workspaceId          String
   createdBy            String
   permissionLevel      ApiKeyPermissionLevel @default(restricted)

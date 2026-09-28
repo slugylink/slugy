@@ -31,7 +31,7 @@ const NOT_FOUND_ERROR_PATTERNS = [
 const UpdateAccountSchema = z.object({
   name: z
     .string()
-    .min(1, "Name is required")
+    .min(3, "Name must be at least 3 characters")
     .max(32, "Name must be 32 characters or less"),
   defaultWorkspaceId: z.string().optional(),
 });
@@ -752,6 +752,18 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     // Parse and validate request body
     const body = await req.json();
     const validatedData = UpdateAccountSchema.parse(body);
+
+    // A foreign/not-owned default workspace is rejected BEFORE the
+    // transaction (previously P2025 → generic 500).
+    if (validatedData.defaultWorkspaceId) {
+      const owned = await db.workspace.findFirst({
+        where: { id: validatedData.defaultWorkspaceId, userId: accountId },
+        select: { id: true },
+      });
+      if (!owned) {
+        return apiErrors.notFound("Workspace not found");
+      }
+    }
 
     // Update user and workspace in transaction
     const updatedAccount = await db.$transaction(async (tx) => {

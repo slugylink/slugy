@@ -3,7 +3,6 @@ import { db } from "@/server/db";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import DomainsClient from "./page-client";
-import useSWR from "swr";
 
 export default async function DomainsSettings({
   params,
@@ -52,14 +51,20 @@ export default async function DomainsSettings({
     return redirect("/login");
   }
 
-  // Get user's subscription to check domain limit
+  // Domain caps come from the workspace OWNER's plan (limits are enforced
+  // against the owner in the API). The viewer's own plan is irrelevant here.
   const subscription = await db.subscription.findUnique({
-    where: { referenceId: session.user.id },
+    where: { referenceId: workspace.userId },
     include: { plan: true },
   });
 
   const maxDomains = subscription?.plan?.maxCustomDomains ?? 0;
-  const isOwnerOrAdmin = workspace.userId === session.user.id;
+  // Add/delete is owner+admin; plain members are read-only (matches API).
+  const { getWorkspaceAccess, hasRole } = await import(
+    "@/lib/workspace-access"
+  );
+  const access = await getWorkspaceAccess(session.user.id, context.workspace);
+  const isOwnerOrAdmin = access.success && hasRole(access.role, "admin");
 
   return (
     <div className="space-y-6 py-3">

@@ -169,7 +169,11 @@ export async function verifyDomainOnVercel(domain: string): Promise<{
 }
 
 /**
- * Check if domain DNS is properly configured by testing actual DNS resolution
+ * Check if domain DNS actually points at Vercel, via two independent
+ * signals: Vercel's own domain config (authoritative for SSL/verification
+ * state) and a DNS-over-HTTPS CNAME lookup (authoritative for routing).
+ * The old HEAD-request heuristic treated ANY http<500 as "configured" — a
+ * domain pointed at an arbitrary server passed verification.
  */
 export async function checkDnsConfiguration(domain: string): Promise<{
   success: boolean;
@@ -177,36 +181,99 @@ export async function checkDnsConfiguration(domain: string): Promise<{
   error?: string;
 }> {
   try {
-    // Test if the domain resolves to Vercel's infrastructure
-    const response = await fetch(`https://${domain}`, {
-      method: 'HEAD',
-      headers: {
-        'User-Agent': 'Slugy-DNS-Check/1.0'
-      },
-      signal: AbortSignal.timeout(10000) // 10 second timeout
-    });
+    const { token, projectId, teamId } = getVercelCredentials();
 
-    // If we get a response (even 404), it means DNS is configured
-    // We check for specific headers that indicate Vercel hosting
-    const serverHeader = response.headers.get('server');
-    const xVercelHeader = response.headers.get('x-vercel-id');
-    
-    const isConfigured = response.status !== 0 && (
-      serverHeader?.includes('vercel') || 
-      xVercelHeader !== null ||
-      response.status < 500 // Any response under 500 means DNS is working
-    );
+    // Signal 1: Vercel domain config (misconfigured => DNS/SSL not ready).
+    let vercelMisconfigured: boolean | null = null;
+    try {
+      const configRes = await fetch(
+        `${VERCEL_API_URL}/v6/domains/${encodeURIComponent(domain)}/config?teamId=${teamId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(10000),
+        },
+      );
+      if (configRes.ok) {
+        const config = (await configRes.json()) as {
+          misconfigured?: boolean;
+        };
+        if (typeof config.misconfigured === "boolean") {
+          vercelMisconfigured = config.misconfigured;
+        }
+      }
+    } catch {
+      // Fall through to DNS-only verdict below.
+    }
 
-    return {
-      success: true,
-      configured: isConfigured,
-    };
+    // Signal 2: real CNAME target via DNS-over-HTTPS.
+    let cnameOk = false;
+    try {
+      const dohRes = await fetch(
+        `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=CNAME`,
+        { signal: AbortSignal.timeout(10000) },
+      );
+      if (dohRes.ok) {
+        const doh = (await dohRes.json()) as {
+          Answer?: Array<{ type: number; data: string }>;
+        };
+        cnameOk = (doh.Answer ?? []).some(
+          (answer) =>
+            answer.type === 5 &&
+            /(^|\.)vercel-dns\.com\.?$/i.test(answer.data.trim()),
+        );
+      }
+    } catch {
+      // DNS lookup failed — not configured.
+    }
+
+    // Apex domains use A records instead of CNAME; accept Vercel's anycast IP.
+    let apexOk = false;
+    if (!cnameOk) {
+      try {
+        const dohRes = await fetch(
+          `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=A`,
+          { signal: AbortSignal.timeout(10000) },
+        );
+        if (dohRes.ok) {
+          const doh = (await dohRes.json()) as {
+            Answer?: Array<{ type: number; data: string }>;
+          };
+          apexOk = (doh.Answer ?? []).some(
+            (answer) =>
+              answer.type === 1 && answer.data.trim() === "76.76.21.21",
+          );
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const dnsPointsToVercel = cnameOk || apexOk;
+
+    if (vercelMisconfigured === true) {
+      return {
+        success: true,
+        configured: false,
+        error:
+          "Vercel reports this domain as misconfigured. Point its CNAME to cname.vercel-dns.com (or apex A record to 76.76.21.21).",
+      };
+    }
+
+    if (!dnsPointsToVercel) {
+      return {
+        success: true,
+        configured: false,
+        error:
+          "DNS does not point to Vercel yet. Add a CNAME to cname.vercel-dns.com (or apex A record to 76.76.21.21) and retry.",
+      };
+    }
+
+    return { success: true, configured: true };
   } catch (error) {
-    // If we can't reach the domain, DNS is likely not configured
     return {
-      success: true,
+      success: false,
       configured: false,
-      error: error instanceof Error ? error.message : 'DNS not configured'
+      error: error instanceof Error ? error.message : "DNS check failed",
     };
   }
 }
@@ -251,5 +318,3 @@ export async function isDomainInUse(domain: string): Promise<boolean> {
     return false;
   }
 }
-
-

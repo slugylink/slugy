@@ -3,15 +3,21 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
-import { generateApiKey, maskApiKey } from "@/lib/api-keys/generate";
+import {
+  apiKeyHint,
+  generateApiKey,
+  hashApiKey,
+} from "@/lib/api-keys/generate";
 import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const createKeySchema = z.object({
   name: z.string().min(1).max(80),
   linksPermission: z.enum(["none", "write"]).optional().default("write"),
-  leadsPermission: z.enum(["none", "write"]).optional().default("write"),
+  leadsPermission: z.enum(["none", "write"]).optional().default("none"),
 });
+
+const MAX_KEYS_PER_WORKSPACE = 20;
 
 async function getWorkspaceForUser(workspaceslug: string, userId: string) {
   return db.workspace.findFirst({
@@ -39,23 +45,15 @@ export async function GET(
     return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
   }
 
-  const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
-  const planType = subscriptionResult.subscription?.plan?.planType ?? null;
-  if (!canUseLeadTracking(planType)) {
-    return jsonWithETag(
-      req,
-      { error: "Lead tracking requires a Pro or Business plan." },
-      { status: 403 },
-    );
-  }
-
+  // Listing is metadata-only on any plan; creation enforces per-scope gates.
   const keys = await db.workspaceApiKey.findMany({
     where: { workspaceId: workspace.id, deletedAt: null },
     orderBy: { createdAt: "desc" },
+    // Never select the secret: list responses carry the stored hint only.
     select: {
       id: true,
       name: true,
-      key: true,
+      keyHint: true,
       linksPermission: true,
       leadsPermission: true,
       lastUsed: true,
@@ -68,7 +66,7 @@ export async function GET(
     keys: keys.map((key) => ({
       id: key.id,
       name: key.name,
-      maskedKey: maskApiKey(key.key),
+      maskedKey: key.keyHint ?? "slugy_…(legacy)",
       linksPermission: key.linksPermission,
       leadsPermission: key.leadsPermission,
       lastUsed: key.lastUsed,
@@ -99,7 +97,12 @@ export async function POST(
 
   const subscriptionResult = await getSubscriptionWithPlan(workspace.userId);
   const planType = subscriptionResult.subscription?.plan?.planType ?? null;
-  if (!canUseLeadTracking(planType)) {
+
+  const body = createKeySchema.parse(await req.json());
+
+  // Scope-aware gating: links-only keys work on any plan (quotas still
+  // enforced per call); leads:write is the paid tracking feature.
+  if (body.leadsPermission === "write" && !canUseLeadTracking(planType)) {
     return jsonWithETag(
       req,
       { error: "Lead tracking requires a Pro or Business plan." },
@@ -107,13 +110,30 @@ export async function POST(
     );
   }
 
-  const body = createKeySchema.parse(await req.json());
+  const liveCount = await db.workspaceApiKey.count({
+    where: { workspaceId: workspace.id, deletedAt: null },
+  });
+  if (liveCount >= MAX_KEYS_PER_WORKSPACE) {
+    return jsonWithETag(
+      req,
+      {
+        error: `API key limit reached (${MAX_KEYS_PER_WORKSPACE} per workspace). Revoke unused keys first.`,
+      },
+      { status: 403 },
+    );
+  }
+
   const key = generateApiKey();
+  const keyHash = hashApiKey(key);
 
   const apiKey = await db.workspaceApiKey.create({
     data: {
       name: body.name,
-      key,
+      // Phase-out: raw `key` column holds the non-secret hash until the
+      // follow-up migration drops it. The bearer secret exists only here.
+      key: keyHash,
+      keyHash,
+      keyHint: apiKeyHint(key),
       workspaceId: workspace.id,
       createdBy: session.user.id,
       permissionLevel: "restricted",
@@ -123,7 +143,7 @@ export async function POST(
     select: {
       id: true,
       name: true,
-      key: true,
+      keyHint: true,
       linksPermission: true,
       leadsPermission: true,
       createdAt: true,
@@ -133,7 +153,8 @@ export async function POST(
   return jsonWithETag(
     req,
     {
-      key: apiKey,
+      // Full secret returned ONCE — never persisted or re-readable.
+      key: { ...apiKey, key },
       endpoints: {
         links: "https://app.slugy.co/api/v1/link",
         leads: "https://api.slugy.co/leads_track",

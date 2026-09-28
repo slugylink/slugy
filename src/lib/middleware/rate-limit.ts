@@ -17,6 +17,8 @@ const RATE_LIMITS = {
   AUTH_CHECK_IP: { limit: 30, window: 60 },
   // …plus a per-target budget so one IP can't sweep many addresses.
   AUTH_CHECK_TARGET: { limit: 10, window: 60 },
+  // Domain verification hits paid provider APIs — throttle per domain.
+  DOMAIN_VERIFY: { limit: 10, window: 60 },
   // Account deletion: destructive + authenticated — a few tries per hour.
   ACCOUNT_DELETE: { limit: 5, window: 60 * 60 },
 } as const;
@@ -196,4 +198,16 @@ export const checkAuthCheckRateLimit = async (
 
   const ipLimit = RATE_LIMITS.AUTH_CHECK_IP;
   return checkRedisLimit(`auth-check-ip:${ip}`, ipLimit.limit, ipLimit.window);
+};
+
+/** Domain verification hits metered provider APIs — throttle per domain. */
+export const checkDomainVerifyRateLimit = async (
+  domain: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.DOMAIN_VERIFY;
+  return checkRedisLimit(
+    `domain-verify:${domain.trim().toLowerCase()}`,
+    limit,
+    window,
+  );
 };

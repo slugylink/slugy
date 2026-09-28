@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import type { ResourcePermission, WorkspaceApiKey } from "@prisma/client";
+import { hashApiKey } from "@/lib/api-keys/generate";
 
 export type ApiKeyAuthResult =
   | { ok: true; apiKey: WorkspaceApiKey }
@@ -32,17 +33,30 @@ export async function authenticateApiKey(
 
   const apiKey = await db.workspaceApiKey.findFirst({
     where: {
-      key: token,
+      keyHash: hashApiKey(token),
       deletedAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
   });
 
-  if (!apiKey) {
+  // Legacy fallback: rows created before secret hashing (backfilled by
+  // scripts/backfill-apikey-hashes.ts; removed once `key` is dropped).
+  const legacyKey =
+    apiKey ??
+    (await db.workspaceApiKey.findFirst({
+      where: {
+        key: token,
+        keyHash: null,
+        deletedAt: null,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+    }));
+
+  if (!legacyKey) {
     return { ok: false, status: 401, message: "Invalid API key" };
   }
 
-  const permission = getResourcePermission(apiKey, resource);
+  const permission = getResourcePermission(legacyKey, resource);
   if (requiredPermission === "write" && permission !== "write") {
     return {
       ok: false,
@@ -65,10 +79,10 @@ export async function authenticateApiKey(
 
   void db.workspaceApiKey
     .update({
-      where: { id: apiKey.id },
+      where: { id: legacyKey.id },
       data: { lastUsed: new Date() },
     })
     .catch(() => undefined);
 
-  return { ok: true, apiKey };
+  return { ok: true, apiKey: legacyKey };
 }

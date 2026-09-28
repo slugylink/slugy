@@ -1,7 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth, isUserBanned } from "@/lib/auth";
 import { db } from "@/server/db";
-import { generateApiKey } from "@/lib/api-keys/generate";
+import {
+  apiKeyHint,
+  generateApiKey,
+  hashApiKey,
+} from "@/lib/api-keys/generate";
 
 export const dynamic = "force-dynamic";
 
@@ -37,32 +41,50 @@ async function getOrCreateExtensionToken(
   workspaceId: string,
   userId: string,
 ): Promise<string> {
-  const existing = await db.workspaceApiKey.findFirst({
+  // Secrets are stored hashed and can't be re-read, so hashed rows ROTATE on
+  // connect: revoke live rows for this name, mint fresh, return raw once.
+  // Legacy plaintext rows (pre-hash migration) are returned as-is until the
+  // backfill hashes them — no silent logout for connected extensions.
+  const live = await db.workspaceApiKey.findMany({
     where: {
       workspaceId,
       name: EXTENSION_KEY_NAME,
       deletedAt: null,
       OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
     },
-    select: { key: true },
+    select: { id: true, key: true, keyHash: true },
   });
+  const reusable = live.find(
+    (row) => !row.keyHash && row.key.startsWith("slugy_"),
+  );
+  if (reusable) return reusable.key;
 
-  if (existing) return existing.key;
+  if (live.length > 0) {
+    await db.workspaceApiKey.updateMany({
+      where: { id: { in: live.map((row) => row.id) } },
+      data: { deletedAt: new Date() },
+    });
+  }
 
-  const created = await db.workspaceApiKey.create({
+  const rawKey = generateApiKey();
+  const keyHash = hashApiKey(rawKey);
+  await db.workspaceApiKey.create({
     data: {
       name: EXTENSION_KEY_NAME,
-      key: generateApiKey(),
+      // Phase-out: raw column holds the non-secret hash until dropped.
+      key: keyHash,
+      keyHash,
+      keyHint: apiKeyHint(rawKey),
       workspaceId,
       createdBy: userId,
       permissionLevel: "restricted",
       linksPermission: "write",
       leadsPermission: "none",
     },
-    select: { key: true },
+    select: { id: true },
   });
 
-  return created.key;
+  return rawKey;
 }
 
 export async function GET(req: NextRequest) {

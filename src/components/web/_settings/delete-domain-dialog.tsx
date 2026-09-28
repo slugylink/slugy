@@ -49,9 +49,19 @@ export function DeleteDomainDialog({
       onOpenChange(false);
     } catch (error: unknown) {
       console.error("Error deleting domain:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to delete domain";
-      toast.error(errorMessage);
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        const data = error.response.data as
+          | { error?: string; linkCount?: number }
+          | undefined;
+        toast.error(
+          data?.error || "Move or delete this domain's short links first.",
+          { duration: 8000 },
+        );
+      } else {
+        const errorMessage =
+          error instanceof Error ? error.message : "Failed to delete domain";
+        toast.error(errorMessage);
+      }
     } finally {
       setIsDeleting(false);
     }
@@ -59,7 +69,7 @@ export function DeleteDomainDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] gap-0">
+      <DialogContent className="gap-0 sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Delete Custom Domain</DialogTitle>
           <DialogDescription>
@@ -71,8 +81,8 @@ export function DeleteDomainDialog({
 
         <div className="bg-muted/50 my-4 rounded-lg p-3">
           <p className="text-muted-foreground text-sm">
-            Any short links using this domain will stop working. Make sure to
-            update or remove them before deleting this domain.
+            Domains with active short links cannot be deleted — move or delete
+            those links first. The domain will also be detached from Vercel.
           </p>
         </div>
 

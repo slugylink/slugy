@@ -98,7 +98,10 @@ type SubscriptionRow = Awaited<ReturnType<typeof getSubscriptionData>>;
 function isActivePro(subscription: SubscriptionRow): boolean {
   if (!subscription?.plan) return false;
 
-  const isPaidPlan = subscription.plan.planType.toLowerCase() === "pro";
+  // Paid plans: pro + business. Basic is a paid lifetime tier but never
+  // marketed as "Pro" — the badge/upsell must not claim otherwise.
+  const planType = subscription.plan.planType.toLowerCase();
+  const isPaidPlan = planType === "pro" || planType === "business";
   const status = subscription.status.toLowerCase();
   const isActiveStatus = status === "active" || status === "trialing";
   if (!isActiveStatus) return false;

@@ -142,6 +142,7 @@ export async function getBillingData(workspaceSlug: string) {
         id: true,
         name: true,
         slug: true,
+        userId: true,
         maxLinksLimit: true,
         maxClicksLimit: true,
         maxUsers: true,
@@ -170,18 +171,25 @@ export async function getBillingData(workspaceSlug: string) {
       };
     }
 
+    // Billing is OWNER-scoped: caps, cycle and portal all belong to the
+    // workspace owner's subscription. Showing the viewer's own plan here
+    // made members buy Pro for themselves thinking it upgraded the space.
+    const ownerId = workspace.userId;
+    const viewerRole = access.role;
+    const isOwner = viewerRole === "owner";
+
     const [subscriptionResult, user, bioCount, bioWithMostLinks] =
       await Promise.all([
-        getSubscriptionWithPlan(userId),
+        getSubscriptionWithPlan(ownerId),
         db.user.findUnique({
-          where: { id: userId },
+          where: { id: ownerId },
           select: { customerId: true },
         }),
         db.bio.count({
-          where: { userId },
+          where: { userId: ownerId },
         }),
         db.bio.findFirst({
-          where: { userId },
+          where: { userId: ownerId },
           select: {
             _count: {
               select: {
@@ -206,7 +214,7 @@ export async function getBillingData(workspaceSlug: string) {
         workspace.maxUtmTemplates !== plan.maxUtmTemplates ||
         (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)
     ) {
-      await syncUserLimits(userId, plan.planType);
+      await syncUserLimits(ownerId, plan.planType);
     }
 
     // Format billing cycle dates
@@ -224,8 +232,11 @@ export async function getBillingData(workspaceSlug: string) {
     );
     const isPolarSubscription =
       subscriptionResult.subscription?.provider === "polar";
+    // Only the workspace OWNER can manage or purchase billing — the portal
+    // session and checkout both belong to the viewer, so showing them to
+    // members would bill the wrong tenant.
     const canManagePortal =
-      hasActiveSubscription && hasCustomerId && isPolarSubscription;
+      isOwner && hasActiveSubscription && hasCustomerId && isPolarSubscription;
 
     return {
       success: true,
@@ -267,6 +278,12 @@ export async function getBillingData(workspaceSlug: string) {
           canceledAt: subscriptionResult.subscription?.canceledAt,
           hasActiveSubscription,
           canManagePortal,
+        },
+        access: {
+          role: viewerRole,
+          isOwner,
+          // Purchase/manage CTAs render for the owner only.
+          canManageBilling: isOwner,
         },
         usage: {
           customDomains: workspace._count.customDomains,
