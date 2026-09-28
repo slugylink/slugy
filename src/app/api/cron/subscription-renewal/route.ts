@@ -74,3 +74,5 @@ async function handler() {
 }
 
 export const POST = withCronAuth(handler);
+// Vercel Cron invokes GET; QStash invokes POST. Both share the same auth.
+export const GET = withCronAuth(handler);

@@ -255,7 +255,32 @@ export async function syncSubscriptionFromPolar(
   subscription: SubscriptionWithPlan,
 ): Promise<SubscriptionWithPlan | null> {
   const remote = await fetchPolarSubscription(subscription);
-  if (!remote) return subscription;
+  if (!remote) {
+    // Polar unreachable (or subscription deleted remotely) — don't let a
+    // canceled/expired entitlement linger forever when the renewal cron
+    // hasn't run. Lazily close out expired grace periods locally.
+    const now = new Date();
+    const planType = subscription.plan.planType?.toLowerCase();
+    const isBillable = planType === "pro" || planType === "business";
+    const expired =
+      subscription.periodEnd <= now &&
+      !isLifetimeBillingPeriod(
+        planType,
+        subscription.periodStart,
+        subscription.periodEnd,
+      );
+    if (isBillable && expired && subscription.cancelAtPeriodEnd) {
+      await downgradeToBasicLimits({
+        subscriptionId: subscription.id,
+        canceledAt: subscription.canceledAt ?? now,
+      });
+      return db.subscription.findUnique({
+        where: { id: subscription.id },
+        select: subscriptionWithPlanSelect,
+      });
+    }
+    return subscription;
+  }
 
   const now = new Date();
   const nextPeriodStart = remote.currentPeriodStart;
@@ -387,6 +412,8 @@ async function resolvePlanFromRemote(
 
   const planType = getPlanTypeByProductName(remote.product?.name);
   if (!planType) return null;
+  // Business is not purchasable yet — never self-heal into it.
+  if (planType === "business") return null;
   return db.plan.findFirst({
     where: { planType },
     select: { id: true, planType: true },
@@ -432,7 +459,47 @@ async function fetchCustomerIdByExternalId(
 }
 
 const ENTITLEMENT_RECONCILE_TTL_MS = 60 * 1000;
-const entitlementReconcileAttempts = new Map<string, number>();
+const ENTITLEMENT_RECONCILE_TTL_S = 60;
+const entitlementReconcileFallback = new Map<string, number>();
+
+function reconcileThrottleKey(userId: string): string {
+  return `reconcile:entitlement:${userId}`;
+}
+
+/**
+ * Distributed throttle for entitlement reconcile. Prefers Redis SET NX EX so
+ * serverless instances share the window; falls back to an in-memory Map when
+ * Redis is unreachable (dev / outage) instead of failing open into a storm.
+ * Returns true when the caller should skip the Polar lookup.
+ */
+async function shouldSkipEntitlementReconcile(
+  userId: string,
+  nowMs: number,
+): Promise<boolean> {
+  try {
+    const { redis } = await import("@/lib/redis");
+    const key = reconcileThrottleKey(userId);
+    // SET NX EX is atomic: only the first caller in the window gets "OK".
+    const acquired = await redis.set(key, String(nowMs), {
+      ex: ENTITLEMENT_RECONCILE_TTL_S,
+      nx: true,
+    });
+    if (acquired === "OK") return false;
+    // Key already exists (null) → another instance reconciled recently.
+    if (acquired === null) return true;
+    // Unexpected client response — fall through to in-memory check.
+  } catch {
+    // Redis missing/unreachable — use process-local throttle below.
+  }
+
+  const lastAttempt = entitlementReconcileFallback.get(userId) ?? 0;
+  if (nowMs - lastAttempt < ENTITLEMENT_RECONCILE_TTL_MS) return true;
+  entitlementReconcileFallback.set(userId, nowMs);
+  if (entitlementReconcileFallback.size > 10_000) {
+    entitlementReconcileFallback.clear();
+  }
+  return false;
+}
 
 /**
  * Upgrade-only self-healing entitlement reconcile. If the stored entitlement
@@ -468,13 +535,8 @@ export async function reconcileUserEntitlement(
 
     if (isHealthyPaid) return subscription;
 
-    const lastAttempt = entitlementReconcileAttempts.get(userId) ?? 0;
-    if (now.getTime() - lastAttempt < ENTITLEMENT_RECONCILE_TTL_MS) {
+    if (await shouldSkipEntitlementReconcile(userId, now.getTime())) {
       return subscription;
-    }
-    entitlementReconcileAttempts.set(userId, now.getTime());
-    if (entitlementReconcileAttempts.size > 10_000) {
-      entitlementReconcileAttempts.clear();
     }
 
     let customerId = subscription?.customerId ?? null;

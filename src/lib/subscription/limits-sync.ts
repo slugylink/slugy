@@ -2,6 +2,7 @@
 import { db } from "@/server/db";
 import { PlanType } from "@prisma/client";
 import { revalidateTag } from "next/cache";
+import { BASIC_PLAN, FREE_PLAN } from "@/constants/data/price";
 
 /**
  * Syncs workspace and bio gallery limits based on user's subscription plan
@@ -26,8 +27,53 @@ export async function syncUserLimits(userId: string, planType: PlanType) {
     });
 
     if (!plan) {
-      console.error(`[Limits Sync] Plan not found for planType: ${planType}`);
-      return { success: false, message: "Plan not found" };
+      // Plans table not seeded yet — fall back to code constants so
+      // workspaces still get sane caps instead of silently keeping stale ones.
+      const fallback =
+        planType === "basic"
+          ? {
+              maxWorkspaces: BASIC_PLAN.maxWorkspaces,
+              maxLinksPerWorkspace: BASIC_PLAN.maxLinksPerWorkspace,
+              maxClicksPerWorkspace: BASIC_PLAN.maxClicksPerWorkspace,
+              maxUsers: BASIC_PLAN.maxUsers,
+              maxCustomDomains: BASIC_PLAN.maxCustomDomains,
+              maxGalleries: BASIC_PLAN.maxGalleries,
+              maxLinksPerBio: BASIC_PLAN.maxBioLinks,
+              maxTagsPerWorkspace: BASIC_PLAN.maxLinkTags,
+              maxUtmTemplates: BASIC_PLAN.maxUTM,
+            }
+          : {
+              maxWorkspaces: FREE_PLAN.maxWorkspaces,
+              maxLinksPerWorkspace: FREE_PLAN.maxLinksPerWorkspace,
+              maxClicksPerWorkspace: FREE_PLAN.maxClicksPerWorkspace,
+              maxUsers: FREE_PLAN.maxUsers,
+              maxCustomDomains: FREE_PLAN.maxCustomDomains,
+              maxGalleries: FREE_PLAN.maxGalleries,
+              maxLinksPerBio: FREE_PLAN.maxBioLinks,
+              maxTagsPerWorkspace: FREE_PLAN.maxLinkTags,
+              maxUtmTemplates: FREE_PLAN.maxUTM,
+            };
+      console.error(
+        `[Limits Sync] Plan not found for planType: ${planType} — using code fallback`,
+      );
+      await db.workspace.updateMany({
+        where: { userId },
+        data: {
+          maxLinksLimit: fallback.maxLinksPerWorkspace,
+          maxClicksLimit: fallback.maxClicksPerWorkspace,
+          maxUsers: fallback.maxUsers,
+          maxLinkTags: fallback.maxTagsPerWorkspace,
+          maxUtmTemplates: fallback.maxUtmTemplates,
+        },
+      });
+      await db.bio.updateMany({
+        where: { userId },
+        data: {
+          maxLinksLimit: fallback.maxLinksPerBio,
+          maxClicksLimit: fallback.maxClicksPerWorkspace,
+        },
+      });
+      return { success: true, message: "Limits synced from code fallback" };
     }
 
     // Update all workspaces for this user with new limits

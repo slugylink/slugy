@@ -119,6 +119,12 @@ async function resolvePlanForSubscription(
   const productName = sub.product?.name;
   const planType = getPlanTypeByProductName(productName);
   if (planType) {
+    // Business is not purchasable yet — never grant it from a webhook, even
+    // if a checkout URL was forged to bypass the API block.
+    if (planType === "business") {
+      console.warn(`${LOG_PREFIX} Refusing business entitlement (coming soon)`);
+      return null;
+    }
     const plan = await db.plan.findFirst({ where: { planType } });
     if (plan) return plan;
   }

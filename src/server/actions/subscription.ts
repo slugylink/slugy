@@ -1,5 +1,6 @@
 "use server";
 import { db } from "@/server/db";
+import { getWorkspaceAccess } from "@/lib/workspace-access";
 import { PRICING_COPY } from "@/constants/data/price";
 import { shouldApplyCheckoutPromo } from "@/lib/subscription/promo";
 import { auth } from "@/lib/auth";
@@ -123,9 +124,20 @@ export async function getBillingData(workspaceSlug: string) {
 
     const userId = session.user.id;
 
+    // Owner OR member access — billing is workspace-scoped, not owner-only.
+    // Members previously got "Workspace not found" → billing redirect loop.
+    const access = await getWorkspaceAccess(userId, workspaceSlug);
+    if (!access.success || !access.workspace) {
+      return {
+        success: false,
+        message: "Workspace not found",
+        data: null,
+      };
+    }
+
     // Get workspace with counts
     const workspace = await db.workspace.findUnique({
-      where: { slug: workspaceSlug, userId },
+      where: { id: access.workspace.id },
       select: {
         id: true,
         name: true,
@@ -326,16 +338,20 @@ export async function getCheckoutUrl(productId?: string, priceId?: string) {
 
     const checkoutUrl = new URL(`${baseUrl}/api/subscription/checkout`);
 
-    if (productId) {
-      checkoutUrl.searchParams.set("products", productId);
-    }
-    if (priceId) {
-      checkoutUrl.searchParams.set("products", priceId);
+    // Combine into ONE comma-separated "products" value. The checkout route
+    // splits on commas and appends each as its own ?products= param for the
+    // Polar SDK. Two sequential .set("products", …) calls would overwrite.
+    const productIds = [productId?.trim(), priceId?.trim()].filter(
+      (id): id is string => Boolean(id),
+    );
+    // De-dupe while preserving order.
+    const uniqueProductIds = [...new Set(productIds)];
+
+    if (uniqueProductIds.length > 0) {
+      checkoutUrl.searchParams.set("products", uniqueProductIds.join(","));
     }
 
-    const checkoutProductIds = [
-      checkoutUrl.searchParams.get("products"),
-    ].filter((id): id is string => Boolean(id));
+    const checkoutProductIds = uniqueProductIds;
     if (shouldApplyCheckoutPromo(checkoutProductIds)) {
       checkoutUrl.searchParams.set("discount_code", PRICING_COPY.promoCode);
       checkoutUrl.searchParams.set("billing", "monthly");

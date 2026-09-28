@@ -6,6 +6,7 @@ import {
 import { inngest } from "@/inngest/client";
 import {
   LOG_PREFIX,
+  processPolarWebhookEvent,
   type PolarWebhookEventType,
 } from "@/lib/subscription/polar-webhook-handlers";
 
@@ -94,6 +95,34 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const polarEventId = webhookHeaders["webhook-id"] || null;
+  const verifiedType: PolarWebhookEventType = eventType;
+
+  // Inngest is the durable path. When it isn't configured (missing keys) or
+  // the enqueue fails, process inline so billing never silently stalls —
+  // returning 200 only when the event was actually applied.
+  const inngestConfigured = Boolean(
+    process.env.INNGEST_EVENT_KEY || process.env.INNGEST_SIGNING_KEY,
+  );
+
+  async function processInline(): Promise<Response> {
+    try {
+      await processPolarWebhookEvent(verifiedType, webhookPayload.data);
+      return NextResponse.json({ received: true, processedInline: true });
+    } catch (error) {
+      console.error(`${LOG_PREFIX} Inline webhook processing failed:`, error);
+      return NextResponse.json(
+        { ok: false, error: "webhook_processing_failed" },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (!inngestConfigured) {
+    console.warn(
+      `${LOG_PREFIX} Inngest keys missing — processing webhook inline`,
+    );
+    return processInline();
+  }
 
   try {
     await inngest.send({
@@ -111,10 +140,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       `${LOG_PREFIX} Failed to enqueue webhook for Inngest:`,
       error,
     );
-    return NextResponse.json(
-      { ok: false, error: "webhook_enqueue_failed" },
-      { status: 500 },
-    );
+    // Best-effort inline fallback so a transient queue outage doesn't stall
+    // billing until Polar's retry. Only fall back to 500 when inline also fails.
+    return processInline();
   }
 
   return NextResponse.json({ received: true });

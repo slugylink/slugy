@@ -137,13 +137,42 @@ export async function GET(req: NextRequest) {
   const productIds = checkoutUrl.searchParams.getAll("products");
 
   // Business is coming soon — never create a checkout for it.
-  const businessPriceIds = [
-    BUSINESS_PLAN.monthlyPriceId,
-    BUSINESS_PLAN.yearlyPriceId,
-  ].filter(Boolean);
+  // The "products" query value holds Polar *product* IDs, while the stored
+  // constants are *price* IDs, so a naive equality check is bypassable.
+  // Resolve the blocked set from the DB business plan (synced from Polar)
+  // merged with the env-configured IDs, and refuse business entitlements in
+  // the webhook handlers as defense-in-depth.
+  async function getBusinessBlockedIds(): Promise<Set<string>> {
+    const blocked = new Set<string>();
+    for (const id of [
+      BUSINESS_PLAN.monthlyPriceId,
+      BUSINESS_PLAN.yearlyPriceId,
+    ]) {
+      const trimmed = id?.trim();
+      if (trimmed) blocked.add(trimmed);
+    }
+    try {
+      const businessPlan = await db.plan.findFirst({
+        where: { planType: "business" },
+        select: { monthlyPriceId: true, yearlyPriceId: true },
+      });
+      for (const id of [
+        businessPlan?.monthlyPriceId,
+        businessPlan?.yearlyPriceId,
+      ]) {
+        const trimmed = id?.trim();
+        if (trimmed) blocked.add(trimmed);
+      }
+    } catch {
+      // DB unreachable — fall back to env IDs only; webhook layer still refuses.
+    }
+    return blocked;
+  }
+
+  const businessBlockedIds = await getBusinessBlockedIds();
   if (
-    businessPriceIds.length > 0 &&
-    productIds.some((id) => businessPriceIds.includes(id))
+    businessBlockedIds.size > 0 &&
+    productIds.some((id) => businessBlockedIds.has(id.trim()))
   ) {
     return NextResponse.json(
       { error: "Business plan is coming soon" },

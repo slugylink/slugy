@@ -1,6 +1,31 @@
 import { db } from "@/server/db";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
+import { FREE_PLAN, toPlanSeed } from "@/constants/data/price";
 
+/**
+ * Self-healing seed: the plans table must contain a free row for signup /
+ * onboarding / downgrade paths. If a fresh DB was never seeded, create it
+ * from code constants instead of failing the whole flow.
+ */
+export async function ensureFreePlanRow(): Promise<string | null> {
+  const existing = await db.plan.findFirst({
+    where: { planType: "free" },
+    select: { id: true },
+  });
+  if (existing) return existing.id;
+
+  try {
+    const created = await db.plan.create({ data: toPlanSeed(FREE_PLAN) });
+    return created.id;
+  } catch {
+    // Race with a concurrent seeder — re-read.
+    const retry = await db.plan.findFirst({
+      where: { planType: "free" },
+      select: { id: true },
+    });
+    return retry?.id ?? null;
+  }
+}
 /**
  * Idempotent Free ($0) entitlement. Creates the subscription row on first
  * call (signup, onboarding, or any limit check) and tops up limits.
@@ -29,7 +54,8 @@ export async function ensureFreeSubscription(userId: string) {
     where: { planType: "free" },
     select: { id: true },
   });
-  if (!freePlan) {
+  const freePlanId = freePlan?.id ?? (await ensureFreePlanRow());
+  if (!freePlanId) {
     console.error("[Free Entitlement] Free plan row missing from DB");
     return { success: false as const, created: false };
   }
@@ -42,7 +68,7 @@ export async function ensureFreeSubscription(userId: string) {
     where: { referenceId: userId },
     create: {
       referenceId: userId,
-      planId: freePlan.id,
+      planId: freePlanId,
       status: "active",
       provider: "internal",
       periodStart,
@@ -53,7 +79,7 @@ export async function ensureFreeSubscription(userId: string) {
       subscriptionId: null,
     },
     update: {
-      planId: freePlan.id,
+      planId: freePlanId,
       status: "active",
       provider: "internal",
       periodStart,

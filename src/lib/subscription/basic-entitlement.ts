@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { syncUserLimits } from "@/lib/subscription/limits-sync";
+import { ensureFreePlanRow } from "@/lib/subscription/free-entitlement";
 import { isLifetimeBillingPeriod } from "@/lib/subscription/reconcile";
 
 export const activeSubscriptionSelect = {
@@ -163,7 +164,8 @@ export async function downgradeToBasicLimits(input: {
     return true;
   }
 
-  if (!freePlan) {
+  const freePlanId = freePlan?.id ?? (await ensureFreePlanRow());
+  if (!freePlanId) {
     console.error("[Downgrade] Free plan row missing from DB");
     return false;
   }
@@ -176,7 +178,7 @@ export async function downgradeToBasicLimits(input: {
     where: { id: input.subscriptionId },
     data: {
       status: "active",
-      planId: freePlan.id,
+      planId: freePlanId,
       priceId: null,
       subscriptionId: null,
       periodStart,
