@@ -1,14 +1,5 @@
 import Link from "next/link";
-import {
-  BarChart3,
-  DiamondPlus,
-  Globe,
-  Link2,
-  Tag,
-  Users,
-  MousePointerClick,
-  Link as LinkIcon,
-} from "lucide-react";
+import { BarChart3, DiamondPlus, Globe, Link2, Tag, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,20 +60,6 @@ export default async function Billing({
   const isLifetimeAccess = billingCycle.isLifetime === true;
 
   const usageMetrics: UsageMetric[] = [
-    {
-      label: "Links",
-      used: usage.links,
-      limit: limits.links,
-      helper: "Created this period",
-      icon: LinkIcon,
-    },
-    {
-      label: "Tracked Clicks",
-      used: usage.clicks,
-      limit: limits.clicks,
-      helper: "Tracked this period",
-      icon: MousePointerClick,
-    },
     {
       label: "Custom Domains",
       used: usage.customDomains,
@@ -188,7 +165,7 @@ export default async function Billing({
 
       <div className="">
         <Card className="">
-          <CardContent className="grid border-y border-r px-0 sm:grid-cols-2 lg:grid-cols-4">
+          <CardContent className="grid border-y border-r px-0 sm:grid-cols-2 lg:grid-cols-5">
             {usageMetrics.map((metric) => {
               const Icon = metric.icon;
               const limitLabel =
