@@ -268,6 +268,7 @@ model Workspace {
   members          Member[]
   workspaceInvites Invitation[]
   links            Link[]
+  bios             Bio[]
   tags             Tag[]
   utmTemplates     UtmTemplate[]
   customDomains    CustomDomain[]
@@ -416,6 +417,7 @@ model Link {
   SharedAnalytics SharedAnalytics?
   leadCustomers   LeadCustomer[]
   leadEvents      LeadEvent[]
+  bioLinks        BioLinks[]
 
   @@unique([slug, domain])
   @@index([slug])
@@ -588,6 +590,7 @@ model CustomDomain {
 model Bio {
   id             String   @id @default(cuid())
   userId         String
+  workspaceId    String?
   name           String?
   username       String   @unique
   bio            String?
@@ -605,33 +608,39 @@ model Bio {
   
   // Relations
   creator User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace?     @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   links   BioLinks[]
   socials BioSocials[]
   images  BioGalleryImage[]
 
   @@index([userId, username])
+  @@index([workspaceId])
   @@map("bios")
 }
 
 model BioLinks {
-  id        String    @id @default(cuid())
-  bioId     String
-  title     String
-  icon      String?
-  image     String?
-  url       String
-  style     String? // [link card, single feature (aspect-video), grid-2 feature (aspect-video)]
-  clicks    Int       @default(0)
-  isPublic  Boolean   @default(true)
-  position  Int
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  id              String    @id @default(cuid())
+  bioId           String
+  linkId          String?   @unique
+  linkManagedByBio Boolean  @default(false)
+  title           String
+  icon            String?
+  image           String?
+  url             String
+  style           String? // [link card, single feature (aspect-video), grid-2 feature (aspect-video)]
+  clicks          Int       @default(0)
+  isPublic        Boolean   @default(true)
+  position        Int
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
   
   // Relations
   bio Bio @relation(fields: [bioId], references: [id], onDelete: Cascade)
+  link Link? @relation(fields: [linkId], references: [id], onDelete: SetNull)
 
   @@index([bioId])
+  @@index([linkId])
   @@map("bio_links")
 }
 

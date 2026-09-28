@@ -37,6 +37,11 @@ export const BIO_GALLERY_SELECT = {
       image: true,
       position: true,
       isPublic: true,
+      linkId: true,
+      clicks: true,
+      link: {
+        select: { slug: true, domain: true },
+      },
     },
   },
   socials: {
@@ -85,6 +90,10 @@ export function transformCachedBioData(cachedData: CachedBioData): GalleryData {
       style: link.style ?? "link",
       icon: link.icon ?? null,
       image: link.image ?? null,
+      linkId: link.linkId ?? null,
+      clicks: link.clicks ?? 0,
+      shortSlug: link.shortSlug ?? null,
+      shortDomain: link.shortDomain ?? null,
     })),
     socials: cachedData.socials.map((social) => ({
       ...social,
@@ -100,16 +109,24 @@ export function createCachedBioData(gallery: GalleryData): CachedBioData {
     bio: gallery.bio,
     logo: gallery.logo,
     theme: gallery.theme,
-    links: gallery.links.map((link) => ({
-      id: link.id,
-      title: link.title,
-      url: link.url,
-      style: link.style,
-      icon: link.icon,
-      image: link.image,
-      position: link.position,
-      isPublic: link.isPublic,
-    })),
+    links: gallery.links.map((link) => {
+      const slug = link.shortSlug ?? link.link?.slug ?? null;
+      const domain = link.shortDomain ?? link.link?.domain ?? null;
+      return {
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        style: link.style,
+        icon: link.icon,
+        image: link.image,
+        position: link.position,
+        isPublic: link.isPublic,
+        linkId: link.linkId ?? null,
+        clicks: link.clicks ?? 0,
+        shortSlug: slug,
+        shortDomain: domain,
+      };
+    }),
     socials: gallery.socials.map((social) => ({
       platform: social.platform || "",
       url: social.url || "",

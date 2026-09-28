@@ -181,7 +181,7 @@ export const themes = [
     name: "Mono",
     background: "bg-black",
     buttonStyle:
-      "bg-white hover:bg-zinc-200 text-black font-medium text-center flex justify-center items-center rounded-full",
+      "bg-white hover:bg-zinc-200 text-black font-medium text-center flex justify-center items-center rounded-xl",
     textColor: "text-white",
     accentColor: "text-neutral-400",
   },

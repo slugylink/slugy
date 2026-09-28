@@ -7,8 +7,9 @@ import {
   createBioNotFoundMetadata as createNotFoundMetadata,
   getPublicBioGallery,
 } from "@/server/public-bio-gallery";
+import { getShortLinkOrigin } from "@/server/bio-short-origin";
 import { getAvatarUrl } from "@/utils/bio-links";
-import GalleryLinksProfileClient from "./page-client";
+import PublicBioPage from "@/components/web/_bio-links/public-bio-page";
 
 export const revalidate = 60;
 
@@ -24,16 +25,20 @@ export default async function GalleryLinksProfile({ params }: PageParams) {
   const { username } = await params;
   if (!username) notFound();
 
-  const gallery = await getPublicBioGallery(username);
+  const [gallery, shortOrigin] = await Promise.all([
+    getPublicBioGallery(username),
+    getShortLinkOrigin(),
+  ]);
   if (!gallery) {
     notFound();
   }
 
   return (
-    <GalleryLinksProfileClient
+    <PublicBioPage
       gallery={gallery}
       theme={resolveGalleryTheme(gallery.theme)}
       avatarUrl={getAvatarUrl(gallery.logo, username)}
+      shortOrigin={shortOrigin}
     />
   );
 }

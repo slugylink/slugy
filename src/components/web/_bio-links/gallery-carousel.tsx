@@ -110,7 +110,7 @@ export default function GalleryCarousel({
           type="button"
           onClick={() => scrollByPage(-1)}
           aria-label="Previous images"
-          className="absolute top-1/2 -left-2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md backdrop-blur transition hover:bg-white"
+          className="absolute top-1/2 -left-2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-700 backdrop-blur transition hover:bg-white"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -121,7 +121,7 @@ export default function GalleryCarousel({
           type="button"
           onClick={() => scrollByPage(1)}
           aria-label="Next images"
-          className="absolute top-1/2 -right-2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-700 shadow-md backdrop-blur transition hover:bg-white"
+          className="absolute top-1/2 -right-2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-700 backdrop-blur transition hover:bg-white"
         >
           <ChevronRight className="size-4" />
         </button>

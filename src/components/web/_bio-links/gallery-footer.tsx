@@ -24,7 +24,7 @@ export default function GalleryFooter({
   return (
     <div
       className={cn(
-        "z-50 inline-flex items-center gap-0.5 rounded-sm bg-white py-1 pr-1.5 pl-1 text-[11px] font-medium text-zinc-800 shadow-[0_4px_14px_rgba(15,23,42,0.12)] ring-1 ring-black/5",
+        "z-50 inline-flex items-center gap-0.5 rounded-sm bg-white py-1 pr-1.5 pl-1 text-[11px] font-medium text-zinc-800 ring-1 ring-black/5",
         placement === "fixed"
           ? "fixed right-4 bottom-4"
           : "absolute right-3 bottom-3",

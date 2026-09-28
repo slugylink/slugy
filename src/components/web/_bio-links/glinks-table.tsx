@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import Actions from "./glink-actions";
 import DraggableLinks from "./draggable-links";
 import ThemePicker from "./theme-picker";
 import GalleryCarousel from "./gallery-carousel";
+import GallerySettingsDialog from "./gallery-settings-dialog";
+import { SocialSettingsDialog } from "./social-settings-dialog";
 import GalleryProfileView, {
   resolveGalleryTheme,
 } from "@/components/web/_bio-links/gallery-profile-view";
@@ -33,6 +36,10 @@ const GalleryLinkTable = ({
   isLoading = false,
   mutate,
 }: GalleryLinkTableProps) => {
+  // Inline edit entry points inside the preview (same dialogs as the top menu).
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [socialOpen, setSocialOpen] = useState(false);
+
   if (!gallery) return null;
 
   const publicLinks = gallery.links.filter((link) => link.isPublic);
@@ -98,6 +105,9 @@ const GalleryLinkTable = ({
           avatarUrl={getAvatarUrl(gallery.logo ?? null, username)}
           mode="preview"
           showShareActions={false}
+          editable
+          onEditBio={() => setSettingsOpen(true)}
+          onEditSocials={() => setSocialOpen(true)}
         >
           <DraggableLinks
             links={gallery.links ?? []}
@@ -112,6 +122,20 @@ const GalleryLinkTable = ({
           )}
         </GalleryProfileView>
       </div>
+
+      {/* Inline preview edit dialogs (same as the top pencil menu) */}
+      <GallerySettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        username={username}
+        initialData={gallery}
+      />
+      <SocialSettingsDialog
+        open={socialOpen}
+        onOpenChange={setSocialOpen}
+        username={username}
+        initialData={gallery.socials}
+      />
     </div>
   );
 };

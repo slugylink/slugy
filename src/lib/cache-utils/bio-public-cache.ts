@@ -24,6 +24,10 @@ export interface BioPublicCache {
     image?: string | null;
     position: number;
     isPublic: boolean;
+    linkId?: string | null;
+    clicks?: number;
+    shortSlug?: string | null;
+    shortDomain?: string | null;
   }>;
   socials: Array<{
     platform: string;

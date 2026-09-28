@@ -12,11 +12,12 @@ import ProfileSection from "@/components/web/_bio-links/profile-section";
 import GalleryFooter from "@/components/web/_bio-links/gallery-footer";
 import type { GalleryData, Theme } from "@/types/bio-links";
 import { GLinkDialogBox } from "./add-glink-dialog";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Pencil, Plus } from "lucide-react";
 import { mutate } from "swr";
 import { toast } from "sonner";
 import { getAvatarUrl } from "@/utils/bio-links";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { cn } from "@/lib/utils";
 
 type ViewMode = "full" | "preview";
 
@@ -27,6 +28,10 @@ interface GalleryProfileViewProps {
   mode?: ViewMode;
   showShareActions?: boolean;
   children?: ReactNode;
+  /** Editor preview affordances (never enabled on public pages). */
+  editable?: boolean;
+  onEditBio?: () => void;
+  onEditSocials?: () => void;
 }
 
 export { resolveGalleryTheme } from "@/constants/theme";
@@ -36,6 +41,9 @@ export default function GalleryProfileView({
   theme,
   avatarUrl,
   children,
+  editable = false,
+  onEditBio,
+  onEditSocials,
 }: GalleryProfileViewProps) {
   const socials = gallery.socials ?? [];
   const [currentAvatarUrl, setCurrentAvatarUrl] = useState(avatarUrl);
@@ -105,7 +113,23 @@ export default function GalleryProfileView({
               bio={gallery.bio}
               theme={theme}
               avatarUrl={currentAvatarUrl}
-              layout="split"
+              nameAction={
+                editable && onEditBio ? (
+                  <button
+                    type="button"
+                    onClick={onEditBio}
+                    aria-label="Edit name and bio"
+                    title="Edit name and bio"
+                    className={cn(
+                      "flex size-7 shrink-0 items-center justify-center rounded-full transition",
+                      "text-zinc-400 hover:bg-black/5 hover:text-zinc-700",
+                      "dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-200",
+                    )}
+                  >
+                    <Pencil className="size-3.5" />
+                  </button>
+                ) : undefined
+              }
               avatarOverlay={
                 <button
                   type="button"
@@ -122,7 +146,30 @@ export default function GalleryProfileView({
                 </button>
               }
             >
-              <SocialLinks socials={socials} theme={theme} variant="header" />
+              {editable && onEditSocials ? (
+                <div className="flex flex-wrap items-center justify-start gap-2">
+                  <SocialLinks
+                    socials={socials}
+                    theme={theme}
+                    variant="header"
+                  />
+                  <button
+                    type="button"
+                    onClick={onEditSocials}
+                    aria-label="Add or manage social links"
+                    title="Add or manage social links"
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-full border border-dashed transition",
+                      "border-zinc-300 text-zinc-400 hover:border-zinc-500 hover:text-zinc-700",
+                      "dark:border-zinc-600 dark:text-zinc-500 dark:hover:border-zinc-400 dark:hover:text-zinc-200",
+                    )}
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
+              ) : (
+                <SocialLinks socials={socials} theme={theme} variant="header" />
+              )}
             </ProfileSection>
           </div>
 

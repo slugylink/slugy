@@ -83,6 +83,10 @@ export type CachedLink = {
   readonly image?: string | null;
   readonly position: number;
   readonly isPublic: boolean;
+  readonly linkId?: string | null;
+  readonly clicks?: number;
+  readonly shortSlug?: string | null;
+  readonly shortDomain?: string | null;
 };
 
 export type CachedSocial = {
@@ -94,7 +98,12 @@ export type CachedSocial = {
 export type PublicBioLink = Pick<
   BioLinks,
   "id" | "title" | "url" | "style" | "icon" | "image" | "position" | "isPublic"
->;
+> &
+  Partial<Pick<BioLinks, "linkId" | "clicks">> & {
+    shortSlug?: string | null;
+    shortDomain?: string | null;
+    link?: { slug: string; domain: string } | null;
+  };
 
 export type PublicBioSocial = Pick<BioSocials, "platform" | "url" | "isPublic">;
 
@@ -116,6 +125,8 @@ export type EditorBioLink = {
   position: number;
   clicks: number;
   galleryId: string;
+  linkId?: string | null;
+  linkManagedByBio?: boolean;
 };
 
 export type EditorGallery = {
@@ -151,6 +162,15 @@ export type SocialLinksProps = {
 export type BioLinksProps = {
   readonly links: readonly PublicBioLink[];
   readonly theme: Theme;
+  /** Show per-link click counts (editor previews only — never public pages). */
+  readonly showClicks?: boolean;
+  /**
+   * Root origin for workspace short links, computed server-side from the
+   * request host. When provided, cards render the final href on first paint
+   * (no client-side origin lookup + re-render). Falls back to a
+   * window.location lookup when omitted.
+   */
+  readonly shortOrigin?: string | null;
 };
 
 export type ProfileSectionProps = {
@@ -160,8 +180,9 @@ export type ProfileSectionProps = {
   readonly theme: Theme;
   readonly children?: ReactNode;
   readonly avatarUrl?: string;
-  readonly layout?: "overlay" | "split";
   readonly avatarOverlay?: ReactNode;
+  /** Optional action (e.g. edit button) rendered beside the display name. */
+  readonly nameAction?: ReactNode;
 };
 
 export type GalleryFooterProps = {

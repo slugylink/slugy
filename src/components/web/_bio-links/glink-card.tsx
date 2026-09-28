@@ -54,6 +54,8 @@ interface EditData {
   title: string;
   url: string;
   style?: string | null;
+  linkId?: string | null;
+  linkManagedByBio?: boolean;
 }
 
 type DialogKey = "dropdown" | "edit" | "delete";
@@ -222,6 +224,8 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
             title: link.title,
             url: link.url,
             style: link.style,
+            linkId: link.linkId ?? null,
+            linkManagedByBio: link.linkManagedByBio ?? false,
           });
           updateDialog("edit", true);
           updateDialog("dropdown", false);
@@ -259,7 +263,8 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
                 <GripHorizontal size={20} className="text-primary" />
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
+              <AnalyticsBadge clicks={link.clicks} />
               <Switch
                 checked={isPublic}
                 onCheckedChange={handleTogglePublic}
@@ -300,7 +305,8 @@ function GalleryLinkCard({ link, username, mutate }: GalleryLinkCardProps) {
             </p>
             <LinkPreviewRow url={link.url} />
           </div>
-          <div className="flex h-full items-center gap-2">
+          <div className="flex h-full shrink-0 items-center gap-2">
+            <AnalyticsBadge clicks={link.clicks} />
             <Switch
               checked={isPublic}
               onCheckedChange={handleTogglePublic}

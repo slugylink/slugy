@@ -10,6 +10,7 @@ import {
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
 import { recordLinkClick } from "@/lib/analytics/record-click";
+import { recordBioClick } from "@/lib/analytics/record-bio-click";
 import { resolveTargetUrl } from "@/lib/link-targeting";
 import { createClickId } from "@/lib/leads/generate-click-id";
 import {
@@ -505,6 +506,7 @@ export async function URLRedirects(
       // waitUntil MUST be registered before the 302 returns — a bare void/async
       // after Redis will be frozen on Vercel and Tinybird events never land.
       if (!isBot && trigger !== "prefetch") {
+        const bioLinkId = req.nextUrl.searchParams.get("bio")?.trim() || null;
         waitUntil(
           (async () => {
             const ipAddress = getIpAddress(req);
@@ -514,16 +516,23 @@ export async function URLRedirects(
             );
             if (isRateLimited) return;
 
-            await trackAnalytics(
-              req,
-              linkData.linkId!,
-              shortCode,
-              destinationUrl,
-              linkData.workspaceId!,
-              domain,
-              trigger,
-              clickId,
-            );
+            await Promise.allSettled([
+              trackAnalytics(
+                req,
+                linkData.linkId!,
+                shortCode,
+                destinationUrl,
+                linkData.workspaceId!,
+                domain,
+                trigger,
+                clickId,
+              ),
+              // Bio attribution: ?bio=<bioLinkId> on short-link clicks from
+              // bio pages. Validated inside (must match this linkId).
+              bioLinkId
+                ? recordBioClick({ bioLinkId, linkId: linkData.linkId! })
+                : Promise.resolve({ ok: false }),
+            ]);
           })(),
         );
       }

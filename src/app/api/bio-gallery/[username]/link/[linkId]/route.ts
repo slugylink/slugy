@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";
 import { invalidateBioByUsernameAndUser } from "@/lib/cache-utils/bio-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
+import { syncTrackedLinkForBio } from "@/lib/bio-link-bridge";
 import { z } from "zod";
 
 const updateLinkSchema = z.object({
@@ -42,9 +43,20 @@ export async function PUT(
     where: {
       id: params.linkId,
     },
+    select: {
+      id: true,
+      bioId: true,
+      linkId: true,
+      linkManagedByBio: true,
+      url: true,
+    },
   });
 
   if (!link) {
+    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+  }
+
+  if (link.bioId !== gallery.id) {
     return NextResponse.json({ error: "Link not found" }, { status: 404 });
   }
 
@@ -59,6 +71,19 @@ export async function PUT(
   }
 
   const { title, url, style, image } = parsedBody.data;
+
+  // Workspace-owned links are the source of truth for the destination —
+  // the bio button just reuses them. Title/style stay editable per bio page.
+  if (link.linkId && !link.linkManagedByBio && url !== link.url) {
+    return NextResponse.json(
+      {
+        error:
+          "This button reuses a workspace short link. Remove it and re-add to change the destination.",
+        code: "workspace_managed_url",
+      },
+      { status: 400 },
+    );
+  }
 
   // Validate URL format
   try {
@@ -105,6 +130,12 @@ export async function PUT(
     data: { title, url, style: style ?? "link", image: image ?? null },
   });
 
+  // Only push edits into bio-managed short links. Workspace-attached links
+  // are owned by the workspace — never rewrite them from the bio editor.
+  if (link.linkId && link.linkManagedByBio) {
+    await syncTrackedLinkForBio(link.linkId, { url, title });
+  }
+
   // Invalidate both caches: public gallery + admin dashboard
   await Promise.all([
     invalidateBioCache.links(params.username), // Public cache
@@ -138,11 +169,28 @@ export async function DELETE(
 
   const linkId = params.linkId;
 
+  const existing = await db.bioLinks.findFirst({
+    where: { id: linkId, bioId: gallery.id },
+    select: { id: true, linkId: true, linkManagedByBio: true },
+  });
+
   await db.bioLinks.delete({
     where: {
       id: linkId,
     },
   });
+
+  // Only archive bio-managed short links. Workspace-attached links stay live —
+  // removing a bio button must never kill someone's workspace short link.
+  // Managed links are archived (not deleted) to preserve historical analytics.
+  if (existing?.linkId && existing.linkManagedByBio) {
+    await db.link
+      .update({
+        where: { id: existing.linkId },
+        data: { isArchived: true },
+      })
+      .catch(() => undefined);
+  }
 
   // Invalidate both caches: public gallery + admin dashboard
   await Promise.all([

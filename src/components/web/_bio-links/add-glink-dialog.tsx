@@ -8,6 +8,7 @@ import * as z from "zod";
 import axios, { AxiosError } from "axios";
 import { toast } from "sonner";
 import { mutate } from "swr";
+import useSWR from "swr";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,10 +32,12 @@ import {
   Link2,
   PanelTop,
   Plus,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 import UrlAvatar from "@/components/web/url-avatar";
 
 // Types
@@ -58,6 +61,8 @@ interface GLinkDialogBoxProps {
     title: string;
     url: string;
     style?: string | null;
+    linkId?: string | null;
+    linkManagedByBio?: boolean;
   };
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -112,6 +117,10 @@ const DEFAULT_FORM_VALUES: FormData = {
 const DEFAULT_LINK_IMAGE_URL =
   "https://res.cloudinary.com/dcsouj6ix/image/upload/v1771263620/default_t5ngb8.webp";
 
+function stripProtocol(url: string): string {
+  return url.replace(/^https?:\/\/(www\.)?/, "");
+}
+
 // Helper function to get form data from initial data
 function getFormDataFromInitial(
   initialData?: GLinkDialogBoxProps["initialData"],
@@ -157,6 +166,8 @@ function handleApiError(error: unknown, isEditMode: boolean) {
     } else {
       toast.error(apiError?.error || "Action not allowed.");
     }
+  } else if (status === 409) {
+    toast.error(apiError?.error || "This short link is already added.");
   } else {
     const defaultMessage = isEditMode
       ? "Error updating link. Please try again."
@@ -172,7 +183,14 @@ export function GLinkDialogBox({
   onOpenChange,
 }: GLinkDialogBoxProps) {
   const isEditMode = Boolean(initialData);
+  const isAttachedWorkspaceLink = Boolean(
+    initialData?.linkId && !initialData?.linkManagedByBio,
+  );
   const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<"new" | "workspace">("new");
+  const [wsSearch, setWsSearch] = useState("");
+  const [wsSearchDebounced, setWsSearchDebounced] = useState("");
+  const [selectedWsLinkId, setSelectedWsLinkId] = useState<string | null>(null);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -267,9 +285,95 @@ export function GLinkDialogBox({
     [onOpenChange],
   );
 
+  // Debounce workspace search input
+  useEffect(() => {
+    const t = setTimeout(() => setWsSearchDebounced(wsSearch.trim()), 300);
+    return () => clearTimeout(t);
+  }, [wsSearch]);
+
+  interface WorkspaceLinkOption {
+    id: string;
+    title: string | null;
+    url: string;
+    slug: string;
+    domain: string;
+    image: string | null;
+    clicks: string;
+    alreadyAttached: boolean;
+  }
+
+  interface WorkspaceLinkGroupsResponse {
+    groups: {
+      workspaceId: string;
+      workspaceName: string;
+      workspaceSlug: string;
+      links: WorkspaceLinkOption[];
+    }[];
+  }
+
+  const showWorkspacePicker = !isEditMode && tab === "workspace" && actualOpen;
+  const {
+    data: wsData,
+    isLoading: wsLoading,
+    error: wsError,
+  } = useSWR<WorkspaceLinkGroupsResponse>(
+    showWorkspacePicker
+      ? `/api/bio-gallery/workspace-links?search=${encodeURIComponent(wsSearchDebounced)}`
+      : null,
+    (url: string) => fetch(url).then((r) => r.json()),
+  );
+
+  const selectedWsLink = useMemo(() => {
+    if (!selectedWsLinkId || !wsData) return null;
+    for (const g of wsData.groups) {
+      const found = g.links.find((l) => l.id === selectedWsLinkId);
+      if (found) return found;
+    }
+    return null;
+  }, [selectedWsLinkId, wsData]);
+
+  const handleSelectWsLink = useCallback(
+    (link: WorkspaceLinkOption) => {
+      if (link.alreadyAttached) {
+        toast.error("This short link is already added to a bio page.");
+        return;
+      }
+      setSelectedWsLinkId(link.id);
+      setValue("url", link.url, { shouldValidate: true });
+      if (!getValues("title").trim()) {
+        setValue("title", link.title || link.url, {
+          shouldDirty: true,
+          shouldValidate: true,
+        });
+      }
+    },
+    [getValues, setValue],
+  );
+
   const onSubmit = useCallback(
     async (data: FormData) => {
       try {
+        // Workspace-attach flow: reuse the existing short link.
+        if (!isEditMode && tab === "workspace") {
+          if (!selectedWsLink) {
+            toast.error("Select a workspace short link first.");
+            return;
+          }
+          await axios.post<LinkResponse>(`/api/bio-gallery/${username}/link`, {
+            title: data.title || selectedWsLink.title || selectedWsLink.url,
+            style: data.style,
+            image: selectedWsLink.image,
+            linkId: selectedWsLink.id,
+          });
+          toast.success("Short link added to bio!");
+          setActualOpen(false);
+          reset(DEFAULT_FORM_VALUES);
+          setSelectedWsLinkId(null);
+          setWsSearch("");
+          await mutate(`/api/bio-gallery/${username}`);
+          return;
+        }
+
         const apiUrl =
           isEditMode && initialData
             ? `/api/bio-gallery/${username}/link/${initialData.id}`
@@ -299,7 +403,16 @@ export function GLinkDialogBox({
         await mutate(`/api/bio-gallery/${username}`);
       }
     },
-    [isEditMode, initialData, metadata, username, reset, setActualOpen],
+    [
+      isEditMode,
+      tab,
+      selectedWsLink,
+      initialData,
+      metadata,
+      username,
+      reset,
+      setActualOpen,
+    ],
   );
 
   const handleOpenChange = useCallback(
@@ -309,6 +422,10 @@ export function GLinkDialogBox({
         setMetadata(null);
         setMetadataError(null);
         setMetadataLoading(false);
+        setTab("new");
+        setWsSearch("");
+        setWsSearchDebounced("");
+        setSelectedWsLinkId(null);
       }
       setActualOpen(newOpen);
     },
@@ -402,18 +519,139 @@ export function GLinkDialogBox({
     <Dialog open={actualOpen} onOpenChange={handleOpenChange}>
       {!isEditMode && (
         <DialogTrigger asChild>
-          <Button className="w-full gap-2 rounded-sm border-y">
+          <Button className="mt-4 w-full gap-2 rounded-sm border-y">
             <Plus className="h-4 w-4" />
             Add Link
           </Button>
         </DialogTrigger>
       )}
-      <DialogContent className="scrollbar-hide !max-h-[600px] overflow-y-auto px-5 sm:max-w-[480px]">
+      <DialogContent className="scrollbar-hide !max-h-[600px] w-full overflow-x-hidden overflow-y-auto px-5 sm:max-w-[480px]">
         <DialogHeader className="mx-auto flex w-full flex-col items-center justify-center">
           <DialogTitle className="justify-start pt-3 text-start">
             {isEditMode ? "Edit Link" : "Add New Link"}
           </DialogTitle>
         </DialogHeader>
+        {/* Create-mode source tabs */}
+        {!isEditMode && (
+          <div className="grid w-full shrink-0 grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+            <button
+              type="button"
+              onClick={() => setTab("new")}
+              aria-pressed={tab === "new"}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === "new"
+                  ? "bg-white shadow-sm dark:bg-zinc-900"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              New URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab("workspace")}
+              aria-pressed={tab === "workspace"}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === "workspace"
+                  ? "bg-white shadow-sm dark:bg-zinc-900"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Workspace links
+            </button>
+          </div>
+        )}
+        {/* Workspace picker */}
+        {!isEditMode && tab === "workspace" && (
+          <div className="w-full min-w-0 space-y-2 overflow-x-hidden">
+            <div className="relative w-full">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <Input
+                value={wsSearch}
+                onChange={(e) => setWsSearch(e.target.value)}
+                placeholder="Search slug, URL or title..."
+                className="w-full border-zinc-300 pl-9 dark:border-zinc-600"
+              />
+            </div>
+            <div className="max-h-[220px] w-full min-w-0 space-y-3 overflow-x-hidden overflow-y-auto pr-1">
+              {wsLoading && (
+                <div className="flex items-center justify-center py-8">
+                  <LoaderCircle className="h-5 w-5 animate-spin text-zinc-500" />
+                </div>
+              )}
+              {wsError && (
+                <p className="text-muted-foreground py-4 text-center text-sm">
+                  Failed to load workspace links.
+                </p>
+              )}
+              {!wsLoading &&
+                !wsError &&
+                (!wsData || wsData.groups.length === 0) && (
+                  <p className="text-muted-foreground py-4 text-center text-sm">
+                    No workspace links found. Create one in your workspace
+                    first.
+                  </p>
+                )}
+              {wsData?.groups.map((group) => (
+                <div
+                  key={group.workspaceId}
+                  className="w-full min-w-0 space-y-1.5"
+                >
+                  <p className="text-muted-foreground truncate text-xs font-semibold tracking-wide uppercase">
+                    {group.workspaceName}
+                  </p>
+                  {group.links.map((link) => {
+                    const selected = selectedWsLinkId === link.id;
+                    return (
+                      <button
+                        key={link.id}
+                        type="button"
+                        disabled={link.alreadyAttached}
+                        onClick={() => handleSelectWsLink(link)}
+                        className={cn(
+                          "flex w-full min-w-0 items-center gap-2.5 overflow-hidden rounded-xl border px-3 py-2.5 text-left transition-colors",
+                          selected
+                            ? "border-black bg-zinc-100 dark:border-white dark:bg-zinc-800"
+                            : "border-zinc-200 hover:border-zinc-400 dark:border-zinc-700",
+                          link.alreadyAttached &&
+                            "cursor-not-allowed opacity-50",
+                        )}
+                      >
+                        <UrlAvatar url={link.url} className="shrink-0" />
+                        <span className="min-w-0 flex-1 overflow-hidden">
+                          <span className="block truncate text-sm font-medium">
+                            {link.title || `${link.domain}/${link.slug}`}
+                          </span>
+                          <span className="text-muted-foreground block truncate text-xs">
+                            {link.title
+                              ? `${link.domain}/${link.slug}`
+                              : stripProtocol(link.url)}
+                          </span>
+                        </span>
+                        {link.alreadyAttached ? (
+                          <Badge variant="outline" className="shrink-0 text-xs">
+                            Added
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="shrink-0 text-xs">
+                            {Number(link.clicks).toLocaleString()} clicks
+                          </Badge>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+            {selectedWsLink && (
+              <p className="text-muted-foreground truncate text-xs">
+                Selected: {selectedWsLink.domain}/{selectedWsLink.slug} — the
+                bio button will use this short link.
+              </p>
+            )}
+          </div>
+        )}
         <Form {...form}>
           <form
             onSubmit={handleSubmit(onSubmit)}
@@ -467,24 +705,36 @@ export function GLinkDialogBox({
               )}
             />
 
-            {/* URL Input */}
-            <FormField
-              control={control}
-              name="url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>URL</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="https://example.com"
-                      className="border-zinc-300 dark:border-zinc-600"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* URL Input — hidden when picking a workspace link (destination
+                comes from the short link); locked when editing an attached
+                workspace link (workspace owns the destination). */}
+            {(!isEditMode && tab === "new") || isEditMode ? (
+              <FormField
+                control={control}
+                name="url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>URL</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://example.com"
+                        className="border-zinc-300 dark:border-zinc-600"
+                        disabled={isAttachedWorkspaceLink}
+                        {...field}
+                      />
+                    </FormControl>
+                    {isAttachedWorkspaceLink ? (
+                      <p className="text-muted-foreground text-xs">
+                        This button reuses a workspace short link — the
+                        destination is managed in your workspace.
+                      </p>
+                    ) : (
+                      <FormMessage />
+                    )}
+                  </FormItem>
+                )}
+              />
+            ) : null}
 
             {/* Title Input */}
             <FormField
@@ -536,12 +786,20 @@ export function GLinkDialogBox({
             <Button
               type="submit"
               className="w-full"
-              disabled={!isValid || isSubmitting || (isEditMode && !isDirty)}
+              disabled={
+                !isEditMode && tab === "workspace"
+                  ? !selectedWsLink || isSubmitting
+                  : !isValid || isSubmitting || (isEditMode && !isDirty)
+              }
             >
               {isSubmitting && (
                 <LoaderCircle className="mr-1 h-5 w-5 animate-spin" />
               )}
-              {isEditMode ? "Save Changes" : "Add Link"}
+              {isEditMode
+                ? "Save Changes"
+                : tab === "workspace"
+                  ? "Add Short Link"
+                  : "Add Link"}
             </Button>
           </form>
         </Form>
