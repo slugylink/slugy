@@ -33,8 +33,8 @@ export async function GET(
       });
     }
 
-    const gallery: GalleryData | null = await db.bio.findUnique({
-      where: { username: normalizedUsername },
+    const gallery: GalleryData | null = await db.bio.findFirst({
+      where: { username: normalizedUsername, isPublic: true, deletedAt: null },
       select: BIO_GALLERY_SELECT,
     });
 

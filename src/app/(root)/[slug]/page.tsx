@@ -1,18 +1,31 @@
-"use client";
-import React from "react";
-import { useParams } from "next/navigation";
-import PasswordGateForm from "@/components/web/_links/password-gate-form";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import SlugPasswordForm from "./password-form";
 import NotFound from "../not-found";
 
-const SlugPassword = () => {
-  const params = useParams();
-  const slug = params.slug as string;
+// Password gates must never be indexed — the slug URL would otherwise leak
+// into search results before the visitor can authenticate.
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
+export default async function SlugPasswordPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+
+  if (!slug) {
+    notFound();
+  }
 
   if (slug === "not-found") {
     return <NotFound />;
   }
 
-  return <PasswordGateForm slug={slug} />;
-};
-
-export default SlugPassword;
+  return <SlugPasswordForm slug={slug} />;
+}

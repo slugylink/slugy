@@ -598,7 +598,7 @@ const FilterActions = ({ filterCategories }: FilterActionsProps) => {
     }
     setIsExporting(true);
     const query = searchParams.toString();
-    // Preserve current time_period / filters / event, like Dub.co does.
+    // Preserve current time_period / filters / event
     const url = `/api/workspace/${slug}/analytics/export${query ? `?${query}` : ""}`;
 
     const promise = (async () => {

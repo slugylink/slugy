@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { checkBioGalleryLimit } from "../limit";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache";
+import { normalizeBioUsername } from "@/server/public-bio-gallery";
 
 //* Server action to create bio gallery
 export async function createBioGallery({
@@ -21,9 +22,20 @@ export async function createBioGallery({
       return { success: false, error: "Unauthorized" };
     }
     const userId = session.user.id;
+    // Usernames are addressable paths (bio/[username]) and cache keys — store
+    // canonical lowercase so lookups never 404 on case. Mixed-case legacy
+    // rows are normalized by scripts/normalize-bio-usernames.ts.
+    const normalizedUsername = normalizeBioUsername(username);
+    if (!normalizedUsername) {
+      return {
+        success: false,
+        error:
+          "Username must be 1-50 characters: letters, numbers, hyphens, underscores.",
+      };
+    }
     // Check if username already exists
     const existingBio = await db.bio.findUnique({
-      where: { username },
+      where: { username: normalizedUsername },
       select: { id: true },
     });
     if (existingBio) {
@@ -57,7 +69,7 @@ export async function createBioGallery({
       const bio = await tx.bio.create({
         data: {
           userId,
-          username,
+          username: normalizedUsername,
           isDefault: isDefault,
         },
       });

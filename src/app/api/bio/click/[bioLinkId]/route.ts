@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { db } from "@/server/db";
 import { addUTMParams } from "@/utils/bio-links";
+import { detectTrigger } from "@/lib/middleware/detect-trigger";
 
 /**
  * Tracked redirect for bio buttons (legacy / fallback path).
@@ -38,7 +40,9 @@ export async function GET(
   if (bioLink.linkId && bioLink.link) {
     const params = new URLSearchParams({ bio: bioLink.id, ref: "slugy.co" });
     const shortUrl = `https://${bioLink.link.domain}/${bioLink.link.slug}?${params.toString()}`;
-    return NextResponse.redirect(shortUrl, 302);
+    const redirect = NextResponse.redirect(shortUrl, 302);
+    redirect.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return redirect;
   }
 
   const destination = (() => {
@@ -49,7 +53,20 @@ export async function GET(
     }
   })();
 
+  // Unlinked legacy rows have no workspace short link, so there is no
+  // Tinybird event (link_id is required) and no quota to enforce — Prisma
+  // bio/bioLinks counters are their only source. Crawlers and prefetches
+  // must not inflate them.
+  const trigger = detectTrigger(_req, destination);
+  if (trigger === "bot" || trigger === "prefetch") {
+    const redirect = NextResponse.redirect(destination, 302);
+    redirect.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return redirect;
+  }
+
   // Fire-and-forget counters; never block the redirect on DB errors.
+  // waitUntil keeps them alive on Vercel; the short race below is the
+  // backstop for runtimes without it.
   const track = (async () => {
     try {
       await db.bioLinks.update({
@@ -67,50 +84,14 @@ export async function GET(
     } catch {
       // ignore
     }
-
-    if (bioLink.linkId) {
-      try {
-        const linked = await db.link.findUnique({
-          where: { id: bioLink.linkId },
-          select: { id: true, workspaceId: true },
-        });
-        if (linked) {
-          await Promise.allSettled([
-            db.link.update({
-              where: { id: linked.id },
-              data: { clicks: { increment: 1 }, lastClicked: new Date() },
-            }),
-            db.analytics.create({
-              data: {
-                linkId: linked.id,
-                trigger: "bio",
-                referer: "bio",
-              },
-            }),
-          ]);
-          const usage = await db.usage.findFirst({
-            where: { workspaceId: linked.workspaceId },
-            orderBy: { createdAt: "desc" },
-            select: { id: true },
-          });
-          if (usage) {
-            await db.usage
-              .update({
-                where: { id: usage.id },
-                data: { clicksTracked: { increment: 1 } },
-              })
-              .catch(() => undefined);
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
   })();
+  waitUntil(track);
 
-  // Best-effort: wait briefly so self-hosted / serverless without
-  // waitUntil doesn't drop the increment, but don't delay UX.
+  // Best-effort: wait briefly so runtimes without waitUntil don't drop the
+  // increment, but don't delay UX.
   await Promise.race([track, new Promise((r) => setTimeout(r, 400))]);
 
-  return NextResponse.redirect(destination, 302);
+  const redirect = NextResponse.redirect(destination, 302);
+  redirect.headers.set("Cache-Control", "private, no-store, max-age=0");
+  return redirect;
 }

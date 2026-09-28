@@ -193,7 +193,6 @@ const fetchAnalyticsData = async (
       result[metric] = data[metric] ?? METRIC_FALLBACKS[metric];
     }
     // Sales responses carry revenue series/totals outside the metric set —
-    // retain them so the Sales tab can plot amounts like Dub.co.
     if (analyticsEvent === "sales") {
       result.totalRevenue = data.totalRevenue ?? 0;
       result.totalSales = data.totalSales ?? data.totalClicks ?? 0;

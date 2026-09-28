@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { cache } from "react";
+import { waitUntil } from "@vercel/functions";
 import { db } from "@/server/db";
 import {
   getBioPublicCache,
+  invalidateBioPublicCache,
   setBioPublicCache,
 } from "@/lib/cache-utils/bio-public-cache";
 import { CANONICAL_BASE, OPENGRAPH_IMAGE_URL } from "@/constants/bio-links";
@@ -157,9 +159,37 @@ export function writePublicBioCache(
 }
 
 /**
- * Direct data access for public bio galleries (cache → DB → stale cache).
- * Pages should call this instead of HTTP-fetching their own API route.
- * Returns null for invalid/unknown usernames and on unrecoverable errors.
+ * Single public-visibility gate: only published, non-deleted galleries
+ * render or serve via the public API. Never query Bio by username alone —
+ * that leaked private/deleted galleries (only their links were filtered).
+ */
+async function findVisibleGallery(username: string) {
+  return db.bio.findFirst({
+    where: { username, isPublic: true, deletedAt: null },
+    select: BIO_GALLERY_SELECT,
+  });
+}
+
+/** Refresh the public cache off the critical path (stale-while-revalidate). */
+async function refreshBioPublicCache(username: string): Promise<void> {
+  try {
+    const gallery = await findVisibleGallery(username);
+    if (!gallery) {
+      // Went private/deleted since caching — stop serving the stale copy.
+      await invalidateBioPublicCache(username);
+      return;
+    }
+    writePublicBioCache(username, gallery);
+  } catch (error) {
+    console.error(`[Public Bio Gallery] Background refresh failed:`, error);
+  }
+}
+
+/**
+ * Direct data access for public bio galleries (fresh cache → DB → stale).
+ * Stale entries serve instantly AND trigger a background refresh, so edits
+ * surface within one stale read instead of lingering for the full TTL.
+ * Returns null for invalid/private/deleted/unknown usernames.
  */
 export const getPublicBioGallery = cache(
   async (username: string): Promise<GalleryData | null> => {
@@ -168,16 +198,21 @@ export const getPublicBioGallery = cache(
 
     try {
       const cachedData = await getBioPublicCache(normalizedUsername);
-      if (cachedData) return transformCachedBioData(cachedData);
+      if (cachedData) {
+        if (cachedData.expiresAt > Date.now()) {
+          return transformCachedBioData(cachedData);
+        }
+        // Stale: serve now, refresh without blocking.
+        waitUntil(refreshBioPublicCache(normalizedUsername));
+        return transformCachedBioData(cachedData);
+      }
     } catch {
       // Fall through to the database on cache read failures.
     }
 
     try {
-      const gallery: GalleryData | null = await db.bio.findUnique({
-        where: { username: normalizedUsername },
-        select: BIO_GALLERY_SELECT,
-      });
+      const gallery: GalleryData | null =
+        await findVisibleGallery(normalizedUsername);
 
       if (!gallery) return null;
 
@@ -208,8 +243,8 @@ export function createBioNotFoundMetadata(): Metadata {
     title: "Bio Gallery Not Found | Slugy",
     description: "The requested bio gallery could not be found.",
     robots: {
-      index: true,
-      follow: true,
+      index: false,
+      follow: false,
     },
   };
 }
