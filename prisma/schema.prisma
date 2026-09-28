@@ -300,7 +300,7 @@ model WorkspaceApiKey {
   deletedAt            DateTime?
   
   // Relations
-  creator   User      @relation("CreatedApiKeys", fields: [createdBy], references: [id])
+  creator   User      @relation("CreatedApiKeys", fields: [createdBy], references: [id], onDelete: Cascade)
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
@@ -334,7 +334,7 @@ model Member {
   organizationId String?
   
   // Relations
-  organization Organization? @relation(fields: [organizationId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
@@ -360,7 +360,7 @@ model Invitation {
   
   // Relations
   inviter      User          @relation("SentInvites", fields: [inviterId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   workspace    Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId, email])
@@ -408,7 +408,7 @@ model Link {
   customDomainId String?
   
   // Relations
-  creator         User?            @relation(fields: [userId], references: [id])
+  creator         User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
   workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   customDomain    CustomDomain?    @relation(fields: [customDomainId], references: [id], onDelete: Cascade)
   tags            LinkTag[]
@@ -712,7 +712,7 @@ model Usage {
   
   // Relations
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id])
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([workspaceId])
@@ -762,7 +762,7 @@ model LeadEvent {
 
   workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   link      Link         @relation(fields: [linkId], references: [id], onDelete: Cascade)
-  customer  LeadCustomer @relation(fields: [workspaceId, customerExternalId], references: [workspaceId, externalId])
+  customer  LeadCustomer @relation(fields: [workspaceId, customerExternalId], references: [workspaceId, externalId], onDelete: Cascade)
 
   @@unique([workspaceId, customerExternalId, eventName])
   @@index([workspaceId, createdAt])

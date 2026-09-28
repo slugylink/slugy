@@ -8,6 +8,7 @@ export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "RATE_LIMIT_EXCEEDED"
   | "SERVICE_UNAVAILABLE"
+  | "BAD_GATEWAY"
   | "INTERNAL_ERROR"
   | "BAD_REQUEST"
   | "CONFLICT"
@@ -120,6 +121,11 @@ export const apiErrors = {
     message: string = "Unprocessable entity",
     details?: unknown,
   ) => apiError(message, "UNPROCESSABLE_ENTITY", 422, details),
+
+  badGateway: (
+    message: string = "Upstream service failed",
+    details?: unknown,
+  ) => apiError(message, "BAD_GATEWAY", 502, details),
 };
 
 /**

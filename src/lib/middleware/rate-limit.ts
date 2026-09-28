@@ -17,6 +17,8 @@ const RATE_LIMITS = {
   AUTH_CHECK_IP: { limit: 30, window: 60 },
   // …plus a per-target budget so one IP can't sweep many addresses.
   AUTH_CHECK_TARGET: { limit: 10, window: 60 },
+  // Account deletion: destructive + authenticated — a few tries per hour.
+  ACCOUNT_DELETE: { limit: 5, window: 60 * 60 },
 } as const;
 
 // ─────────── Types ───────────
@@ -131,6 +133,46 @@ export const checkTempLinkRateLimit = async (
 ): Promise<RateLimitResult> => {
   const { limit, window } = RATE_LIMITS.TEMP_LINK;
   return checkRedisLimit(`temp-link-limit:${ip}`, limit, window);
+};
+
+/**
+ * Throttle for account deletion: per-USER (not per-IP) so NAT sharing can't
+ * be abused and one user can't be griefed by another's traffic. FAILS CLOSED
+ * (unlike the traffic limiters): when Redis is unreachable we refuse the
+ * destructive action with 503 rather than allowing unlimited deletes.
+ */
+export const checkAccountDeleteRateLimit = async (
+  userId: string,
+): Promise<RateLimitResult & { unavailable?: boolean }> => {
+  const { limit, window } = RATE_LIMITS.ACCOUNT_DELETE;
+  const now = Date.now();
+
+  try {
+    const pipeline = redis.pipeline();
+    pipeline.incr(`account-delete:${userId}`);
+    pipeline.ttl(`account-delete:${userId}`);
+    const results = await pipeline.exec<[number, number]>();
+
+    const current = Number(results[0] ?? 0);
+    let ttl = Number(results[1] ?? -1);
+
+    if (current === 1 || ttl < 0) {
+      await redis.expire(`account-delete:${userId}`, window);
+      ttl = window;
+    }
+
+    const reset = now + Math.max(ttl, 1) * 1000;
+    return createResult(current <= limit, limit, reset, current);
+  } catch (error) {
+    console.error(
+      "[Rate Limit] Redis error (account delete, fail-closed):",
+      error,
+    );
+    return {
+      ...createResult(false, limit, now + window * 1000, limit + 1),
+      unavailable: true,
+    };
+  }
 };
 
 /**
