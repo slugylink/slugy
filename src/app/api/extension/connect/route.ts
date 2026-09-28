@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, isUserBanned } from "@/lib/auth";
 import { db } from "@/server/db";
 import { generateApiKey } from "@/lib/api-keys/generate";
 
@@ -80,6 +80,15 @@ export async function GET(req: NextRequest) {
   }
 
   const session = await auth.api.getSession({ headers: req.headers });
+
+  // Banned accounts must not mint extension tokens (this route bypasses
+  // getAuthSession(), which is where bans are otherwise enforced).
+  if (
+    session?.user?.id &&
+    (await isUserBanned(session.user.id, session.user))
+  ) {
+    return authorizeRedirect(withState({ error: "account_suspended" }));
+  }
 
   // Not signed in: start the provider login (or send to the login page, which
   // resumes this route afterwards via ?next=).

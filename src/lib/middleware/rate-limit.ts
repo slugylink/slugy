@@ -13,6 +13,10 @@ const RATE_LIMITS = {
   REDIRECT: { limit: 120, window: 60 },
   REDIRECT_MISS: { limit: 30, window: 60 },
   TEMP_LINK: { limit: 1, window: 20 * 60 },
+  // Pre-auth account oracle (/api/auth/check-user): tight per-IP budget…
+  AUTH_CHECK_IP: { limit: 30, window: 60 },
+  // …plus a per-target budget so one IP can't sweep many addresses.
+  AUTH_CHECK_TARGET: { limit: 10, window: 60 },
 } as const;
 
 // ─────────── Types ───────────
@@ -31,6 +35,17 @@ export const normalizeIp = (ip: string): string => {
     return ip.split(":").slice(0, 4).join(":");
   }
   return ip;
+};
+
+/** Non-cryptographic hash so raw emails never appear in Redis keys. */
+const hashEmail = (email: string): string => {
+  const input = email.trim().toLowerCase();
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash << 5) + hash + input.charCodeAt(i);
+    hash = hash | 0;
+  }
+  return Math.abs(hash).toString(36);
 };
 
 const createResult = (
@@ -116,4 +131,27 @@ export const checkTempLinkRateLimit = async (
 ): Promise<RateLimitResult> => {
   const { limit, window } = RATE_LIMITS.TEMP_LINK;
   return checkRedisLimit(`temp-link-limit:${ip}`, limit, window);
+};
+
+/**
+ * Throttle for the pre-auth account oracle. Both buckets must pass: a shared
+ * per-IP budget plus a per-target budget (keyed by hashed email so raw PII
+ * never lands in Redis keys). Normal login/signup (1 hit per submit) never
+ * notices; enumeration sweeps hit 429 fast.
+ */
+export const checkAuthCheckRateLimit = async (
+  ip: string,
+  email: string,
+): Promise<RateLimitResult> => {
+  const target = hashEmail(email);
+  const targetLimit = RATE_LIMITS.AUTH_CHECK_TARGET;
+  const targetResult = await checkRedisLimit(
+    `auth-check:${target}`,
+    targetLimit.limit,
+    targetLimit.window,
+  );
+  if (!targetResult.success) return targetResult;
+
+  const ipLimit = RATE_LIMITS.AUTH_CHECK_IP;
+  return checkRedisLimit(`auth-check-ip:${ip}`, ipLimit.limit, ipLimit.window);
 };

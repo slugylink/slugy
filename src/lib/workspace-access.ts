@@ -1,5 +1,5 @@
 import type { NextResponse } from "next/server";
-import { getAuthSession } from "@/lib/auth";
+import { getAuthSession, isUserBanned } from "@/lib/auth";
 import { apiErrors } from "@/lib/api-response";
 import { db } from "@/server/db";
 
@@ -134,6 +134,12 @@ export async function requireWorkspaceAccess(workspaceslug: string): Promise<
   const authResult = await getAuthSession();
   if (!authResult.success || !authResult.session.user.id) {
     return { ok: false, response: apiErrors.unauthorized() };
+  }
+
+  // getAuthSession() already enforces bans, but this also covers callers that
+  // may one day swap the session source — banned members get 403, not data.
+  if (await isUserBanned(authResult.session.user.id, authResult.session.user)) {
+    return { ok: false, response: apiErrors.forbidden("Account suspended") };
   }
 
   const access = await getWorkspaceAccess(

@@ -189,7 +189,7 @@ export async function inviteMember({
     });
 
     // Send invitation email
-    const inviteLink = `${process.env.NEXT_APP_URL}/accept-invitation/${invitation.id}`;
+    const inviteLink = `${process.env.NEXT_APP_URL}/accept-invitation/${invitation.token}`;
     await sendOrganizationInvitation({
       email,
       invitedByUsername: inviter.name,
@@ -249,68 +249,102 @@ export async function getOrganizations() {
   }
 }
 
-export async function acceptInvitation(invitationId: string) {
+/**
+ * Invite lookup by unguessable `token`, with legacy `id` fallback for links
+ * emailed before token URLs. Callers must still gate on the invitee email —
+ * the id form is cuid-enumerable.
+ */
+async function findInvitationByKey(key: string) {
+  return db.invitation.findFirst({
+    where: { OR: [{ token: key }, { id: key }] },
+    include: {
+      organization: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+        },
+      },
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          userId: true,
+        },
+      },
+      inviter: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
+  });
+}
+
+function viewerEmailMatches(
+  viewerEmail: string | null | undefined,
+  invitationEmail: string,
+): boolean {
+  return (
+    typeof viewerEmail === "string" &&
+    viewerEmail.toLowerCase() === invitationEmail.toLowerCase()
+  );
+}
+
+export async function acceptInvitation(invitationKey: string) {
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
     });
 
     if (!session?.user?.id) {
-      return { success: false, error: "Unauthorized" };
+      return {
+        success: false as const,
+        error: "Unauthorized",
+        unauthorized: true as const,
+      };
     }
 
     const userId = session.user.id;
 
-    // Find the invitation
-    const invitation = await db.invitation.findUnique({
-      where: { id: invitationId },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        workspace: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-      },
-    });
+    // Find the invitation (token preferred, legacy id accepted)
+    const invitation = await findInvitationByKey(invitationKey);
 
     if (!invitation) {
-      return { success: false, error: "Invitation not found" };
+      return { success: false as const, error: "Invitation not found" };
     }
 
     if (invitation.status !== "pending") {
-      return { success: false, error: "Invitation has already been processed" };
+      return {
+        success: false as const,
+        error: "Invitation has already been processed",
+      };
     }
 
     if (invitation.expiresAt < new Date()) {
-      return { success: false, error: "Invitation has expired" };
+      // Best-effort status hygiene so expired rows stop showing as pending.
+      await db.invitation
+        .update({
+          where: { id: invitation.id },
+          data: { status: "expired" },
+        })
+        .catch(() => undefined);
+      return { success: false as const, error: "Invitation has expired" };
+    }
+
+    // Email ownership is required on EVERY path (workspace and org) — the
+    // invite link is bearer-capable, so only the invitee may redeem it.
+    if (!viewerEmailMatches(session.user.email, invitation.email)) {
+      return {
+        success: false as const,
+        error: "You must be signed in with the invited email address to accept",
+      };
     }
 
     const isWorkspaceOnly = invitation.organizationId == null;
-    if (isWorkspaceOnly) {
-      const sessionUser = await db.user.findUnique({
-        where: { id: userId },
-        select: { email: true },
-      });
-      if (
-        !sessionUser ||
-        sessionUser.email?.toLowerCase() !== invitation.email.toLowerCase()
-      ) {
-        return {
-          success: false,
-          error:
-            "You must be signed in with the invited email address to accept",
-        };
-      }
-    }
 
     const existingMember = await db.member.findFirst({
       where: isWorkspaceOnly
@@ -320,94 +354,198 @@ export async function acceptInvitation(invitationId: string) {
 
     if (existingMember) {
       return {
-        success: false,
+        success: false as const,
         error: isWorkspaceOnly
           ? "You are already a member of this workspace"
           : "You are already a member of this organization",
       };
     }
 
-    await db.$transaction(async (tx) => {
-      await tx.invitation.update({
-        where: { id: invitationId },
-        data: { status: "accepted" },
+    // Seat check + member insert run in one transaction so a burst of accepts
+    // can't overfill past the owner's plan (TOCTOU at invite time).
+    try {
+      await db.$transaction(async (tx) => {
+        const fresh = await tx.invitation.findUnique({
+          where: { id: invitation.id },
+          select: { status: true },
+        });
+        if (!fresh || fresh.status !== "pending") {
+          throw new Error("INVITATION_PROCESSED");
+        }
+
+        const [memberCount, ownerSub] = await Promise.all([
+          tx.member.count({ where: { workspaceId: invitation.workspaceId } }),
+          tx.subscription.findFirst({
+            where: { referenceId: invitation.workspace.userId },
+            select: { plan: { select: { maxUsers: true } } },
+          }),
+        ]);
+        const maxUsers = ownerSub?.plan?.maxUsers ?? 1;
+        // Current rows (owner row included) + this accepter must fit.
+        if (memberCount + 1 > maxUsers) {
+          throw new Error("WORKSPACE_FULL");
+        }
+
+        await tx.invitation.update({
+          where: { id: invitation.id },
+          data: { status: "accepted" },
+        });
+        await tx.member.create({
+          data: {
+            userId,
+            workspaceId: invitation.workspaceId,
+            organizationId: invitation.organizationId,
+            role: invitation.role,
+          },
+        });
       });
-      await tx.member.create({
-        data: {
-          userId,
-          workspaceId: invitation.workspaceId,
-          organizationId: invitation.organizationId,
-          role: invitation.role,
-        },
-      });
-    });
+    } catch (txError) {
+      const code = txError instanceof Error ? txError.message : "";
+      if (code === "WORKSPACE_FULL") {
+        return {
+          success: false as const,
+          error:
+            "This workspace has reached its member limit. Ask the owner to upgrade.",
+        };
+      }
+      if (code === "INVITATION_PROCESSED") {
+        return {
+          success: false as const,
+          error: "Invitation has already been processed",
+        };
+      }
+      throw txError;
+    }
 
     // Revalidate workspace-related caches so newly joined workspaces appear in switchers
     await revalidateWorkspaceData(userId);
 
     return {
-      success: true,
+      success: true as const,
       organization: invitation.organization,
-      workspace: invitation.workspace,
+      workspace: {
+        id: invitation.workspace.id,
+        name: invitation.workspace.name,
+        slug: invitation.workspace.slug,
+      },
     };
   } catch (error) {
     console.error("Error accepting invitation:", error);
     return {
-      success: false,
+      success: false as const,
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }
 }
 
-export async function getInvitationDetails(invitationId: string) {
+export async function declineInvitation(invitationKey: string) {
   try {
-    const invitation = await db.invitation.findUnique({
-      where: { id: invitationId },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        workspace: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-          },
-        },
-        inviter: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
+    const session = await auth.api.getSession({
+      headers: await headers(),
     });
 
+    if (!session?.user?.id) {
+      return {
+        success: false as const,
+        error: "Unauthorized",
+        unauthorized: true as const,
+      };
+    }
+
+    const invitation = await findInvitationByKey(invitationKey);
+
     if (!invitation) {
-      return { success: false, error: "Invitation not found" };
+      return { success: false as const, error: "Invitation not found" };
     }
 
     if (invitation.status !== "pending") {
-      return { success: false, error: "Invitation has already been processed" };
+      return {
+        success: false as const,
+        error: "Invitation has already been processed",
+      };
     }
 
     if (invitation.expiresAt < new Date()) {
-      return { success: false, error: "Invitation has expired" };
+      await db.invitation
+        .update({
+          where: { id: invitation.id },
+          data: { status: "expired" },
+        })
+        .catch(() => undefined);
+      return { success: false as const, error: "Invitation has expired" };
+    }
+
+    if (!viewerEmailMatches(session.user.email, invitation.email)) {
+      return {
+        success: false as const,
+        error:
+          "You must be signed in with the invited email address to decline",
+      };
+    }
+
+    await db.invitation.update({
+      where: { id: invitation.id },
+      data: { status: "declined" },
+    });
+
+    return { success: true as const };
+  } catch (error) {
+    console.error("Error declining invitation:", error);
+    return {
+      success: false as const,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+export async function getInvitationDetails(invitationKey: string) {
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user?.id) {
+      return {
+        success: false as const,
+        error: "Please log in to view this invitation",
+        unauthorized: true as const,
+      };
+    }
+
+    const invitation = await findInvitationByKey(invitationKey);
+
+    // Email-gated: strangers probing ids/tokens learn nothing — not even
+    // whether the invitation exists. Only the invitee sees details.
+    if (
+      !invitation ||
+      !viewerEmailMatches(session.user.email, invitation.email)
+    ) {
+      return { success: false as const, error: "Invitation not found" };
+    }
+
+    if (invitation.status !== "pending") {
+      return {
+        success: false as const,
+        error: "Invitation has already been processed",
+      };
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return { success: false as const, error: "Invitation has expired" };
     }
 
     return {
-      success: true,
+      success: true as const,
       invitation: {
         id: invitation.id,
         email: invitation.email,
         role: invitation.role,
         organization: invitation.organization,
-        workspace: invitation.workspace,
+        workspace: {
+          id: invitation.workspace.id,
+          name: invitation.workspace.name,
+          slug: invitation.workspace.slug,
+        },
         inviter: invitation.inviter,
         expiresAt: invitation.expiresAt,
       },
@@ -415,7 +553,7 @@ export async function getInvitationDetails(invitationId: string) {
   } catch (error) {
     console.error("Error getting invitation details:", error);
     return {
-      success: false,
+      success: false as const,
       error: error instanceof Error ? error.message : "Unknown error",
     };
   }

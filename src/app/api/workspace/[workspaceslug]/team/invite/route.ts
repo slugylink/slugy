@@ -54,8 +54,10 @@ export async function POST(
         },
       }),
     ]);
-    // +1 for the owner seat.
-    if (memberCount + pendingCount + 1 >= maxUsers) {
+    // +1 for the invitee seat on top of current rows (owner row included).
+    // Strictly greater — >= would make every plan off-by-one (e.g. Pro with
+    // maxUsers=2 could never invite a second user).
+    if (memberCount + pendingCount + 1 > maxUsers) {
       return NextResponse.json(
         {
           error:
@@ -68,7 +70,10 @@ export async function POST(
     const body = await req.json();
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const role = body.role === "admin" ? "admin" : "member";
+    // Admin invites are owner-only (mirrors the owner-only PATCH role rule) —
+    // an admin inviting a new admin would bypass the promotion restriction.
+    const role =
+      body.role === "admin" && access.role === "owner" ? "admin" : "member";
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
@@ -135,7 +140,9 @@ export async function POST(
       },
     });
 
-    const inviteLink = `${process.env.NEXT_APP_URL}/accept-invitation/${invitation.id}`;
+    // Invite links carry the unguessable `token`, not the sequential `id` —
+    // ids are cuid-enumerable and the details endpoint gated on the invitee.
+    const inviteLink = `${process.env.NEXT_APP_URL}/accept-invitation/${invitation.token}`;
     await sendOrganizationInvitation({
       email,
       invitedByUsername: inviter.name ?? "A team member",

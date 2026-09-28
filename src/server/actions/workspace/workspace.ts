@@ -70,10 +70,32 @@ export async function createWorkspace({
         });
       }
 
-      return await tx.workspace.create({
+      const created = await tx.workspace.create({
         data: { userId, name, slug, logo, isDefault },
         select: { id: true, name: true, slug: true },
       });
+
+      // Owner membership + first usage period are part of creation, not
+      // background work — a dropped waitUntil previously left workspaces with
+      // no owner row (team counts off-by-one) and no usage row.
+      await tx.member.create({
+        data: { userId, workspaceId: created.id, role: "owner" },
+      });
+
+      const { periodStart, periodEnd } = calculateUsagePeriod(null, new Date());
+      await tx.usage.create({
+        data: {
+          userId,
+          workspaceId: created.id,
+          linksCreated: 0,
+          clicksTracked: 0,
+          addedUsers: 1,
+          periodStart,
+          periodEnd,
+        },
+      });
+
+      return created;
     });
 
     // Revalidate caches
@@ -91,32 +113,6 @@ export async function createWorkspace({
     } catch (error) {
       console.error("[workspace] Failed to ensure free subscription:", error);
     }
-
-    // Background tasks — isolated so one failure does not cancel the others
-    waitUntil(
-      Promise.allSettled([
-        db.member.create({
-          data: { userId, workspaceId: workspace.id, role: "owner" },
-        }),
-        (async () => {
-          const { periodStart, periodEnd } = calculateUsagePeriod(
-            null,
-            new Date(),
-          );
-          await db.usage.create({
-            data: {
-              userId,
-              workspaceId: workspace.id,
-              linksCreated: 0,
-              clicksTracked: 0,
-              addedUsers: 1,
-              periodStart,
-              periodEnd,
-            },
-          });
-        })(),
-      ]),
-    );
 
     // Welcome email via Resend (same path as verify / magic-link).
     // Awaited so it is not dropped by waitUntil / Inngest sync issues.

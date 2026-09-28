@@ -156,6 +156,7 @@ ErrorState.displayName = "ErrorState";
 interface MemberRowProps {
   member: TeamMember;
   canManageTeam: boolean;
+  canChangeRole: boolean;
   currentUserId: string;
   onRoleChange: (memberId: string, role: "admin" | "member") => void;
   onRemoveClick: (member: TeamMember) => void;
@@ -166,6 +167,7 @@ const MemberRow = memo(
   ({
     member,
     canManageTeam,
+    canChangeRole,
     currentUserId,
     onRoleChange,
     onRemoveClick,
@@ -232,19 +234,25 @@ const MemberRow = memo(
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => onRoleChange(member.user.id, "admin")}
-                    disabled={isSubmitting || member.role === "admin"}
-                  >
-                    Set as Admin
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => onRoleChange(member.user.id, "member")}
-                    disabled={isSubmitting || member.role === "member"}
-                  >
-                    Set as Member
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  {/* Role changes are owner-only server-side (PATCH 403s for
+                      admins) — only render them for owners. */}
+                  {canChangeRole && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => onRoleChange(member.user.id, "admin")}
+                        disabled={isSubmitting || member.role === "admin"}
+                      >
+                        Set as Admin
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onRoleChange(member.user.id, "member")}
+                        disabled={isSubmitting || member.role === "member"}
+                      >
+                        Set as Member
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem
                     onClick={() => onRemoveClick(member)}
                     disabled={isSubmitting}
@@ -416,6 +424,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
   const members = teamData?.members ?? [];
   const invitations = teamData?.invitations ?? [];
   const canManageTeam = teamData?.canManageTeam ?? false;
+  const isOwner = teamData?.isOwner ?? false;
   const hasAny = members.length > 0 || invitations.length > 0;
   const colSpan = canManageTeam ? 5 : 4;
 
@@ -572,6 +581,9 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="member">Member</SelectItem>
+                      {/* Inviting admins is owner-only server-side — the API
+                          coerces everyone else's choice to member anyway. */}
+                      {isOwner && <SelectItem value="admin">Admin</SelectItem>}
                     </SelectContent>
                   </Select>
                 </div>
@@ -622,6 +634,7 @@ const TeamClient = memo(({ workspaceslug, currentUserId }: TeamClientProps) => {
                   key={member.user.id}
                   member={member}
                   canManageTeam={canManageTeam}
+                  canChangeRole={isOwner}
                   currentUserId={currentUserId}
                   onRoleChange={handleRoleChange}
                   onRemoveClick={handleRemoveClick}

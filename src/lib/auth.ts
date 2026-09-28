@@ -1,6 +1,8 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
+import { hashPassword } from "better-auth/crypto";
 import { headers } from "next/headers";
 import { cache } from "react";
 import { magicLink, admin, organization } from "better-auth/plugins";
@@ -34,6 +36,60 @@ const getAuthCookieDomain = (): string | undefined => {
 
 const getPolarServer = () =>
   process.env.NODE_ENV === "production" ? "production" : "sandbox";
+
+/**
+ * Server-side password policy — mirrors the signup/reset client schemas so a
+ * direct POST /api/auth/sign-up/email can't set a weak password.
+ * Enforced inside the `hash` hook, which runs on sign-up, reset and change.
+ */
+export const PASSWORD_POLICY_MESSAGE =
+  "Password must be 8-100 characters and include an uppercase letter, a lowercase letter, a number and a special character";
+
+export function validatePasswordStrength(password: string): void {
+  if (
+    typeof password !== "string" ||
+    password.length < 8 ||
+    password.length > 100 ||
+    !/[A-Z]/.test(password) ||
+    !/[a-z]/.test(password) ||
+    !/[0-9]/.test(password) ||
+    !/[^A-Za-z0-9]/.test(password)
+  ) {
+    throw new APIError("BAD_REQUEST", { message: PASSWORD_POLICY_MESSAGE });
+  }
+}
+
+/**
+ * OAuth providers are opt-in per complete env pair. A half-configured or
+ * missing provider is omitted (clean "provider not configured" at runtime)
+ * instead of crashing with `undefined` client credentials.
+ */
+function resolveSocialProviders() {
+  const githubId = process.env.GITHUB_CLIENT_ID?.trim();
+  const githubSecret = process.env.GITHUB_CLIENT_SECRET?.trim();
+  const googleId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const googleSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+
+  for (const [name, id, secret] of [
+    ["GITHUB", githubId, githubSecret],
+    ["GOOGLE", googleId, googleSecret],
+  ] as const) {
+    if ((id && !secret) || (!id && secret)) {
+      console.warn(
+        `[Auth] ${name}_CLIENT_ID/SECRET is half-configured — ${name.toLowerCase()} login disabled until both are set.`,
+      );
+    }
+  }
+
+  return {
+    ...(githubId && githubSecret
+      ? { github: { clientId: githubId, clientSecret: githubSecret } }
+      : {}),
+    ...(googleId && googleSecret
+      ? { google: { clientId: googleId, clientSecret: googleSecret } }
+      : {}),
+  };
+}
 
 const resolveTokenFromUrl = (rawUrl: string) => {
   try {
@@ -73,6 +129,15 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    minPasswordLength: 8,
+    maxPasswordLength: 100,
+    password: {
+      // Default scrypt hashing, gated by the server-side complexity policy.
+      hash: async (password: string) => {
+        validatePasswordStrength(password);
+        return hashPassword(password);
+      },
+    },
     sendResetPassword: async ({ user, url }) => {
       const token = resolveTokenFromUrl(url);
 
@@ -115,16 +180,7 @@ export const auth = betterAuth({
       });
     },
   },
-  socialProviders: {
-    github: {
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
-    },
-    google: {
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    },
-  },
+  socialProviders: resolveSocialProviders(),
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
@@ -250,5 +306,54 @@ export async function getAuthSession(): Promise<
     return { success: false, redirectTo: "/api/auth/session-cleanup" } as const;
   }
 
+  // Banned users stay "logged in" at the cookie level — enforce here so every
+  // page/layout/server-action behind getAuthSession() locks them out, and
+  // revoke their sessions so the ban sticks.
+  if (await isUserBanned(session.user.id, session.user)) {
+    try {
+      await db.session.deleteMany({ where: { userId: session.user.id } });
+    } catch (error) {
+      if (process.env.NODE_ENV === "development") {
+        console.error("Failed to revoke banned user sessions:", error);
+      }
+    }
+    return { success: false, redirectTo: "/api/auth/session-cleanup" } as const;
+  }
+
   return { success: true, session } as const;
+}
+
+/**
+ * Ban check for the `admin()` plugin's `banned/banExpires` columns.
+ * better-auth does not enforce bans on session validation, so every auth
+ * gate must call this. An expired `banExpires` lifts the ban (grace).
+ */
+export async function isUserBanned(
+  userId: string,
+  sessionUser?: {
+    banned?: boolean | null;
+    banExpires?: Date | string | number | null;
+  } | null,
+): Promise<boolean> {
+  let banned = sessionUser?.banned;
+  let banExpires = sessionUser?.banExpires;
+
+  // Session payloads don't always carry admin columns — fall back to DB.
+  if (typeof banned !== "boolean") {
+    try {
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { banned: true, banExpires: true },
+      });
+      if (!user) return true; // User vanished mid-session — treat as invalid.
+      banned = user.banned;
+      banExpires = user.banExpires;
+    } catch {
+      return false; // Fail open on DB outage; next request re-checks.
+    }
+  }
+
+  if (!banned) return false;
+  if (banExpires && new Date(banExpires).getTime() <= Date.now()) return false;
+  return true;
 }

@@ -3,6 +3,7 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import {
   acceptInvitation,
+  declineInvitation,
   getInvitationDetails,
 } from "@/server/actions/organization";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isAccepting, setIsAccepting] = useState(false);
+  const [isDeclining, setIsDeclining] = useState(false);
   const [invitationData, setInvitationData] = useState<InvitationData | null>(
     null,
   );
@@ -45,6 +47,12 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
   const loadInvitationDetails = async () => {
     try {
       const result = await getInvitationDetails(id);
+      if ("unauthorized" in result && result.unauthorized) {
+        router.push(
+          `/login?next=${encodeURIComponent(`/accept-invitation/${id}`)}`,
+        );
+        return;
+      }
       if (result.success && result.invitation && result.invitation.inviter) {
         const inv = result.invitation;
         const targetName =
@@ -74,6 +82,13 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
     try {
       const result = await acceptInvitation(id);
 
+      if ("unauthorized" in result && result.unauthorized) {
+        router.push(
+          `/login?next=${encodeURIComponent(`/accept-invitation/${id}`)}`,
+        );
+        return;
+      }
+
       if (result.success) {
         toast.success("Invitation accepted successfully!");
         // Redirect to the organization workspace
@@ -97,14 +112,27 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
   };
 
   const handleDeclineInvitation = async () => {
+    setIsDeclining(true);
     try {
-      // For now, we'll just redirect to home
-      // In the future, we could add a declineInvitation function
+      const result = await declineInvitation(id);
+      if ("unauthorized" in result && result.unauthorized) {
+        router.push(
+          `/login?next=${encodeURIComponent(`/accept-invitation/${id}`)}`,
+        );
+        return;
+      }
+      if (!result.success) {
+        toast.error(result.error || "Failed to decline invitation");
+        setError(result.error || "Failed to decline invitation");
+        return;
+      }
       toast.success("Invitation declined");
       router.push("/");
     } catch (error) {
       console.error("Error declining invitation:", error);
       toast.error("Failed to decline invitation");
+    } finally {
+      setIsDeclining(false);
     }
   };
 
@@ -180,7 +208,7 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
               <Button
                 onClick={handleAcceptInvitation}
                 className="w-full"
-                disabled={isAccepting}
+                disabled={isAccepting || isDeclining}
               >
                 {isAccepting && (
                   <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
@@ -192,8 +220,11 @@ export default function AcceptInvitationPage({ params }: InvitationPageProps) {
                 onClick={handleDeclineInvitation}
                 className="w-full"
                 variant="outline"
-                disabled={isAccepting}
+                disabled={isAccepting || isDeclining}
               >
+                {isDeclining && (
+                  <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Decline Invitation
               </Button>
             </div>
