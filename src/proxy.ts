@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { URLRedirects } from "@/lib/middleware/redirection";
 import { handleTempRedirect } from "@/lib/middleware/temp-redirect";
 import { getCachedSession } from "@/lib/middleware/get-session";
+import { getClientIp } from "@/lib/middleware/client-ip";
 import { resolveDefaultWorkspaceRedirect } from "@/lib/middleware/get-default-workspace-redirect";
 import { handleCustomDomainRequest } from "@/lib/middleware/custom-domain";
 import {
@@ -14,7 +15,6 @@ import {
   checkRateLimit,
   checkFastRateLimit,
   checkRedirectRateLimit,
-  normalizeIp,
 } from "@/lib/middleware/rate-limit";
 
 import {
@@ -72,25 +72,9 @@ const addSecurityHeaders = (res: NextResponse): NextResponse => {
 /**
  * Prefer platform-injected IPs. Never prefer client-spoofable `cf-connecting-ip`
  * unless Cloudflare is known to sit in front (CF-Ray present).
- * On Vercel, `x-real-ip` / the rightmost `x-forwarded-for` hop is trustworthy.
+ * Leftmost XFF hop is the viewer — see client-ip.ts.
  */
-const getClientIP = (req: NextRequest): string => {
-  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
-  const forwarded = req.headers.get("x-forwarded-for");
-  const forwardedHops = forwarded
-    ?.split(",")
-    .map((hop) => hop.trim())
-    .filter(Boolean);
-
-  const ip =
-    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
-    req.headers.get("x-real-ip") ||
-    req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-    forwardedHops?.[forwardedHops.length - 1] ||
-    "unknown";
-
-  return normalizeIp(ip);
-};
+const getClientIP = (req: NextRequest): string => getClientIp(req.headers);
 
 const redirectTo = (url: string, status = 307) =>
   addSecurityHeaders(NextResponse.redirect(new URL(url), status));
@@ -483,17 +467,25 @@ async function handleRootDomain(
       }
     }
 
-    if (shortCode.endsWith("&c")) {
-      const tempRedirect = await handleTempRedirect(req, shortCode);
-      if (tempRedirect) return tempRedirect;
-    }
+    // Short-link infra failures (Redis/Neon down) must degrade to the 404
+    // page — never bubble to the outer catch, which redirects to /login.
+    // Multi-segment paths (e.g. /bio/x) intentionally fall through to
+    // NextResponse.next() so nested routes keep rendering.
+    try {
+      if (shortCode.endsWith("&c")) {
+        const tempRedirect = await handleTempRedirect(req, shortCode);
+        if (tempRedirect) return tempRedirect;
+      }
 
-    const redirectResponse = await URLRedirects(
-      req,
-      shortCode,
-      shortLinkLookupDomain,
-    );
-    if (redirectResponse) return redirectResponse;
+      const redirectResponse = await URLRedirects(
+        req,
+        shortCode,
+        shortLinkLookupDomain,
+      );
+      if (redirectResponse) return redirectResponse;
+    } catch (error) {
+      console.error("Short-link redirect failed:", error);
+    }
   }
 
   return addSecurityHeaders(NextResponse.next());
@@ -511,6 +503,14 @@ async function handleCustomDomain(
     return rewriteTo("/custom-domain", baseUrl);
   }
 
+  // API routes serve normally on custom hosts (e.g. the password gate POSTs
+  // to /api/redirect/:slug) — per-route auth/rate limits still apply.
+  if (pathname.startsWith("/api/")) {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  // Custom-domain lookup failures degrade to the branded not-found page,
+  // never to the outer catch's /login redirect.
   try {
     const customDomainResponse = await handleCustomDomainRequest(req, hostname);
     if (customDomainResponse) {

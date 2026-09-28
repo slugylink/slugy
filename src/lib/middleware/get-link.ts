@@ -43,14 +43,26 @@ interface LinkCache {
   trackConversion?: boolean;
 }
 
+const safeDecodeCookieValue = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
 const parseCookies = (cookieHeader: string | null): Record<string, string> => {
   if (!cookieHeader) return {};
 
   try {
     return cookieHeader.split(";").reduce(
       (acc, cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        if (key && value) acc[key] = value;
+        // Split on the FIRST "=" — values may legitimately contain "=".
+        const separatorIndex = cookie.indexOf("=");
+        if (separatorIndex <= 0) return acc;
+        const key = cookie.slice(0, separatorIndex).trim();
+        const value = cookie.slice(separatorIndex + 1).trim();
+        if (key && value) acc[key] = safeDecodeCookieValue(value);
         return acc;
       },
       {} as Record<string, string>,

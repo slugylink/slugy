@@ -9,6 +9,8 @@ import {
   type CachedAnalyticsData,
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/middleware/client-ip";
+import { checkRedirectMissRateLimit } from "@/lib/middleware/rate-limit";
 import { recordLinkClick } from "@/lib/analytics/record-click";
 import { recordBioClick } from "@/lib/analytics/record-bio-click";
 import { resolveTargetUrl } from "@/lib/link-targeting";
@@ -117,9 +119,16 @@ function extractRefParam(urlString: string): string | null {
 
 // Create safe redirect with fallback — only http(s) destinations
 function appendSlugyIdParam(url: string, clickId: string): string {
-  const parsed = new URL(url);
-  parsed.searchParams.set(SLUGY_ID_PARAM, clickId);
-  return parsed.toString();
+  try {
+    const parsed = new URL(url);
+    parsed.searchParams.set(SLUGY_ID_PARAM, clickId);
+    return parsed.toString();
+  } catch {
+    // Legacy rows with unparseable destinations still redirect — attribution
+    // is skipped instead of killing the redirect entirely.
+    console.warn(`Skipping slugy_id param for unparseable URL: ${url}`);
+    return url;
+  }
 }
 
 function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
@@ -139,16 +148,27 @@ function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
 }
 
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
+  // Redirects are per-viewer (bot HTML vs human 302, password gates, geo
+  // targets) — never cache shared, and vary on the agent that chose them.
+  const noStore = (response: NextResponse): NextResponse => {
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    response.headers.set("Vary", "User-Agent");
+    return response;
+  };
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
       console.error(`Blocked non-http(s) redirect URL: ${url}`);
-      return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
+      return noStore(
+        NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS),
+      );
     }
-    return NextResponse.redirect(parsed, REDIRECT_STATUS);
+    return noStore(NextResponse.redirect(parsed, REDIRECT_STATUS));
   } catch (error) {
     console.error(`Invalid redirect URL: ${url}`, error);
-    return NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS);
+    return noStore(
+      NextResponse.redirect(new URL(fallbackUrl), REDIRECT_STATUS),
+    );
   }
 }
 
@@ -189,8 +209,10 @@ function serveLinkPreview(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control":
-        "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+      // Bot-only HTML must never be served to humans from a shared cache:
+      // no-store + Vary kills the poisoning vector (bots simply refetch).
+      "Cache-Control": "private, no-store, max-age=0",
+      Vary: "User-Agent",
       "X-Robots-Tag": "noindex, nofollow",
     },
   });
@@ -223,22 +245,10 @@ async function checkAnalyticsRateLimit(
   }
 }
 
-// Extract IP address from headers (platform-trusted)
+// Extract IP address — one shared helper so rate limiting and analytics
+// agree behind CF → Vercel (see client-ip.ts).
 function getIpAddress(req: NextRequest): string {
-  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
-  const forwarded = req.headers.get("x-forwarded-for");
-  const hops = forwarded
-    ?.split(",")
-    .map((hop) => hop.trim())
-    .filter(Boolean);
-
-  return (
-    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
-    req.headers.get("x-real-ip") ||
-    req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-    hops?.[0] ||
-    UNKNOWN_VALUE
-  );
+  return getClientIp(req.headers, UNKNOWN_VALUE);
 }
 
 // Build analytics data from request + destination (for baked-in ref/UTMs)
@@ -454,6 +464,25 @@ export async function URLRedirects(
     const linkData = await getLink(shortCode, cookieHeader, origin, domain);
 
     if (!linkData.success) {
+      // Scan-flood guard: misses are cheap (30s negative cache) but unbounded
+      // enumeration isn't — throttle miss-heavy viewers with a 429.
+      if (linkData.error === "Link not found") {
+        const missLimit = await checkRedirectMissRateLimit(getIpAddress(req));
+        if (!missLimit.success) {
+          return NextResponse.json(
+            { error: "Rate limit exceeded" },
+            {
+              status: 429,
+              headers: {
+                "Retry-After": Math.max(
+                  1,
+                  Math.ceil((missLimit.reset - Date.now()) / 1000),
+                ).toString(),
+              },
+            },
+          );
+        }
+      }
       console.warn(
         `Link lookup failed for slug "${shortCode}":`,
         linkData.error,

@@ -9,27 +9,11 @@ import {
   LINK_PASSWORD_COOKIE_MAX_AGE,
   hashLinkPassword,
 } from "@/lib/link-password";
-import {
-  checkRedirectRateLimit,
-  normalizeIp,
-} from "@/lib/middleware/rate-limit";
+import { checkRedirectRateLimit } from "@/lib/middleware/rate-limit";
+import { getClientIp } from "@/lib/middleware/client-ip";
 
 function getClientIP(req: NextRequest): string {
-  const hasCloudflare = Boolean(req.headers.get("cf-ray"));
-  const forwarded = req.headers.get("x-forwarded-for");
-  const hops = forwarded
-    ?.split(",")
-    .map((hop) => hop.trim())
-    .filter(Boolean);
-
-  const ip =
-    (hasCloudflare ? req.headers.get("cf-connecting-ip") : null) ||
-    req.headers.get("x-real-ip") ||
-    req.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
-    hops?.[hops.length - 1] ||
-    "unknown";
-
-  return normalizeIp(ip);
+  return getClientIp(req.headers);
 }
 
 export async function POST(
@@ -62,12 +46,22 @@ export async function POST(
       );
     }
 
+    const requestedDomain =
+      typeof domain === "string" && domain.trim()
+        ? domain.trim().toLowerCase()
+        : "slugy.co";
+
+    // Custom-domain links store the custom host in link.domain, but also
+    // resolve via the customDomain relation so renamed/relinked rows verify.
     const link = await db.link.findFirst({
       where: {
         slug: context.slug,
-        domain: domain || "slugy.co",
         isArchived: false,
         deletedAt: null,
+        OR: [
+          { domain: requestedDomain },
+          { customDomain: { domain: requestedDomain } },
+        ],
       },
       select: {
         id: true,

@@ -130,7 +130,6 @@ export default async function Billing({
               </p>
             )}
             <p className="text-muted-foreground flex items-center gap-1.5 text-sm">
-              <BarChart3 className="size-3.5" />
               <span className="font-medium">Analytics:</span>{" "}
               {getPlanAnalyticsTier(normalizedPlanType)}
             </p>

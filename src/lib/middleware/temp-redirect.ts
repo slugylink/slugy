@@ -66,11 +66,13 @@ const updateClickCount = async (
       clicks: currentClicks + 1,
     };
 
-    await redis.setex(
-      linkKey,
-      LINK_EXPIRY_SECONDS, //
-      JSON.stringify(updatedData),
-    );
+    // Preserve the ORIGINAL remaining TTL — re-setting the full window on
+    // every hit made popular temp links immortal. Keys without a TTL
+    // (legacy) get the standard window instead of living forever.
+    const ttl = await redis.ttl(linkKey);
+    if (ttl === -2) return; // Key vanished mid-flight — don't resurrect it.
+    const ex = typeof ttl === "number" && ttl > 0 ? ttl : LINK_EXPIRY_SECONDS;
+    await redis.set(linkKey, JSON.stringify(updatedData), { ex });
   } catch (error) {
     console.error("Error updating click count:", error);
   }
@@ -114,7 +116,9 @@ export async function handleTempRedirect(
       console.error("Failed to update click count:", error);
     });
 
-    return NextResponse.redirect(data.url, 302);
+    const response = NextResponse.redirect(data.url, 302);
+    response.headers.set("Cache-Control", "private, no-store, max-age=0");
+    return response;
   } catch (error) {
     console.error("Temp redirect error:", error);
     return null;

@@ -11,6 +11,7 @@ import {
   type CachedAnalyticsData,
 } from "@/lib/cache-utils/analytics-cache";
 import { redis } from "@/lib/redis";
+import { getClientIp } from "@/lib/middleware/client-ip";
 import { db } from "@/server/db";
 import { resolveReferer } from "@/lib/analytics/referrer";
 import { getGeoData } from "@/lib/analytics/geo";
@@ -129,9 +130,7 @@ async function checkAnalyticsRateLimit(
 }
 
 function getIpAddress(req: NextRequest): string {
-  const xri = req.headers.get("x-real-ip");
-  const xff = req.headers.get("x-forwarded-for");
-  return xri || xff?.split(",")[0]?.trim() || UNKNOWN_VALUE;
+  return getClientIp(req.headers, UNKNOWN_VALUE);
 }
 
 async function isWorkspaceClickLimitReached(
