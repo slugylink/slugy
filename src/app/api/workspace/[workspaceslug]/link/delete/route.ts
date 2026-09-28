@@ -6,6 +6,7 @@ import { z } from "zod";
 import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
+import { releaseLinkQuota } from "@/lib/usage/quota";
 import { waitUntil } from "@vercel/functions";
 
 const bulkDeleteSchema = z.object({
@@ -73,6 +74,15 @@ export async function POST(
         workspaceId: workspace.workspace.id,
       },
     });
+
+    // Lifetime workspace counter goes down; monthly creations quota is NOT
+    // refunded (quota counts creations this period, not live links).
+    await releaseLinkQuota({
+      workspaceId: workspace.workspace.id,
+      count: links.length,
+    }).catch((error) =>
+      console.error("[Bulk Delete] Quota release failed:", error),
+    );
 
     // Invalidate cache for all deleted links
     const slugs = links.map((link) => link.slug);

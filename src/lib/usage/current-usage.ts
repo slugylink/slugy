@@ -63,15 +63,46 @@ export async function ensureCurrentUsageRecord(
     return currentUsage;
   }
 
-  await client.usage.update({
-    where: { id: currentUsage.id },
+  // Rollover is claim-guarded: exactly one concurrent roller wins the
+  // soft-delete (updateMany count), losers re-read. A final periodStart
+  // check catches the exact-interleave case (both computed the same chained
+  // period). No $transaction wrapper — callers may already pass a tx client,
+  // and each step here is individually atomic.
+  const claimed = await client.usage.updateMany({
+    where: { id: currentUsage.id, deletedAt: null },
     data: { deletedAt: now },
   });
+
+  if (claimed.count === 0) {
+    const winner = await client.usage.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        userId: input.userId,
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "desc" },
+      select: usageSelect,
+    });
+    if (winner && !isUsagePeriodExpired(winner.periodEnd, now)) return winner;
+    // Extremely rare interleave (claim lost AND no fresh row visible yet):
+    // fall through and create; the periodStart check below dedupes.
+  }
 
   const { periodStart, periodEnd } = calculateUsagePeriod(
     currentUsage.periodEnd,
     now,
   );
+
+  const duplicate = await client.usage.findFirst({
+    where: {
+      workspaceId: input.workspaceId,
+      userId: input.userId,
+      deletedAt: null,
+      periodStart,
+    },
+    select: usageSelect,
+  });
+  if (duplicate) return duplicate;
 
   return client.usage.create({
     data: {

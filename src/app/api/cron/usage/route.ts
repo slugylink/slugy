@@ -53,15 +53,29 @@ async function processBatch(workspaces: BatchWorkspace[]) {
     try {
       if (currentUsage && isUsagePeriodExpired(currentUsage.periodEnd, now)) {
         await db.$transaction(async (tx) => {
-          await tx.usage.update({
-            where: { id: currentUsage.id },
+          // Claim-guarded like the lazy rollover: concurrent cron runs
+          // (QStash retry overlap) can't double-create the period.
+          const claimed = await tx.usage.updateMany({
+            where: { id: currentUsage.id, deletedAt: null },
             data: { deletedAt: now },
           });
+          if (claimed.count === 0) return;
 
           const { periodStart, periodEnd } = calculateUsagePeriod(
             currentUsage.periodEnd,
             now,
           );
+
+          const duplicate = await tx.usage.findFirst({
+            where: {
+              workspaceId: workspace.id,
+              userId: workspace.userId,
+              deletedAt: null,
+              periodStart,
+            },
+            select: { id: true },
+          });
+          if (duplicate) return;
 
           await tx.usage.create({
             data: {

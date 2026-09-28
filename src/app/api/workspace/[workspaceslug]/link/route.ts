@@ -5,11 +5,11 @@ import { jsonWithETag } from "@/lib/http";
 import { z } from "zod";
 import { headers } from "next/headers";
 import {
-  createLinkWithUniqueSlug,
   SlugConflictError,
   validateLinkExpiry,
   validateLinkSlug,
 } from "@/lib/link-slug";
+import { createLinkWithQuota, QuotaExceededError } from "@/lib/usage/quota";
 import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
 import {
   canUseLeadTracking,
@@ -19,7 +19,6 @@ import {
 import { waitUntil } from "@vercel/functions";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { Prisma } from "@prisma/client";
-import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
 import { hashLinkPassword, maskLinkPassword } from "@/lib/link-password";
@@ -451,58 +450,65 @@ export async function POST(
       trackConversion,
     });
 
-    // Random slugs retry on collision; custom slugs 409. Never a bare 400.
+    // Quota reservation + link + tags commit atomically (usage row locked
+    // FOR UPDATE): concurrent POSTs serialize instead of jointly overshooting,
+    // and no background task can drop the counters.
     let link;
+    let assignedTags: Array<{ id: string; name: string; color: string | null }>;
     try {
-      link = await createLinkWithUniqueSlug(customSlug, (slug) =>
-        db.link.create({ data: buildLinkData(slug), select: linkSelect }),
+      const created = await createLinkWithQuota(
+        {
+          workspaceId: workspaceCheck.workspace.id,
+          ownerUserId: workspaceCheck.ownerUserId ?? session.user.id,
+          maxLinks: workspaceCheck.maxLinks,
+          customSlug,
+        },
+        async (tx, slug) => {
+          const newLink = await tx.link.create({
+            data: buildLinkData(slug),
+            select: linkSelect,
+          });
+          const tags = validatedData.tags?.length
+            ? await resolveWorkspaceTags(
+                tx,
+                workspaceCheck.workspace.id,
+                validatedData.tags,
+                maxTags,
+              )
+            : [];
+          if (tags.length > 0) {
+            await tx.linkTag.createMany({
+              data: tags.map((tag) => ({
+                linkId: newLink.id,
+                tagId: tag.id,
+              })),
+              skipDuplicates: true,
+            });
+          }
+          return { link: newLink, assignedTags: tags };
+        },
       );
+      link = created.link;
+      assignedTags = created.assignedTags;
     } catch (error: unknown) {
       if (error instanceof SlugConflictError) {
         return jsonWithETag(req, apiErrorPayload(error.message, "CONFLICT"), {
           status: 409,
         });
       }
+      if (error instanceof QuotaExceededError) {
+        return jsonWithETag(
+          req,
+          apiErrorPayload("Link limit reached. Upgrade to Pro.", "FORBIDDEN", {
+            currentLinks: workspaceCheck.currentLinks,
+            maxLinks: workspaceCheck.maxLinks,
+            planType: workspaceCheck.planType,
+          }),
+          { status: 403 },
+        );
+      }
       throw error;
     }
-
-    // Tags + counters persist on the critical path. A dropped background
-    // invocation must never leave the link uncounted (usage gates) or
-    // untagged — so the response carries real tag rows, not `pending:` ids.
-    const assignedTags = validatedData.tags?.length
-      ? await resolveWorkspaceTags(
-          db,
-          workspaceCheck.workspace.id,
-          validatedData.tags,
-          maxTags,
-        )
-      : [];
-
-    if (assignedTags.length > 0) {
-      await db.linkTag.createMany({
-        data: assignedTags.map((tag) => ({
-          linkId: link.id,
-          tagId: tag.id,
-        })),
-        skipDuplicates: true,
-      });
-    }
-
-    const currentUsage = await ensureCurrentUsageRecord(db, {
-      workspaceId: workspaceCheck.workspace.id,
-      userId: workspaceCheck.ownerUserId ?? session.user.id,
-    });
-
-    await Promise.all([
-      db.workspace.update({
-        where: { id: workspaceCheck.workspace.id },
-        data: { linksUsage: { increment: 1 } },
-      }),
-      db.usage.update({
-        where: { id: currentUsage.id },
-        data: { linksCreated: { increment: 1 } },
-      }),
-    ]);
 
     const tagIds = assignedTags.map((tag) => tag.id);
 

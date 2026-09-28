@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { NextResponse } from "next/server";
 import { jsonWithETag } from "@/lib/http";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { authenticateApiKey } from "@/lib/api-keys/auth";
@@ -18,12 +19,11 @@ import {
 } from "@/lib/link-targeting";
 import { hashLinkPassword } from "@/lib/link-password";
 import {
-  createLinkWithUniqueSlug,
   SlugConflictError,
   validateLinkExpiry,
   validateLinkSlug,
 } from "@/lib/link-slug";
-import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
+import { createLinkWithQuota, QuotaExceededError } from "@/lib/usage/quota";
 import { inngest } from "@/inngest/client";
 import { setLinkCache } from "@/lib/cache-utils/link-cache";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";
@@ -151,6 +151,7 @@ async function findVerifiedCustomDomain(customDomainId: string) {
 }
 
 async function resolveWorkspaceTags(
+  tx: Prisma.TransactionClient,
   workspaceId: string,
   tagNames: string[],
   maxTags: number = MAX_TAGS_PER_WORKSPACE,
@@ -162,7 +163,7 @@ async function resolveWorkspaceTags(
   );
   if (!normalizedTagNames.length) return [];
 
-  const existingTags = await db.tag.findMany({
+  const existingTags = await tx.tag.findMany({
     where: {
       workspaceId,
       name: { in: normalizedTagNames },
@@ -181,7 +182,7 @@ async function resolveWorkspaceTags(
   ];
 
   if (newTagNames.length > 0) {
-    const currentTagCount = await db.tag.count({
+    const currentTagCount = await tx.tag.count({
       where: { workspaceId, deletedAt: null },
     });
     const canCreateCount = Math.min(
@@ -191,7 +192,7 @@ async function resolveWorkspaceTags(
     const tagNamesToCreate = newTagNames.slice(0, canCreateCount);
 
     if (tagNamesToCreate.length > 0) {
-      await db.tag.createMany({
+      await tx.tag.createMany({
         data: tagNamesToCreate.map((name) => ({
           name,
           workspaceId,
@@ -199,7 +200,7 @@ async function resolveWorkspaceTags(
         })),
         skipDuplicates: true,
       });
-      allTags = await db.tag.findMany({
+      allTags = await tx.tag.findMany({
         where: {
           workspaceId,
           name: {
@@ -376,37 +377,70 @@ export async function POST(req: Request) {
       createdAt: true,
     } as const;
 
+    const buildLinkData = (slug: string) => ({
+      workspaceId: workspace.id,
+      userId: workspace.userId,
+      url: validatedData.url,
+      slug,
+      domain,
+      image: validatedData.image,
+      title: validatedData.title,
+      description: validatedData.description,
+      metadesc: validatedData.metadesc ?? null,
+      password: storedPassword,
+      ...(validatedData.expiresAt && {
+        expiresAt: new Date(validatedData.expiresAt),
+      }),
+      expirationUrl: validatedData.expirationUrl,
+      utm_source: validatedData.utm_source,
+      utm_medium: validatedData.utm_medium,
+      utm_campaign: validatedData.utm_campaign,
+      utm_content: validatedData.utm_content,
+      utm_term: validatedData.utm_term,
+      geo: geo ?? undefined,
+      customDomainId: validatedData.customDomainId || null,
+      trackConversion,
+    });
+
+    // Atomic quota reservation (see dashboard route): concurrent API calls
+    // serialize on the usage row instead of jointly overshooting.
     let link;
+    let assignedTags: Array<{ id: string; name: string; color: string | null }>;
     try {
-      link = await createLinkWithUniqueSlug(customSlug, (slug) =>
-        db.link.create({
-          data: {
-            workspaceId: workspace.id,
-            userId: workspace.userId,
-            url: validatedData.url,
-            slug,
-            domain,
-            image: validatedData.image,
-            title: validatedData.title,
-            description: validatedData.description,
-            metadesc: validatedData.metadesc ?? null,
-            password: storedPassword,
-            ...(validatedData.expiresAt && {
-              expiresAt: new Date(validatedData.expiresAt),
-            }),
-            expirationUrl: validatedData.expirationUrl,
-            utm_source: validatedData.utm_source,
-            utm_medium: validatedData.utm_medium,
-            utm_campaign: validatedData.utm_campaign,
-            utm_content: validatedData.utm_content,
-            utm_term: validatedData.utm_term,
-            geo: geo ?? undefined,
-            customDomainId: validatedData.customDomainId || null,
-            trackConversion,
-          },
-          select: linkSelect,
-        }),
+      const created = await createLinkWithQuota(
+        {
+          workspaceId: workspace.id,
+          ownerUserId: workspace.userId,
+          maxLinks: limitCheck.maxLimit,
+          customSlug,
+        },
+        async (tx, slug) => {
+          const newLink = await tx.link.create({
+            data: buildLinkData(slug),
+            select: linkSelect,
+          });
+          const tags = validatedData.tags?.length
+            ? await resolveWorkspaceTags(
+                tx,
+                workspace.id,
+                validatedData.tags,
+                maxTags,
+              )
+            : [];
+          if (tags.length > 0) {
+            await tx.linkTag.createMany({
+              data: tags.map((tag) => ({
+                linkId: newLink.id,
+                tagId: tag.id,
+              })),
+              skipDuplicates: true,
+            });
+          }
+          return { link: newLink, assignedTags: tags };
+        },
       );
+      link = created.link;
+      assignedTags = created.assignedTags;
     } catch (error: unknown) {
       if (error instanceof SlugConflictError) {
         return jsonWithETag(req, apiErrorPayload(error.message, "CONFLICT"), {
@@ -414,42 +448,25 @@ export async function POST(req: Request) {
           headers: CORS_HEADERS,
         });
       }
+      if (error instanceof QuotaExceededError) {
+        return jsonWithETag(
+          req,
+          apiErrorPayload(
+            limitCheck.message || "Link limit reached. Upgrade to Pro.",
+            "FORBIDDEN",
+            {
+              currentLinks: limitCheck.currentCount,
+              maxLinks: limitCheck.maxLimit,
+              planType: limitCheck.planType ?? planType,
+            },
+          ),
+          { status: 403, headers: CORS_HEADERS },
+        );
+      }
       throw error;
     }
 
-    // Tags + counters persist on the critical path (see dashboard route) —
-    // the response carries real tag rows, not `pending:` ids.
-    const assignedTags = validatedData.tags?.length
-      ? await resolveWorkspaceTags(workspace.id, validatedData.tags, maxTags)
-      : [];
-
-    if (assignedTags.length > 0) {
-      await db.linkTag.createMany({
-        data: assignedTags.map((tag) => ({
-          linkId: link.id,
-          tagId: tag.id,
-        })),
-        skipDuplicates: true,
-      });
-    }
-
     const tagIds = assignedTags.map((tag) => tag.id);
-
-    const currentUsage = await ensureCurrentUsageRecord(db, {
-      workspaceId: workspace.id,
-      userId: workspace.userId,
-    });
-
-    await Promise.all([
-      db.workspace.update({
-        where: { id: workspace.id },
-        data: { linksUsage: { increment: 1 } },
-      }),
-      db.usage.update({
-        where: { id: currentUsage.id },
-        data: { linksCreated: { increment: 1 } },
-      }),
-    ]);
 
     const result = {
       ...link,

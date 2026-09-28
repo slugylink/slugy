@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { invalidateLinkCache } from "@/lib/cache-utils/link-cache";
 import { deleteLink } from "@/lib/tinybird/slugy-links-metadata";
+import { releaseLinkQuota } from "@/lib/usage/quota";
 import { waitUntil } from "@vercel/functions";
 
 export async function DELETE(
@@ -20,7 +21,10 @@ export async function DELETE(
 
     const context = await params;
     // Check workspace access (member/admin/owner can delete links)
-    const access = await getWorkspaceAccess(session.user.id, context.workspaceslug);
+    const access = await getWorkspaceAccess(
+      session.user.id,
+      context.workspaceslug,
+    );
     if (!access.success || !access.workspace || !hasRole(access.role, "member"))
       return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
 
@@ -51,6 +55,15 @@ export async function DELETE(
       where: { id: context.linkId, workspaceId: access.workspace.id },
     });
 
+    // Lifetime workspace counter goes down; monthly creations quota is NOT
+    // refunded (quota counts creations this period, not live links).
+    await releaseLinkQuota({
+      workspaceId: access.workspace.id,
+      count: 1,
+    }).catch((error) =>
+      console.error("[Link Delete] Quota release failed:", error),
+    );
+
     // Invalidate cache for the deleted link
     await invalidateLinkCache(linkSlug, linkDomain);
 
@@ -67,7 +80,11 @@ export async function DELETE(
 
     waitUntil(deleteLink(linkData));
 
-    return jsonWithETag(req, { message: "Link deleted successfully" }, { status: 200 });
+    return jsonWithETag(
+      req,
+      { message: "Link deleted successfully" },
+      { status: 200 },
+    );
   } catch (error) {
     console.error("Error deleting link:", error);
     if (error instanceof Error) {

@@ -1,5 +1,6 @@
 import { primarySql } from "@/server/neon";
 import { redis } from "@/lib/redis";
+import { calculateUsagePeriod } from "@/lib/usage-period";
 import {
   getWorkspaceLimitsCache,
   setWorkspaceLimitsCache,
@@ -51,14 +52,50 @@ export async function recordLinkClick(input: {
     `;
     const usage = usageRows[0];
     if (!usage) {
-      // No ACTIVE usage period (rollover pending — the lazy/cron rollover
-      // creates it). Still count the link click so the edge counter never
-      // diverges downward; the usage counter catches up next period.
+      // No ACTIVE usage period (rollover pending). Create the chained period
+      // inline so Link.clicks and Usage.clicksTracked can't diverge — the
+      // alternative (link-only increment) drifts every click until some other
+      // path happens to roll over. Concurrent creators may orphan a duplicate
+      // row; rollover readers always pick the latest, so orphans are inert.
+      const latestRows = await primarySql`
+        SELECT "periodEnd"
+        FROM "usages"
+        WHERE "workspaceId" = ${input.workspaceId}
+          AND "userId" = ${workspace.userId}
+          AND "deletedAt" IS NULL
+        ORDER BY "createdAt" DESC
+        LIMIT 1
+      `;
+      const latestEnd = latestRows[0]?.periodEnd
+        ? new Date(latestRows[0].periodEnd as string)
+        : null;
+      const { periodStart, periodEnd } = calculateUsagePeriod(
+        latestEnd,
+        new Date(),
+      );
+      const memberRows = await primarySql`
+        SELECT COUNT(*)::int AS count
+        FROM "members"
+        WHERE "workspaceId" = ${input.workspaceId}
+      `;
+      const addedUsers = Number(memberRows[0]?.count ?? 1);
+      await primarySql`
+        INSERT INTO "usages"
+          ("id", "userId", "workspaceId", "linksCreated", "clicksTracked", "addedUsers", "periodStart", "periodEnd", "createdAt", "updatedAt")
+        VALUES
+          (${crypto.randomUUID()}, ${workspace.userId}, ${input.workspaceId}, 0, 1, ${addedUsers}, ${periodStart.toISOString()}::timestamptz, ${periodEnd.toISOString()}::timestamptz, NOW(), NOW())
+      `;
       await primarySql`
         UPDATE "links"
         SET clicks = clicks + 1, "lastClicked" = NOW()
         WHERE id = ${input.linkId}
       `;
+      if (workspace.maxClicksLimit != null) {
+        void setWorkspaceLimitsCache(input.workspaceId, {
+          maxClicksLimit: workspace.maxClicksLimit,
+          clicksTracked: 1,
+        });
+      }
       return { ok: true };
     }
 

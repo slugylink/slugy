@@ -2,7 +2,10 @@ import { jsonWithETag } from "@/lib/http";
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
-import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
+import {
+  isLifetimeBillingPeriod,
+  reconcileUserEntitlement,
+} from "@/lib/subscription/reconcile";
 
 // ============================================================================
 // Types
@@ -62,16 +65,20 @@ async function getUsageData(workspaceslug: string, ownerUserId: string) {
 }
 
 async function getSubscriptionData(userId: string) {
+  // Grace periods ARE active (core getSubscriptionWithPlan treats
+  // cancelAtPeriodEnd inside periodEnd as active) — excluding them here made
+  // isActivePro flicker false while billing still granted Pro.
   return db.subscription.findFirst({
     where: {
-      user: { id: userId },
+      referenceId: userId,
       status: { in: ["active", "trialing"] },
-      OR: [{ cancelAtPeriodEnd: false }, { cancelAtPeriodEnd: undefined }],
     },
     select: {
       id: true,
       status: true,
       cancelAtPeriodEnd: true,
+      periodStart: true,
+      periodEnd: true,
       plan: {
         select: {
           planType: true,
@@ -86,15 +93,27 @@ async function getSubscriptionData(userId: string) {
 // Utilities
 // ============================================================================
 
-function isActivePro(subscription: any): boolean {
+type SubscriptionRow = Awaited<ReturnType<typeof getSubscriptionData>>;
+
+function isActivePro(subscription: SubscriptionRow): boolean {
   if (!subscription?.plan) return false;
 
   const isPaidPlan = subscription.plan.planType.toLowerCase() === "pro";
-  const isActiveStatus =
-    subscription.status === "active" || subscription.status === "trialing";
-  const isNotCanceled = !subscription.cancelAtPeriodEnd;
+  const status = subscription.status.toLowerCase();
+  const isActiveStatus = status === "active" || status === "trialing";
+  if (!isActiveStatus) return false;
 
-  return isPaidPlan && isActiveStatus && isNotCanceled;
+  // Same expiry semantics as core: grace counts until periodEnd, lifetime
+  // (Basic one-time / forever-discount Pro) never expires.
+  const now = new Date();
+  const inPeriod =
+    subscription.periodEnd > now ||
+    isLifetimeBillingPeriod(
+      subscription.plan.planType,
+      subscription.periodStart,
+      subscription.periodEnd,
+    );
+  return isPaidPlan && inPeriod;
 }
 
 // ============================================================================
