@@ -1,8 +1,11 @@
 "use client";
 import MaxWidthContainer from "@/components/max-width-container";
 import { useState } from "react";
-import { motion } from "motion/react";
-import { EASE } from "@/app/(root)/_components/reveal";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+} from "@/components/web/_motion/scroll-reveal";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -164,13 +167,7 @@ export default function PricingSection() {
   return (
     <section className="py-10 sm:py-16">
       <MaxWidthContainer>
-        <motion.div
-          className="mb-6 text-center sm:mb-8"
-          initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, ease: EASE }}
-        >
+        <Reveal className="mb-6 text-center sm:mb-8">
           <h2 className="text-2xl font-medium text-balance sm:text-4xl">
             Flexible Pricing for Everyone
           </h2>
@@ -178,7 +175,7 @@ export default function PricingSection() {
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
           <PromoLiveLine />
-        </motion.div>
+        </Reveal>
 
         {/* Tabs for monthly & yearly */}
         <Tabs
@@ -198,58 +195,22 @@ export default function PricingSection() {
             </TabsList>
           </div>
 
-          <motion.div
+          <Stagger
             className="mx-auto mt-8 grid w-full max-w-5xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-3 md:gap-5"
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-80px" }}
-            variants={{
-              hidden: {},
-              show: { transition: { staggerChildren: 0.12 } },
-            }}
+            stagger={0.12}
           >
             {free && (
-              <motion.div
-                variants={{
-                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
-                  show: {
-                    opacity: 1,
-                    y: 0,
-                    filter: "blur(0px)",
-                    transition: { duration: 0.65, ease: EASE },
-                  },
-                }}
-              >
+              <StaggerItem>
                 <PlanCard plan={free} billing={billing} />
-              </motion.div>
+              </StaggerItem>
             )}
             {pro && (
-              <motion.div
-                variants={{
-                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
-                  show: {
-                    opacity: 1,
-                    y: 0,
-                    filter: "blur(0px)",
-                    transition: { duration: 0.65, ease: EASE },
-                  },
-                }}
-              >
+              <StaggerItem>
                 <PlanCard plan={pro} billing={billing} bestValue />
-              </motion.div>
+              </StaggerItem>
             )}
             {business && (
-              <motion.div
-                variants={{
-                  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
-                  show: {
-                    opacity: 1,
-                    y: 0,
-                    filter: "blur(0px)",
-                    transition: { duration: 0.65, ease: EASE },
-                  },
-                }}
-              >
+              <StaggerItem>
                 <PlanCard
                   plan={business}
                   billing={billing}
@@ -258,9 +219,9 @@ export default function PricingSection() {
                     businessExtras.length > 0 ? businessExtras : undefined
                   }
                 />
-              </motion.div>
+              </StaggerItem>
             )}
-          </motion.div>
+          </Stagger>
         </Tabs>
       </MaxWidthContainer>
     </section>

@@ -1,9 +1,14 @@
 "use client";
-import { motion, useInView, useSpring } from "motion/react";
+import { useInView, useSpring } from "motion/react";
 import { useEffect, useRef, memo, type ComponentType } from "react";
 import useSWR from "swr";
 import { Users, Link } from "lucide-react";
 import { AnalyticsIcon } from "@/components/web/_links/link-card-components";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+} from "@/components/web/_motion/scroll-reveal";
 
 interface AnimatedNumberProps {
   value: number;
@@ -43,8 +48,7 @@ const StatCard = memo(
   }) => {
     const Icon = stat.icon;
     return (
-      <motion.div
-        variants={animations.item}
+      <StaggerItem
         className={
           showDivider
             ? "border-t border-zinc-200/70 pt-8 md:border-t-0 md:border-l md:pt-0 md:pl-8 dark:border-zinc-800"
@@ -62,26 +66,12 @@ const StatCard = memo(
           </p>
           <h3 className="text-muted-foreground text-sm">{stat.title}</h3>
         </div>
-      </motion.div>
+      </StaggerItem>
     );
   },
 );
 
 StatCard.displayName = "StatCard";
-
-const animations = {
-  container: {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: { staggerChildren: 0.2 },
-    },
-  },
-  item: {
-    hidden: { y: 20, opacity: 0 },
-    show: { y: 0, opacity: 1 },
-  },
-} as const;
 
 function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -155,13 +145,7 @@ export default function Stats() {
 
   return (
     <section className="relative mx-auto max-w-6xl px-3 py-10 sm:px-4 sm:py-16">
-      <motion.div
-        className="mx-auto max-w-2xl text-center"
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: "-80px" }}
-        transition={{ duration: 0.5 }}
-      >
+      <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Open startup
         </p>
@@ -171,21 +155,15 @@ export default function Stats() {
         <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
           Live totals from the Slugy platform — no vanity metrics.
         </p>
-      </motion.div>
+      </Reveal>
 
-      <motion.div
-        className="mx-auto mt-8 max-w-4xl sm:mt-10"
-        variants={animations.container}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true, margin: "-80px" }}
-      >
+      <Stagger className="mx-auto mt-8 max-w-4xl sm:mt-10" stagger={0.2}>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-0">
           {statsData.map((stat, index) => (
             <StatCard key={stat.title} stat={stat} showDivider={index > 0} />
           ))}
         </div>
-      </motion.div>
+      </Stagger>
     </section>
   );
 }

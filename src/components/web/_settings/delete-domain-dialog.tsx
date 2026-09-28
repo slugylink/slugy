@@ -82,7 +82,7 @@ export function DeleteDomainDialog({
         <div className="bg-muted/50 my-4 rounded-lg p-3">
           <p className="text-muted-foreground text-sm">
             Domains with active short links cannot be deleted — move or delete
-            those links first. The domain will also be detached from Vercel.
+            those links first.
           </p>
         </div>
 

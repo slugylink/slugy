@@ -3,9 +3,8 @@ import React, { memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { motion } from "motion/react";
 import { cn } from "@/lib/utils";
-import { EASE, Reveal, Stagger, StaggerItem } from "./reveal";
+import { Reveal, Stagger, StaggerItem } from "./reveal";
 import { AnalyticsDemoVisual } from "./analytics-demo";
 
 interface Row {
@@ -192,16 +191,13 @@ const Features = memo(function Features() {
       <div className="mt-8 overflow-hidden rounded-[20px] border sm:mt-10">
         {/* Card 1: Branded links */}
         {ROWS.map((row, i) => (
-          <motion.div
+          <Reveal
             key={row.eyebrow}
+            y={32}
             className={cn(
               "grid min-w-0 grid-cols-1 items-center gap-6 p-6 sm:p-10 md:grid-cols-2",
               i > 0 && "border-t",
             )}
-            initial={{ opacity: 0, y: 32, filter: "blur(6px)" }}
-            whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.7, ease: EASE }}
           >
             <div className={cn("min-w-0", i % 2 === 1 && "md:order-2")}>
               <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
@@ -248,7 +244,7 @@ const Features = memo(function Features() {
                 className="pointer-events-none absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-white to-transparent dark:from-zinc-900"
               />
             </div>
-          </motion.div>
+          </Reveal>
         ))}
 
         {/* Cards 2–3: QR codes + UTM Builder (below Branded links) */}
@@ -292,13 +288,7 @@ const Features = memo(function Features() {
         </Stagger>
 
         {/* Card 4: Click analytics (full-width, below QR + UTM) */}
-        <motion.div
-          className="min-w-0 border-t p-6 sm:p-10"
-          initial={{ opacity: 0, y: 32, filter: "blur(6px)" }}
-          whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-          viewport={{ once: true, margin: "-80px" }}
-          transition={{ duration: 0.7, ease: EASE }}
-        >
+        <Reveal y={32} className="min-w-0 border-t p-6 sm:p-10">
           <div className="mx-auto max-w-2xl min-w-0 text-center">
             <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
               {ANALYTICS_ROW.eyebrow}
@@ -339,7 +329,7 @@ const Features = memo(function Features() {
               className="pointer-events-none absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-white via-white/70 to-transparent dark:from-zinc-900 dark:via-zinc-900/70"
             />
           </div>
-        </motion.div>
+        </Reveal>
 
         {/* Cards 5–6: Geo insights + Bio links (below Click analytics) */}
         <Stagger className="grid grid-cols-1 border-t md:grid-cols-2">
