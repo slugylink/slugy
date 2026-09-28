@@ -19,6 +19,10 @@ const RATE_LIMITS = {
   AUTH_CHECK_TARGET: { limit: 10, window: 60 },
   // Domain verification hits paid provider APIs — throttle per domain.
   DOMAIN_VERIFY: { limit: 10, window: 60 },
+  // Public share reports: each MISS fans out to Postgres + Tinybird.
+  SHARE_REPORT_IP: { limit: 60, window: 60 },
+  // Share-report password guesses (scrypt verify is CPU-heavy).
+  SHARE_REPORT_GUESS: { limit: 10, window: 60 },
   // Account deletion: destructive + authenticated — a few tries per hour.
   ACCOUNT_DELETE: { limit: 5, window: 60 * 60 },
 } as const;
@@ -210,4 +214,20 @@ export const checkDomainVerifyRateLimit = async (
     limit,
     window,
   );
+};
+
+/** Public share reports: per-IP budget (each MISS = Postgres + Tinybird). */
+export const checkShareReportRateLimit = async (
+  ip: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.SHARE_REPORT_IP;
+  return checkRedisLimit(`share-report-ip:${ip}`, limit, window);
+};
+
+/** Share-report password guesses: per-report budget (scrypt is CPU-heavy). */
+export const checkSharePasswordRateLimit = async (
+  publicId: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.SHARE_REPORT_GUESS;
+  return checkRedisLimit(`share-report-guess:${publicId}`, limit, window);
 };

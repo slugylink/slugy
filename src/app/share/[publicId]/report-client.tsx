@@ -47,14 +47,8 @@ const ReferrerClicks = dynamic(
 
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 
-const VALID_PERIODS: readonly TimePeriod[] = [
-  "24h",
-  "7d",
-  "30d",
-  "3m",
-  "12m",
-  "all",
-];
+/** Shared reports cap at 30 days — longer retention stays dashboard-only. */
+const SHARED_PERIODS: readonly TimePeriod[] = ["24h", "7d", "30d"];
 
 interface ReportPayload {
   link: { slug: string; url: string; domain: string; createdAt: string };
@@ -111,11 +105,12 @@ function ReportClient({ publicId }: { publicId: string }) {
     "time_period",
     parseAsString.withDefault("24h"),
   );
-  const period: TimePeriod = VALID_PERIODS.includes(periodParam as TimePeriod)
-    ? (periodParam as TimePeriod)
-    : "24h";
+  const period: TimePeriod = (
+    SHARED_PERIODS.includes(periodParam as TimePeriod) ? periodParam : "30d"
+  ) as TimePeriod;
   const [report, setReport] = useState<ReportPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [needsPassword, setNeedsPassword] = useState(false);
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
@@ -154,11 +149,14 @@ function ReportClient({ publicId }: { publicId: string }) {
     async (pw?: string) => {
       setLoading(true);
       setAuthError(null);
+      setLoadError(null);
       try {
         const params = new URLSearchParams({ timePeriod: period });
         for (const { key, value } of activeFilters) params.set(key, value);
-        if (pw) params.set("password", pw);
-        const res = await fetch(`/api/share/${publicId}?${params.toString()}`);
+        // Password travels in a header (never in the URL / server logs).
+        const res = await fetch(`/api/share/${publicId}?${params.toString()}`, {
+          ...(pw ? { headers: { "x-share-password": pw } } : {}),
+        });
         const data = await res.json();
         if (res.status === 404) {
           setNotFound(true);
@@ -174,9 +172,16 @@ function ReportClient({ publicId }: { publicId: string }) {
         }
         if (!res.ok) throw new Error("Failed to load report");
         setNeedsPassword(false);
+        setLoadError(null);
         setReport(data as ReportPayload);
       } catch {
-        setAuthError("Failed to load report. Please try again.");
+        // Unlock attempts surface under the password form; background and
+        // period-change fetches surface as a banner (never silent stale).
+        if (pw) {
+          setAuthError("Failed to load report. Please try again.");
+        } else {
+          setLoadError("Couldn't refresh report data.");
+        }
       } finally {
         setLoading(false);
       }
@@ -291,14 +296,45 @@ function ReportClient({ publicId }: { publicId: string }) {
         {/* Branded header */}
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h3 className="text-xl font-semibold">Analytics</h3>
+            <h3 className="text-xl font-medium">Report Analytics</h3>
           </div>
           <TimePeriodSelector
             timePeriod={period}
             onTimePeriodChange={(value) => void setPeriodParam(value)}
             isPro
+            allowedPeriods={SHARED_PERIODS}
           />
         </header>
+
+        {/* Refresh failure banner (stale data stays visible underneath) */}
+        {loadError && !loading && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+            <span>{loadError}</span>
+            <button
+              type="button"
+              onClick={() => void fetchReport(password || undefined)}
+              className="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* First-load failure (no data at all yet) */}
+        {!report && !loading && !notFound && (
+          <div className="flex min-h-64 flex-col items-center justify-center gap-3 rounded-xl border p-8 text-center">
+            <p className="text-sm font-medium">
+              {loadError ?? "Couldn't load this report."}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void fetchReport(password || undefined)}
+            >
+              Try again
+            </Button>
+          </div>
+        )}
 
         {/* Link identity */}
         <div className="mb-4 flex w-full flex-row items-start space-y-0 rounded-xl border p-4 sm:items-center sm:space-x-4">
@@ -371,6 +407,7 @@ function ReportClient({ publicId }: { publicId: string }) {
               totalLeads={canShowLeads ? (report?.leads?.total ?? 0) : null}
               timePeriod={effectivePeriod}
               isLoading={loading && !report}
+              isRefreshing={loading && !!report}
               canUseLeadTracking={canShowLeads}
             />
 

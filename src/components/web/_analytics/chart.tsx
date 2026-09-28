@@ -456,7 +456,10 @@ const AnalyticsChart = ({
         </button>
       </CardHeader>
       <CardContent className="relative p-0 pr-2 pb-4">
-        <div className="border-border absolute top-3 right-3 z-20 flex overflow-hidden rounded-md border bg-white dark:bg-zinc-950">
+        {/* View toggle sits ABOVE the upgrade overlay: entering the funnel on
+            a plan without lead tracking must never trap the user — the
+            timeseries button stays clickable at all times. */}
+        <div className="border-border absolute top-3 right-3 z-30 flex overflow-hidden rounded-md border bg-white dark:bg-zinc-950">
           <button
             type="button"
             onClick={() => selectView("timeseries")}

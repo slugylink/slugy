@@ -237,121 +237,145 @@ interface TimePeriodSelectorProps {
   timePeriod: string;
   onTimePeriodChange: (value: string) => void;
   isPro: boolean;
+  /**
+   * Restrict visible ranges (e.g. shared reports cap at 30d). Defaults to
+   * all six ranges; the Pro locks still apply within the allowed set.
+   */
+  allowedPeriods?: readonly string[];
 }
+
+const ALL_PERIODS = ["24h", "7d", "30d", "3m", "12m", "all"] as const;
 
 export const TimePeriodSelector = ({
   timePeriod,
   onTimePeriodChange,
   isPro,
-}: TimePeriodSelectorProps) => (
-  <Select value={timePeriod} onValueChange={onTimePeriodChange}>
-    <SelectTrigger className="h-9 w-fit rounded-lg border-zinc-200 bg-white text-sm font-medium hover:bg-zinc-50">
-      <Calendar className="h-4 w-4 text-zinc-500" />{" "}
-      <SelectValue placeholder="Select time range" />
-    </SelectTrigger>
-    <SelectContent className="animate-in fade-in slide-in-from-top-2 w-fit cursor-pointer duration-150 ease-out">
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "0ms", animationFillMode: "both" }}
-      >
-        <SelectItem
-          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-          value="24h"
-        >
-          Last 24 hours
-        </SelectItem>
-      </div>
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "30ms", animationFillMode: "both" }}
-      >
-        <SelectItem
-          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-          value="7d"
-        >
-          Last 7 days
-        </SelectItem>
-      </div>
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "60ms", animationFillMode: "both" }}
-      >
-        <SelectItem
-          className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-          value="30d"
-        >
-          Last 30 days
-        </SelectItem>
-      </div>
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "90ms", animationFillMode: "both" }}
-      >
-        {isPro ? (
-          <SelectItem
-            className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-            value="3m"
+  allowedPeriods = ALL_PERIODS,
+}: TimePeriodSelectorProps) => {
+  const allowed = new Set(allowedPeriods);
+  const show = (value: string) => allowed.has(value);
+  return (
+    <Select value={timePeriod} onValueChange={onTimePeriodChange}>
+      <SelectTrigger className="h-9 w-fit rounded-lg border-zinc-200 bg-white text-sm font-medium hover:bg-zinc-50">
+        <Calendar className="h-4 w-4 text-zinc-500" />{" "}
+        <SelectValue placeholder="Select time range" />
+      </SelectTrigger>
+      <SelectContent className="animate-in fade-in slide-in-from-top-2 w-fit cursor-pointer duration-150 ease-out">
+        {show("24h") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "0ms", animationFillMode: "both" }}
           >
-            Last 3 months
-          </SelectItem>
-        ) : (
-          <SelectItem
-            className="opacity-60 transition-colors duration-150 ease-in-out"
-            value="3m"
-            disabled
-          >
-            Last 3 months
-            <Lock
-              size={10}
-              className="text-muted-foreground absolute right-2 h-2.5 w-2"
-            />
-          </SelectItem>
+            <SelectItem
+              className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              value="24h"
+            >
+              Last 24 hours
+            </SelectItem>
+          </div>
         )}
-      </div>
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "120ms", animationFillMode: "both" }}
-      >
-        {isPro ? (
-          <SelectItem
-            className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
-            value="12m"
+        {show("7d") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "30ms", animationFillMode: "both" }}
           >
-            Last 12 months
-          </SelectItem>
-        ) : (
-          <SelectItem
-            className="opacity-60 transition-colors duration-150 ease-in-out"
-            value="12m"
-            disabled
-          >
-            Last 12 months
-            <Lock
-              size={10}
-              className="text-muted-foreground absolute right-2 h-2.5 w-2"
-            />
-          </SelectItem>
+            <SelectItem
+              className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              value="7d"
+            >
+              Last 7 days
+            </SelectItem>
+          </div>
         )}
-      </div>
-      <div
-        className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
-        style={{ animationDelay: "150ms", animationFillMode: "both" }}
-      >
-        <SelectItem
-          className="opacity-60 transition-colors duration-150 ease-in-out"
-          value="all"
-          disabled
-        >
-          All Time
-          <Lock
-            size={10}
-            className="text-muted-foreground absolute right-2 h-2.5 w-2"
-          />
-        </SelectItem>
-      </div>
-    </SelectContent>
-  </Select>
-);
+        {show("30d") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "60ms", animationFillMode: "both" }}
+          >
+            <SelectItem
+              className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+              value="30d"
+            >
+              Last 30 days
+            </SelectItem>
+          </div>
+        )}
+        {show("3m") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "90ms", animationFillMode: "both" }}
+          >
+            {isPro ? (
+              <SelectItem
+                className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                value="3m"
+              >
+                Last 3 months
+              </SelectItem>
+            ) : (
+              <SelectItem
+                className="opacity-60 transition-colors duration-150 ease-in-out"
+                value="3m"
+                disabled
+              >
+                Last 3 months
+                <Lock
+                  size={10}
+                  className="text-muted-foreground absolute right-2 h-2.5 w-2"
+                />
+              </SelectItem>
+            )}
+          </div>
+        )}
+        {show("12m") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "120ms", animationFillMode: "both" }}
+          >
+            {isPro ? (
+              <SelectItem
+                className="cursor-pointer transition-colors duration-150 ease-in-out hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
+                value="12m"
+              >
+                Last 12 months
+              </SelectItem>
+            ) : (
+              <SelectItem
+                className="opacity-60 transition-colors duration-150 ease-in-out"
+                value="12m"
+                disabled
+              >
+                Last 12 months
+                <Lock
+                  size={10}
+                  className="text-muted-foreground absolute right-2 h-2.5 w-2"
+                />
+              </SelectItem>
+            )}
+          </div>
+        )}
+        {show("all") && (
+          <div
+            className="animate-in fade-in slide-in-from-left-1 duration-150 ease-out"
+            style={{ animationDelay: "150ms", animationFillMode: "both" }}
+          >
+            <SelectItem
+              className="opacity-60 transition-colors duration-150 ease-in-out"
+              value="all"
+              disabled
+            >
+              All Time
+              <Lock
+                size={10}
+                className="text-muted-foreground absolute right-2 h-2.5 w-2"
+              />
+            </SelectItem>
+          </div>
+        )}
+      </SelectContent>
+    </Select>
+  );
+};
 
 interface FilterGroupsProps {
   filteredCategories: FilterCategory[];

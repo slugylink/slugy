@@ -1,14 +1,18 @@
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { z } from "zod";
+import { createHash } from "crypto";
 import { redis } from "@/lib/redis";
 import { verifyLinkPassword } from "@/lib/link-password";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
 import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 import {
   clampStartDateByRetention,
   clampPeriodByRetention,
 } from "@/lib/subscription/retention";
+import {
+  checkShareReportRateLimit,
+  checkSharePasswordRateLimit,
+} from "@/lib/middleware/rate-limit";
 import { tinybird } from "@/lib/tinybird/could/tinybird";
 import { transformTinybirdAnalytics } from "@/lib/analytics/transform-tinybird";
 import {
@@ -20,7 +24,10 @@ import {
 } from "@/server/actions/analytics/analytics";
 
 const querySchema = z.object({
-  timePeriod: z.enum(["24h", "7d", "30d", "3m", "12m", "all"]).default("30d"),
+  // Shared reports cap at 30d (dashboard contract) — longer ranges stay
+  // behind auth, and unbounded `all` would let anyone trigger the heaviest
+  // Tinybird aggregation on a pro link.
+  timePeriod: z.enum(["24h", "7d", "30d"]).default("30d"),
   password: z.string().max(72).optional(),
   country_key: z.string().max(100).optional(),
   city_key: z.string().max(100).optional(),
@@ -46,6 +53,15 @@ const SHARE_METRICS: AnalyticsMetric[] = [
 /**
  * Public client-report endpoint. No auth — access is gated by the
  * unguessable publicId plus an optional share password.
+ *
+ * Abuse hardening (every MISS fans out to Postgres + up to two Tinybird
+ * aggregations, so this is the most expensive unauthenticated route):
+ * - per-IP request throttle,
+ * - per-report password-guess throttle (scrypt verify is CPU-heavy),
+ * - period capped at 30d (no unbounded `all` aggregations),
+ * - filter combo hashed into the cache key (no key injection/collisions),
+ * - plan lookup is a single indexed DB read — never the reconciling
+ *   getSubscriptionWithPlan (which would let strangers trigger Polar calls).
  */
 export async function GET(
   req: Request,
@@ -53,10 +69,39 @@ export async function GET(
 ) {
   try {
     const { publicId } = await params;
+
+    const forwarded = req.headers.get("x-forwarded-for");
+    const clientIp = (
+      req.headers.get("x-real-ip") ||
+      forwarded?.split(",")[0]?.trim() ||
+      "unknown"
+    ).trim();
+
+    const throttle = await checkShareReportRateLimit(clientIp);
+    if (!throttle.success) {
+      return jsonWithETag(
+        req,
+        { message: "Too many requests. Please slow down." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": Math.max(
+              1,
+              Math.ceil((throttle.reset - Date.now()) / 1000),
+            ).toString(),
+          },
+        },
+      );
+    }
+
     const url = new URL(req.url);
     const parsed = querySchema.safeParse({
       timePeriod: url.searchParams.get("timePeriod") ?? undefined,
-      password: url.searchParams.get("password") ?? undefined,
+      // Prefer the header (never logged); query param kept for back-compat.
+      password:
+        req.headers.get("x-share-password") ??
+        url.searchParams.get("password") ??
+        undefined,
       country_key: url.searchParams.get("country_key") ?? undefined,
       city_key: url.searchParams.get("city_key") ?? undefined,
       continent_key: url.searchParams.get("continent_key") ?? undefined,
@@ -98,6 +143,27 @@ export async function GET(
 
     const requiresPassword = Boolean(shared.password);
     if (requiresPassword) {
+      // Brute-force throttle per report (constant-time either way so the
+      // 401/403 distinction doesn't become a fast oracle).
+      const guesses = await checkSharePasswordRateLimit(publicId);
+      if (!guesses.success) {
+        return jsonWithETag(
+          req,
+          {
+            requiresPassword: true,
+            error: "Too many attempts. Try again later.",
+          },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": Math.max(
+                1,
+                Math.ceil((guesses.reset - Date.now()) / 1000),
+              ).toString(),
+            },
+          },
+        );
+      }
       const ok = verifyLinkPassword(
         parsed.data.password ?? "",
         shared.password,
@@ -117,11 +183,21 @@ export async function GET(
     }
 
     const timePeriod: TimePeriod = parsed.data.timePeriod;
-    // Public reports respect the owner's retention too.
-    const ownerSub = await getSubscriptionWithPlan(
-      shared.link.workspace.userId,
-    );
-    const planType = ownerSub.subscription?.plan?.planType;
+    // Owner plan via a single indexed read — never the reconciling helper
+    // (no Polar calls, no limit writes from unauthenticated traffic).
+    const ownerPlan = await db.subscription.findFirst({
+      where: {
+        referenceId: shared.link.workspace.userId,
+        status: { in: ["active", "trialing"] },
+      },
+      select: {
+        periodStart: true,
+        periodEnd: true,
+        plan: { select: { planType: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const planType = ownerPlan?.plan?.planType;
     const startDate = clampStartDateByRetention(
       planType,
       getStartDate(timePeriod),
@@ -132,20 +208,23 @@ export async function GET(
 
     // Short-TTL cache: reports are read-heavy and shared externally, so
     // repeat views (same period + filters) should not re-run groupBy.
-    // Keyed per publicId + period + filters; only reachable after the
+    // Keyed per publicId + period + a HASH of the filters (raw values would
+    // allow separator-collision cross-hits); only reachable after the
     // password check above, so gated reports never leak through cache.
-    const cacheKey = [
-      "share:report",
-      publicId,
-      timePeriod,
-      parsed.data.country_key ?? "",
-      parsed.data.city_key ?? "",
-      parsed.data.continent_key ?? "",
-      parsed.data.device_key ?? "",
-      parsed.data.browser_key ?? "",
-      parsed.data.os_key ?? "",
-      parsed.data.referrer_key ?? "",
-    ].join(":");
+    const filterFingerprint = createHash("sha256")
+      .update(
+        [
+          parsed.data.country_key ?? "",
+          parsed.data.city_key ?? "",
+          parsed.data.continent_key ?? "",
+          parsed.data.device_key ?? "",
+          parsed.data.browser_key ?? "",
+          parsed.data.os_key ?? "",
+          parsed.data.referrer_key ?? "",
+        ].join("\u0000"),
+      )
+      .digest("hex");
+    const cacheKey = `share:report:${publicId}:${timePeriod}:${filterFingerprint}`;
     try {
       const cached = await redis.get<string>(cacheKey);
       if (cached) {
