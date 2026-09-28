@@ -460,6 +460,7 @@ model Analytics {
 
   @@index([linkId, clickedAt])
   @@index([clickedAt])
+  @@index([clickId])
   @@map("analytics")
 }
 

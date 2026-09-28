@@ -59,6 +59,21 @@ export async function trackLead(
   const timestamp = new Date().toISOString();
   let leadEventId: string;
   let created = false;
+  // Metadata must be JSON-serializable (BigInt/circular would 500 the route).
+  let metadataJson: Prisma.InputJsonValue | undefined;
+  if (input.metadata != null) {
+    try {
+      metadataJson = JSON.parse(
+        JSON.stringify(input.metadata),
+      ) as Prisma.InputJsonValue;
+    } catch {
+      return {
+        ok: false,
+        status: 422,
+        message: "metadata must be JSON-serializable",
+      };
+    }
+  }
   const saleAmount =
     typeof input.saleAmount === "number" &&
     Number.isFinite(input.saleAmount) &&
@@ -106,11 +121,7 @@ export async function trackLead(
           customerName: input.customerName ?? undefined,
           saleAmount,
           saleCurrency: saleCurrency || undefined,
-          metadata: input.metadata
-            ? (JSON.parse(
-                JSON.stringify(input.metadata),
-              ) as Prisma.InputJsonValue)
-            : undefined,
+          metadata: metadataJson,
         },
         select: { id: true },
       });

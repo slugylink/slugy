@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiErrors, apiSuccess } from "@/lib/api-response";
 import { authenticateApiKey } from "@/lib/api-keys/auth";
+import { checkLeadTrackRateLimit } from "@/lib/middleware/rate-limit";
 import { trackLead } from "@/lib/leads/record-lead";
 import {
   canUseLeadTracking,
@@ -48,6 +49,15 @@ export async function POST(request: NextRequest) {
     if (!canUseLeadTracking(ownerPlanType)) {
       return apiErrors.forbidden(
         "Lead tracking requires a Pro or Business plan.",
+      );
+    }
+
+    // Per-key throttle (300/min): each call is several DB writes + Tinybird,
+    // so a leaked key must degrade to 429, not burn quota.
+    const leadLimit = await checkLeadTrackRateLimit(auth.apiKey.id);
+    if (!leadLimit.success) {
+      return apiErrors.rateLimitExceeded(
+        Math.max(1, Math.ceil((leadLimit.reset - Date.now()) / 1000)),
       );
     }
 

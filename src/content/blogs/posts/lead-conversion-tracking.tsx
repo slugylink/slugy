@@ -85,7 +85,9 @@ export default function LeadConversionTrackingPost() {
         <strong>Lead tracking</strong> on the link, capture{" "}
         <InlineCode>slugy_id</InlineCode> on your site, then{" "}
         <InlineCode>POST</InlineCode> from your server to{" "}
-        <InlineCode>https://api.slugy.co/leads_track</InlineCode>.
+        <InlineCode>https://api.slugy.co/leads_track</InlineCode>. Revenue
+        attribution (<InlineCode>saleAmount</InlineCode>) needs{" "}
+        <strong>Business</strong>.
       </Callout>
 
       <H2 id="how-it-works">How lead conversion works</H2>
@@ -116,9 +118,12 @@ export default function LeadConversionTrackingPost() {
 
       <H2 id="step-1">Step 1: Use a Pro workspace</H2>
       <P>
-        API keys, the lead-tracking toggle, and the Leads metric in Analytics
-        all require Pro. On Free, those surfaces stay locked until you upgrade
-        in Settings → Billing.
+        The lead-tracking toggle, the Leads metric, and API keys with lead scope
+        require Pro (Business for revenue attribution). Plain link creation
+        through the API works on any plan within its quotas — pick the{" "}
+        <strong className="text-foreground">Links</strong> scope when you create
+        the key. On Free, the lead surfaces stay locked until you upgrade in
+        Settings → Billing.
       </P>
 
       <H2 id="step-2">Step 2: Turn on Lead tracking for the link</H2>
@@ -148,8 +153,11 @@ export default function LeadConversionTrackingPost() {
           .
         </li>
         <li>
-          Create a key, name it, and copy it once (it won&apos;t be shown
-          again).
+          Create a key, name it, choose scopes (
+          <strong className="text-foreground">Links</strong> for short-link
+          APIs, <strong className="text-foreground">Leads</strong> for this
+          integration — leads scope needs Pro), and copy it once (it won&apos;t
+          be shown again).
         </li>
         <li>
           Store it as <InlineCode>SLUGY_API_KEY</InlineCode> in your server
@@ -303,6 +311,25 @@ Content-Type: application/json`}</Code>
               <td className="px-3 py-2">Extra JSON (plan, source, etc.)</td>
               <td className="px-3 py-2">No</td>
             </tr>
+            <tr className="border-border border-t">
+              <td className="px-3 py-2">
+                <InlineCode>saleAmount</InlineCode>
+              </td>
+              <td className="px-3 py-2">
+                Positive revenue number for sales attribution (Business only)
+              </td>
+              <td className="px-3 py-2">No</td>
+            </tr>
+            <tr className="border-border border-t">
+              <td className="px-3 py-2">
+                <InlineCode>saleCurrency</InlineCode>
+              </td>
+              <td className="px-3 py-2">
+                3-letter code, e.g. <InlineCode>USD</InlineCode> (with{" "}
+                <InlineCode>saleAmount</InlineCode>)
+              </td>
+              <td className="px-3 py-2">No</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -314,8 +341,36 @@ Content-Type: application/json`}</Code>
         <InlineCode>eventName</InlineCode> in that workspace is idempotent and
         returns <InlineCode>200</InlineCode>. Unknown or cross-workspace{" "}
         <InlineCode>clickId</InlineCode> values return{" "}
-        <InlineCode>404</InlineCode>.
+        <InlineCode>404</InlineCode>; a non-Pro workspace returns{" "}
+        <InlineCode>403</InlineCode>; bad payloads return{" "}
+        <InlineCode>422</InlineCode>; over 300 calls/minute per key returns{" "}
+        <InlineCode>429</InlineCode>.
       </P>
+
+      <H2 id="sales">Sales attribution (Business)</H2>
+      <P>
+        On a Business workspace, add <InlineCode>saleAmount</InlineCode> (and
+        optionally <InlineCode>saleCurrency</InlineCode>) to the same call. The
+        event then feeds the <strong className="text-foreground">Sales</strong>{" "}
+        metric — revenue totals and per-sale counts in Analytics — instead of
+        only the Leads funnel. Pro workspaces sending{" "}
+        <InlineCode>saleAmount</InlineCode> get a <InlineCode>403</InlineCode>;
+        send the lead without revenue fields there.
+      </P>
+      <Code>{`await fetch("https://api.slugy.co/leads_track", {
+  method: "POST",
+  headers: {
+    Authorization: \`Bearer \${apiKey}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    clickId,
+    eventName: "buy_now",
+    customerExternalId,
+    saleAmount: 49,
+    saleCurrency: "USD",
+  }),
+});`}</Code>
 
       <H3 id="nextjs-route">Next.js example</H3>
       <Code>{`// app/api/track-lead/route.ts

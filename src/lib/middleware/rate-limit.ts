@@ -23,6 +23,8 @@ const RATE_LIMITS = {
   SHARE_REPORT_IP: { limit: 60, window: 60 },
   // Share-report password guesses (scrypt verify is CPU-heavy).
   SHARE_REPORT_GUESS: { limit: 10, window: 60 },
+  // Lead ingest per API key: several DB writes + Tinybird per call.
+  LEAD_TRACK_KEY: { limit: 300, window: 60 },
   // Account deletion: destructive + authenticated — a few tries per hour.
   ACCOUNT_DELETE: { limit: 5, window: 60 * 60 },
 } as const;
@@ -230,4 +232,12 @@ export const checkSharePasswordRateLimit = async (
 ): Promise<RateLimitResult> => {
   const { limit, window } = RATE_LIMITS.SHARE_REPORT_GUESS;
   return checkRedisLimit(`share-report-guess:${publicId}`, limit, window);
+};
+
+/** Lead ingest: per-key budget (a leaked key must not burn Tinybird/DB). */
+export const checkLeadTrackRateLimit = async (
+  apiKeyId: string,
+): Promise<RateLimitResult> => {
+  const { limit, window } = RATE_LIMITS.LEAD_TRACK_KEY;
+  return checkRedisLimit(`lead-track:${apiKeyId}`, limit, window);
 };
