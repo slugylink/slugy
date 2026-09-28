@@ -2,6 +2,7 @@ import UseCaseForm from "@/components/web/_onboarding/use-case-form";
 import AppLogo from "@/components/web/app-logo";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
+import { fetchAllWorkspaces } from "@/server/actions/workspace/workspace";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -16,6 +17,12 @@ export default async function WelcomePage() {
   });
 
   if (user?.intendedUse) {
+    // Already answered — users with a workspace are done, send them home
+    // instead of forcing a second workspace through step 2.
+    const workspaces = await fetchAllWorkspaces(session.user.id);
+    if (workspaces.success && workspaces.workspaces.length > 0) {
+      redirect("/");
+    }
     redirect("/onboarding/create-workspace");
   }
 

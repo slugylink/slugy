@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { getAuthSession } from "@/lib/auth";
-import { getDefaultWorkspace } from "@/server/actions/workspace/workspace";
+import { getRedirectWorkspace } from "@/server/actions/workspace/workspace";
 import { warmDefaultWorkspaceRedirectCache } from "@/lib/middleware/get-default-workspace-redirect";
 import {
   parseWorkspaceSlug,
@@ -23,7 +23,9 @@ export default async function App() {
 
   const { session } = authResult;
 
-  const defaultWorkspace = await getDefaultWorkspace(session.user.id);
+  // Owned default → oldest owned → oldest member workspace. Invited-only
+  // users land in their shared workspace instead of onboarding.
+  const defaultWorkspace = await getRedirectWorkspace(session.user.id);
 
   if (!defaultWorkspace.success || !defaultWorkspace.workspace) {
     await warmDefaultWorkspaceRedirectCache(session.user.id, null);

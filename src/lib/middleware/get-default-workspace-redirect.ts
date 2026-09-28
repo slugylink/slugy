@@ -101,12 +101,22 @@ async function lookupDefaultWorkspaceSlug(
   if (!databaseUrl) return null;
 
   const sql = neon(databaseUrl);
+  // Owned default first, then any owned workspace, then member workspaces —
+  // invited-only users must land in their workspace, not onboarding.
   const rows = await sql`
-    SELECT slug
-    FROM workspace
-    WHERE "userId" = ${userId}
-      AND "isDefault" = true
-      AND "deletedAt" IS NULL
+    SELECT w.slug
+    FROM workspace w
+    LEFT JOIN member m
+      ON m."workspaceId" = w.id AND m."userId" = ${userId}
+    WHERE (w."userId" = ${userId} OR m."userId" = ${userId})
+      AND w."deletedAt" IS NULL
+    ORDER BY
+      CASE
+        WHEN w."userId" = ${userId} AND w."isDefault" = true THEN 0
+        WHEN w."userId" = ${userId} THEN 1
+        ELSE 2
+      END,
+      w."createdAt" ASC
     LIMIT 1
   `;
 

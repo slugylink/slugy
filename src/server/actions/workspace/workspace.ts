@@ -189,6 +189,56 @@ export async function getDefaultWorkspace(userId: string) {
   }
 }
 
+/**
+ * First workspace the user can land in: owned default → oldest owned →
+ * oldest member workspace. Used by `/` and middleware so invited-only users
+ * (no owned workspace) don't bounce to onboarding forever.
+ */
+export async function getRedirectWorkspace(userId: string) {
+  try {
+    const workspace = await db.workspace.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [{ userId }, { members: { some: { userId } } }],
+      },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        logo: true,
+        userId: true,
+        isDefault: true,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (!workspace) {
+      return { success: false, workspace: null };
+    }
+
+    // Prefer the owned default when one exists.
+    if (!workspace.isDefault || workspace.userId !== userId) {
+      const ownedDefault = await db.workspace.findFirst({
+        where: { userId, isDefault: true, deletedAt: null },
+        select: { id: true, name: true, slug: true, logo: true },
+      });
+      if (ownedDefault) {
+        return { success: true, workspace: ownedDefault };
+      }
+    }
+
+    const {
+      userId: _owner,
+      isDefault: _isDefault,
+      ...redirectWorkspace
+    } = workspace;
+    return { success: true, workspace: redirectWorkspace };
+  } catch (error) {
+    console.error("Error getting redirect workspace:", error);
+    return { success: false, workspace: null };
+  }
+}
+
 export async function fetchAllWorkspaces(userId: string) {
   try {
     const cachedWorkspaces = await getAllWorkspacesCache(userId);

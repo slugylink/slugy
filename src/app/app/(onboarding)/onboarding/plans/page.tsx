@@ -6,6 +6,8 @@ import AppPricingComparator from "@/components/app-pricing-comparator";
 import ContinueFreeButton from "./continue-free-button";
 import { db } from "@/server/db";
 import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
+import { validateWorkspaceSlug } from "@/server/actions/workspace/workspace";
+import { PRO_PLAN } from "@/constants/data/price";
 
 type PriceInterval = "month" | "year" | null;
 
@@ -62,8 +64,30 @@ export default async function OnboardingPlansPage({
   }
 
   const { workspace } = await searchParams;
-  if (!workspace?.trim()) {
+  const workspaceSlug = workspace?.trim();
+  if (!workspaceSlug) {
     redirect("/onboarding/create-workspace");
+  }
+
+  // The ?workspace= value is user input — verify membership before rendering
+  // billing UI for it. Strangers bounce to "/" which resolves correctly.
+  const membership = await validateWorkspaceSlug(
+    session.user.id,
+    workspaceSlug,
+  );
+  if (!membership.success || !membership.workspace) {
+    redirect("/");
+  }
+
+  // Enforce step order: welcome (intendedUse) → create-workspace → plans.
+  // Deep-links that skip welcome land back at step 1 instead of leaving
+  // intendedUse=null forever.
+  const onboardingUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { intendedUse: true },
+  });
+  if (!onboardingUser?.intendedUse) {
+    redirect("/onboarding/welcome");
   }
 
   // Heal a missed checkout webhook before deciding whether to ask for payment.
@@ -95,17 +119,46 @@ export default async function OnboardingPlansPage({
   );
 
   if (hasPaidEntitlement) {
-    redirect(`/${workspace}`);
+    redirect(`/${workspaceSlug}`);
   }
 
-  const response = await polarClient.products.list({ isArchived: false });
-  const items = response?.result?.items ?? [];
-
-  const productData: TransformedProduct[] = items.map((product) => ({
-    id: product.id ?? "",
-    name: product.name ?? "",
-    prices: (product.prices ?? []).map(transformPrice),
-  }));
+  // Polar outage must not brick onboarding — fall back to code constants so
+  // pricing still renders and Free continues to work.
+  let productData: TransformedProduct[];
+  let productsFromFallback = false;
+  try {
+    const response = await polarClient.products.list({ isArchived: false });
+    const items = response?.result?.items ?? [];
+    if (items.length === 0) throw new Error("Empty Polar product list");
+    productData = items.map((product) => ({
+      id: product.id ?? "",
+      name: product.name ?? "",
+      prices: (product.prices ?? []).map(transformPrice),
+    }));
+  } catch (error) {
+    console.error("[Onboarding Plans] Polar products.list failed:", error);
+    productsFromFallback = true;
+    productData = [
+      {
+        id: PRO_PLAN.monthlyPriceId || "pro-monthly",
+        name: "Pro",
+        prices: [
+          {
+            id: PRO_PLAN.monthlyPriceId || "pro-monthly",
+            amount: PRO_PLAN.monthlyPrice,
+            currency: PRO_PLAN.currency,
+            interval: "month",
+          },
+          {
+            id: PRO_PLAN.yearlyPriceId || "pro-yearly",
+            amount: PRO_PLAN.yearlyPrice,
+            currency: PRO_PLAN.currency,
+            interval: "year",
+          },
+        ],
+      },
+    ];
+  }
 
   return (
     <div className="px-4 py-10 sm:px-8">
@@ -114,16 +167,22 @@ export default async function OnboardingPlansPage({
         <p className="text-muted-foreground mt-1 text-sm">
           Start free, or pick Pro for advanced features.
         </p>
+        {productsFromFallback && (
+          <p className="text-muted-foreground mt-2 text-xs">
+            Live pricing is temporarily unavailable — shown prices may be stale.
+            You can still continue with Free.
+          </p>
+        )}
       </div>
       <div className="mx-auto max-w-5xl bg-white">
         <AppPricingComparator
           products={productData}
-          workspace={workspace}
+          workspace={workspaceSlug}
           isPaidPlan={false}
-          successUrlPath={`/${workspace}`}
+          successUrlPath={`/${workspaceSlug}`}
         />
         <div className="mx-auto mt-6 max-w-xs">
-          <ContinueFreeButton workspace={workspace} />
+          <ContinueFreeButton workspace={workspaceSlug} />
           <p className="text-muted-foreground mt-2 text-center text-xs">
             Free forever · 1 workspace · 10 links · 1k clicks/month
           </p>

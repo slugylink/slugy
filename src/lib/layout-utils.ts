@@ -72,6 +72,27 @@ export async function getLayoutData(workspaceSlug?: string) {
     getCachedWorkspaceValidation(userId, workspaceSlug),
   ]);
 
+  // Deep-link backfill: users who skipped welcome (bookmarked /{workspace})
+  // would keep intendedUse=null forever. Inside an accessible workspace,
+  // onboarding is effectively complete — stamp the default once.
+  if (validation.success) {
+    try {
+      const { db } = await import("@/server/db");
+      const user = await db.user.findUnique({
+        where: { id: userId },
+        select: { intendedUse: true },
+      });
+      if (user && !user.intendedUse) {
+        await db.user.update({
+          where: { id: userId },
+          data: { intendedUse: "exploring" },
+        });
+      }
+    } catch (error) {
+      console.error("Error backfilling onboarding use case:", error);
+    }
+  }
+
   return {
     workspaces,
     workspaceslug: workspaceSlug,
