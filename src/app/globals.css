@@ -401,10 +401,10 @@
     linear-gradient(to top, #f5b6db 0%, transparent 50%), */
     linear-gradient(
       to top,
-      color-mix(in srgb, #dfefee 68%, white) 15%,
-      color-mix(in srgb, #f5b6db 67%, white) 30%,
-      color-mix(in srgb, #fbb4aa 74%, white) 40%,
-      color-mix(in srgb, #fff 88%, white) 65%,
+      color-mix(in srgb, rgba(223, 239, 238, 0.6) 68%, white) 15%,
+      color-mix(in srgb, rgba(245, 182, 219, 0.8) 67%, white) 30%,
+      color-mix(in srgb, rgba(251, 180, 170, 0.8) 74%, white) 40%,
+      color-mix(in srgb, rgba(255, 255, 255, 0.6) 88%, white) 65%,
       #ffffff 100%
     );
   transform: rotate(-12deg);

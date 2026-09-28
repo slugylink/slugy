@@ -81,7 +81,7 @@ const MINIS1 = [
     visual: (
       <div
         aria-hidden
-        className="pointer-events-none flex max-h-[355px] items-start justify-center bg-white select-none dark:bg-zinc-950"
+        className="pointer-events-none flex max-h-[320px] items-start justify-center bg-white select-none lg:max-h-[355px] dark:bg-zinc-950"
       >
         <Image
           src="/svgs/qrcode.svg"
@@ -105,7 +105,7 @@ const MINIS1 = [
     visual: (
       <div
         aria-hidden
-        className="pointer-events-none flex max-h-[355px] items-start justify-center bg-white select-none dark:bg-zinc-950"
+        className="pointer-events-none flex max-h-[320px] items-start justify-center bg-white select-none lg:max-h-[355px] dark:bg-zinc-950"
       >
         <Image
           src="/svgs/utm.svg"
@@ -133,7 +133,7 @@ const MINIS2 = [
     visual: (
       <div
         aria-hidden
-        className="pointer-events-none flex max-h-[355px] items-start justify-center bg-white select-none dark:bg-zinc-950"
+        className="pointer-events-none flex max-h-[320px] items-start justify-center bg-white select-none lg:max-h-[355px] dark:bg-zinc-950"
       >
         <Image
           src="/svgs/device.svg"
@@ -157,7 +157,7 @@ const MINIS2 = [
     visual: (
       <div
         aria-hidden
-        className="pointer-events-none flex max-h-[355px] items-start justify-center bg-white select-none dark:bg-zinc-950"
+        className="pointer-events-none flex max-h-[320px] items-start justify-center bg-white select-none lg:max-h-[355px] dark:bg-zinc-950"
       >
         <Image
           src="/svgs/bio.webp"
