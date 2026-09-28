@@ -7,7 +7,7 @@ const sponsors = [
   {
     name: "Neon",
     icon: "/icons/neon-logo.webp",
-    link: "https://neon.tech",
+    link: "https://neon.tech?ref=slugy.co",
   },
 ];
 

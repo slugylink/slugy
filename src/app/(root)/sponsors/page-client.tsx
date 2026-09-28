@@ -49,7 +49,7 @@ export default function SponsorsPageClient() {
 
           <m.div {...fadeUp(0.15)}>
             <a
-              href="https://neon.tech"
+              href="https://neon.tech?ref=slugy.co"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Neon"
@@ -88,7 +88,7 @@ export default function SponsorsPageClient() {
           >
             <Button size="lg" className="rounded-lg" asChild>
               <a
-                href="https://neon.tech"
+                href="https://neon.tech?ref=slugy.co"
                 target="_blank"
                 rel="noopener noreferrer"
               >
