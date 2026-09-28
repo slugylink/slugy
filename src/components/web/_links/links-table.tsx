@@ -59,6 +59,7 @@ const buildSearchConfig = (
   return {
     search: searchParams?.get("search") ?? "",
     showArchived: searchParams?.get("showArchived") ?? "false",
+    inBio: searchParams?.get("inBio") ?? "false",
     sortBy: searchParams?.get("sortBy") ?? DEFAULT_SORT,
     offset: Math.max(0, (page - 1) * DEFAULT_LIMIT),
     tagIds,
@@ -70,6 +71,7 @@ const buildApiUrl = (workspaceslug: string, config: SearchConfig): string => {
 
   if (config.search) params.set("search", config.search);
   if (config.showArchived === "true") params.set("showArchived", "true");
+  if (config.inBio === "true") params.set("inBio", "true");
   if (config.sortBy !== DEFAULT_SORT) params.set("sortBy", config.sortBy);
   if (config.offset > 0) params.set("offset", config.offset.toString());
   if (config.tagIds.length > 0) params.set("tag", config.tagIds.join(","));
@@ -223,6 +225,7 @@ const LinksTable = ({ workspaceslug, fallbackData }: LinksTableProps) => {
         <EmptyState
           searchQuery={searchConfig.search}
           hasTagFilter={searchConfig.tagIds.length > 0}
+          hasInBioFilter={searchConfig.inBio === "true"}
         />
       )}
 

@@ -1,4 +1,4 @@
-import { Search, Check, ArrowUpDown, Archive, Tag } from "lucide-react";
+import { Search, Check, ArrowUpDown, Archive, Tag, Link2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -109,6 +109,28 @@ export const ArchiveToggle = ({
       onCheckedChange={onToggle}
       aria-checked={checked}
       aria-label={checked ? "Hide archived links" : "Show archived links"}
+    />
+  </div>
+);
+
+export const InBioToggle = ({
+  checked,
+  onToggle,
+}: {
+  checked: boolean;
+  onToggle: (checked: boolean) => void;
+}) => (
+  <div className="flex items-center justify-between px-2 py-2">
+    <div className="flex items-center gap-2">
+      <Link2 size={15} aria-hidden="true" />
+      <span className="font-normal">Only links used in bio</span>
+    </div>
+    <Switch
+      className="cursor-pointer"
+      checked={checked}
+      onCheckedChange={onToggle}
+      aria-checked={checked}
+      aria-label={checked ? "Show all links" : "Only show links used in bio"}
     />
   </div>
 );
@@ -233,6 +255,8 @@ interface DisplayOptionsDropdownProps {
   onSortChange: (value: SortOptionKey) => void;
   showArchived: boolean;
   onToggleArchived: (checked: boolean) => void;
+  inBio: boolean;
+  onToggleInBio: (checked: boolean) => void;
   tags: FilterTag[];
   selectedTagIds: string[];
   onToggleTag: (tagId: string) => void;
@@ -249,6 +273,8 @@ export const DisplayOptionsDropdown = ({
   onSortChange,
   showArchived,
   onToggleArchived,
+  inBio,
+  onToggleInBio,
   tags,
   selectedTagIds,
   onToggleTag,
@@ -267,9 +293,9 @@ export const DisplayOptionsDropdown = ({
       >
         <FilterBar />
         <span className="hidden md:inline">Display</span>
-        {selectedTagIds.length > 0 && (
+        {(selectedTagIds.length > 0 || inBio) && (
           <span className="bg-primary text-primary-foreground absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-medium">
-            {selectedTagIds.length}
+            {selectedTagIds.length + (inBio ? 1 : 0)}
           </span>
         )}
       </Button>
@@ -291,6 +317,7 @@ export const DisplayOptionsDropdown = ({
         onClearTags={onClearTags}
         isLoading={tagsLoading}
       />
+      <InBioToggle checked={inBio} onToggle={onToggleInBio} />
       <ArchiveToggle checked={showArchived} onToggle={onToggleArchived} />
     </DropdownMenuContent>
   </DropdownMenu>

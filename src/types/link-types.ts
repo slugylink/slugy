@@ -13,6 +13,10 @@ export interface Link {
     id: string;
     customization?: string;
   };
+  bioLinks?: Array<{
+    id: string;
+    linkManagedByBio: boolean;
+  }>;
 }
 
 export interface ApiResponse {
@@ -24,6 +28,7 @@ export interface ApiResponse {
 export interface SearchConfig {
   search: string;
   showArchived: string;
+  inBio: string;
   sortBy: string;
   offset: number;
   tagIds: string[];

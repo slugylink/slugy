@@ -8,6 +8,7 @@ export type PrefetchLinksInput = {
   workspaceslug: string;
   search?: string | null;
   showArchived?: string | null;
+  inBio?: string | null;
   sortBy?: string | null;
   pageNo?: string | null;
   tag?: string | null;
@@ -59,6 +60,7 @@ export async function prefetchWorkspaceLinks(
     workspaceId: workspace.id,
     search: input.search?.trim() ?? "",
     showArchived: input.showArchived === "true",
+    inBio: input.inBio === "true",
     sortBy: input.sortBy ?? DEFAULT_SORT,
     offset: (page - 1) * DEFAULT_LIMIT,
     limit: DEFAULT_LIMIT,

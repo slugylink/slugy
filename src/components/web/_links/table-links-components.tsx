@@ -47,13 +47,15 @@ export const EmptyState = memo(
   ({
     searchQuery,
     hasTagFilter = false,
+    hasInBioFilter = false,
   }: {
     searchQuery: string;
     hasTagFilter?: boolean;
+    hasInBioFilter?: boolean;
   }) => {
     const message =
-      searchQuery || hasTagFilter
-        ? "No links match your search or tag filters."
+      searchQuery || hasTagFilter || hasInBioFilter
+        ? "No links match your search, tag, or bio filters."
         : "You haven't created any links yet.";
 
     return (

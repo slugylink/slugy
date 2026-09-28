@@ -45,6 +45,7 @@ export default async function Workspace({
     workspaceslug: workspace,
     search: firstParam(query.search),
     showArchived: firstParam(query.showArchived),
+    inBio: firstParam(query.inBio),
     sortBy: firstParam(query.sortBy),
     pageNo: firstParam(query.page_no),
     tag: firstParam(query.tag),

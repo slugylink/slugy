@@ -11,6 +11,11 @@ type LinkWhereInput = {
     url?: { contains: string; mode: "insensitive" };
   }>;
   isArchived?: boolean;
+  bioLinks?: {
+    some: {
+      deletedAt?: null;
+    };
+  };
   tags?: {
     some: {
       tagId: { in: string[] };
@@ -66,6 +71,13 @@ const LINK_SELECT_FIELDS = {
       },
     },
   },
+  bioLinks: {
+    where: { deletedAt: null },
+    select: {
+      id: true,
+      linkManagedByBio: true,
+    },
+  },
   SharedAnalytics: {
     select: { isPublic: true },
   },
@@ -85,6 +97,7 @@ export type QueryWorkspaceLinksInput = {
   offset?: number;
   limit?: number;
   tagIds?: string[];
+  inBio?: boolean;
 };
 
 export type WorkspaceLinksResult = {
@@ -129,6 +142,7 @@ export async function queryWorkspaceLinks(
 ): Promise<WorkspaceLinksResult> {
   const search = input.search?.trim() ?? "";
   const showArchived = input.showArchived ?? false;
+  const inBio = input.inBio ?? false;
   const sortBy = input.sortBy ?? DEFAULT_SORT;
   const offset = Math.max(0, input.offset ?? 0);
   const limit = input.limit ?? DEFAULT_LIMIT;
@@ -139,6 +153,7 @@ export async function queryWorkspaceLinks(
     workspaceId: input.workspaceId,
     ...(searchConditions.length > 0 && { OR: searchConditions }),
     ...(!showArchived && { isArchived: false }),
+    ...(inBio && { bioLinks: { some: { deletedAt: null } } }),
     ...(tagIds.length > 0 && {
       tags: {
         some: {

@@ -19,9 +19,11 @@ const SearchInput = memo(() => {
     inputValue,
     setInputValue,
     showArchived,
+    inBio,
     sortBy,
     selectedTagIds,
     handleToggleArchived,
+    handleToggleInBio,
     handleSortChange,
     handleToggleTag,
     handleClearTags,
@@ -46,6 +48,8 @@ const SearchInput = memo(() => {
         onSortChange={handleSortChange}
         showArchived={showArchived}
         onToggleArchived={handleToggleArchived}
+        inBio={inBio}
+        onToggleInBio={handleToggleInBio}
         tags={tags ?? []}
         selectedTagIds={selectedTagIds}
         onToggleTag={handleToggleTag}

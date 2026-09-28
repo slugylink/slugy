@@ -7,6 +7,8 @@ import {
   ForwardIcon,
   CornerDownRight,
   Share2,
+  LayoutGrid,
+  Smartphone,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -161,17 +163,17 @@ export const AnalyticsBadge = ({
   onShareAnalytics,
   analyticsShared,
 }: AnalyticsBadgeProps) => (
-  <div className="flex items-center gap-1.5">
+  <div className="flex items-center gap-1">
     {analyticsShared && (
       <>
         <Tooltip>
           <TooltipTrigger asChild className="">
             <Badge
               onClick={onShareAnalytics}
-              className="size-6 cursor-pointer rounded-md border border-green-200 bg-green-50 p-0"
+              className="size-6 cursor-pointer rounded-md bg-transparent p-0 hover:bg-slate-100"
             >
               <Share2
-                size={20}
+                size={22}
                 strokeWidth={1.5}
                 className="text-green-600 dark:text-green-500"
               />
@@ -215,6 +217,40 @@ export const AnalyticsBadge = ({
     </Badge>
   </div>
 );
+
+// Bio Badge Component — icon-only marker for links reused by bio pages
+export interface BioBadgeLink {
+  id: string;
+  linkManagedByBio: boolean;
+}
+
+export const BioBadge = ({ bioLinks }: { bioLinks: BioBadgeLink[] }) => {
+  if (!bioLinks.length) return null;
+
+  const managed = bioLinks.some((b) => b.linkManagedByBio);
+  const attached = bioLinks.some((b) => !b.linkManagedByBio);
+  const tooltip =
+    managed && attached
+      ? "Used in bio pages (auto-created + attached)"
+      : managed
+        ? "Auto-created for a bio page"
+        : "Attached to a bio page";
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span>
+          <Smartphone
+            size={14}
+            aria-hidden="true"
+            className="text-violet-700 dark:text-violet-300"
+          />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{tooltip}</TooltipContent>
+    </Tooltip>
+  );
+};
 
 // Selection Checkbox Component
 export const SelectionCheckbox = ({ isSelected }: SelectionCheckboxProps) => (

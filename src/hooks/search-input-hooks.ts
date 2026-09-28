@@ -51,6 +51,7 @@ export const useSearchState = () => {
     "showArchived",
     parseAsBoolean,
   );
+  const [inBio, setInBio] = useQueryState("inBio", parseAsBoolean);
   const [sortBy, setSortBy] = useQueryState("sortBy", {
     defaultValue: DEFAULT_SORT,
     parse: (value) => {
@@ -87,12 +88,27 @@ export const useSearchState = () => {
     }
   }, [showArchived, setShowArchived]);
 
+  // Clean up inBio param
+  useEffect(() => {
+    if (inBio === false) {
+      void setInBio(null);
+    }
+  }, [inBio, setInBio]);
+
   const handleToggleArchived = useCallback(
     (checked: boolean) => {
       void setShowArchived(checked || null);
       void setPageNo(null);
     },
     [setShowArchived, setPageNo],
+  );
+
+  const handleToggleInBio = useCallback(
+    (checked: boolean) => {
+      void setInBio(checked || null);
+      void setPageNo(null);
+    },
+    [setInBio, setPageNo],
   );
 
   const handleSortChange = useCallback(
@@ -124,9 +140,11 @@ export const useSearchState = () => {
     inputValue,
     setInputValue,
     showArchived: showArchived ?? false,
+    inBio: inBio ?? false,
     sortBy,
     selectedTagIds: selectedTagIds ?? [],
     handleToggleArchived,
+    handleToggleInBio,
     handleSortChange,
     handleToggleTag,
     handleClearTags,

@@ -28,6 +28,7 @@ export async function GET(
 
     const search = (searchParams.get("search")?.trim() ?? "").slice(0, 200);
     const showArchived = searchParams.get("showArchived") === "true";
+    const inBio = searchParams.get("inBio") === "true";
     const sortBy = searchParams.get("sortBy") ?? DEFAULT_SORT;
     const offsetParam = searchParams.get("offset");
     const limitParam = searchParams.get("limit");
@@ -79,6 +80,7 @@ export async function GET(
       workspaceId: access.workspace.id,
       search,
       showArchived,
+      inBio,
       sortBy,
       offset,
       limit,

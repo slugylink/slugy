@@ -39,6 +39,7 @@ import {
   CopyButton,
   DescriptionTooltip,
   AnalyticsBadge,
+  BioBadge,
   SelectionCheckbox,
   LinkAvatar,
   DeleteConfirmationDialog,
@@ -95,6 +96,10 @@ interface LinkData {
   image?: string | null;
   title?: string | null;
   trackConversion?: boolean;
+  bioLinks?: Array<{
+    id: string;
+    linkManagedByBio: boolean;
+  }>;
   qrCode: {
     id: string;
     customization?: string;
@@ -349,7 +354,7 @@ export default function LinkCard({
 
         {/* Main Content */}
         <div className="min-w-0 flex-1 space-y-[6px]">
-          <div className="flex items-center gap-2 sm:flex-row">
+          <div className="flex items-center gap-1.5 sm:flex-row">
             <p
               className={cn(
                 "max-w-[calc(100%-3rem)] truncate text-sm font-medium",
@@ -358,16 +363,27 @@ export default function LinkCard({
             >
               {link.domain || DEFAULT_DOMAIN}/{link.slug}
             </p>
-            <div className="flex items-center gap-2">
-              <CopyButton isCopied={isCopied} onClick={handleCopy} />
+            <div className="flex shrink-0 items-center gap-1">
+              <span className="flex size-6 items-center justify-center">
+                <CopyButton isCopied={isCopied} onClick={handleCopy} />
+              </span>
+              {link.bioLinks && link.bioLinks.length > 0 && (
+                <span className="flex size-6 items-center justify-center">
+                  <BioBadge bioLinks={link.bioLinks} />
+                </span>
+              )}
               {link.description && (
-                <DescriptionTooltip description={link.description} />
+                <span className="hidden size-6 items-center justify-center sm:flex">
+                  <DescriptionTooltip description={link.description} />
+                </span>
               )}
               {link.isArchived && (
-                <Archive
-                  size={15}
-                  className="block text-zinc-500 sm:hidden dark:text-zinc-300"
-                />
+                <span className="flex size-6 items-center justify-center sm:hidden">
+                  <Archive
+                    size={15}
+                    className="block text-zinc-500 dark:text-zinc-300"
+                  />
+                </span>
               )}
             </div>
           </div>
