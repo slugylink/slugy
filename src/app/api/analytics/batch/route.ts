@@ -1,17 +1,104 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
-import { redis } from "@/lib/redis";
 import {
-  getCachedAnalyticsEvents,
   clearProcessedAnalyticsEvents,
   getCachedAnalyticsCount,
+  peekAnalyticsEventKeys,
+  readAnalyticsEventsByKeys,
+  type CachedAnalyticsData,
+  type KeyedAnalyticsEvent,
 } from "@/lib/cache-utils/analytics-cache";
 import { withCronAuth } from "@/lib/cron-auth";
 
-const ANALYTICS_ZSET_KEY = "analytics:batch";
 const BATCH_PROCESS = 5000;
 const MAX_PROCESS_ALL = 20000; // Max events to process in one go
+
+/**
+ * Stores one batch idempotently. Returns the stored events' index keys so
+ * the caller removes exactly what landed. Retries are safe: already-stored
+ * clickIds are skipped (Analytics has no unique constraint on clickId, so
+ * `skipDuplicates` alone is a no-op — this explicit check is the dedupe).
+ */
+async function storeBatch(
+  batch: CachedAnalyticsData[],
+  batchKeys: string[],
+): Promise<{ count: number; keys: string[] }> {
+  return db.$transaction(
+    async (tx) => {
+      // Only events for existing, non-deleted links.
+      const linkIds = [...new Set(batch.map((event) => event.linkId))];
+      const existingLinks = await tx.link.findMany({
+        where: { id: { in: linkIds }, deletedAt: null },
+        select: { id: true },
+      });
+      const existingLinkIds = new Set(existingLinks.map((link) => link.id));
+
+      const indexed = batch
+        .map((event, i) => ({ event, key: batchKeys[i] as string }))
+        .filter(({ event }) => existingLinkIds.has(event.linkId));
+
+      if (indexed.length !== batch.length) {
+        console.warn(
+          `Skipped ${batch.length - indexed.length} events with non-existent or deleted link IDs`,
+        );
+      }
+
+      // Idempotency: skip clickIds already stored (retry-safe without a
+      // DB unique constraint; add @@unique([clickId]) to skip this read).
+      const clickIds = [
+        ...new Set(
+          indexed.map(({ event }) => event.clickId).filter(Boolean) as string[],
+        ),
+      ];
+      const alreadyStored = new Set<string>();
+      if (clickIds.length > 0) {
+        const rows = await tx.analytics.findMany({
+          where: { clickId: { in: clickIds } },
+          select: { clickId: true },
+        });
+        for (const row of rows) {
+          if (row.clickId) alreadyStored.add(row.clickId);
+        }
+      }
+
+      const fresh = indexed.filter(
+        ({ event }) => !event.clickId || !alreadyStored.has(event.clickId),
+      );
+
+      if (fresh.length > 0) {
+        await tx.analytics.createMany({
+          data: fresh.map(({ event }) => ({
+            linkId: event.linkId,
+            clickedAt: new Date(event.timestamp),
+            clickId: event.clickId,
+            ipAddress: event.ipAddress?.substring(0, 45),
+            country: event.country?.substring(0, 100),
+            city: event.city?.substring(0, 100),
+            region: event.region?.substring(0, 100),
+            continent: event.continent?.substring(0, 50),
+            browser: event.browser,
+            os: event.os,
+            device: event.device,
+            trigger: event.trigger,
+            referer: event.referer?.substring(0, 500) || "Direct",
+            utm_source: event.utm_source,
+            utm_medium: event.utm_medium,
+            utm_campaign: event.utm_campaign,
+            utm_term: event.utm_term,
+            utm_content: event.utm_content,
+          })),
+        });
+      }
+
+      return { count: fresh.length, keys: fresh.map(({ key }) => key) };
+    },
+    {
+      timeout: 60000, // 60 second timeout for batch
+      maxWait: 15000, // Max wait for connection
+    },
+  );
+}
 
 // Input validation schema for batch processing
 const batchProcessSchema = z.object({
@@ -64,12 +151,19 @@ async function handler(req: NextRequest) {
       `Starting analytics batch processing (dryRun: ${dryRun}, maxBatchSize: ${maxBatchSize}, processAll: ${processAll})`,
     );
 
-    // Get cached analytics events with error handling
-    let cachedEvents;
+    // Snapshot the index ONCE, capped at the effective batch size. A second
+    // zrange later would cover different events under concurrent inserts
+    // (index shift → loss/leak), and an uncapped fetch OOMs on backlog.
+    // Failed batches keep their keys, so nothing successfully stored is lost.
+    const effectiveBatchSize = processAll
+      ? MAX_PROCESS_ALL
+      : Math.min(maxBatchSize, MAX_PROCESS_ALL);
+
+    let eventKeys: string[];
     try {
-      cachedEvents = await getCachedAnalyticsEvents();
+      eventKeys = await peekAnalyticsEventKeys(effectiveBatchSize);
     } catch (cacheError) {
-      console.error("Failed to get cached analytics events:", cacheError);
+      console.error("Failed to read analytics index:", cacheError);
       return NextResponse.json(
         {
           error: "Failed to retrieve cached analytics events",
@@ -80,7 +174,7 @@ async function handler(req: NextRequest) {
       );
     }
 
-    if (!Array.isArray(cachedEvents) || cachedEvents.length === 0) {
+    if (eventKeys.length === 0) {
       console.log("No cached analytics events to process");
       return NextResponse.json({
         success: true,
@@ -90,17 +184,28 @@ async function handler(req: NextRequest) {
       });
     }
 
-    // Determine how many events to process
-    const effectiveBatchSize = processAll
-      ? Math.min(cachedEvents.length, MAX_PROCESS_ALL)
-      : maxBatchSize;
-    const eventsToProcess = cachedEvents.slice(0, effectiveBatchSize);
+    let paired: KeyedAnalyticsEvent[];
+    try {
+      paired = await readAnalyticsEventsByKeys(eventKeys);
+    } catch (cacheError) {
+      console.error("Failed to read cached analytics payloads:", cacheError);
+      return NextResponse.json(
+        {
+          error: "Failed to retrieve cached analytics events",
+          details:
+            cacheError instanceof Error ? cacheError.message : "Unknown error",
+        },
+        { status: 500 },
+      );
+    }
+
     console.log(
-      `Processing ${eventsToProcess.length} of ${cachedEvents.length} cached events (processAll: ${processAll})`,
+      `Processing ${paired.length} of ${eventKeys.length} indexed events (processAll: ${processAll})`,
     );
 
-    // Validate event structure before processing
-    const validEvents = eventsToProcess.filter((event, index) => {
+    // Validate event structure before processing (keep each event's key so
+    // only successfully stored events are removed from the index).
+    const keyedValid = paired.filter(({ event }, index) => {
       if (!event || typeof event !== "object") {
         console.warn(`Invalid event at index ${index}: not an object`);
         return false;
@@ -108,19 +213,27 @@ async function handler(req: NextRequest) {
       if (!event.linkId || !event.timestamp) {
         console.warn(
           `Invalid event at index ${index}: missing required fields`,
-          {
-            linkId: event.linkId,
-            timestamp: event.timestamp,
-          },
         );
         return false;
       }
       return true;
     });
 
-    if (validEvents.length !== eventsToProcess.length) {
+    // In-batch clickId dedupe (same click re-cached twice keeps first).
+    const seenClickIds = new Set<string>();
+    const deduped = keyedValid.filter(({ event }) => {
+      if (!event.clickId) return true;
+      if (seenClickIds.has(event.clickId)) return false;
+      seenClickIds.add(event.clickId);
+      return true;
+    });
+
+    const validEvents = deduped.map(({ event }) => event);
+    const validKeys = deduped.map(({ key }) => key);
+
+    if (validEvents.length !== paired.length) {
       console.warn(
-        `Filtered out ${eventsToProcess.length - validEvents.length} invalid events`,
+        `Filtered out ${paired.length - validEvents.length} invalid/duplicate events`,
       );
     }
 
@@ -130,7 +243,7 @@ async function handler(req: NextRequest) {
         success: true,
         message: "Dry run completed",
         processedCount: validEvents.length,
-        cachedCount: cachedEvents.length,
+        cachedCount: eventKeys.length,
         events: validEvents.slice(0, 5), // Return first 5 for inspection
       });
     }
@@ -142,110 +255,24 @@ async function handler(req: NextRequest) {
     const errors: string[] = [];
     const processedEventKeys: string[] = [];
 
-    // Get the actual Redis keys for the events we're processing
-    // Since we're using ZSET, we need to get the keys that correspond to our events
-    let allEventKeys: string[] = [];
-    try {
-      const redisResult = await redis.zrange(
-        ANALYTICS_ZSET_KEY,
-        0,
-        effectiveBatchSize - 1,
-      );
-      allEventKeys = Array.isArray(redisResult) ? redisResult.map(String) : [];
-    } catch (redisError) {
-      console.error("Failed to get Redis event keys:", redisError);
-      // Continue processing without Redis keys if Redis fails
-      allEventKeys = [];
-    }
-
     for (let i = 0; i < validEvents.length; i += BATCH_SIZE) {
       const batch = validEvents.slice(i, i + BATCH_SIZE);
-      // Get corresponding Redis keys for this batch
-      const batchKeys = allEventKeys.slice(i, i + BATCH_SIZE);
+      // Keys travel with their events (same snapshot) — no second zrange.
+      const batchKeys = validKeys.slice(i, i + BATCH_SIZE);
 
       console.log(
         `Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(validEvents.length / BATCH_SIZE)} (${batch.length} events)`,
       );
 
       try {
-        await db.$transaction(
-          async (tx) => {
-            // Group events by workspace for usage updates
-
-            // First, validate that all links in this batch exist
-            const linkIds = [...new Set(batch.map((event) => event.linkId))];
-            const existingLinks = await tx.link.findMany({
-              where: {
-                id: { in: linkIds },
-                deletedAt: null, // Only include non-deleted links
-              },
-              select: { id: true },
-            });
-
-            const existingLinkIds = new Set(
-              existingLinks.map((link) => link.id),
-            );
-            const validBatchEvents = batch.filter((event) =>
-              existingLinkIds.has(event.linkId),
-            );
-
-            // Log skipped events if any
-            if (validBatchEvents.length !== batch.length) {
-              const skippedCount = batch.length - validBatchEvents.length;
-              const skippedLinkIds = batch
-                .filter((event) => !existingLinkIds.has(event.linkId))
-                .map((event) => event.linkId);
-              console.warn(
-                `Skipped ${skippedCount} events with non-existent or deleted link IDs:`,
-                skippedLinkIds,
-              );
-            }
-
-            // Only process events for existing links - use bulk insert
-            if (validBatchEvents.length > 0) {
-              const analyticsData = validBatchEvents.map((event) => ({
-                linkId: event.linkId,
-                clickedAt: new Date(event.timestamp),
-                clickId: event.clickId,
-                ipAddress: event.ipAddress?.substring(0, 45),
-                country: event.country?.substring(0, 100),
-                city: event.city?.substring(0, 100),
-                continent: event.continent?.substring(0, 50),
-                browser: event.browser,
-                os: event.os,
-                device: event.device,
-                trigger: event.trigger,
-                referer: event.referer?.substring(0, 500) || "Direct",
-                utm_source: event.utm_source,
-                utm_medium: event.utm_medium,
-                utm_campaign: event.utm_campaign,
-                utm_term: event.utm_term,
-                utm_content: event.utm_content,
-              }));
-
-              await tx.analytics.createMany({
-                data: analyticsData,
-                skipDuplicates: true, // Skip duplicates to prevent errors
-              });
-            }
-
-            // Update success count to reflect actual processed events
-            successCount += validBatchEvents.length;
-          },
-          {
-            timeout: 60000, // 60 second timeout for batch
-            maxWait: 15000, // Max wait for connection
-          },
-        );
-
-        processedEventKeys.push(...batchKeys);
+        const { count, keys } = await storeBatch(batch, batchKeys);
+        successCount += count;
+        processedEventKeys.push(...keys);
       } catch (batchError) {
-        // Since we validate links inside the transaction, any error here is unexpected
-        // but we still count all events in this batch as failed for safety
+        // Index keys are kept for retry — nothing is removed on failure.
         errorCount += batch.length;
         const errorMsg = `Batch processing error: ${batchError instanceof Error ? batchError.message : "Unknown error"}`;
         console.error("Detailed batch error:", batchError);
-        console.error("Event data causing error:", batch);
         errors.push(errorMsg);
       }
     }
@@ -281,7 +308,7 @@ async function handler(req: NextRequest) {
       message: "Batch processing completed",
       processedCount: successCount,
       errorCount,
-      cachedCount: cachedEvents.length,
+      cachedCount: eventKeys.length,
       remainingCount,
       errors: errors.length > 0 ? errors : undefined,
     });

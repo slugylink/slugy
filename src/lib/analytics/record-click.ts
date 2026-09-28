@@ -45,12 +45,15 @@ export async function recordLinkClick(input: {
       WHERE "workspaceId" = ${input.workspaceId}
         AND "userId" = ${workspace.userId}
         AND "deletedAt" IS NULL
+        AND "periodEnd" > NOW()
       ORDER BY "createdAt" DESC
       LIMIT 1
     `;
     const usage = usageRows[0];
     if (!usage) {
-      // Still count the link click even if usage row is missing
+      // No ACTIVE usage period (rollover pending — the lazy/cron rollover
+      // creates it). Still count the link click so the edge counter never
+      // diverges downward; the usage counter catches up next period.
       await primarySql`
         UPDATE "links"
         SET clicks = clicks + 1, "lastClicked" = NOW()
@@ -70,18 +73,20 @@ export async function recordLinkClick(input: {
       return { ok: false, limited: true };
     }
 
-    await Promise.all([
-      primarySql`
-        UPDATE "links"
-        SET clicks = clicks + 1, "lastClicked" = NOW()
-        WHERE id = ${input.linkId}
-      `,
-      primarySql`
+    // Single-statement CTE: both counters move together or not at all.
+    // (Neon HTTP has no interactive transactions; two Promise.all UPDATEs
+    // could land one and lose the other, drifting link vs usage counts.)
+    await primarySql`
+      WITH updated_usage AS (
         UPDATE "usages"
         SET "clicksTracked" = "clicksTracked" + 1
         WHERE id = ${usage.id}
-      `,
-    ]);
+        RETURNING id
+      )
+      UPDATE "links"
+      SET clicks = clicks + 1, "lastClicked" = NOW()
+      WHERE id = ${input.linkId}
+    `;
 
     const nextTracked = Number(usage.clicksTracked) + 1;
     if (workspace.maxClicksLimit != null) {

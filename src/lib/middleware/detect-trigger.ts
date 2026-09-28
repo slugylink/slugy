@@ -44,10 +44,13 @@ const UTM_PARAMS = [
 ] as const;
 
 const BOT_REGEX =
-  /(bot|crawler|spider|crawling|preview|facebookexternalhit|slurp|bingpreview|pingdom|gtmetrix|headless|cf-|headlesschrome|phantomjs)|\bprerender\b/i;
+  /(bot\b|crawler|spider|crawling|preview|facebookexternalhit|slurp|bingpreview|bingbot|pingdom|gtmetrix|headless|cf-|headlesschrome|phantomjs|curl|wget|python|axios|okhttp|java\/|selenium|puppeteer|playwright|lighthouse)|\bprerender\b/i;
 
-const EMAIL_REGEX = /mail|email/i;
-const QR_REGEX = /qr|qrcode/i;
+// Host-label match only: full-referer /mail|email/i misclassified news sites
+// like dailymail.co.uk as email clicks.
+const EMAIL_HOST_LABELS =
+  /^(mail|email|webmail|inbox|gmail|yahoo|outlook|hotmail|live|proton|icloud|gmx|aol|zoho|yandex|fastmail|tutanota)$/i;
+const QR_REGEX = /\bqr\b|qrcode/i;
 
 /**
  * Extracts the host from a referer URL
@@ -59,6 +62,16 @@ function extractRefererHost(referer: string): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * Email referer: known provider hosts or a literal mail/webmail-style DNS
+ * label — never a full-URL substring (dailymail.co.uk is not email).
+ */
+function isEmailReferer(refererHost: string): boolean {
+  if (!refererHost) return false;
+  if (EMAIL_HOSTS.some((host) => refererHost.endsWith(host))) return true;
+  return refererHost.split(".").some((label) => EMAIL_HOST_LABELS.test(label));
 }
 
 /**
@@ -82,8 +95,17 @@ export function detectTrigger(
   const headers = req.headers;
   const refererRaw = headers.get("referer") || "";
   const ua = (headers.get("user-agent") || "").toLowerCase();
-  const purpose = headers.get("purpose") || headers.get("sec-purpose") || "";
-  const isNextData = headers.has("next-url");
+  // Chrome/Safari send `Sec-Purpose: prefetch` (sometimes `prefetch;prerender`);
+  // Next.js App Router sends `Next-Router-Prefetch`, Firefox `X-Moz: prefetch`.
+  const purpose = (
+    headers.get("purpose") ||
+    headers.get("sec-purpose") ||
+    ""
+  ).toLowerCase();
+  const isPrefetchHeader =
+    headers.has("next-router-prefetch") ||
+    headers.has("next-router-state-tree") ||
+    (headers.get("x-moz") || "").toLowerCase() === "prefetch";
   const refererHost = extractRefererHost(refererRaw);
   const viaParam = req.nextUrl.searchParams.get("via")?.toLowerCase();
   const requestParams = req.nextUrl.searchParams;
@@ -106,8 +128,12 @@ export function detectTrigger(
     return "bot";
   }
 
-  // Prefetch detection
-  if (purpose.toLowerCase() === "prefetch" || isNextData) {
+  // Prefetch detection (speculative loads, not human clicks)
+  if (
+    purpose.includes("prefetch") ||
+    purpose.includes("prerender") ||
+    isPrefetchHeader
+  ) {
     return "prefetch";
   }
 
@@ -127,11 +153,7 @@ export function detectTrigger(
   }
 
   // Email detection
-  if (
-    EMAIL_HOSTS.some((host) => refererHost.endsWith(host)) ||
-    EMAIL_REGEX.test(refererRaw) ||
-    getParam("utm_medium") === "email"
-  ) {
+  if (isEmailReferer(refererHost) || getParam("utm_medium") === "email") {
     return "email";
   }
 

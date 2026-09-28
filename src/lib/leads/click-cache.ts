@@ -10,6 +10,7 @@ export interface CachedClickAttribution {
   domain: string;
   country: string;
   city: string;
+  region?: string;
   continent: string;
   device: string;
   browser: string;

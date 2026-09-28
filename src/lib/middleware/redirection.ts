@@ -29,17 +29,18 @@ import {
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
-const RATE_LIMIT_WINDOW_SECONDS = 8;
+// Short accidental-double-fire guard (browser retry / double-tap), NOT a
+// throttle: the old 8s per-IP window dropped legit multi-tab and office-NAT
+// clicks. Prefetch/bots are filtered before this ever runs.
+const RATE_LIMIT_WINDOW_SECONDS = 2;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 const DEFAULT_DOMAIN = "slugy.co";
-const DEFAULT_DEVICE = "desktop";
-const DEFAULT_BROWSER = "chrome";
-const DEFAULT_OS = "windows";
 
 interface AnalyticsData {
   ipAddress: string;
   country: string;
   city: string;
+  region: string;
   continent: string;
   referer: string;
   device: string;
@@ -258,6 +259,7 @@ function buildAnalyticsData(
   destinationUrl: string,
 ): AnalyticsData {
   const ua = userAgent(req);
+  const uaString = req.headers.get("user-agent") ?? "";
   const geoData = getGeoData(req);
   // Priority: explicit ?ref= (?via=/?source= aliases, short link or
   // destination) → Referer header → utm_source → Direct. The utm_source
@@ -290,13 +292,75 @@ function buildAnalyticsData(
     ipAddress: getIpAddress(req),
     country: geoData.country,
     city: geoData.city,
+    region: geoData.region,
     continent: geoData.continent,
-    device: ua.device?.type?.toLowerCase() ?? DEFAULT_DEVICE,
-    browser: ua.browser?.name?.toLowerCase() ?? DEFAULT_BROWSER,
-    os: ua.os?.name?.toLowerCase() ?? DEFAULT_OS,
+    // Layered detection: parsed UA first, token sniffing second, sensible
+    // platform defaults last — user-facing breakdowns never show "unknown"
+    // for device/browser/os. Geo keeps "unknown" (a location can't be
+    // defaulted; in production the CF/Vercel headers are always present —
+    // unknowns there mean dev/local traffic).
+    device: detectDevice(uaString, ua.device?.type),
+    browser: detectBrowser(uaString, ua.browser?.name),
+    os: detectOs(uaString, ua.os?.name),
     referer,
     trigger,
   };
+}
+
+/**
+ * Device class in the parser's vocabulary (mobile/tablet/desktop).
+ * Bots are filtered before tracking, so an unparsed UA here is a human on an
+ * obscure browser — phone/tablet tokens still classify correctly.
+ */
+function detectDevice(uaString: string, parsed?: string | null): string {
+  if (parsed) return parsed.toLowerCase();
+  const s = uaString.toLowerCase();
+  if (
+    /tablet|ipad|playbook|kindle|silk(?!.*mobile)|nexus [79]|sm-t\d/i.test(s)
+  ) {
+    return "tablet";
+  }
+  if (
+    /mobi|mobile|android|iphone|ipod|phone|blackberry|iemobile|opera mini|windows phone|palm|symbian/i.test(
+      s,
+    )
+  ) {
+    return "mobile";
+  }
+  return "desktop";
+}
+
+/** Browser name in the parser's vocabulary, else the client's own token. */
+function detectBrowser(uaString: string, parsed?: string | null): string {
+  if (parsed) return parsed.toLowerCase();
+  const s = uaString.toLowerCase();
+  if (/edg(a|ios|e)?\//.test(s)) return "edge";
+  if (/opr\//.test(s)) return "opera";
+  if (/firefox|fxios/.test(s)) return "firefox";
+  if (/crios/.test(s)) return "chrome";
+  if (/samsungbrowser/.test(s)) return "samsung internet";
+  if (/chrome|chromium/.test(s)) return "chrome";
+  if (/safari/.test(s)) {
+    return /mobi|mobile|iphone|ipad/.test(s) ? "mobile safari" : "safari";
+  }
+  if (/msie|trident/.test(s)) return "ie";
+  // Honest token (e.g. a script that slipped past bot filters) beats a lie.
+  const token = /^\s*([a-z][\w-]*)\//i.exec(uaString)?.[1];
+  if (token && token.toLowerCase() !== "mozilla") return token.toLowerCase();
+  return "chrome";
+}
+
+/** OS name in the parser's vocabulary ("mac os" matches "Mac OS" parsed). */
+function detectOs(uaString: string, parsed?: string | null): string {
+  if (parsed) return parsed.toLowerCase();
+  const s = uaString.toLowerCase();
+  if (/windows nt|windows phone/.test(s)) return "windows";
+  if (/android/.test(s)) return "android";
+  if (/iphone|ipad|ipod/.test(s)) return "ios";
+  if (/mac os x|macintosh/.test(s)) return "mac os";
+  if (/cros/.test(s)) return "chrome os";
+  if (/linux/.test(s)) return "linux";
+  return "windows";
 }
 
 // Track analytics asynchronously
@@ -316,6 +380,10 @@ async function trackAnalytics(
     const utmParams = extractUTMParams(req.nextUrl.toString(), url);
     const finalDomain = domain || DEFAULT_DOMAIN;
 
+    // NOTE: slugy_click_events has no `region` column, so region is
+    // intentionally NOT in the Tinybird payload — unknown columns 400 the
+    // ingest. Region flows to Prisma via the Redis batch (column exists) and
+    // can join Tinybird after a datasource migration adds the column.
     const cachedData: CachedAnalyticsData = {
       linkId,
       slug,
@@ -341,6 +409,7 @@ async function trackAnalytics(
       domain: finalDomain,
       country: analytics.country,
       city: analytics.city,
+      region: analytics.region,
       continent: analytics.continent,
       device: analytics.device,
       browser: analytics.browser,
@@ -422,11 +491,47 @@ async function ensureTinybirdLinkMetadata(input: {
   createdAt: string;
 }): Promise<void> {
   const key = `tb:meta:${input.linkId}`;
+  const lockKey = `tb:meta:lock:${input.linkId}`;
+
   try {
     const exists = await redis.get(key);
     if (exists) return;
+
+    // First-click race: N concurrent clicks must not each append a metadata
+    // row. The loser skips — the winner's write covers everyone. Lock expiry
+    // bounds the damage if the winner dies mid-write (next click retries).
+    const acquired = await redis.set(lockKey, "1", { nx: true, ex: 120 });
+    if (!acquired) return;
+
+    let sent = false;
+    try {
+      await sendLinkMetadata({
+        link_id: input.linkId,
+        domain: input.domain,
+        slug: input.slug,
+        url: input.url,
+        tag_ids: [],
+        workspace_id: input.workspaceId,
+        created_at: input.createdAt,
+      });
+      sent = true;
+    } catch (sendError) {
+      // No immediate retry here — the outer catch would re-send blindly.
+      // The lock is released below so the next click retries.
+      console.error("[Tinybird Metadata Error]", sendError);
+      return;
+    } finally {
+      if (sent) {
+        await redis
+          .set(key, "1", { ex: 60 * 60 * 24 * 30 })
+          .catch(() => undefined);
+      }
+      await redis.del(lockKey).catch(() => undefined);
+    }
+    return;
   } catch {
-    // Redis down — still attempt Tinybird write
+    // Redis down — attempt the write anyway. Duplicate metadata rows are
+    // harmless: the _latest ReplacingMergeTree view collapses them.
   }
 
   await sendLinkMetadata({
@@ -438,12 +543,6 @@ async function ensureTinybirdLinkMetadata(input: {
     workspace_id: input.workspaceId,
     created_at: input.createdAt,
   });
-
-  try {
-    await redis.set(key, "1", { ex: 60 * 60 * 24 * 30 });
-  } catch {
-    // ignore
-  }
 }
 
 export async function URLRedirects(

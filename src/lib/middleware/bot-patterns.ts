@@ -1,18 +1,23 @@
+/**
+ * Substring bot signatures, matched case-insensitively against the
+ * lowercased user agent (`ua.includes(pattern.toLowerCase())`).
+ *
+ * Deliberately EXCLUDES bare social generics ("facebook", "twitter",
+ * "instagram", "linkedin", "pinterest", "reddit", "vk") and bare "bot" /
+ * "bing" / "preview": in-app browsers ship those tokens
+ * (e.g. `... Instagram 302.0 ...`, `Twitter for iPhone`), so they
+ * undercounted real humans as bots. Precise crawler tokens stay, plus
+ * library/automation UAs that previously passed as humans.
+ */
 export const METADATA_BOT_PATTERNS = [
-  // Social Media
+  // Social crawlers (precise tokens — NOT bare app names)
   "facebookexternalhit",
   "Facebot",
-  "facebook",
   "Twitterbot",
-  "twitter",
   "LinkedInBot",
-  "linkedin",
-  "Pinterest",
-  "pinterest",
+  "Pinterestbot",
   "vkShare",
-  "vk",
   "redditbot",
-  "reddit",
   "Applebot",
   "applebot",
   "WhatsApp",
@@ -25,10 +30,12 @@ export const METADATA_BOT_PATTERNS = [
   "slack",
   "Viber",
   "viber",
-  "Instagram",
-  "instagram",
   "Microlink",
   "microlink",
+  // In-app browser shells (unfurl fetches, not human page views)
+  "fban",
+  "fbios",
+  "fbav",
 
   // Search Engines (excluding Google)
   "Bingbot",
@@ -38,6 +45,18 @@ export const METADATA_BOT_PATTERNS = [
   "YandexBot",
   "Sogou",
   "Exabot",
+  "Bytespider",
+  "PetalBot",
+  "DotBot",
+
+  // AI crawlers
+  "chatgpt-user",
+  "gptbot",
+  "ccbot",
+  "anthropic-ai",
+  "claudebot",
+  "cohere-ai",
+  "bluesky",
 
   // Mail Services
   "Thunderbird",
@@ -58,27 +77,47 @@ export const METADATA_BOT_PATTERNS = [
   "Uptimebot",
   "Monitis",
   "NewRelicPinger",
+  "pingdom",
+  "gtmetrix",
+  "lighthouse",
+
+  // HTTP libraries / scripts (previously counted as humans)
+  "curl",
+  "wget",
+  "python-requests",
+  "python-urllib",
+  "python-httpx",
+  "httpx",
+  "axios",
+  "okhttp",
+  "java/",
+  "libwww-perl",
+  "scrapy",
+  "ahrefs",
+  "semrush",
+  "mj12",
+
+  // Automation / headless
+  "HeadlessChrome",
+  "headless",
+  "phantom",
+  "selenium",
+  "puppeteer",
+  "playwright",
 
   // Development Tools
   "Postman",
   "insomnia",
-  "HeadlessChrome",
 
-  // Generic Patterns (excluding Google-related)
-  "bot",
-  "chatgpt",
-  "bluesky",
-  "bing",
-  "duckduckbot",
-  "yandex",
-  "baidu",
-  "teoma",
-  "slurp",
-  "MetaInspector",
-  "iframely",
+  // Generic Patterns (word-boundary-safe: no bare "bot"/"bing"/"preview",
+  // which substring-matched human UAs like "Boto" or in-app browsers)
+  "crawler",
+  "crawling",
   "spider",
   "Go-http-client",
-  "preview",
   "prerender",
-  "msn",
+  "MetaInspector",
+  "iframely",
+  "msnbot",
+  "teoma",
 ];

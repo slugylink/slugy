@@ -11,6 +11,7 @@ export interface CachedAnalyticsData {
   ipAddress: string;
   country: string;
   city: string;
+  region?: string;
   continent: string;
   device: string;
   browser: string;
@@ -133,9 +134,78 @@ export async function getCachedAnalyticsEvents(
 }
 
 /**
- * Get cached analytics events within a specific time range
+ * Single-snapshot index read: capture up to `limit` ZSET members in ONE
+ * zrange call. Callers must mget AND zrem exactly these keys — never issue a
+ * second zrange for the "same" slice, because concurrent inserts shift
+ * indices and the two reads then cover different events (loss/leak).
  */
-export async function getCachedAnalyticsEventsByTimeRange(
+export async function peekAnalyticsEventKeys(limit: number): Promise<string[]> {
+  try {
+    const keys = (await redis.zrange(
+      ANALYTICS_ZSET_KEY,
+      0,
+      Math.max(0, limit - 1),
+    )) as string[];
+    return Array.isArray(keys) ? keys.map(String) : [];
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message?.includes("WRONGTYPE")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export interface KeyedAnalyticsEvent {
+  key: string;
+  event: CachedAnalyticsData;
+}
+
+/**
+ * Read payloads for an exact key snapshot (pairs by mget order). Keys whose
+ * payload vanished (24h TTL) or fails to parse are zrem'd immediately —
+ * their data is unrecoverable, so holding the index slot only leaks memory.
+ */
+export async function readAnalyticsEventsByKeys(
+  keys: string[],
+): Promise<KeyedAnalyticsEvent[]> {
+  if (keys.length === 0) return [];
+
+  const raws = await redis.mget(keys);
+  const paired: KeyedAnalyticsEvent[] = [];
+  const staleKeys: string[] = [];
+
+  for (let i = 0; i < keys.length; i++) {
+    const raw = raws[i];
+    try {
+      if (!raw) throw new Error("missing payload");
+      const event =
+        typeof raw === "string"
+          ? (JSON.parse(raw) as CachedAnalyticsData)
+          : (raw as CachedAnalyticsData);
+      if (!event || typeof event !== "object" || !event.linkId) {
+        throw new Error("invalid payload");
+      }
+      paired.push({ key: keys[i] as string, event });
+    } catch {
+      staleKeys.push(keys[i] as string);
+    }
+  }
+
+  if (staleKeys.length > 0) {
+    try {
+      await redis.zrem(ANALYTICS_ZSET_KEY, ...staleKeys);
+      await redis.del(...staleKeys);
+    } catch {
+      // Best-effort cleanup; next run retries.
+    }
+  }
+
+  return paired;
+}
+
+/**
+ * Get cached analytics events within a specific time range
+ */ export async function getCachedAnalyticsEventsByTimeRange(
   startTime: Date,
   endTime: Date,
 ): Promise<CachedAnalyticsData[]> {
