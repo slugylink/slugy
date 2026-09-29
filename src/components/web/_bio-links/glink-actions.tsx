@@ -3,20 +3,21 @@
 import type React from "react";
 import { useState, useCallback } from "react";
 import {
-  EllipsisVertical,
   Trash2,
   Share2,
   Check,
-  Smartphone,
   Copy,
   User,
   PencilLine,
   Images,
-  Globe,
-  EyeOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { GLinkDialogBox } from "./add-glink-dialog";
 import {
   DropdownMenu,
@@ -62,7 +63,6 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [socialOpen, setSocialOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -94,35 +94,38 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
     }
   }, [shortUrl, isCopying]);
 
-  const handleToggleVisibility = useCallback(async () => {
-    if (isTogglingVisibility) return;
+  const handleToggleVisibility = useCallback(
+    async (next?: boolean) => {
+      if (isTogglingVisibility) return;
 
-    const next = !isPublished;
-    setIsTogglingVisibility(true);
-    try {
-      const res = await fetch(`/api/bio-gallery/${username}/visibility`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: next }),
-      });
+      const target = next ?? !isPublished;
+      setIsTogglingVisibility(true);
+      try {
+        const res = await fetch(`/api/bio-gallery/${username}/visibility`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ isPublic: target }),
+        });
 
-      if (!res.ok) {
-        const data = (await res.json()) as { error?: string };
-        toast.error(data.error ?? "Failed to update visibility");
-        return;
+        if (!res.ok) {
+          const data = (await res.json()) as { error?: string };
+          toast.error(data.error ?? "Failed to update visibility");
+          return;
+        }
+
+        await mutate({ ...gallery, isPublic: target }, false);
+        toast.success(
+          target ? "Gallery published — it's live now" : "Gallery unpublished",
+        );
+      } catch (err) {
+        console.error("Visibility toggle error:", err);
+        toast.error("Failed to update visibility");
+      } finally {
+        setIsTogglingVisibility(false);
       }
-
-      await mutate({ ...gallery, isPublic: next }, false);
-      toast.success(
-        next ? "Gallery published — it's live now" : "Gallery unpublished",
-      );
-    } catch (err) {
-      console.error("Visibility toggle error:", err);
-      toast.error("Failed to update visibility");
-    } finally {
-      setIsTogglingVisibility(false);
-    }
-  }, [isPublished, isTogglingVisibility, username, gallery, mutate]);
+    },
+    [isPublished, isTogglingVisibility, username, gallery, mutate],
+  );
 
   const handleDeleteGallery = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -136,7 +139,8 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
 
       if (res.ok) {
         toast.success("Gallery deleted successfully");
-        router.push("/bio-links");
+        // Replace so the back button can't return to this deleted editor.
+        router.replace("/bio-links");
       } else {
         const data = (await res.json()) as { error?: string };
         toast.error(data.error ?? "Failed to delete gallery");
@@ -156,7 +160,7 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
         variant="secondary"
         className="flex h-8 items-center gap-2 text-sm font-normal"
       >
-        bio.slugy.co/{username}
+        {username}
         <button
           className="flex cursor-pointer items-center justify-center focus:outline-none"
           onClick={handleCopy}
@@ -172,33 +176,42 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
       </Badge>
 
       <div className="flex items-center gap-2">
-        <Button
-          variant={isPublished ? "outline" : "default"}
-          size="sm"
-          className="h-9"
-          onClick={handleToggleVisibility}
-          disabled={isTogglingVisibility}
-          aria-label={isPublished ? "Unpublish gallery" : "Publish gallery"}
-        >
-          {isTogglingVisibility ? (
-            <LoaderCircle className="h-4 w-4 animate-spin" />
-          ) : isPublished ? (
-            <EyeOff className="h-4 w-4" />
-          ) : (
-            <Globe className="h-4 w-4" />
-          )}
-          <span className="ml-1.5">
-            {isPublished ? "Unpublish" : "Publish"}
-          </span>
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={isPublished}
+              aria-label={isPublished ? "Unpublish gallery" : "Publish gallery"}
+              disabled={isTogglingVisibility}
+              onClick={() => void handleToggleVisibility(!isPublished)}
+              className={`relative h-5 w-8 shrink-0 cursor-pointer rounded-full transition-colors duration-200 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-60 ${
+                isPublished ? "bg-green-500" : "bg-zinc-300 dark:bg-zinc-600"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`absolute top-0.5 left-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow transition-transform duration-200 ${
+                  isPublished ? "translate-x-3" : "translate-x-0"
+                }`}
+              >
+                {isTogglingVisibility && (
+                  <LoaderCircle className="h-3.5 w-3.5 animate-spin text-zinc-500" />
+                )}
+              </span>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isTogglingVisibility
+              ? "Saving..."
+              : isPublished
+                ? "Published"
+                : "Draft"}
+          </TooltipContent>
+        </Tooltip>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-9 w-9"
-              aria-label="More options"
-            >
+            <Button variant="outline" size="icon" aria-label="More options">
               <PencilLine className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>

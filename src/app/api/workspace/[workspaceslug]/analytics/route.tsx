@@ -5,6 +5,7 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 import { analyticsFilterFieldsSchema } from "@/lib/analytics/query-params";
 import { getWorkspaceOwnerPlanType } from "@/lib/subscription/entitlements";
 import { clampStartDateByRetention } from "@/lib/subscription/retention";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 // Types for better type safety
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -238,10 +239,22 @@ async function fetchMetricData(
           ORDER BY clicks DESC
           LIMIT ${MAX_RESULTS}
         `;
-        return continentsResult.map((row) => ({
-          continent: row.continent,
-          clicks: Number(row.clicks),
-        }));
+        // Stored values are mixed-case/legacy — merge in JS so one
+        // continent renders as one row.
+        const continentTotals = new Map<string, number>();
+        for (const row of continentsResult as Array<{
+          continent: string;
+          clicks: number | string | bigint;
+        }>) {
+          const key = normalizeContinentKey(row.continent);
+          continentTotals.set(
+            key,
+            (continentTotals.get(key) ?? 0) + Number(row.clicks),
+          );
+        }
+        return Array.from(continentTotals.entries())
+          .map(([continent, clicks]) => ({ continent, clicks }))
+          .sort((a, b) => b.clicks - a.clicks);
 
       case "devices":
         const devicesResult = await sql`

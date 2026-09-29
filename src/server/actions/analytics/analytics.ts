@@ -1,5 +1,6 @@
 import { sub, type Duration } from "date-fns";
 import { canonicalizeRefererDisplay } from "@/lib/analytics/referrer";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 // Supported analytics time periods
 type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -229,7 +230,10 @@ function processAnalyticsData(
       if (map) map.set(key, (map.get(key) ?? 0) + record._count);
     };
     updateMetric(aggregationMaps.countries, record.country ?? "Unknown");
-    updateMetric(aggregationMaps.continents, record.continent ?? "Unknown");
+    updateMetric(
+      aggregationMaps.continents,
+      normalizeContinentKey(record.continent ?? "unknown"),
+    );
     updateMetric(aggregationMaps.devices, record.device ?? "Unknown");
     updateMetric(aggregationMaps.browsers, record.browser ?? "Unknown");
     updateMetric(aggregationMaps.oses, record.os ?? "Unknown");

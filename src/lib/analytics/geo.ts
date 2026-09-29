@@ -266,6 +266,21 @@ const CONTINENT_CODE_MAP: Record<string, string> = {
   SA: "south america",
 };
 
+/**
+ * Canonical grouping key for continent analytics (read-time normalization).
+ * Stored values are mixed (`asia` current slugs vs legacy `Asia` / `AS`),
+ * while every GROUP BY is case-sensitive — without this, one continent
+ * renders as multiple rows. Pure function, safe to use anywhere.
+ */
+export function normalizeContinentKey(raw: unknown): string {
+  if (typeof raw !== "string") return UNKNOWN_GEO_VALUE;
+  const trimmed = raw.trim();
+  if (!trimmed) return UNKNOWN_GEO_VALUE;
+  const upper = trimmed.toUpperCase();
+  if (CONTINENT_CODE_MAP[upper]) return CONTINENT_CODE_MAP[upper];
+  return trimmed.toLowerCase();
+}
+
 function normalizeContinent(raw: string | null, country: string): string {
   const trimmed = raw?.trim();
   if (trimmed) {

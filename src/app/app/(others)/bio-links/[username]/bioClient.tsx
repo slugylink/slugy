@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import useSWR from "swr";
 import dynamic from "next/dynamic";
+import { isAxiosError } from "axios";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { useRouter } from "next/navigation";
 import type { EditorGallery } from "@/types/bio-links";
@@ -43,32 +44,44 @@ interface GalleryClientProps {
   username: string;
 }
 
+function isNotFoundError(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === 404;
+}
+
 export default function GalleryClient({ username }: GalleryClientProps) {
   const router = useRouter();
+  const hasRedirected = useRef(false);
 
   const {
     data: gallery,
     isLoading,
     error,
     mutate,
-  } = useSWR<EditorGallery, ApiError>(`/api/bio-gallery/${username}`);
+  } = useSWR<EditorGallery, ApiError>(`/api/bio-gallery/${username}`, {
+    // A deleted gallery will never resolve — don't retry 404s. Retrying
+    // replaces the error object each time, which kept resetting the
+    // redirect timer below and stranded users on the error screen.
+    shouldRetryOnError: (err) => !isNotFoundError(err),
+  });
+
+  const isNotFound = isNotFoundError(error);
 
   useEffect(() => {
-    if (error) {
+    // Missing/deleted gallery: leave once via replace (no history entry
+    // back to this dead editor). Guarded so refetches can't re-arm it.
+    if (
+      (isNotFound || (!gallery && !isLoading && !error)) &&
+      !hasRedirected.current
+    ) {
+      hasRedirected.current = true;
       const timer = setTimeout(() => {
-        router.push("/bio-links");
-      }, 2000);
+        router.replace("/bio-links");
+      }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [error, router]);
+  }, [isNotFound, gallery, isLoading, error, router]);
 
-  useEffect(() => {
-    if (!gallery && !isLoading && !error) {
-      router.push("/bio-links");
-    }
-  }, [gallery, isLoading, error, router]);
-
-  if (error) {
+  if (error && !isNotFound) {
     console.error("Gallery loading error:", error);
 
     return (
@@ -78,8 +91,14 @@ export default function GalleryClient({ username }: GalleryClientProps) {
             Failed to load gallery
           </h2>
           <p className="text-muted-foreground mt-2 text-sm">
-            Redirecting to bio links...
+            Something went wrong. Please try again.
           </p>
+          <button
+            onClick={() => mutate()}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 mt-4 rounded-md px-4 py-2 text-sm"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -93,8 +112,18 @@ export default function GalleryClient({ username }: GalleryClientProps) {
     );
   }
 
-  if (!gallery) {
-    return null;
+  if (isNotFound || !gallery) {
+    return (
+      <div className="flex min-h-[80vh] w-full flex-col items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold">Gallery not found</h2>
+          <p className="text-muted-foreground mt-2 text-sm">
+            This gallery was deleted or doesn&apos;t exist. Redirecting to bio
+            links...
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

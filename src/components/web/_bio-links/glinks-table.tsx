@@ -10,18 +10,12 @@ import { SocialSettingsDialog } from "./social-settings-dialog";
 import GalleryProfileView, {
   resolveGalleryTheme,
 } from "@/components/web/_bio-links/gallery-profile-view";
-import { cn } from "@/lib/utils";
 import { getAvatarUrl } from "@/utils/bio-links";
 import type { EditorGallery, GalleryData } from "@/types/bio-links";
 import { type KeyedMutator } from "swr";
 
 const CONTAINER_CLASSES =
   "relative flex flex-col items-start justify-between gap-6 lg:flex-row";
-const LINKS_CONTAINER_CLASSES = "w-full max-w-lg overflow-y-auto pb-8 lg:mx-0";
-const PREVIEW_CONTAINER_CLASSES =
-  "sticky top-6 hidden w-full max-w-[425px] lg:block";
-const PREVIEW_CONTENT_CLASSES =
-  "flex h-full items-center justify-center py-8 lg:py-0 fixed";
 
 interface GalleryLinkTableProps {
   username: string;
@@ -33,7 +27,6 @@ interface GalleryLinkTableProps {
 const GalleryLinkTable = ({
   username,
   gallery,
-  isLoading = false,
   mutate,
 }: GalleryLinkTableProps) => {
   // Inline edit entry points inside the preview (same dialogs as the top menu).
@@ -80,11 +73,6 @@ const GalleryLinkTable = ({
         isPublic: image.isPublic,
       })),
   };
-
-  const previewContainerClasses = cn(PREVIEW_CONTAINER_CLASSES);
-  const previewContentClasses = cn(
-    isLoading ? "animate-pulse backdrop-blur-sm" : PREVIEW_CONTENT_CLASSES,
-  );
 
   return (
     <div className={CONTAINER_CLASSES}>

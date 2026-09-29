@@ -1,5 +1,6 @@
 import { tb } from "@/constants/tinybird";
 import { ingestTinybirdEvent } from "@/lib/tinybird/http";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 export interface LinkClickEvent {
   timestamp?: string;
@@ -39,7 +40,10 @@ export async function sendLinkClickEvent(event: LinkClickEvent) {
     ip: event.ip,
     country: event.country ?? "",
     city: event.city ?? "",
-    continent: event.continent ?? "",
+    // Normalize before save: stored values were mixed (`asia` vs `Asia`
+    // vs `AS`) while every GROUP BY is case-sensitive, which split one
+    // continent into multiple rows. Empty stays empty (no Unknown rows).
+    continent: event.continent ? normalizeContinentKey(event.continent) : "",
     device: event.device ?? "",
     browser: event.browser ?? "",
     os: event.os ?? "",

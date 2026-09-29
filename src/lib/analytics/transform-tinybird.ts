@@ -1,4 +1,5 @@
 import { canonicalizeRefererDisplay } from "@/lib/analytics/referrer";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
 export type AnalyticsMetric =
@@ -184,11 +185,14 @@ export function transformTinybirdAnalytics(
     }
 
     if (continentsMap && item.continent) {
-      const existing = continentsMap.get(item.continent);
+      // Stored values are mixed-case/legacy (`Asia`, `AS` vs `asia`) while
+      // grouping is case-sensitive — normalize so one continent = one row.
+      const continentKey = normalizeContinentKey(item.continent);
+      const existing = continentsMap.get(continentKey);
       if (existing) existing.clicks += clicks;
       else {
-        continentsMap.set(item.continent, {
-          continent: item.continent,
+        continentsMap.set(continentKey, {
+          continent: continentKey,
           clicks,
         });
       }

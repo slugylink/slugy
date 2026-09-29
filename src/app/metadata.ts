@@ -1,18 +1,44 @@
-import { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
-const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
-const BASE_URL = `https://${ROOT_DOMAIN}`;
-const OG_IMAGE_URL =
-  "https://files.slugy.co/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp";
+const ROOT_DOMAIN = (process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co")
+  .replace(/^https?:\/\//, "")
+  .replace(/\/$/, "");
+
+const IS_LOCAL = ROOT_DOMAIN.startsWith("localhost");
+const BASE_URL = `${IS_LOCAL ? "http" : "https"}://${ROOT_DOMAIN}`;
+
+// PNG/JPG at 1200x630 has the best scraper compatibility
+const OG_IMAGE_URL = "https://files.slugy.co/slugy-og.png";
+
+const TITLE = "Slugy - Short Links with Powerful Analytics";
+const DESCRIPTION =
+  "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "Slugy - Short Links with Powerful Analytics",
+    default: TITLE,
     template: "%s | Slugy",
   },
-  description:
-    "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
+  description: DESCRIPTION,
+  applicationName: "Slugy",
+  authors: [
+    { name: "Slugy Team", url: BASE_URL },
+    { name: "Sandip Sarkar", url: "https://imsandip.in/" },
+  ],
+  creator: "Slugy Team",
+  publisher: "Slugy",
+  category: "Technology",
+  referrer: "origin-when-cross-origin",
   keywords: [
     "URL shortener",
     "short links",
@@ -21,23 +47,9 @@ export const metadata: Metadata = {
     "link-in-bio",
     "custom domains",
     "open source URL shortener",
-    "bitly alternative",
-    "dub alternative",
-    "tinyurl alternative",
-    "link tracking",
     "QR code generator",
     "branded links",
-    "team collaboration",
   ],
-  authors: [
-    { name: "Slugy Team", url: BASE_URL },
-    { name: "Sandip Sarkar", url: "https://sandipsarkar.dev/" },
-  ],
-  creator: "Slugy Team",
-  publisher: "Slugy",
-  applicationName: "Slugy",
-  category: "Technology",
-  referrer: "origin-when-cross-origin",
   robots: {
     index: true,
     follow: true,
@@ -51,36 +63,36 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "32x32", type: "image/x-icon" },
-      {
-        url: "/web-app-manifest-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-      },
-      {
-        url: "/web-app-manifest-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-      },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
   },
-  manifest: "/manifest.webmanifest",
+  manifest: "/site.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Slugy",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Slugy - Short Links with Powerful Analytics",
-    description:
-      "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
+    title: TITLE,
+    description: DESCRIPTION,
     locale: "en_US",
     images: [
       {
         url: OG_IMAGE_URL,
         width: 1200,
         height: 630,
-        alt: "Slugy - Open Source URL Shortener",
+        alt: "Slugy - Short Links with Powerful Analytics",
+        type: "image/png",
       },
     ],
   },
@@ -88,16 +100,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@slugydotco",
     creator: "@slugydotco",
-    title: "Slugy - Short Links with Powerful Analytics",
-    description:
-      "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
-    images: [OG_IMAGE_URL],
-  },
-  other: {
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Slugy",
-    "mobile-web-app-capable": "yes",
-    "msapplication-TileColor": "#000000",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [
+      { url: OG_IMAGE_URL, alt: "Slugy - Short Links with Powerful Analytics" },
+    ],
   },
 };

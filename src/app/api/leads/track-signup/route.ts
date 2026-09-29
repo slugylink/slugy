@@ -38,9 +38,13 @@ export async function POST(request: NextRequest) {
 
   if (!result.ok) {
     // No attribution on organic signups is normal — don't error the client.
+    // Self-conversions (owner/members on their own links) are skipped the
+    // same way: only genuinely new users count as leads.
     if (
       result.reason === "no-attribution" ||
-      result.reason === "unknown-click"
+      result.reason === "unknown-click" ||
+      result.reason === "self-conversion" ||
+      result.reason === "missing-user"
     ) {
       return NextResponse.json({ tracked: false, reason: result.reason });
     }

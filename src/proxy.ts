@@ -57,7 +57,7 @@ const isStaticAsset = (pathname: string): boolean => {
     pathname === "/favicon.ico" ||
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    pathname === "/manifest.webmanifest" ||
+    pathname === "/site.webmanifest" ||
     STATIC_ASSET_PATHS.some((p) => pathname.startsWith(`/${p}`))
   );
 };

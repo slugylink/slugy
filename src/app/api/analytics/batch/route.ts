@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 import {
   clearProcessedAnalyticsEvents,
   getCachedAnalyticsCount,
@@ -76,7 +77,10 @@ async function storeBatch(
             country: event.country?.substring(0, 100),
             city: event.city?.substring(0, 100),
             region: event.region?.substring(0, 100),
-            continent: event.continent?.substring(0, 50),
+            // Normalize before save into the DB (same rule as Tinybird).
+            continent: event.continent
+              ? normalizeContinentKey(event.continent).substring(0, 50)
+              : event.continent,
             browser: event.browser,
             os: event.os,
             device: event.device,

@@ -2,6 +2,7 @@ import {
   tinybird,
   type SlugyLeadEventsRow,
 } from "@/lib/tinybird/could/tinybird";
+import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 export type LeadEventPayload = Omit<SlugyLeadEventsRow, "timestamp"> & {
   timestamp?: string;
@@ -21,7 +22,8 @@ export async function sendLeadEvent(event: LeadEventPayload): Promise<void> {
       customer_external_id: event.customer_external_id,
       country: event.country ?? "",
       city: event.city ?? "",
-      continent: event.continent ?? "",
+      // Normalize before save (see slugy_click_events.ts).
+      continent: event.continent ? normalizeContinentKey(event.continent) : "",
       device: event.device ?? "",
       browser: event.browser ?? "",
       os: event.os ?? "",

@@ -92,6 +92,14 @@ const CONTINENT_NAMES: Record<string, string> = {
   na: "North America",
   oc: "Oceania",
   sa: "South America",
+  // Full slugs (grouping keys are normalized to these — see geo.ts).
+  africa: "Africa",
+  antarctica: "Antarctica",
+  asia: "Asia",
+  europe: "Europe",
+  "north america": "North America",
+  oceania: "Oceania",
+  "south america": "South America",
   unknown: "Unknown",
 };
 

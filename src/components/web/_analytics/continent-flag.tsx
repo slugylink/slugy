@@ -5,8 +5,21 @@ interface ContinentFlagProps {
   code: string;
 }
 
+/** 2-letter code → name, plus full slugs (grouping keys are slugs). */
+const SLUG_TO_CODE: Record<string, string> = {
+  africa: "AF",
+  antarctica: "AN",
+  asia: "AS",
+  europe: "EU",
+  "north america": "NA",
+  oceania: "OC",
+  "south america": "SA",
+};
+
 const ContinentFlag = ({ code }: ContinentFlagProps) => {
-  const continentCode = code.toUpperCase();
+  const trimmed = code.trim();
+  const continentCode =
+    SLUG_TO_CODE[trimmed.toLowerCase()] ?? trimmed.toUpperCase();
   const continent = continents[continentCode as keyof typeof continents];
 
   if (!continent) {
