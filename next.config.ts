@@ -18,6 +18,7 @@ const nextConfig: import("next").NextConfig = {
       { hostname: "github.com" },
       { hostname: "direct" },
       { hostname: "images.unsplash.com" },
+      { hostname: "ik.imagekit.io" },
 
       // Social media platforms
       { hostname: "abs.twimg.com" },
