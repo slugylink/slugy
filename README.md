@@ -1,6 +1,6 @@
 <div align="center">
 
-![Slugy Banner](https://res.cloudinary.com/dcsouj6ix/image/upload/v1771156577/slugy-meta-img_pjaerq.png)
+![Slugy Banner](https://ik.imagekit.io/xriiap5ue/Slugy%20-%20Short%20links%20with%20powerful%20analytics.png)
 
 # Slugy
 

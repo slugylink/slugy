@@ -9,7 +9,7 @@ export const UTM_REF_VALUE = "slugy.co" as const;
 export const CANONICAL_BASE = "https://bio.slugy.co" as const;
 
 export const OPENGRAPH_IMAGE_URL =
-  "https://opengraph.b-cdn.net/production/images/1160136e-9ad9-49c3-832c-80392cf860d7.png?token=Tk-p0tmXKfat-A7zU1aov_tcgG82lYmfeLr-zxR1LpI&height=630&width=1200&expires=33289246448" as const;
+  "https://ik.imagekit.io/xriiap5ue/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp" as const;
 
 // Social platform configuration for better maintainability
 export const SOCIAL_PLATFORMS: Record<SocialPlatform, SocialPlatformConfig> = {
