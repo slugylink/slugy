@@ -105,6 +105,7 @@ export async function GET(
       bio: bio.bio,
       logo: bio.logo,
       theme: bio.theme ?? "default",
+      isPublic: Boolean(bio.isPublic),
       socials: bio.socials
         .filter((s) => s.platform?.trim())
         .map((s) => ({

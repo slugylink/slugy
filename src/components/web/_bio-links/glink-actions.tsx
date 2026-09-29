@@ -12,6 +12,8 @@ import {
   User,
   PencilLine,
   Images,
+  Globe,
+  EyeOff,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,7 +67,9 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
   const router = useRouter();
+  const isPublished = Boolean(gallery.isPublic);
   const previewThemeId =
     typeof gallery.theme === "string"
       ? gallery.theme
@@ -89,6 +93,36 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
       setIsCopying(false);
     }
   }, [shortUrl, isCopying]);
+
+  const handleToggleVisibility = useCallback(async () => {
+    if (isTogglingVisibility) return;
+
+    const next = !isPublished;
+    setIsTogglingVisibility(true);
+    try {
+      const res = await fetch(`/api/bio-gallery/${username}/visibility`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: next }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        toast.error(data.error ?? "Failed to update visibility");
+        return;
+      }
+
+      await mutate({ ...gallery, isPublic: next }, false);
+      toast.success(
+        next ? "Gallery published — it's live now" : "Gallery unpublished",
+      );
+    } catch (err) {
+      console.error("Visibility toggle error:", err);
+      toast.error("Failed to update visibility");
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  }, [isPublished, isTogglingVisibility, username, gallery, mutate]);
 
   const handleDeleteGallery = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -138,6 +172,25 @@ const Actions = ({ gallery, username, mutate }: ActionsProps) => {
       </Badge>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant={isPublished ? "outline" : "default"}
+          size="sm"
+          className="h-9"
+          onClick={handleToggleVisibility}
+          disabled={isTogglingVisibility}
+          aria-label={isPublished ? "Unpublish gallery" : "Publish gallery"}
+        >
+          {isTogglingVisibility ? (
+            <LoaderCircle className="h-4 w-4 animate-spin" />
+          ) : isPublished ? (
+            <EyeOff className="h-4 w-4" />
+          ) : (
+            <Globe className="h-4 w-4" />
+          )}
+          <span className="ml-1.5">
+            {isPublished ? "Unpublish" : "Publish"}
+          </span>
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

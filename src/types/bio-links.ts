@@ -135,6 +135,7 @@ export type EditorGallery = {
   name?: string | null;
   bio?: string | null;
   logo?: string | null;
+  isPublic: boolean;
   socials?: PublicBioSocial[];
   images?: PublicGalleryImage[];
   theme?: string | Theme | null;
