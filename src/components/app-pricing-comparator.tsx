@@ -2,14 +2,13 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { PromoPrice } from "@/components/promo-price";
 import { Check } from "lucide-react";
 
 import {
   plans,
   PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
-  getPlanPromoPrice,
   getPlanPriceSubtitle,
   type BillingPeriod,
   type Plan,
@@ -261,14 +260,6 @@ export default function AppPricingComparator({
   return (
     <section>
       <div className="mx-auto max-w-full">
-        <p className="text-primary mb-4 text-center text-sm font-medium sm:text-left">
-          {PRICING_COPY.promoPrefix}{" "}
-          <span className="rounded bg-red-500/10 px-2 py-1">
-            {PRICING_COPY.promoCode}
-          </span>{" "}
-          {PRICING_COPY.promoSuffix}
-        </p>
-
         <div className="mb-6 flex justify-center pt-3 sm:mb-8">
           <Tabs
             value={billingPeriod}
@@ -311,10 +302,9 @@ export default function AppPricingComparator({
                 )}
               </div>
               <p className="mt-1 text-2xl font-medium">
-                <PromoPrice
-                  price={getPlanPrice(plan, billingPeriod)}
-                  promoPrice={getPlanPromoPrice(plan, billingPeriod)}
-                />
+                {new Intl.NumberFormat("en-US", PRICING_CURRENCY_FORMAT).format(
+                  getPlanPrice(plan, billingPeriod),
+                )}
                 <span className="text-muted-foreground ml-1 text-sm font-normal">
                   {getPlanPriceSubtitle(plan, billingPeriod) === "Forever"
                     ? ""
@@ -366,10 +356,10 @@ export default function AppPricingComparator({
                       )}
                     </span>
                     <span className="block text-2xl font-medium">
-                      <PromoPrice
-                        price={getPlanPrice(plan, billingPeriod)}
-                        promoPrice={getPlanPromoPrice(plan, billingPeriod)}
-                      />
+                      {new Intl.NumberFormat(
+                        "en-US",
+                        PRICING_CURRENCY_FORMAT,
+                      ).format(getPlanPrice(plan, billingPeriod))}
                     </span>
                     <span className="text-muted-foreground block text-xs">
                       {getPlanPriceSubtitle(plan, billingPeriod)}

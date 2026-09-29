@@ -10,19 +10,17 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { PromoPrice } from "@/components/promo-price";
 import {
   plans,
   PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
-  getPlanPromoPrice,
   getPlanPriceSubtitle,
   isPlanComingSoon,
   getPlanCtaLabel,
   type BillingPeriod,
   type Plan,
 } from "@/constants/data/price";
-import { PromoLiveLine } from "@/app/(root)/_components/promo-live";
 import {
   BarChart3,
   Briefcase,
@@ -73,14 +71,13 @@ function featureIcon(feature: string): LucideIcon {
 
 function PriceLine({ plan, billing }: { plan: Plan; billing: BillingPeriod }) {
   const price = getPlanPrice(plan, billing);
-  const promoPrice = getPlanPromoPrice(plan, billing);
   const subtitle = getPlanPriceSubtitle(plan, billing);
   const per =
     subtitle === "Forever" ? "free forever" : `per ${subtitle.slice(1)}`;
   return (
     <p className="text-lg">
       <span className="font-semibold">
-        <PromoPrice price={price} promoPrice={promoPrice} />
+        {new Intl.NumberFormat("en-US", PRICING_CURRENCY_FORMAT).format(price)}
       </span>{" "}
       <span className="text-muted-foreground text-sm">{per}</span>
     </p>
@@ -174,7 +171,6 @@ export default function PricingSection() {
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
             Pick a plan that fits your needs. Upgrade anytime.
           </p>
-          <PromoLiveLine />
         </Reveal>
 
         {/* Tabs for monthly & yearly */}

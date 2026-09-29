@@ -3,13 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { ArrowRightIcon } from "lucide-react";
+import { ArrowRightIcon, TrendingUp } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 import { LazyMotion, domAnimation, m } from "motion/react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
-import { PromoPill } from "./promo-live";
 
 const easeOutExpo: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const blurIn = {
@@ -27,13 +26,12 @@ const heroData = {
   announcement: {
     text: (
       <>
-        Free plan
-        <span className="mx-2 inline-block h-1 w-1 rounded-full bg-zinc-400" />
-        No credit card required
+        <TrendingUp className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
+        Turn clicks into growth
       </>
     ),
   },
-  heading1: "Open-Source URL Shortener with Powerful",
+  heading1: "Short Links with Powerful",
   heading2: (
     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       Analytics
@@ -42,7 +40,7 @@ const heroData = {
           src={"/icons/star.svg"}
           width={50}
           height={50}
-          alt="URL shortener analytics highlight"
+          alt="Short links with powerful analytics highlight"
           priority
           sizes="(max-width: 640px) 32px, 50px"
           className="h-8 w-8 sm:h-[50px] sm:w-[50px]"
@@ -72,8 +70,8 @@ const Hero = memo(function Hero() {
       <section className="mx-auto max-w-6xl px-3 sm:px-4">
         <div className="relative h-full w-full">
           <div className="mt-6 text-center sm:mt-8">
-            {/* <m.div
-              className="z-10 mb-4 flex items-center justify-center sm:mb-5"
+            <m.div
+              className="z-10 mb-8! flex items-center justify-center sm:mb-5"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.05 }}
@@ -85,18 +83,9 @@ const Hero = memo(function Hero() {
               >
                 <AnimatedShinyText className="inline-flex items-center justify-center px-2.5 py-1 text-[11px] transition ease-out hover:text-neutral-600 hover:duration-300 sm:px-3 sm:text-sm hover:dark:text-neutral-400">
                   <span className="inline pb-1" /> {heroData.announcement.text}
-                  <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" />
+                  {/* <ArrowRightIcon className="ml-1 h-3 w-3 transition-transform duration-300 ease-in-out group-hover:translate-x-0.5" /> */}
                 </AnimatedShinyText>
               </div>
-            </m.div> */}
-
-            <m.div
-              className="z-10 mb-6 flex items-center justify-center sm:mb-8 md:mb-10"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.55, ease: easeOutExpo, delay: 0.12 }}
-            >
-              <PromoPill />
             </m.div>
 
             <h1 className="space-y-0.5 text-[29px] leading-[0.95] font-medium sm:text-4xl sm:leading-[0.95] md:text-5xl lg:text-[53px]">

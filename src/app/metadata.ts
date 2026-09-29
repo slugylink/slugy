@@ -8,7 +8,7 @@ const OG_IMAGE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "Slugy - Open Source URL Shortener with Advanced Analytics",
+    default: "Slugy - Short Links with Powerful Analytics",
     template: "%s | Slugy",
   },
   description:
@@ -71,7 +71,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
+    title: "Slugy - Short Links with Powerful Analytics",
     description:
       "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
     locale: "en_US",
@@ -88,7 +88,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     site: "@slugydotco",
     creator: "@slugydotco",
-    title: "Slugy - Open Source URL Shortener with Advanced Analytics",
+    title: "Slugy - Short Links with Powerful Analytics",
     description:
       "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",
     images: [OG_IMAGE_URL],

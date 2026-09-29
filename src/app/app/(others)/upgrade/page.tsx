@@ -1,14 +1,12 @@
 "use client";
 import {
   plans,
-  PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
-  getPlanPromoPrice,
   getPlanPriceSubtitle,
   isPlanComingSoon,
   getPlanCtaLabel,
 } from "@/constants/data/price";
-import { PromoPrice } from "@/components/promo-price";
 import React, { useState } from "react";
 import { createAuthClient } from "better-auth/react";
 import { Button } from "@/components/ui/button";
@@ -62,13 +60,6 @@ const UpgardePage = () => {
         <p className="text-muted-foreground">
           Select the perfect plan for your needs
         </p>
-        <p className="text-primary mx-auto mt-3 max-w-2xl text-sm font-medium">
-          {PRICING_COPY.promoPrefix}{" "}
-          <span className="rounded bg-red-500/10 px-2 py-1">
-            {PRICING_COPY.promoCode}
-          </span>{" "}
-          {PRICING_COPY.promoSuffix}
-        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:mx-auto lg:max-w-6xl lg:grid-cols-3">
@@ -98,10 +89,9 @@ const UpgardePage = () => {
 
             <div className="flex items-baseline gap-2">
               <div className="text-4xl font-bold">
-                <PromoPrice
-                  price={getPlanPrice(plan, "monthly")}
-                  promoPrice={getPlanPromoPrice(plan, "monthly")}
-                />
+                {new Intl.NumberFormat("en-US", PRICING_CURRENCY_FORMAT).format(
+                  getPlanPrice(plan, "monthly"),
+                )}
               </div>
               <span className="text-muted-foreground text-sm">
                 {getPlanPriceSubtitle(plan, "monthly")}

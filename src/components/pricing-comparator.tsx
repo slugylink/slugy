@@ -3,8 +3,8 @@
 import {
   plans,
   PRICING_COPY,
+  PRICING_CURRENCY_FORMAT,
   getPlanPrice,
-  getPlanPromoPrice,
   getPlanPriceSubtitle,
   isPlanComingSoon,
   getPlanCtaLabel,
@@ -18,7 +18,6 @@ import { Check } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
-import { PromoPrice } from "@/components/promo-price";
 
 interface PricingComparatorProps {
   workspace?: string;
@@ -117,7 +116,6 @@ function PriceHeader({
   highlighted?: boolean;
 }) {
   const price = getPlanPrice(plan, billing);
-  const promoPrice = getPlanPromoPrice(plan, billing);
   const subtitle = getPlanPriceSubtitle(plan, billing);
   const paid = plan.planType === "pro" || plan.planType === "growth";
   const shouldManage = paid && Boolean(isPaidPlan);
@@ -141,7 +139,7 @@ function PriceHeader({
         )}
       </span>
       <span className="block text-2xl font-medium">
-        <PromoPrice price={price} promoPrice={promoPrice} />
+        {new Intl.NumberFormat("en-US", PRICING_CURRENCY_FORMAT).format(price)}
       </span>
       <span className="text-muted-foreground block text-xs">{subtitle}</span>
       {disabled ? (
@@ -199,13 +197,6 @@ export default function PricingComparator({
   return (
     <section>
       <div className="mx-auto">
-        <p className="text-primary mb-4 text-center text-sm font-medium">
-          {PRICING_COPY.promoPrefix}{" "}
-          <span className="rounded bg-red-500/10 px-2 py-1">
-            {PRICING_COPY.promoCode}
-          </span>{" "}
-          {PRICING_COPY.promoSuffix}
-        </p>
         <div className="mb-8 flex justify-center pt-3">
           <Tabs
             value={billingPeriod}
