@@ -59,21 +59,59 @@ export default async function BlogPostPage({ params }: PageProps) {
 
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: post.description,
-    datePublished: post.publishedAt,
-    dateModified: post.updatedAt ?? post.publishedAt,
-    author: {
-      "@type": "Organization",
-      name: post.author.name,
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "Slugy",
-      url: baseUrl,
-    },
-    mainEntityOfPage: `${baseUrl}/blogs/${post.slug}`,
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: post.title,
+        description: post.description,
+        image: `${baseUrl}/og-square.png`,
+        datePublished: post.publishedAt,
+        dateModified: post.updatedAt ?? post.publishedAt,
+        author: {
+          "@type": "Organization",
+          "@id": `${baseUrl}/#organization`,
+          name: post.author.name,
+          url: baseUrl,
+        },
+        publisher: {
+          "@type": "Organization",
+          "@id": `${baseUrl}/#organization`,
+          name: "Slugy",
+          url: baseUrl,
+          logo: {
+            "@type": "ImageObject",
+            url: `${baseUrl}/web-app-manifest-512x512.png`,
+          },
+        },
+        mainEntityOfPage: {
+          "@type": "WebPage",
+          "@id": `${baseUrl}/blogs/${post.slug}`,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "Home",
+            item: baseUrl,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Blog",
+            item: `${baseUrl}/blogs`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: post.title,
+            item: `${baseUrl}/blogs/${post.slug}`,
+          },
+        ],
+      },
+    ],
   };
 
   return (

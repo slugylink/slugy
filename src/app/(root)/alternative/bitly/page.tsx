@@ -6,16 +6,74 @@ import CompareTable from "../../_components/compare-table";
 import Faq from "../../_components/faq";
 
 export const metadata: Metadata = {
-  title: "Slugy vs Bitly: branded links without enterprise pricing",
+  title:
+    "Best Bitly Alternative in 2026 — Branded Links Without Enterprise Pricing",
   description:
-    "Compare Slugy vs Bitly on free plans, custom domains, QR codes, bio pages, and conversion tracking — plus how to migrate via CSV.",
+    "The best Bitly alternative for teams: free branded links, custom domains, QR codes, bio pages, and conversion tracking — plus CSV migration from Bitly in minutes.",
+  keywords: [
+    "bitly alternative",
+    "best bitly alternative",
+    "bitly vs slugy",
+    "free bitly alternative",
+    "branded links",
+  ],
   alternates: { canonical: "/alternative/bitly" },
   openGraph: {
-    title: "Slugy vs Bitly | Slugy",
+    title: "Best Bitly Alternative in 2026 | Slugy",
     description:
       "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
     url: "/alternative/bitly",
   },
+  twitter: {
+    title: "Best Bitly Alternative in 2026 | Slugy",
+    description:
+      "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      name: "Slugy — Bitly Alternative",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      url: "/alternative/bitly",
+      description:
+        "Open-source Bitly alternative with branded links, QR codes, bio pages, and conversion tracking.",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "Can I migrate from Bitly?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. Export your links from Bitly as a CSV and import them into Slugy — slugs, destinations, and UTM parameters come with you.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Can I use my own domain?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. Connect a custom domain in minutes with guided DNS setup, so every link looks like yourbrand.co/sale instead of a generic shortener.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Is there a free plan?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. The free plan covers branded links, QR codes, and basic analytics — no credit card required.",
+          },
+        },
+      ],
+    },
+  ],
 };
 
 const SWITCH_REASONS = [
@@ -42,12 +100,16 @@ const STEPS = [
 export default function BitlyAlternativePage() {
   return (
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <section className="mx-auto max-w-3xl px-4 pt-14 pb-10 text-center sm:pt-20 sm:pb-16">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Bitly alternative
         </p>
         <h1 className="mt-2 text-3xl font-medium tracking-tight text-balance sm:text-5xl">
-          Everything Bitly does, without the enterprise price tag
+          The best Bitly alternative without the enterprise price tag
         </h1>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-lg">
           Branded links, QR codes, bio pages, and conversion tracking — free to
@@ -112,6 +174,16 @@ export default function BitlyAlternativePage() {
           <Button asChild size="lg">
             <Link href="https://app.slugy.co/signup">Start your migration</Link>
           </Button>
+          <p className="text-muted-foreground mt-4 text-sm">
+            Want the full breakdown? Read{" "}
+            <Link
+              href="/blogs/slugy-vs-bitly"
+              className="font-medium underline underline-offset-4"
+            >
+              Slugy vs Bitly compared
+            </Link>
+            .
+          </p>
         </div>
       </section>
 

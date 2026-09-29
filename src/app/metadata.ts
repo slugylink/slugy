@@ -86,8 +86,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    site: "@slugy",
-    creator: "@sandip_dev_07",
+    site: "@slugydotco",
+    creator: "@slugydotco",
     title: "Slugy - Open Source URL Shortener with Advanced Analytics",
     description:
       "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.",

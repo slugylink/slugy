@@ -15,9 +15,9 @@ const COMPARE_DATE = "2026-09-26";
 export const BLOG_POSTS: BlogPost[] = [
   {
     slug: "slugy-vs-bitly",
-    title: "Slugy vs Bitly: branded links without enterprise pricing",
+    title: "Slugy vs Bitly Compared: Pricing, Features & Migration",
     description:
-      "How Slugy compares to Bitly on branded links, QR codes, bio pages, and conversion tracking — and how to migrate via CSV.",
+      "In-depth Slugy vs Bitly comparison on pricing, branded links, QR codes, bio pages, and conversion tracking — and how to migrate via CSV.",
     publishedAt: COMPARE_DATE,
     author: { name: "Slugy" },
     tags: ["comparison", "bitly", "alternative"],

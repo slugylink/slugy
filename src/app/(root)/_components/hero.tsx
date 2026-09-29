@@ -33,7 +33,7 @@ const heroData = {
       </>
     ),
   },
-  heading1: "Short Links with Powerful",
+  heading1: "Open-Source URL Shortener with Powerful",
   heading2: (
     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       Analytics
@@ -42,7 +42,7 @@ const heroData = {
           src={"/icons/star.svg"}
           width={50}
           height={50}
-          alt="Slugy"
+          alt="URL shortener analytics highlight"
           priority
           sizes="(max-width: 640px) 32px, 50px"
           className="h-8 w-8 sm:h-[50px] sm:w-[50px]"

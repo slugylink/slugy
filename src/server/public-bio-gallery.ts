@@ -284,8 +284,8 @@ export function createBioDefaultMetadata(): Metadata {
       description:
         "Discover and share curated links in bio galleries. Powered by Slugy.",
       images: [OPENGRAPH_IMAGE_URL],
-      creator: "@slugy",
-      site: "@slugy",
+      creator: "@slugydotco",
+      site: "@slugydotco",
     },
   };
 }
@@ -341,8 +341,8 @@ export function createBioGalleryMetadata({
       title,
       description,
       images: [OPENGRAPH_IMAGE_URL],
-      creator: "@slugy",
-      site: "@slugy",
+      creator: "@slugydotco",
+      site: "@slugydotco",
     },
     alternates: {
       canonical: canonicalUrl,

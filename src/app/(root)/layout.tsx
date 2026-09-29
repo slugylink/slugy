@@ -10,13 +10,25 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "Organization",
+      "@id": `${BASE_URL}/#organization`,
       name: "Slugy",
       url: BASE_URL,
-      logo: `${BASE_URL}/web-app-manifest-512x512.png`,
+      logo: {
+        "@type": "ImageObject",
+        url: `${BASE_URL}/web-app-manifest-512x512.png`,
+      },
       sameAs: [
         "https://github.com/slugylink/slugy",
         "https://x.com/slugydotco",
       ],
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${BASE_URL}/#website`,
+      url: BASE_URL,
+      name: "Slugy",
+      publisher: { "@id": `${BASE_URL}/#organization` },
+      inLanguage: "en-US",
     },
     {
       "@type": "SoftwareApplication",
