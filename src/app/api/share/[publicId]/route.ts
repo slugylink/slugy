@@ -295,6 +295,11 @@ export async function GET(
           "browser",
           "os",
           "referer",
+          "utm_source",
+          "utm_medium",
+          "utm_campaign",
+          "utm_term",
+          "utm_content",
         ],
         where: {
           linkId: shared.link.id,

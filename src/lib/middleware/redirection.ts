@@ -118,6 +118,39 @@ function extractRefParam(urlString: string): string | null {
   }
 }
 
+// Forward click-time UTMs from the short-link request onto the destination so
+// downstream analytics (GA, etc.) attribute correctly. Internal tracking
+// already merges these via extractUTMParams; without forwarding the browser
+// lands on a URL without them. Destination's own params are preserved —
+// request values win on key conflict.
+function forwardRequestUTMs(
+  requestUrl: string,
+  destinationUrl: string,
+): string {
+  try {
+    const req = new URL(requestUrl);
+    const dest = new URL(destinationUrl);
+    let touched = false;
+    for (const key of [
+      "utm_source",
+      "utm_medium",
+      "utm_campaign",
+      "utm_term",
+      "utm_content",
+      "ref",
+    ]) {
+      const value = req.searchParams.get(key)?.trim();
+      if (value) {
+        dest.searchParams.set(key, value);
+        touched = true;
+      }
+    }
+    return touched ? dest.toString() : destinationUrl;
+  } catch {
+    return destinationUrl;
+  }
+}
+
 // Create safe redirect with fallback — only http(s) destinations
 function appendSlugyIdParam(url: string, clickId: string): string {
   try {
@@ -625,10 +658,16 @@ export async function URLRedirects(
       }
 
       const clickId = createClickId();
+      // Forward click-time UTMs (?utm_* on the short link) onto the
+      // destination so GA-style tools see them; tracking already merges them.
+      const baseRedirectUrl = forwardRequestUTMs(
+        req.nextUrl.toString(),
+        destinationUrl,
+      );
       // Dub-style: only append ?slugy_id= when conversion tracking is enabled.
       const redirectUrl = linkData.trackConversion
-        ? appendSlugyIdParam(destinationUrl, clickId)
-        : destinationUrl;
+        ? appendSlugyIdParam(baseRedirectUrl, clickId)
+        : baseRedirectUrl;
 
       // Track analytics for humans only (skip bots + browser prefetch).
       // waitUntil MUST be registered before the 302 returns — a bare void/async

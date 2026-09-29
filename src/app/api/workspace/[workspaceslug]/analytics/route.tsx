@@ -20,7 +20,12 @@ type AnalyticsMetric =
   | "browsers"
   | "oses"
   | "referrers"
-  | "destinations";
+  | "destinations"
+  | "utmSources"
+  | "utmMediums"
+  | "utmCampaigns"
+  | "utmTerms"
+  | "utmContents";
 
 // Accept both singular and plural forms from client
 type ClientMetric =
@@ -35,7 +40,12 @@ type ClientMetric =
   | "os" // Allow singular form
   | "oses" // Allow plural form
   | "referrers"
-  | "destinations";
+  | "destinations"
+  | "utmSources"
+  | "utmMediums"
+  | "utmCampaigns"
+  | "utmTerms"
+  | "utmContents";
 
 // Constants for better maintainability
 const PRIVATE_NO_STORE = {
@@ -65,6 +75,11 @@ const analyticsPropsSchema = analyticsFilterFieldsSchema
           "oses",
           "referrers",
           "destinations",
+          "utmSources",
+          "utmMediums",
+          "utmCampaigns",
+          "utmTerms",
+          "utmContents",
         ]),
       )
       .optional(),
@@ -350,6 +365,106 @@ async function fetchMetricData(
           clicks: Number(row.clicks),
         }));
 
+      case "utmSources":
+        const utmSourcesResult = await sql`
+          SELECT
+            a."utm_source" AS source,
+            COUNT(*) AS clicks
+          FROM "analytics" a
+          JOIN "links" l ON a."linkId" = l.id
+          JOIN "workspaces" w ON l."workspaceId" = w.id
+          WHERE ${baseWhereClause}
+            AND a."utm_source" IS NOT NULL
+            AND a."utm_source" <> ''
+          GROUP BY a."utm_source"
+          ORDER BY clicks DESC
+          LIMIT ${MAX_RESULTS}
+        `;
+        return utmSourcesResult.map((row) => ({
+          source: row.source,
+          clicks: Number(row.clicks),
+        }));
+
+      case "utmMediums":
+        const utmMediumsResult = await sql`
+          SELECT
+            a."utm_medium" AS medium,
+            COUNT(*) AS clicks
+          FROM "analytics" a
+          JOIN "links" l ON a."linkId" = l.id
+          JOIN "workspaces" w ON l."workspaceId" = w.id
+          WHERE ${baseWhereClause}
+            AND a."utm_medium" IS NOT NULL
+            AND a."utm_medium" <> ''
+          GROUP BY a."utm_medium"
+          ORDER BY clicks DESC
+          LIMIT ${MAX_RESULTS}
+        `;
+        return utmMediumsResult.map((row) => ({
+          medium: row.medium,
+          clicks: Number(row.clicks),
+        }));
+
+      case "utmCampaigns":
+        const utmCampaignsResult = await sql`
+          SELECT
+            a."utm_campaign" AS campaign,
+            COUNT(*) AS clicks
+          FROM "analytics" a
+          JOIN "links" l ON a."linkId" = l.id
+          JOIN "workspaces" w ON l."workspaceId" = w.id
+          WHERE ${baseWhereClause}
+            AND a."utm_campaign" IS NOT NULL
+            AND a."utm_campaign" <> ''
+          GROUP BY a."utm_campaign"
+          ORDER BY clicks DESC
+          LIMIT ${MAX_RESULTS}
+        `;
+        return utmCampaignsResult.map((row) => ({
+          campaign: row.campaign,
+          clicks: Number(row.clicks),
+        }));
+
+      case "utmTerms":
+        const utmTermsResult = await sql`
+          SELECT
+            a."utm_term" AS term,
+            COUNT(*) AS clicks
+          FROM "analytics" a
+          JOIN "links" l ON a."linkId" = l.id
+          JOIN "workspaces" w ON l."workspaceId" = w.id
+          WHERE ${baseWhereClause}
+            AND a."utm_term" IS NOT NULL
+            AND a."utm_term" <> ''
+          GROUP BY a."utm_term"
+          ORDER BY clicks DESC
+          LIMIT ${MAX_RESULTS}
+        `;
+        return utmTermsResult.map((row) => ({
+          term: row.term,
+          clicks: Number(row.clicks),
+        }));
+
+      case "utmContents":
+        const utmContentsResult = await sql`
+          SELECT
+            a."utm_content" AS content,
+            COUNT(*) AS clicks
+          FROM "analytics" a
+          JOIN "links" l ON a."linkId" = l.id
+          JOIN "workspaces" w ON l."workspaceId" = w.id
+          WHERE ${baseWhereClause}
+            AND a."utm_content" IS NOT NULL
+            AND a."utm_content" <> ''
+          GROUP BY a."utm_content"
+          ORDER BY clicks DESC
+          LIMIT ${MAX_RESULTS}
+        `;
+        return utmContentsResult.map((row) => ({
+          content: row.content,
+          clicks: Number(row.clicks),
+        }));
+
       default:
         return null;
     }
@@ -446,6 +561,11 @@ export async function GET(
       "oses",
       "referrers",
       "destinations",
+      "utmSources",
+      "utmMediums",
+      "utmCampaigns",
+      "utmTerms",
+      "utmContents",
     ];
 
     // Normalize metrics (convert "os" to "oses")

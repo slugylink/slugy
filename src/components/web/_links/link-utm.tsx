@@ -130,39 +130,26 @@ export default function UTMBuilderDialog({
     if (!baseUrl) return baseUrl;
 
     try {
-      // Fast check for URLs without query params
-      if (!baseUrl.includes("?")) {
-        const urlWithProtocol = !/^https?:\/\//i.test(baseUrl)
-          ? `https://${baseUrl}`
-          : baseUrl;
-
-        const utmParams = new URLSearchParams();
-        if (params.source) utmParams.append("utm_source", params.source);
-        if (params.medium) utmParams.append("utm_medium", params.medium);
-        if (params.campaign) utmParams.append("utm_campaign", params.campaign);
-        if (params.term) utmParams.append("utm_term", params.term);
-        if (params.content) utmParams.append("utm_content", params.content);
-        if (params.referral) utmParams.append("ref", params.referral);
-
-        return `${urlWithProtocol}${utmParams.toString() ? "?" + utmParams.toString() : ""}`;
-      }
-
-      // For URLs with existing query params, use URL constructor
-      const urlWithProtocol = !/^https?:\/\//i.test(baseUrl)
-        ? `https://${baseUrl}`
-        : baseUrl;
+      const urlWithProtocol = !/^https?:\/\//i.test(baseUrl.trim())
+        ? `https://${baseUrl.trim()}`
+        : baseUrl.trim();
       const parsedUrl = new URL(urlWithProtocol);
-      const baseUrlWithoutParams = parsedUrl.origin + parsedUrl.pathname;
-      const utmParams = new URLSearchParams();
 
-      if (params.source) utmParams.append("utm_source", params.source);
-      if (params.medium) utmParams.append("utm_medium", params.medium);
-      if (params.campaign) utmParams.append("utm_campaign", params.campaign);
-      if (params.term) utmParams.append("utm_term", params.term);
-      if (params.content) utmParams.append("utm_content", params.content);
-      if (params.referral) utmParams.append("ref", params.referral);
+      // Preserve existing non-UTM params + hash; only overwrite UTM/ref keys.
+      const merged = new URLSearchParams(parsedUrl.search);
+      const setOrDelete = (key: string, value: string) => {
+        if (value) merged.set(key, value);
+        else merged.delete(key);
+      };
+      setOrDelete("utm_source", params.source.trim());
+      setOrDelete("utm_medium", params.medium.trim());
+      setOrDelete("utm_campaign", params.campaign.trim());
+      setOrDelete("utm_term", params.term.trim());
+      setOrDelete("utm_content", params.content.trim());
+      setOrDelete("ref", params.referral.trim());
 
-      return `${baseUrlWithoutParams}${utmParams.toString() ? "?" + utmParams.toString() : ""}`;
+      const query = merged.toString();
+      return `${parsedUrl.origin}${parsedUrl.pathname}${query ? `?${query}` : ""}${parsedUrl.hash}`;
     } catch {
       // Return original URL if parsing fails
       return baseUrl;

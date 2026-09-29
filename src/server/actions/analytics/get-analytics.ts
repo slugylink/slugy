@@ -26,6 +26,11 @@ const ALL_METRICS = [
   "oses",
   "referrers",
   "destinations",
+  "utmSources",
+  "utmMediums",
+  "utmCampaigns",
+  "utmTerms",
+  "utmContents",
 ] as const;
 
 const AnalyticsPropsSchema = z.object({
@@ -80,6 +85,11 @@ export async function getAnalytics(
         "browser",
         "os",
         "referer",
+        "utm_source",
+        "utm_medium",
+        "utm_campaign",
+        "utm_term",
+        "utm_content",
       ],
       where: {
         link: {

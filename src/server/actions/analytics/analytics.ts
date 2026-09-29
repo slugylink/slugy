@@ -17,7 +17,12 @@ type AnalyticsMetric =
   | "browsers"
   | "oses"
   | "referrers"
-  | "destinations";
+  | "destinations"
+  | "utmSources"
+  | "utmMediums"
+  | "utmCampaigns"
+  | "utmTerms"
+  | "utmContents";
 
 const METRIC_FLAGS = {
   totalClicks: 1 << 0,
@@ -31,6 +36,11 @@ const METRIC_FLAGS = {
   oses: 1 << 8,
   referrers: 1 << 9,
   destinations: 1 << 10,
+  utmSources: 1 << 11,
+  utmMediums: 1 << 12,
+  utmCampaigns: 1 << 13,
+  utmTerms: 1 << 14,
+  utmContents: 1 << 15,
 } as const satisfies Record<AnalyticsMetric, number>;
 
 type MetricFlags = number;
@@ -55,6 +65,11 @@ interface AnalyticsResponse {
   oses?: Array<{ os: string; clicks: number }>;
   referrers?: Array<{ referrer: string; clicks: number }>;
   destinations?: Array<{ destination: string; clicks: number }>;
+  utmSources?: Array<{ source: string; clicks: number }>;
+  utmMediums?: Array<{ medium: string; clicks: number }>;
+  utmCampaigns?: Array<{ campaign: string; clicks: number }>;
+  utmTerms?: Array<{ term: string; clicks: number }>;
+  utmContents?: Array<{ content: string; clicks: number }>;
 }
 
 // Base properties for analytics queries
@@ -89,6 +104,11 @@ interface AggregationMaps {
   oses?: Map<string, number>;
   referrers?: Map<string, number>;
   destinations?: Map<string, number>;
+  utmSources?: Map<string, number>;
+  utmMediums?: Map<string, number>;
+  utmCampaigns?: Map<string, number>;
+  utmTerms?: Map<string, number>;
+  utmContents?: Map<string, number>;
 }
 
 // Time period durations for analytics queries (except 'all')
@@ -147,6 +167,11 @@ function processAnalyticsData(
     browser: string | null;
     os: string | null;
     referer: string | null;
+    utm_source?: string | null;
+    utm_medium?: string | null;
+    utm_campaign?: string | null;
+    utm_term?: string | null;
+    utm_content?: string | null;
     _count: number;
   }>,
   timePeriod: TimePeriod,
@@ -187,6 +212,21 @@ function processAnalyticsData(
   }
   if (hasMetric(metricFlags, "destinations")) {
     aggregationMaps.destinations = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "utmSources")) {
+    aggregationMaps.utmSources = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "utmMediums")) {
+    aggregationMaps.utmMediums = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "utmCampaigns")) {
+    aggregationMaps.utmCampaigns = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "utmTerms")) {
+    aggregationMaps.utmTerms = new Map<string, number>();
+  }
+  if (hasMetric(metricFlags, "utmContents")) {
+    aggregationMaps.utmContents = new Map<string, number>();
   }
 
   for (const record of analyticsData) {
@@ -241,6 +281,21 @@ function processAnalyticsData(
       aggregationMaps.referrers,
       canonicalizeRefererDisplay(record.referer),
     );
+    if (record.utm_source) {
+      updateMetric(aggregationMaps.utmSources, record.utm_source);
+    }
+    if (record.utm_medium) {
+      updateMetric(aggregationMaps.utmMediums, record.utm_medium);
+    }
+    if (record.utm_campaign) {
+      updateMetric(aggregationMaps.utmCampaigns, record.utm_campaign);
+    }
+    if (record.utm_term) {
+      updateMetric(aggregationMaps.utmTerms, record.utm_term);
+    }
+    if (record.utm_content) {
+      updateMetric(aggregationMaps.utmContents, record.utm_content);
+    }
 
     if (aggregationMaps.destinations) {
       const url = linkIdToUrl.get(record.linkId) ?? "Unknown";
@@ -336,6 +391,36 @@ function formatAnalyticsResponse(
       destination,
       clicks,
     }));
+  }
+
+  if (hasMetric(metricFlags, "utmSources") && aggregationMaps.utmSources) {
+    response.utmSources = Array.from(aggregationMaps.utmSources.entries()).map(
+      ([source, clicks]: [string, number]) => ({ source, clicks }),
+    );
+  }
+
+  if (hasMetric(metricFlags, "utmMediums") && aggregationMaps.utmMediums) {
+    response.utmMediums = Array.from(aggregationMaps.utmMediums.entries()).map(
+      ([medium, clicks]: [string, number]) => ({ medium, clicks }),
+    );
+  }
+
+  if (hasMetric(metricFlags, "utmCampaigns") && aggregationMaps.utmCampaigns) {
+    response.utmCampaigns = Array.from(
+      aggregationMaps.utmCampaigns.entries(),
+    ).map(([campaign, clicks]: [string, number]) => ({ campaign, clicks }));
+  }
+
+  if (hasMetric(metricFlags, "utmTerms") && aggregationMaps.utmTerms) {
+    response.utmTerms = Array.from(aggregationMaps.utmTerms.entries()).map(
+      ([term, clicks]: [string, number]) => ({ term, clicks }),
+    );
+  }
+
+  if (hasMetric(metricFlags, "utmContents") && aggregationMaps.utmContents) {
+    response.utmContents = Array.from(
+      aggregationMaps.utmContents.entries(),
+    ).map(([content, clicks]: [string, number]) => ({ content, clicks }));
   }
   return response;
 }
