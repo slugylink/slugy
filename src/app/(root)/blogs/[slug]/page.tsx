@@ -32,10 +32,22 @@ export async function generateMetadata({
       modifiedTime: post.updatedAt ?? post.publishedAt,
       authors: [post.author.name],
       tags: post.tags,
+      images: [
+        {
+          url: "https://files.slugy.co/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp",
+          width: 1200,
+          height: 630,
+          alt: `${post.title} | Slugy`,
+        },
+      ],
     },
     twitter: {
+      card: "summary_large_image",
       title: `${post.title} | Slugy`,
       description: post.description,
+      images: [
+        "https://files.slugy.co/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp",
+      ],
     },
   };
 }

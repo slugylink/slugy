@@ -3,7 +3,7 @@ import { Metadata } from "next";
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
 const BASE_URL = `https://${ROOT_DOMAIN}`;
 const OG_IMAGE_URL =
-  "https://ik.imagekit.io/xriiap5ue/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp";
+  "https://files.slugy.co/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp";
 
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
