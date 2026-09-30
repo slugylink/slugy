@@ -27,7 +27,7 @@ const heroData = {
     text: (
       <>
         <TrendingUp className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        Turn clicks into growth
+        Turn links into customers
       </>
     ),
   },

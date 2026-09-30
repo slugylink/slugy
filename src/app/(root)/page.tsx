@@ -12,7 +12,6 @@ const LOADING_HEIGHT = {
   features: "h-[400px]",
   stats: "h-[300px]",
   pricing: "h-[500px]",
-  testimonials: "h-[380px]",
   openSource: "h-[300px]",
   sponsors: "h-[280px]",
   faq: "h-[420px]",
@@ -35,10 +34,6 @@ const PricingSection = dynamic(
     loading: () => <SectionPlaceholder height={LOADING_HEIGHT.pricing} />,
   },
 );
-
-const Testimonials = dynamic(() => import("./_components/testimonials"), {
-  loading: () => <SectionPlaceholder height={LOADING_HEIGHT.testimonials} />,
-});
 
 const Stats = dynamic(() => import("./_components/stats"), {
   loading: () => <SectionPlaceholder height={LOADING_HEIGHT.stats} />,
@@ -75,10 +70,6 @@ export default function Home() {
           <section id="pricing" className="scroll-mt-20">
             <PricingSection />
           </section>
-          {/* <section id="testimonials" className="scroll-mt-20">
-            <Testimonials />
-          </section> */}
-
           <section id="stats-metrics" className="scroll-mt-20">
             <Stats />
           </section>
