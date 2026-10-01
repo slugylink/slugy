@@ -1,4 +1,7 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaNeon } from "@prisma/adapter-neon";
+import { neonConfig } from "@neondatabase/serverless";
+import ws from "ws";
 import {
   BASIC_PLAN as BASIC_PLAN_SOURCE,
   GROWTH_PLAN as GROWTH_PLAN_SOURCE,
@@ -7,7 +10,13 @@ import {
   toPlanSeed,
 } from "../constants/data/price";
 
-const db = new PrismaClient();
+// Prisma 7: direct connections require an explicit adapter.
+neonConfig.webSocketConstructor = ws;
+neonConfig.poolQueryViaFetch = true;
+
+const db = new PrismaClient({
+  adapter: new PrismaNeon({ connectionString: process.env.DATABASE_URL! }),
+});
 const BASIC_PLAN = toPlanSeed(BASIC_PLAN_SOURCE);
 const PRO_PLAN = toPlanSeed(PRO_PLAN_SOURCE);
 const FREE_PLAN = toPlanSeed(FREE_PLAN_SOURCE);
