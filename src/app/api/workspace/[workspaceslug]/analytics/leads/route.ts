@@ -1,7 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiErrors } from "@/lib/api-response";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { serveCachedAnalytics } from "@/lib/analytics/result-cache";
 import {
   salesLeadFilterFieldsSchema,
   tinybirdLeadsFilterParams,
@@ -17,11 +18,6 @@ import {
 } from "@/lib/analytics/transform-tinybird";
 import { tinybird } from "@/lib/tinybird/could/tinybird";
 import { clampPeriodByRetention } from "@/lib/subscription/retention";
-
-const PRIVATE_NO_STORE = {
-  "Cache-Control": "private, no-store",
-  Vary: "Cookie, Authorization",
-};
 
 export const dynamic = "force-dynamic";
 
@@ -128,27 +124,24 @@ export async function GET(
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
 
-    const result = await tinybird.leadsAnalytics.query({
-      workspace_id: workspaceId,
-      ...tinybirdLeadsFilterParams(effectiveProps),
-    });
+    return serveCachedAnalytics(request, {
+      workspaceId,
+      event: "leads",
+      effectiveProps: effectiveProps as Record<string, unknown>,
+      normalizedMetrics: normalizedMetrics.map(String),
+      extraHeaders: { "X-Analytics-Event": "leads" },
+      compute: async () => {
+        const result = await tinybird.leadsAnalytics.query({
+          workspace_id: workspaceId,
+          ...tinybirdLeadsFilterParams(effectiveProps),
+        });
 
-    const rows = (result.data ?? []).map((row) => ({
-      ...row,
-      clicks: Number(row.clicks),
-    }));
+        const rows = (result.data ?? []).map((row) => ({
+          ...row,
+          clicks: Number(row.clicks),
+        }));
 
-    const analyticsData = transformTinybirdAnalytics(
-      rows,
-      normalizedMetrics,
-      timePeriod,
-    );
-
-    return NextResponse.json(analyticsData, {
-      status: 200,
-      headers: {
-        ...PRIVATE_NO_STORE,
-        "X-Analytics-Event": "leads",
+        return transformTinybirdAnalytics(rows, normalizedMetrics, timePeriod);
       },
     });
   } catch (err) {

@@ -1,5 +1,7 @@
 import useSWR from "swr";
 import { useMemo } from "react";
+import axios from "axios";
+import { fetcher } from "@/lib/fetcher";
 import { useDebounce } from "./use-debounce";
 
 export type TimePeriod = "24h" | "7d" | "30d" | "3m" | "12m" | "all";
@@ -167,25 +169,28 @@ const fetchAnalyticsData = async (
   const queryString = searchParams.toString();
   const url = `${endpoint}${queryString ? `?${queryString}` : ""}`;
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "");
-    let message = "Analytics service temporarily unavailable";
-    try {
-      const body = JSON.parse(errorText) as {
-        error?: string;
-        message?: string;
-      };
-      if (body.error?.trim()) message = body.error.trim();
-      else if (body.message?.trim()) message = body.message.trim();
-    } catch {
-      // keep friendly default
+  // ETag-aware: server returns 304 when the cached window is unchanged,
+  // and the fetcher reuses the last body without re-downloading.
+  let data: Record<string, any>;
+  try {
+    data = await fetcher<Record<string, any>>(url);
+  } catch (err) {
+    if (axios.isAxiosError(err)) {
+      const body = err.response?.data as
+        | { error?: unknown; message?: unknown }
+        | undefined;
+      const fromError =
+        typeof body?.error === "string" ? body.error.trim() : "";
+      const fromMessage =
+        typeof body?.message === "string" ? body.message.trim() : "";
+      throw new Error(
+        fromError || fromMessage || "Analytics service temporarily unavailable",
+      );
     }
-    throw new Error(message);
+    throw err instanceof Error
+      ? err
+      : new Error("Analytics service temporarily unavailable");
   }
-
-  const data = await response.json();
 
   if (metrics?.length) {
     const result: Partial<AnalyticsData> & Partial<SalesAnalyticsData> = {};
@@ -302,6 +307,9 @@ export function useAnalytics({
       errorRetryCount: SWR_ERROR_RETRY_COUNT,
       errorRetryInterval: SWR_ERROR_RETRY_INTERVAL,
       keepPreviousData: true,
+      // Analytics payloads are heavy: never refetch the 3.5s pipe on
+      // tab focus. Server cache (60s) + manual refresh cover freshness.
+      revalidateOnFocus: false,
     },
   );
 

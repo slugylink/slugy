@@ -1,7 +1,8 @@
-import { type NextRequest, NextResponse } from "next/server";
+import { type NextRequest } from "next/server";
 import { z } from "zod";
 import { apiErrors } from "@/lib/api-response";
 import { requireWorkspaceAccess } from "@/lib/workspace-access";
+import { serveCachedAnalytics } from "@/lib/analytics/result-cache";
 import {
   analyticsFilterFieldsSchema,
   tinybirdFilterParams,
@@ -14,11 +15,6 @@ import {
 import { tinybird } from "@/lib/tinybird/could/tinybird";
 import { getWorkspaceOwnerPlanType } from "@/lib/subscription/entitlements";
 import { clampPeriodByRetention } from "@/lib/subscription/retention";
-
-const PRIVATE_NO_STORE = {
-  "Cache-Control": "private, no-store",
-  Vary: "Cookie, Authorization",
-};
 
 export const dynamic = "force-dynamic";
 
@@ -118,29 +114,28 @@ export async function GET(
       return apiErrors.serviceUnavailable("Analytics service unavailable");
     }
 
-    const result = await tinybird.analyticsPipe.query({
-      workspace_id: workspaceId,
-      ...tinybirdFilterParams(effectiveProps),
-    });
-
-    const rows = (result.data ?? []).map((row) => ({
-      ...row,
-      clicks: Number(row.clicks),
-    }));
-
-    const analyticsData = transformTinybirdAnalytics(
-      rows,
-      normalizedMetrics,
-      timePeriod,
-    );
-
-    return NextResponse.json(analyticsData, {
-      status: 200,
-      headers: {
-        ...PRIVATE_NO_STORE,
+    return serveCachedAnalytics(request, {
+      workspaceId,
+      event: "clicks",
+      effectiveProps: effectiveProps as Record<string, unknown>,
+      normalizedMetrics: normalizedMetrics.map(String),
+      extraHeaders: {
         "X-Analytics-Metrics": normalizedMetrics.join(","),
         "X-Analytics-Period": timePeriod,
         "X-Analytics-Event": "clicks",
+      },
+      compute: async () => {
+        const result = await tinybird.analyticsPipe.query({
+          workspace_id: workspaceId,
+          ...tinybirdFilterParams(effectiveProps),
+        });
+
+        const rows = (result.data ?? []).map((row) => ({
+          ...row,
+          clicks: Number(row.clicks),
+        }));
+
+        return transformTinybirdAnalytics(rows, normalizedMetrics, timePeriod);
       },
     });
   } catch (err) {
