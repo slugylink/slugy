@@ -200,6 +200,8 @@ const CreateLinkForm = React.memo(
     // Form setup
     const form = useForm<FormValues>({
       resolver: zodResolver(linkFormSchema),
+      mode: "onChange",
+      reValidateMode: "onChange",
       defaultValues: {
         url: "",
         domain: DEFAULT_DOMAIN,
@@ -262,7 +264,11 @@ const CreateLinkForm = React.memo(
     // Memoized handlers
     const handleGenerateRandomSlug = useCallback(() => {
       const randomSlug = nanoid();
-      setValue("slug", randomSlug);
+      setValue("slug", randomSlug, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
       setCode(randomSlug);
     }, [nanoid, setValue]);
 

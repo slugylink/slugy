@@ -121,8 +121,16 @@ function LinkQrCode({ domain, code, customization }: LinkQrCodeProps) {
     const container = containerRef.current;
     if (!container) return;
 
+    const clearContainer = () => {
+      try {
+        container.replaceChildren();
+      } catch {
+        // Container may already be detached by React/StrictMode — ignore.
+      }
+    };
+
     if (!options) {
-      container.replaceChildren();
+      clearContainer();
       qrCodeRef.current = null;
       return;
     }
@@ -133,11 +141,15 @@ function LinkQrCode({ domain, code, customization }: LinkQrCodeProps) {
       qrCodeRef.current.update(options);
     }
 
-    container.replaceChildren();
-    qrCodeRef.current.append(container);
+    clearContainer();
+    try {
+      qrCodeRef.current.append(container);
+    } catch {
+      // Append can race with React unmount in StrictMode/Dialog portals — ignore.
+    }
 
     return () => {
-      container.replaceChildren();
+      clearContainer();
     };
   }, [options]);
 

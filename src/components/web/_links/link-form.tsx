@@ -464,11 +464,11 @@ const LinkFormMainPanels = ({
 
         {/* Short link domain and slug inputs */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex w-full items-center justify-between gap-2 space-y-1">
-              <Label>Short Link</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label>Short Link</Label>
+            <div className="flex items-center gap-x-3">
               {isSlugEditable && (
-                <div className="flex gap-x-3">
+                <>
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
@@ -511,34 +511,34 @@ const LinkFormMainPanels = ({
                       <TooltipContent>Shuffle slug</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                </div>
+                </>
+              )}
+              {isEditMode && !isSlugEditable && (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="hover:bg-muted size-4 p-0"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          enableSlugEditing();
+                        }}
+                      >
+                        <Lock className="text-muted-foreground size-3.5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={5}>
+                      Editing an existing short link could potentially break
+                      existing links
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
-            {isEditMode && !isSlugEditable && (
-              <TooltipProvider delayDuration={0}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="hover:bg-muted ml-3 size-4 p-0"
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        e.preventDefault();
-                        enableSlugEditing();
-                      }}
-                    >
-                      <Lock className="text-muted-foreground size-3.5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent sideOffset={5}>
-                    Editing an existing short link could potentially break
-                    existing links
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
           </div>
           <div className="flex flex-row">
             <FormField
@@ -548,7 +548,7 @@ const LinkFormMainPanels = ({
                 <FormItem>
                   <Select
                     onValueChange={handleDomainChange}
-                    defaultValue={field.value}
+                    value={field.value}
                     disabled={domainsLoading}
                   >
                     <SelectTrigger className="w-full rounded-r-none border-r-0 shadow-none sm:w-[180px]">
@@ -571,24 +571,30 @@ const LinkFormMainPanels = ({
             <FormField
               control={control}
               name="slug"
-              render={({ field }) => (
-                <FormItem className="relative flex-1">
-                  <FormControl>
-                    <Input
-                      {...field}
-                      ref={slugInputRef}
-                      autoComplete="off"
-                      placeholder="(optional)"
-                      disabled={!isSlugEditable}
-                      className={cn(
-                        "rounded-l-none shadow-none",
-                        !isSlugEditable && "cursor-not-allowed bg-zinc-100",
-                      )}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              render={({ field }) => {
+                const { ref: fieldRef, ...restField } = field;
+                return (
+                  <FormItem className="relative flex-1">
+                    <FormControl>
+                      <Input
+                        {...restField}
+                        ref={(el) => {
+                          fieldRef(el);
+                          slugInputRef.current = el;
+                        }}
+                        autoComplete="off"
+                        placeholder="(optional)"
+                        disabled={!isSlugEditable}
+                        className={cn(
+                          "rounded-l-none shadow-none",
+                          !isSlugEditable && "cursor-not-allowed bg-zinc-100",
+                        )}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                );
+              }}
             />
           </div>
         </div>
@@ -981,7 +987,11 @@ const LinkFormFields = ({
         data: { slug: string };
       };
       if (responseData.success && responseData.data?.slug) {
-        setValue("slug", responseData.data.slug, { shouldDirty: true });
+        setValue("slug", responseData.data.slug, {
+          shouldDirty: true,
+          shouldTouch: true,
+          shouldValidate: true,
+        });
       } else {
         console.error("Invalid response format from AI slug API");
       }
@@ -997,7 +1007,11 @@ const LinkFormFields = ({
     onGenerateRandomSlug();
     setTimeout(() => {
       const newSlug = getValues("slug");
-      setValue("slug", newSlug, { shouldDirty: true });
+      setValue("slug", newSlug, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
       dispatch({ type: "set_random_loading", payload: false });
     }, RANDOM_SLUG_DELAY_MS);
   };
@@ -1013,7 +1027,11 @@ const LinkFormFields = ({
       tags
         ?.filter((tag) => newSelectedTags.includes(tag.id))
         .map((tag) => tag.name) || [];
-    setValue("tags", selectedTagNames, { shouldDirty: true });
+    setValue("tags", selectedTagNames, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
   };
 
   const handleAddNewTag = async () => {
@@ -1042,13 +1060,25 @@ const LinkFormFields = ({
 
   const handleUrlBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const normalizedUrl = normalizeUrl(e.target.value);
-    setValue("url", normalizedUrl, { shouldDirty: true });
+    setValue("url", normalizedUrl, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
   };
 
   const handleDomainChange = (selectedDomain: string) => {
-    setValue("domain", selectedDomain, { shouldDirty: true });
+    setValue("domain", selectedDomain, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
     const domainObj = availableDomains.find((d) => d.value === selectedDomain);
-    setValue("customDomainId", domainObj?.id || null, { shouldDirty: true });
+    setValue("customDomainId", domainObj?.id || null, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
   };
 
   const enableSlugEditing = () => {

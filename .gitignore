@@ -17,6 +17,7 @@ db.sqlite
 
 /.agents
 /.dev-plan
+/.docs
 
 # next.js
 /.next/
