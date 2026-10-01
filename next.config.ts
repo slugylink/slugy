@@ -5,6 +5,8 @@ const nextConfig: import("next").NextConfig = {
   allowedDevOrigins: ["oxidize-ashen-pastel.ngrok-free.dev"],
 
   images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 86400,
     remotePatterns: [
       // CDN and storage services
       { hostname: "public.blob.vercel-storage.com" },
@@ -97,6 +99,38 @@ const nextConfig: import("next").NextConfig = {
           },
         ],
         destination: "https://assets.sandipsarkar.dev/:path*",
+      },
+    ];
+  },
+
+  async headers() {
+    return [
+      {
+        source: "/favicon.ico",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/:path*.svg",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/icons/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
       },
     ];
   },

@@ -18,12 +18,22 @@ export const swrConfig: SWRConfiguration = {
   },
   // Optimize for large datasets
   compare: (a, b) => {
-    // Custom comparison for analytics data to prevent unnecessary re-renders
+    // Custom comparison for analytics data to prevent unnecessary re-renders.
+    // Must not ignore tail changes: check length + all items when small,
+    // first/last samples when large.
     if (Array.isArray(a) && Array.isArray(b)) {
       if (a.length !== b.length) return false;
-      const sampleSize = Math.min(5, a.length);
+      if (a.length <= 50) {
+        for (let i = 0; i < a.length; i++) {
+          if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false;
+        }
+        return true;
+      }
+      const sampleSize = 5;
       for (let i = 0; i < sampleSize; i++) {
         if (JSON.stringify(a[i]) !== JSON.stringify(b[i])) return false;
+        const j = a.length - 1 - i;
+        if (JSON.stringify(a[j]) !== JSON.stringify(b[j])) return false;
       }
       return true;
     }

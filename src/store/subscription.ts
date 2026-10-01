@@ -54,84 +54,79 @@ function applySubscription(
 }
 
 export const useSubscriptionStore = create<SubscriptionStoreState>(
-  (set, get) => ({
-    subscription: null,
-    planType: null,
-    isPro: false,
-    isGrowth: false,
-    isLoading: false,
-    error: null,
-    hasFetched: false,
+  (set, get) => {
+    let inFlight: Promise<void> | null = null;
+    return {
+      subscription: null,
+      planType: null,
+      isPro: false,
+      isGrowth: false,
+      isLoading: false,
+      error: null,
+      hasFetched: false,
 
-    resetSubscription() {
-      set({
-        subscription: null,
-        planType: null,
-        isPro: false,
-        isGrowth: false,
-        isLoading: false,
-        error: null,
-        hasFetched: false,
-      });
-    },
-
-    async fetchSubscription() {
-      const { hasFetched, isLoading } = get();
-      if (hasFetched || isLoading) return;
-
-      set({ isLoading: true, error: null });
-
-      try {
-        const checkoutId =
-          typeof window === "undefined"
-            ? null
-            : new URLSearchParams(window.location.search).get("checkoutId");
-        const subscriptionUrl = checkoutId
-          ? `/api/subscription/active?checkoutId=${encodeURIComponent(checkoutId)}`
-          : "/api/subscription/active";
-
-        const res = await fetch(subscriptionUrl, {
-          credentials: "include",
-          cache: "no-store",
-        });
-
-        if (res.status === 304) {
-          const retry = await fetch(subscriptionUrl, {
-            credentials: "include",
-            cache: "reload",
-            headers: { "Cache-Control": "no-cache" },
-          });
-          if (!retry.ok) {
-            throw new Error("Failed to load subscription");
-          }
-          const retryData = (await retry.json()) as {
-            subscription?: ActiveSubscription | null;
-          };
-          applySubscription(set, retryData.subscription ?? null);
-          return;
-        }
-
-        if (!res.ok) {
-          throw new Error("Failed to load subscription");
-        }
-
-        const data = (await res.json()) as {
-          subscription?: ActiveSubscription | null;
-        };
-
-        applySubscription(set, data.subscription ?? null);
-      } catch {
-        // Do not default to "basic": the upgrade popup treats that as unpaid.
+      resetSubscription() {
         set({
           subscription: null,
           planType: null,
           isPro: false,
           isGrowth: false,
-          hasFetched: true,
           isLoading: false,
-          error: "Failed to load subscription",
+          error: null,
+          hasFetched: false,
         });
-      }
-    },
-  }),
+      },
+
+      async fetchSubscription() {
+        const { hasFetched, isLoading } = get();
+        if (hasFetched) return;
+        if (inFlight) return inFlight;
+        if (isLoading) return;
+
+        set({ isLoading: true, error: null });
+
+        inFlight = (async () => {
+          try {
+            const checkoutId =
+              typeof window === "undefined"
+                ? null
+                : new URLSearchParams(window.location.search).get("checkoutId");
+            const subscriptionUrl = checkoutId
+              ? `/api/subscription/active?checkoutId=${encodeURIComponent(checkoutId)}`
+              : "/api/subscription/active";
+
+            const res = await fetch(subscriptionUrl, {
+              credentials: "include",
+              cache: "no-store",
+            });
+
+            if (!res.ok) {
+              throw new Error("Failed to load subscription");
+            }
+
+            const data = (await res.json()) as {
+              subscription?: ActiveSubscription | null;
+            };
+
+            applySubscription(set, data.subscription ?? null);
+          } catch {
+            // Do not default to "basic": the upgrade popup treats that as unpaid.
+            set({
+              subscription: null,
+              planType: null,
+              isPro: false,
+              isGrowth: false,
+              hasFetched: true,
+              isLoading: false,
+              error: "Failed to load subscription",
+            });
+          } finally {
+            inFlight = null;
+          }
+        })();
+
+        return inFlight;
+      },
+    };
+  },
 );

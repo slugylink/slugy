@@ -7,6 +7,18 @@ type EtagEntry = {
 
 /** In-memory ETag cache for private API GETs (per browser tab). */
 const etagCache = new Map<string, EtagEntry>();
+const MAX_ETAG_ENTRIES = 100;
+
+function setEtagEntry(url: string, entry: EtagEntry): void {
+  // Bounded LRU-ish: evict oldest when full to avoid unbounded growth
+  // during heavy analytics filtering.
+  if (!etagCache.has(url) && etagCache.size >= MAX_ETAG_ENTRIES) {
+    const oldest = etagCache.keys().next().value;
+    if (oldest !== undefined) etagCache.delete(oldest);
+  }
+  etagCache.delete(url);
+  etagCache.set(url, entry);
+}
 
 /**
  * Default JSON GET fetcher for SWR.
@@ -36,7 +48,7 @@ export const fetcher = async <T = unknown>(
 
     const etagHeader = res.headers.etag ?? res.headers.ETag;
     if (typeof etagHeader === "string" && etagHeader.length > 0) {
-      etagCache.set(url, { etag: etagHeader, data: res.data });
+      setEtagEntry(url, { etag: etagHeader, data: res.data });
     } else {
       etagCache.delete(url);
     }

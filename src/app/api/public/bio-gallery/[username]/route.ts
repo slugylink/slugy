@@ -30,6 +30,10 @@ export async function GET(
     if (cachedData) {
       return jsonWithETag(request, transformCachedBioData(cachedData), {
         status: 200,
+        headers: {
+          "Cache-Control":
+            "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        },
       });
     }
 
@@ -46,6 +50,10 @@ export async function GET(
 
     return jsonWithETag(request, gallery, {
       status: 200,
+      headers: {
+        "Cache-Control":
+          "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+      },
     });
   } catch (error) {
     console.error(

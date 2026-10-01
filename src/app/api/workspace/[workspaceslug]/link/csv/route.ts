@@ -110,7 +110,12 @@ export async function GET(
     }
 
     // Build where clause for date filtering
-    const linkWhere: Record<string, unknown> = { workspaceId: workspace.id };
+    // Exclude soft-deleted rows; export is capped to avoid OOM on large workspaces.
+    const MAX_CSV_EXPORT_ROWS = 50000;
+    const linkWhere: Record<string, unknown> = {
+      workspaceId: workspace.id,
+      deletedAt: null,
+    };
     if (from && to) {
       linkWhere.createdAt = { gte: from, lte: to };
     } else if (from) {
@@ -130,6 +135,7 @@ export async function GET(
       where: linkWhere,
       select,
       orderBy: { createdAt: "desc" },
+      take: MAX_CSV_EXPORT_ROWS,
     });
 
     // Format links for CSV output

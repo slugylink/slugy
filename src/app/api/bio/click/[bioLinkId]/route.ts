@@ -65,8 +65,8 @@ export async function GET(
   }
 
   // Fire-and-forget counters; never block the redirect on DB errors.
-  // waitUntil keeps them alive on Vercel; the short race below is the
-  // backstop for runtimes without it.
+  // waitUntil keeps them alive on Vercel; no await here so the 302
+  // returns immediately (previously awaited up to 400ms).
   const track = (async () => {
     try {
       await db.bioLinks.update({
@@ -86,10 +86,6 @@ export async function GET(
     }
   })();
   waitUntil(track);
-
-  // Best-effort: wait briefly so runtimes without waitUntil don't drop the
-  // increment, but don't delay UX.
-  await Promise.race([track, new Promise((r) => setTimeout(r, 400))]);
 
   const redirect = NextResponse.redirect(destination, 302);
   redirect.headers.set("Cache-Control", "private, no-store, max-age=0");
