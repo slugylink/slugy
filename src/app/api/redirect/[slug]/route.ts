@@ -51,27 +51,51 @@ export async function POST(
         ? domain.trim().toLowerCase()
         : "slugy.co";
 
-    // Custom-domain links store the custom host in link.domain, but also
-    // resolve via the customDomain relation so renamed/relinked rows verify.
-    const link = await db.link.findFirst({
-      where: {
-        slug: context.slug,
-        isArchived: false,
-        deletedAt: null,
-        OR: [
-          { domain: requestedDomain },
-          { customDomain: { domain: requestedDomain } },
-        ],
-      },
-      select: {
-        id: true,
-        url: true,
-        password: true,
-        expiresAt: true,
-        expirationUrl: true,
-        domain: true,
-      },
-    });
+    // Fast path: direct (slug, domain) uses @@unique([slug, domain]).
+    // Fallback covers renamed/relinked rows via the customDomain relation.
+    const linkSelect = {
+      id: true,
+      url: true,
+      password: true,
+      expiresAt: true,
+      expirationUrl: true,
+      domain: true,
+    } as const;
+
+    let link = await db.link
+      .findUnique({
+        where: {
+          slug_domain: { slug: context.slug, domain: requestedDomain },
+        },
+        select: linkSelect,
+      })
+      .catch(() => null);
+
+    // findUnique misses archived/deleted rows; re-check with filters, then
+    // fall back to the relation join only when the direct hit misses.
+    if (link) {
+      const gated = await db.link.findFirst({
+        where: {
+          id: link.id,
+          isArchived: false,
+          deletedAt: null,
+        },
+        select: linkSelect,
+      });
+      link = gated;
+    }
+
+    if (!link) {
+      link = await db.link.findFirst({
+        where: {
+          slug: context.slug,
+          isArchived: false,
+          deletedAt: null,
+          customDomain: { domain: requestedDomain },
+        },
+        select: linkSelect,
+      });
+    }
 
     if (!link) {
       return jsonWithETag(

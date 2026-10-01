@@ -86,6 +86,52 @@ const fetchLinkFromDatabase = async (
   domain: string,
   client: typeof sql = sql,
 ): Promise<LinkCache | null> => {
+  // Fast path: direct (slug, domain) hit uses @@unique([slug, domain]) —
+  // no JOIN, no OR. Custom-domain rows store the custom host in
+  // l.domain too, so this covers the common case.
+  const direct = await client`
+    SELECT
+      l.id,
+      l.url,
+      l."expiresAt",
+      l."expirationUrl",
+      l.password,
+      l."workspaceId",
+      l.domain,
+      l.title,
+      l.image,
+      l.metadesc,
+      l.description,
+      l.geo,
+      l."trackConversion"
+    FROM "links" l
+    WHERE l.slug = ${slug}
+      AND l.domain = ${domain}
+      AND l."isArchived" = false
+      AND l."deletedAt" IS NULL
+    LIMIT 1
+  `;
+
+  if (direct?.[0]) {
+    const row = direct[0];
+    return {
+      id: row.id,
+      url: row.url,
+      expiresAt: row.expiresAt ?? null,
+      expirationUrl: row.expirationUrl ?? null,
+      password: row.password ? "1" : null,
+      workspaceId: row.workspaceId,
+      domain: row.domain,
+      title: row.title ?? null,
+      image: row.image ?? null,
+      metadesc: row.metadesc ?? null,
+      description: row.description ?? null,
+      geo: parseGeoFromCache(row.geo),
+      trackConversion: Boolean(row.trackConversion),
+    };
+  }
+
+  // Fallback: renamed/relinked rows resolved via the customDomain relation.
   const result = await client`
     SELECT 
       l.id, 

@@ -341,50 +341,56 @@ export async function POST(
         }
       }
 
+      // Batched insert: 1 createMany + 1 findMany instead of N
+      // sequential creates holding the tx open for 100 roundtrips.
+      // Pre-check above removed known conflicts; concurrent races land in
+      // the missing-diff below and report as P2002 per row.
       await db.$transaction(async (tx) => {
+        await tx.link.createMany({
+          data: valid.map((v) => ({
+            workspaceId: workspaceCheck.workspace.id,
+            userId: session.user.id,
+            slug: v.slug,
+            domain: v.domain,
+            url: v.url,
+            description: v.description,
+            expiresAt: v.expiresAt,
+            utm_source: v.utm_source,
+            utm_medium: v.utm_medium,
+            utm_campaign: v.utm_campaign,
+            utm_content: v.utm_content,
+            utm_term: v.utm_term,
+            createdAt: new Date(),
+          })),
+          skipDuplicates: true,
+        });
+
+        const rows = await tx.link.findMany({
+          where: {
+            workspaceId: workspaceCheck.workspace.id,
+            OR: valid.map((v) => ({ slug: v.slug, domain: v.domain })),
+          },
+          select: { id: true, slug: true, domain: true, url: true },
+        });
+        const rowByKey = new Map(
+          rows.map((r) => [`${r.domain}/${r.slug.toLowerCase()}`, r]),
+        );
         for (const v of valid) {
-          try {
-            const link = await tx.link.create({
-              data: {
-                workspaceId: workspaceCheck.workspace.id,
-                userId: session.user.id,
-                slug: v.slug,
-                domain: v.domain,
-                url: v.url,
-                description: v.description,
-                expiresAt: v.expiresAt,
-                utm_source: v.utm_source,
-                utm_medium: v.utm_medium,
-                utm_campaign: v.utm_campaign,
-                utm_content: v.utm_content,
-                utm_term: v.utm_term,
-                createdAt: new Date(),
-              },
-              select: { id: true, slug: true },
+          const row = rowByKey.get(`${v.domain}/${v.slug.toLowerCase()}`);
+          if (!row) {
+            failed.push({
+              index: v.index,
+              errors: [{ message: "Slug already exists", path: ["slug"] }],
             });
-            created.push({
-              id: link.id,
-              slug: link.slug,
-              url: v.url,
-              domain: v.domain,
-            });
-            createdByIndex.set(v.index, { id: link.id, slug: link.slug });
-          } catch (error) {
-            // Race on (slug, domain) — report instead of failing the batch.
-            if (
-              error &&
-              typeof error === "object" &&
-              "code" in error &&
-              error.code === "P2002"
-            ) {
-              failed.push({
-                index: v.index,
-                errors: [{ message: "Slug already exists", path: ["slug"] }],
-              });
-              continue;
-            }
-            throw error;
+            continue;
           }
+          created.push({
+            id: row.id,
+            slug: row.slug,
+            url: v.url,
+            domain: row.domain,
+          });
+          createdByIndex.set(v.index, { id: row.id, slug: row.slug });
         }
 
         if (createdByIndex.size > 0) {

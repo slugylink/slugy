@@ -645,33 +645,27 @@ export async function POST(
       }
 
       await db.$transaction(async (tx) => {
-        const batchResults: Array<{ id: string; slug: string }> = [];
-
-        // Create links individually to get their IDs (more efficient than createMany + findMany)
-        for (const linkData of batch) {
-          try {
-            const created = await tx.link.create({
-              data: linkData,
-              select: { id: true, slug: true },
-            });
-            batchResults.push(created);
-            slugToId.set(created.slug, created.id);
-            createdSlugs.push(created.slug);
-          } catch (error) {
-            // Race on (slug, domain) after the pre-check — count it as
-            // skipped instead of silently dropping it.
-            if (
-              error &&
-              typeof error === "object" &&
-              "code" in error &&
-              error.code === "P2002"
-            ) {
-              skippedCount += 1;
-              continue;
-            }
-            throw error;
-          }
+        // Batched: 1 createMany + 1 findMany per batch instead of N
+        // sequential creates. Races become skippedCount via missing-diff.
+        await tx.link.createMany({
+          data: batch,
+          skipDuplicates: true,
+        });
+        const batchResults: Array<{ id: string; slug: string }> =
+          await tx.link.findMany({
+            where: {
+              workspaceId: workspaceCheck.workspace.id,
+              slug: { in: batch.map((b) => (b as { slug: string }).slug) },
+            },
+            select: { id: true, slug: true },
+          });
+        const foundSlugs = new Set(batchResults.map((r) => r.slug));
+        skippedCount += batch.length - batchResults.length;
+        for (const created of batchResults) {
+          slugToId.set(created.slug, created.id);
+          createdSlugs.push(created.slug);
         }
+        void foundSlugs;
 
         // Create link-tag associations for this batch
         const batchLinkTags: Array<{ linkId: string; tagId: string }> = [];
