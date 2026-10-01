@@ -125,49 +125,67 @@ function LinkQrCode({ domain, code, customization }: LinkQrCodeProps) {
       try {
         container.replaceChildren();
       } catch {
-        // Container may already be detached by React/StrictMode — ignore.
+        // Children are fully owned by qr-code-styling, never by React — ignore.
       }
     };
 
+    // No slug: clear the (always-mounted) container and drop the instance
+    // so the next typed slug starts fresh. The container itself stays
+    // mounted — React never unmounts a node the QR library has mutated.
     if (!options) {
       clearContainer();
       qrCodeRef.current = null;
       return;
     }
 
+    // First slug: create once and append once.
     if (!qrCodeRef.current) {
       qrCodeRef.current = new QRCodeStyling(options);
-    } else {
-      qrCodeRef.current.update(options);
+      if (container.isConnected !== false) {
+        try {
+          qrCodeRef.current.append(container);
+        } catch {
+          qrCodeRef.current = null;
+        }
+      }
+      return;
     }
 
-    clearContainer();
+    // Subsequent keystrokes: update in place, never re-append.
+    // Re-appending (clear + append) on every keystroke is what raced
+    // React's commit and threw NotFoundError: removeChild.
     try {
-      qrCodeRef.current.append(container);
+      qrCodeRef.current.update(options);
     } catch {
-      // Append can race with React unmount in StrictMode/Dialog portals — ignore.
-    }
-
-    return () => {
+      // If update fails (e.g. instance was torn down), recreate on next run.
       clearContainer();
-    };
+      qrCodeRef.current = null;
+    }
   }, [options]);
 
   useEffect(() => {
     return () => {
+      try {
+        containerRef.current?.replaceChildren();
+      } catch {
+        // Unmount path — ignore.
+      }
       qrCodeRef.current = null;
     };
   }, []);
 
   return (
-    <div className="flex aspect-[16/7] items-center justify-center rounded-lg border">
-      {slug ? (
-        <div
-          ref={containerRef}
-          className="flex h-[110px] w-[110px] items-center justify-center"
-          aria-label={`QR code for ${host}/${slug}`}
-        />
-      ) : (
+    <div className="relative flex aspect-[16/7] items-center justify-center rounded-lg border">
+      {/* Always mounted: React must never unmount a node qr-code-styling
+          has mutated — that was the removeChild crash on quick type+delete. */}
+      <div
+        ref={containerRef}
+        className="flex h-[110px] w-[110px] items-center justify-center"
+        style={slug ? undefined : { display: "none" }}
+        aria-hidden={!slug}
+        aria-label={slug ? `QR code for ${host}/${slug}` : undefined}
+      />
+      {!slug && (
         <div className="flex flex-col items-center gap-2">
           <QrCodeIcon
             strokeWidth={1.8}
