@@ -60,6 +60,17 @@ const nextConfig: import("next").NextConfig = {
         destination: "/onboarding/welcome",
         permanent: true,
       },
+      // Comparison posts for tools that are not link-management competitors.
+      // They were published as a batch and read as programmatic content, so
+      // they are retired. Redirect rather than 404 in case anything indexed.
+      ...["rewardful", "partnerstack", "firstpromoter", "tolt"].map(
+        (slug) =>
+          ({
+            source: `/blogs/slugy-vs-${slug}`,
+            destination: "/blogs",
+            permanent: true,
+          }) as const,
+      ),
       {
         source: "/",
         has: [

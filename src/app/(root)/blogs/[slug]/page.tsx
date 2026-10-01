@@ -146,6 +146,17 @@ export default async function BlogPostPage({ params }: PageProps) {
           <time dateTime={post.publishedAt}>
             {formatDate(post.publishedAt)}
           </time>
+          {post.updatedAt && post.updatedAt !== post.publishedAt && (
+            <>
+              <span aria-hidden>·</span>
+              <span>
+                Updated{" "}
+                <time dateTime={post.updatedAt}>
+                  {formatDate(post.updatedAt)}
+                </time>
+              </span>
+            </>
+          )}
           <span aria-hidden>·</span>
           <span>{post.author.name}</span>
         </div>

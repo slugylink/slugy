@@ -5,104 +5,15 @@ import SlugyVsDubPost from "./posts/slugy-vs-dub";
 import SlugyVsRebrandlyPost from "./posts/slugy-vs-rebrandly";
 import SlugyVsShortIoPost from "./posts/slugy-vs-short-io";
 import SlugyVsBlinkPost from "./posts/slugy-vs-blink";
-import SlugyVsRewardfulPost from "./posts/slugy-vs-rewardful";
-import SlugyVsPartnerstackPost from "./posts/slugy-vs-partnerstack";
-import SlugyVsFirstpromoterPost from "./posts/slugy-vs-firstpromoter";
-import SlugyVsToltPost from "./posts/slugy-vs-tolt";
 
-const COMPARE_DATE = "2026-09-26";
+// Comparisons are published on their own cadence, spaced weeks apart, and each
+// one is re-checked against the competitor's public pricing pages on a schedule.
+// Publishing a batch of comparisons on a single date is the clearest signal that
+// a comparison set is a marketing artifact rather than research, so do not
+// reintroduce a shared date here.
+const REFRESHED_ON = "2026-09-30";
 
 export const BLOG_POSTS: BlogPost[] = [
-  {
-    slug: "slugy-vs-bitly",
-    title: "Slugy vs Bitly Compared: Pricing, Features & Migration",
-    description:
-      "In-depth Slugy vs Bitly comparison on pricing, branded links, QR codes, bio pages, and conversion tracking — and how to migrate via CSV.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "bitly", "alternative"],
-    Content: SlugyVsBitlyPost,
-  },
-  {
-    slug: "slugy-vs-dub",
-    title: "Slugy vs Dub.co: two open-source takes on link management",
-    description:
-      "Both Slugy and Dub.co are open source. Compare bio pages, lead conversion tracking, and free plans to pick your fit.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "dub", "alternative"],
-    Content: SlugyVsDubPost,
-  },
-  {
-    slug: "slugy-vs-rebrandly",
-    title: "Slugy vs Rebrandly: branding plus proof of what worked",
-    description:
-      "Rebrandly nails branded links. See where Slugy adds analytics depth, bio pages, and conversion attribution.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "rebrandly", "alternative"],
-    Content: SlugyVsRebrandlyPost,
-  },
-  {
-    slug: "slugy-vs-short-io",
-    title: "Slugy vs Short.io: speed and breadth over infrastructure",
-    description:
-      "Short.io is built for white-label scale. Slugy is the faster alternative with QR, bio, and conversions included.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "short.io", "alternative"],
-    Content: SlugyVsShortIoPost,
-  },
-  {
-    slug: "slugy-vs-blink",
-    title: "Slugy vs BL.INK: analytics depth without enterprise sales",
-    description:
-      "BL.INK serves regulated enterprises. Slugy brings funnels, QR, bio, and conversion tracking self-serve.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "blink", "alternative"],
-    Content: SlugyVsBlinkPost,
-  },
-  {
-    slug: "slugy-vs-rewardful",
-    title: "Slugy vs Rewardful: different tools that work together",
-    description:
-      "Rewardful runs affiliate commissions; Slugy brands the links affiliates share. How to use both.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "rewardful", "affiliate"],
-    Content: SlugyVsRewardfulPost,
-  },
-  {
-    slug: "slugy-vs-partnerstack",
-    title: "Slugy vs PartnerStack: channel management meets link layer",
-    description:
-      "PartnerStack grows partner channels; Slugy brands and measures the links partners distribute.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "partnerstack", "affiliate"],
-    Content: SlugyVsPartnerstackPost,
-  },
-  {
-    slug: "slugy-vs-firstpromoter",
-    title: "Slugy vs FirstPromoter: revenue attribution plus click data",
-    description:
-      "FirstPromoter attributes sales to affiliates; Slugy shows the branded links and clicks behind them.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "firstpromoter", "affiliate"],
-    Content: SlugyVsFirstpromoterPost,
-  },
-  {
-    slug: "slugy-vs-tolt",
-    title: "Slugy vs Tolt: lean affiliate tracking, branded links",
-    description:
-      "Tolt keeps SaaS affiliate payouts simple; Slugy adds branded links, QR, and analytics on a free plan.",
-    publishedAt: COMPARE_DATE,
-    author: { name: "Slugy" },
-    tags: ["comparison", "tolt", "affiliate"],
-    Content: SlugyVsToltPost,
-  },
   {
     slug: "lead-conversion-tracking",
     title: "How to track lead conversions with Slugy",
@@ -113,6 +24,61 @@ export const BLOG_POSTS: BlogPost[] = [
     author: { name: "Slugy" },
     tags: ["leads", "analytics", "guides"],
     Content: LeadConversionTrackingPost,
+  },
+  {
+    slug: "slugy-vs-bitly",
+    title: "Slugy vs Bitly: which one fits your link management",
+    description:
+      "An honest comparison of pricing, custom domains, QR codes, bio pages, and lead attribution — plus what Bitly does better and how to migrate.",
+    publishedAt: "2026-07-14",
+    updatedAt: REFRESHED_ON,
+    author: { name: "Slugy" },
+    tags: ["comparison", "bitly", "alternative"],
+    Content: SlugyVsBitlyPost,
+  },
+  {
+    slug: "slugy-vs-dub",
+    title: "Slugy vs Dub.co: two open-source link platforms compared",
+    description:
+      "Both are open source. Compare community size, documentation, pricing, and where lead and revenue attribution actually lands in the tier ladder.",
+    publishedAt: "2026-07-28",
+    updatedAt: REFRESHED_ON,
+    author: { name: "Slugy" },
+    tags: ["comparison", "dub", "alternative"],
+    Content: SlugyVsDubPost,
+  },
+  {
+    slug: "slugy-vs-rebrandly",
+    title: "Slugy vs Rebrandly: branding first, or attribution first",
+    description:
+      "Rebrandly is built for link branding. Slugy adds analytics depth, bio pages, and conversion attribution. Where each one is the stronger choice.",
+    publishedAt: "2026-08-11",
+    updatedAt: REFRESHED_ON,
+    author: { name: "Slugy" },
+    tags: ["comparison", "rebrandly", "alternative"],
+    Content: SlugyVsRebrandlyPost,
+  },
+  {
+    slug: "slugy-vs-short-io",
+    title: "Slugy vs Short.io: API scale versus setup speed",
+    description:
+      "Short.io is built for embedded, white-label link infrastructure. Slugy is for teams that need links, QR, bio pages, and conversions live the same day.",
+    publishedAt: "2026-08-25",
+    updatedAt: REFRESHED_ON,
+    author: { name: "Slugy" },
+    tags: ["comparison", "short.io", "alternative"],
+    Content: SlugyVsShortIoPost,
+  },
+  {
+    slug: "slugy-vs-blink",
+    title: "Slugy vs BL.INK: enterprise link analytics, self-serve",
+    description:
+      "BL.INK sells compliance and admin controls. Slugy brings analytics depth, QR, bio pages, and conversion tracking without an enterprise sales cycle.",
+    publishedAt: "2026-09-08",
+    updatedAt: REFRESHED_ON,
+    author: { name: "Slugy" },
+    tags: ["comparison", "blink", "alternative"],
+    Content: SlugyVsBlinkPost,
   },
 ];
 

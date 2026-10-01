@@ -1,78 +1,206 @@
-import { Callout, Cta, Facts, H2, P, Ul } from "./_compare";
+import {
+  Callout,
+  Checked,
+  Cta,
+  Disclosure,
+  H2,
+  P,
+  PricingTable,
+  Related,
+  Steps,
+  Ul,
+} from "./_compare";
 
 export default function SlugyVsDubPost() {
   return (
     <article className="prose-slugy">
       <P>
-        Dub.co raised the bar for modern link management — and, like Slugy, it
-        is open source. If you are choosing between the two, the decision comes
-        down to which extras matter to you: both cover branded links, custom
-        domains, QR codes, and analytics, while Slugy bundles bio pages and lead
-        conversion tracking into the same workspace.
+        This is the comparison where Slugy has the least room to argue, because
+        Dub.co is also open source and also excellent. Both handle branded
+        links, custom domains, QR codes, and click analytics. If that is all you
+        need, either is defensible and you should pick on the extras.
       </P>
 
       <Callout>
-        <strong>TL;DR:</strong> Both are open-source link platforms. Shortlist
-        Dub.co for its ecosystem and maturity; shortlist Slugy if you also want
-        link-in-bio pages and signup/purchase attribution in one free- to-start
-        place.
+        <strong>Short version:</strong> Dub.co is the more mature project, with
+        a large community, extensive docs, and a well-known API. Slugy is the
+        one that bundles a link-in-bio page and signup/purchase attribution into
+        the same workspace and free-to-start plan. Dub.co also has a bio-link
+        feature now — compare the plan tiers before assuming it does not.
       </Callout>
 
-      <H2 id="what-dub-does-best">What Dub.co does best</H2>
-      <P>
-        Dub.co pairs a polished dashboard with a large open-source community,
-        extensive documentation, and a well-known API. Teams that already run on
-        Dub or build internal tooling around its API have good reasons to stay.
-      </P>
+      <Disclosure />
 
-      <H2 id="where-slugy-differs">Where Slugy differs</H2>
+      <H2 id="what-dub-does-better">What Dub.co does better</H2>
+      <P>
+        Dub.co has been the reference implementation in this category for
+        longer. That gap is not cosmetic:
+      </P>
       <Ul>
         <li>
-          <strong className="text-foreground">Bio pages included</strong> — a
-          branded link-in-bio page on your own domain, with per-button click
-          analytics, next to your short links.
+          <strong className="text-foreground">Ecosystem depth</strong> — a large
+          open-source community, extensive documentation, and an API that plenty
+          of third-party tools already integrate against.
         </li>
         <li>
-          <strong className="text-foreground">Lead conversion tracking</strong>{" "}
-          — attribute signups and purchases back to the referring link on Pro
-          via a single API call.
+          <strong className="text-foreground">Maturity</strong> — more edge
+          cases handled, more history of uptime behavior, a longer track record
+          when something goes sideways.
         </li>
         <li>
-          <strong className="text-foreground">Free plan, no credit card</strong>{" "}
-          — branded links, QR codes, and analytics to start, with CSV import
-          when you migrate.
+          <strong className="text-foreground">Name recognition</strong> — if you
+          are hiring or building internal tooling, &ldquo;we use Dub&rdquo; is a
+          shorter conversation than explaining an unfamiliar codebase.
         </li>
         <li>
-          <strong className="text-foreground">Open source too</strong> — audit
-          the code on GitHub, same as you can with Dub.
+          <strong className="text-foreground">Self-hosting precedent</strong> —
+          AGPLv3 with an established community of operators running their own
+          instances.
+        </li>
+      </Ul>
+      <P>
+        If you already run Dub, or you have built around its API, there is no
+        reason to move. Migration cost is not only technical; it is the tribal
+        knowledge your team has accumulated.
+      </P>
+
+      <H2 id="pricing">Pricing, side by side</H2>
+      <P>
+        Both products have a free tier and both charge for the jump to real
+        volume. The difference is what sits behind the paywall.
+      </P>
+      <PricingTable
+        competitor="Dub.co"
+        rows={[
+          [
+            "Free tier",
+            "$0 — 10 new links/mo, 1k tracked clicks/mo, 1 custom domain",
+            "$0 — 25 links/mo, 1k events/mo, 3 custom domains",
+          ],
+          [
+            "Custom domains",
+            "1 on Free, up to 10 on Growth",
+            "3 on free, more on paid tiers",
+          ],
+          [
+            "Lead / revenue attribution",
+            "Pro ($8/mo) for leads, Growth ($29/mo) for revenue",
+            "Business tier and up",
+          ],
+          [
+            "Bio pages",
+            "Included — 5 links on Free, up to 30 on Growth",
+            "Included on paid tiers; check current free allowance",
+          ],
+          ["License", "Public source on GitHub", "AGPLv3"],
+        ]}
+        note="Slugy pricing from our own pricing page; Dub.co figures from its public pricing pages on 2026-09-30. Both move these numbers regularly — verify before deciding."
+      />
+      <Checked date="30 September 2026" />
+
+      <H2 id="what-slugy-does-differently">Where Slugy differs</H2>
+      <Ul>
+        <li>
+          <strong className="text-foreground">
+            Leads and revenue in one tool
+          </strong>{" "}
+          — click-to-signup attribution is on Pro at $8/mo and revenue
+          attribution on Growth at $29/mo, rather than waiting for a top
+          enterprise tier.
+        </li>
+        <li>
+          <strong className="text-foreground">
+            Lower entry point for volume
+          </strong>{" "}
+          — if you need real link volume rather than a large number of custom
+          domains, Pro gets you 250 links per workspace for less than most
+          business tiers.
+        </li>
+        <li>
+          <strong className="text-foreground">Simpler surface</strong> — a
+          smaller feature set you can hold in your head, with fewer enterprise
+          configuration layers to work through.
         </li>
       </Ul>
 
-      <H2 id="at-a-glance">At a glance</H2>
-      <Facts
-        rows={[
-          ["Category", "Both are link management platforms"],
-          ["Open source", "Both — compare repos and activity on GitHub"],
-          ["Custom domains", "Both support them"],
-          ["Bio / link-in-bio", "Included in Slugy"],
-          ["Lead conversion tracking", "Included in Slugy Pro"],
+      <H2 id="honest-tradeoffs">The honest tradeoffs</H2>
+      <Ul>
+        <li>
+          <strong className="text-foreground">
+            Community size is a real asset and Slugy has less of it.
+          </strong>{" "}
+          Dub&apos;s issue tracker and Discord answer questions faster. If you
+          rely on community support, factor that in — Slugy offers priority
+          email support on paid plans instead.
+        </li>
+        <li>
+          <strong className="text-foreground">Fewer integrations.</strong> Tools
+          that assume Dub&apos;s API may need work to point at Slugy&apos;s.
+        </li>
+        <li>
+          <strong className="text-foreground">A smaller track record.</strong>{" "}
+          If uptime history is a requirement, ask us and we will show you what
+          we have rather than implying parity.
+        </li>
+      </Ul>
+
+      <H2 id="migrating">Moving from Dub.co to Slugy</H2>
+      <Steps
+        items={[
+          <>
+            <strong className="text-foreground">Export your links.</strong> Take
+            the CSV export before you cancel anything, so you have a clean
+            source of truth.
+          </>,
+          <>
+            <strong className="text-foreground">Connect the domain.</strong> Add
+            your custom domain in Slugy and follow the DNS instructions. Because
+            both are open source, you can inspect both data models first if you
+            want to understand the mapping before committing.
+          </>,
+          <>
+            <strong className="text-foreground">Import and reconcile.</strong>{" "}
+            Import the CSV, then read the collision report — slugs that already
+            exist get regenerated, so note anything that moved.
+          </>,
+          <>
+            <strong className="text-foreground">Cut over gradually.</strong>{" "}
+            Keep your highest-traffic links on Dub until click counts in Slugy
+            roughly match for a week.
+          </>,
         ]}
       />
 
-      <H2 id="migrating">Migrating from Dub.co to Slugy</H2>
-      <P>
-        Export your Dub links, connect your custom domain in Slugy, and import
-        everything via CSV. Because both platforms are open source, you can
-        compare data models and self-hosting options side by side before
-        committing.
-      </P>
-
       <H2 id="verdict">Verdict</H2>
       <P>
-        You cannot go wrong with either on openness. Pick Dub.co for ecosystem
-        maturity; pick Slugy if bio pages plus conversion attribution in one
-        workspace sounds like fewer tools to pay for.
+        Both are legitimately open source, so the openness argument does not
+        decide this. Choose <strong className="text-foreground">Dub.co</strong>{" "}
+        for ecosystem maturity, docs, and integrations. Choose{" "}
+        <strong className="text-foreground">Slugy</strong> if lead and revenue
+        attribution at a startup price point matters more than community size,
+        or if you want the whole link-to-signup picture in one tool instead of
+        two.
       </P>
+
+      <Related
+        items={[
+          {
+            href: "/blogs/slugy-vs-bitly",
+            label: "Slugy vs Bitly",
+            note: "the enterprise comparison, including an honest list of what Slugy lacks",
+          },
+          {
+            href: "/blogs/slugy-vs-rebrandly",
+            label: "Slugy vs Rebrandly",
+            note: "branding-first versus analytics-first",
+          },
+          {
+            href: "/blogs/slugy-vs-short-io",
+            label: "Slugy vs Short.io",
+            note: "when API scale beats setup speed",
+          },
+        ]}
+      />
       <Cta />
     </article>
   );

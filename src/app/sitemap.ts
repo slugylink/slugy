@@ -7,8 +7,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const currentDate = new Date();
   const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Every blog/comparison post, newest first. Comparison pages convert, so
-  // they get high priority. lastModified tracks content freshness.
+  // Every blog post, newest first. lastModified tracks content freshness, so
+  // re-checking a comparison against the competitor's pricing page is a real
+  // sitemap signal rather than a stale date.
   const posts = getAllPosts().map((post) => ({
     url: `${baseUrl}/blogs/${post.slug}`,
     lastModified: new Date(post.updatedAt ?? post.publishedAt),
