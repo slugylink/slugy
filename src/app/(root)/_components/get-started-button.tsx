@@ -80,7 +80,7 @@ export default function GetStartedButton({
             <NumberFlow
               value={isLoading ? 0 : stars}
               format={{ notation: "compact", maximumFractionDigits: 1 }}
-              className="text-xs"
+              className="inline-block min-w-[4ch] text-xs tabular-nums"
             />
           </Button>
         </Link>

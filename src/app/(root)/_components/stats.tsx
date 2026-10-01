@@ -30,6 +30,10 @@ const fetcher = async (url: string): Promise<SiteStats> => {
   return res.json() as Promise<SiteStats>;
 };
 
+// NOTE: kept local on purpose — /api/public/stats has no ETag, and the
+// shared ETag fetcher's per-tab cache would serve day-old totals past the
+// 24h CDN window. This fetcher always revalidates via CDN cache.
+
 // Memoized StatCard component
 const StatCard = memo(
   ({
