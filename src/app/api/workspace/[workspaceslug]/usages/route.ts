@@ -48,18 +48,9 @@ async function getWorkspaceData(workspaceslug: string, userId: string) {
   });
 }
 
-async function getUsageData(workspaceslug: string, ownerUserId: string) {
-  const workspace = await db.workspace.findFirst({
-    where: { slug: workspaceslug },
-    select: { id: true },
-  });
-
-  if (!workspace) {
-    return null;
-  }
-
+async function getUsageData(workspaceId: string, ownerUserId: string) {
   return ensureCurrentUsageRecord(db, {
-    workspaceId: workspace.id,
+    workspaceId,
     userId: ownerUserId,
   });
 }
@@ -154,7 +145,7 @@ export async function GET(
     await reconcileUserEntitlement(workspace.userId);
 
     const [usage, subscription] = await Promise.all([
-      getUsageData(workspaceslug, workspace.userId),
+      getUsageData(workspace.id, workspace.userId),
       getSubscriptionData(workspace.userId),
     ]);
 

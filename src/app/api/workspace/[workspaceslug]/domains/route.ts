@@ -75,8 +75,25 @@ export async function GET(
           { members: { some: { userId: session.user.id } } },
         ],
       },
-      include: {
+      select: {
+        id: true,
         customDomains: {
+          select: {
+            id: true,
+            domain: true,
+            verified: true,
+            dnsConfigured: true,
+            lastChecked: true,
+            sslEnabled: true,
+            sslIssuer: true,
+            sslExpiresAt: true,
+            cloudflareCnameTarget: true,
+            cloudflareStatus: true,
+            redirectToWww: true,
+            createdAt: true,
+            updatedAt: true,
+            verificationToken: true,
+          },
           orderBy: { createdAt: "desc" },
         },
       },

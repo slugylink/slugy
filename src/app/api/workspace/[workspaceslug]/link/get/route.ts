@@ -10,6 +10,9 @@ import { requireWorkspaceAccess } from "@/lib/workspace-access";
 const MAX_LIMIT = 100;
 const MIN_LIMIT = 1;
 const DEFAULT_OFFSET = 0;
+// Deep skip scans degrade linearly; cap offset so a bad page_no can't
+// force a full-table skip. Clients paginate by limit*page within this.
+const MAX_OFFSET = 5000;
 
 export async function GET(
   request: NextRequest,
@@ -59,6 +62,10 @@ export async function GET(
 
     if (isNaN(offset) || offset < 0) {
       errors.push("Offset must be a non-negative integer");
+    }
+
+    if (!isNaN(offset) && offset > MAX_OFFSET) {
+      errors.push(`Offset must not exceed ${MAX_OFFSET}`);
     }
 
     if (isNaN(limit) || limit < MIN_LIMIT || limit > MAX_LIMIT) {
