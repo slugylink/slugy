@@ -40,7 +40,7 @@ export default function ToolsSection() {
           id="free-tools-heading"
           className="mt-2 text-2xl font-medium text-balance sm:text-4xl"
         >
-          Free marketing tools — no login required
+          Free marketing tools
         </h2>
         <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
           Shorten later. Start with the tools you need right now — both are free

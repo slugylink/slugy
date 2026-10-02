@@ -8,9 +8,7 @@ import {
   Check,
   RotateCcw,
   ExternalLink,
-  ArrowRight,
   ArrowLeft,
-  Sparkles,
   CircleAlert,
   TriangleAlert,
 } from "lucide-react";
@@ -26,59 +24,16 @@ import {
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { PLATFORM_PRESETS } from "./platforms";
 
 const SOURCE_PRESETS = [
   "google",
   "newsletter",
   "linkedin",
-  "x",
   "instagram",
-  "facebook",
-  "youtube",
 ] as const;
 
-const MEDIUM_PRESETS = [
-  "cpc",
-  "email",
-  "social",
-  "organic",
-  "referral",
-  "affiliate",
-  "qr",
-] as const;
-
-const TEMPLATES = [
-  {
-    name: "Newsletter",
-    values: {
-      source: "newsletter",
-      medium: "email",
-      campaign: "weekly-digest",
-      term: "",
-      content: "header-cta",
-    },
-  },
-  {
-    name: "Paid search",
-    values: {
-      source: "google",
-      medium: "cpc",
-      campaign: "spring-launch",
-      term: "url-shortener",
-      content: "ad-variant-a",
-    },
-  },
-  {
-    name: "Social post",
-    values: {
-      source: "linkedin",
-      medium: "social",
-      campaign: "founder-story",
-      term: "",
-      content: "carousel-slide-1",
-    },
-  },
-];
+const MEDIUM_PRESETS = ["cpc", "email", "social", "paid_social"] as const;
 
 const CHEAT_SHEET: Array<[string, string, string]> = [
   ["utm_source", "Where traffic comes from", "newsletter · google · linkedin"],
@@ -139,15 +94,37 @@ function PresetChips({
 
 export default function UtmBuilderClient({
   faqs,
+  initialValues,
+  hideHero = false,
+  platformKey = null,
 }: {
   faqs: Array<{ q: string; a: string }>;
+  initialValues?: {
+    baseUrl?: string;
+    source?: string;
+    medium?: string;
+    campaign?: string;
+    term?: string;
+    content?: string;
+  };
+  /** Dedicated platform pages render their own hero above the builder. */
+  hideHero?: boolean;
+  /** Pre-selects a platform chip on the dedicated platform pages. */
+  platformKey?: string | null;
 }) {
-  const [baseUrl, setBaseUrl] = useState("https://slugy.co/pricing");
-  const [source, setSource] = useState("newsletter");
-  const [medium, setMedium] = useState("email");
-  const [campaign, setCampaign] = useState("spring-launch");
-  const [term, setTerm] = useState("");
-  const [content, setContent] = useState("");
+  const [baseUrl, setBaseUrl] = useState(
+    initialValues?.baseUrl ?? "https://slugy.co/pricing",
+  );
+  const [source, setSource] = useState(initialValues?.source ?? "newsletter");
+  const [medium, setMedium] = useState(initialValues?.medium ?? "email");
+  const [campaign, setCampaign] = useState(
+    initialValues?.campaign ?? "spring-launch",
+  );
+  const [term, setTerm] = useState(initialValues?.term ?? "");
+  const [content, setContent] = useState(initialValues?.content ?? "");
+  const [activePlatform, setActivePlatform] = useState<string | null>(
+    platformKey,
+  );
   const [autoFormat, setAutoFormat] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -243,15 +220,17 @@ export default function UtmBuilderClient({
     setCampaign("");
     setTerm("");
     setContent("");
+    setActivePlatform(null);
   };
 
-  const applyTemplate = (t: (typeof TEMPLATES)[number]) => {
-    setSource(t.values.source);
-    setMedium(t.values.medium);
-    setCampaign(t.values.campaign);
-    setTerm(t.values.term);
-    setContent(t.values.content);
-    toast.success(`${t.name} template applied`);
+  const applyPlatform = (p: (typeof PLATFORM_PRESETS)[number]) => {
+    setSource(p.values.source);
+    setMedium(p.values.medium);
+    setCampaign(p.values.campaign);
+    setTerm(p.values.term);
+    setContent(p.values.content);
+    setActivePlatform(p.key);
+    toast.success(`${p.name} preset applied`);
   };
 
   return (
@@ -271,25 +250,42 @@ export default function UtmBuilderClient({
             </span>
           </Link>
           <span aria-hidden>/</span>
-          <span className="text-foreground">UTM Builder</span>
+          <Link
+            href="/tools/utm-builder"
+            className="hover:text-foreground transition-colors"
+          >
+            UTM Builder
+          </Link>
+          {hideHero && (
+            <>
+              <span aria-hidden>/</span>
+              <span className="text-foreground">
+                {PLATFORM_PRESETS.find((p) => p.key === activePlatform)
+                  ?.label ?? "Platform"}
+              </span>
+            </>
+          )}
         </nav>
 
-        <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-2xl">
-            <h1 className="text-2xl leading-[1.15] font-medium tracking-tight text-balance sm:text-[32px]">
-              Free UTM Builder
-            </h1>
-            <p className="text-muted-foreground mt-2.5 max-w-xl text-[15px] leading-relaxed">
-              Build clean campaign URLs with validated source, medium, campaign,
-              term and content. Auto-formatted, encoded and ready for GA4.
-            </p>
+        {!hideHero && (
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <h1 className="text-2xl leading-[1.15] font-medium tracking-tight text-balance sm:text-[32px]">
+                Free UTM Builder
+              </h1>
+              <p className="text-muted-foreground mt-2.5 max-w-xl text-[15px] leading-relaxed">
+                Build clean campaign URLs with validated source, medium,
+                campaign, term and content. Auto-formatted, encoded and ready
+                for GA4.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="secondary">No login</Badge>
+              <Badge variant="secondary">GA4 ready</Badge>
+              <Badge variant="secondary">Auto-encoded</Badge>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            <Badge variant="secondary">No login</Badge>
-            <Badge variant="secondary">GA4 ready</Badge>
-            <Badge variant="secondary">Auto-encoded</Badge>
-          </div>
-        </div>
+        )}
       </section>
 
       {/* Tool */}
@@ -298,22 +294,34 @@ export default function UtmBuilderClient({
           <div className="grid lg:grid-cols-[1fr_340px]">
             {/* Controls */}
             <div className="flex flex-col gap-7 p-5 sm:p-7">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <SectionLabel>1 · Destination</SectionLabel>
-                  <div className="flex gap-1.5">
-                    {TEMPLATES.map((t) => (
-                      <button
-                        key={t.name}
-                        type="button"
-                        onClick={() => applyTemplate(t)}
-                        className="text-muted-foreground hover:text-foreground hover:border-foreground/30 inline-flex cursor-pointer items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all"
-                      >
-                        <Sparkles className="h-3 w-3" /> {t.name}
-                      </button>
-                    ))}
-                  </div>
+              <div className="space-y-2.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <span className="text-muted-foreground mr-1 text-[13px] font-medium">
+                    Preset
+                  </span>
+                  {PLATFORM_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => applyPlatform(p)}
+                      aria-pressed={activePlatform === p.key}
+                      className={cn(
+                        "cursor-pointer rounded-lg border px-3 py-1.5 text-xs font-medium transition-all",
+                        activePlatform === p.key
+                          ? "border-foreground bg-foreground text-background shadow-sm"
+                          : "text-muted-foreground hover:border-foreground/30 hover:text-foreground",
+                      )}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
                 </div>
+              </div>
+
+              <div className="border-t" />
+
+              <div className="space-y-3">
+                <SectionLabel>1 · Destination</SectionLabel>
                 <div className="space-y-1.5">
                   <Label htmlFor="utm-url" className="text-[13px]">
                     Website URL
@@ -583,7 +591,7 @@ export default function UtmBuilderClient({
             {
               n: "01",
               t: "Paste & pick",
-              d: "Drop in any URL, then tap presets or a one-click template.",
+              d: "Drop in any URL, then tap a preset or type your own tags.",
             },
             {
               n: "02",
@@ -608,6 +616,21 @@ export default function UtmBuilderClient({
             </div>
           ))}
         </div>
+
+        <p className="text-muted-foreground mt-6 text-center text-[13px]">
+          Platform guides:{" "}
+          {PLATFORM_PRESETS.map((p, i) => (
+            <span key={p.key}>
+              {i > 0 && " · "}
+              <Link
+                href={`/tools/utm-builder/${p.slug}`}
+                className="text-foreground underline underline-offset-4 hover:opacity-80"
+              >
+                {p.label}
+              </Link>
+            </span>
+          ))}
+        </p>
       </section>
 
       {/* Cheat sheet */}

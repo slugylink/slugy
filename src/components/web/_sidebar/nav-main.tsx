@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ChevronRight,
-  BarChart2,
-  SquareTerminal,
-  type LucideIcon,
-  Globe,
-} from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,6 +10,8 @@ import {
 } from "@/components/ui/collapsible";
 import {
   SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -26,32 +22,20 @@ import {
 import { cn } from "@/lib/utils";
 import { memo, useMemo, useCallback } from "react";
 import { useSidebar } from "@/components/ui/sidebar";
-import { LinkIcon } from "@/utils/icons/link";
-import { PhoneIcon } from "@/utils/icons/phone";
-import { SettingsIcon } from "@/utils/icons/settings";
+import {
+  NAV_ACCESS_CONTROL,
+  WORKSPACE_NAV_GROUPS,
+  type NavGroup,
+  type NavItem,
+  type NavSubItem,
+  type WorkspaceUserRole,
+} from "@/constants/sidenav/workspace-nav";
 
 // ============================================================================
 // Types
 // ============================================================================
 
-type UserRole = "owner" | "admin" | "member" | null;
-
-interface Brand {
-  icon: LucideIcon;
-  name: string;
-}
-
-interface NavSubItem {
-  title: string;
-  url: string;
-}
-
-interface NavItem {
-  title: string;
-  url?: string;
-  icon?: LucideIcon;
-  items?: NavSubItem[];
-}
+type UserRole = WorkspaceUserRole;
 
 interface WorkspaceMinimal {
   id: string;
@@ -70,37 +54,12 @@ interface NavMainProps {
 // Constants
 // ============================================================================
 
-const SIDEBAR_DATA = {
-  logo: { icon: SquareTerminal, name: "Slugy" } as Brand,
-  navMain: [
-    { title: "Links", url: "/", icon: LinkIcon },
-    { title: "Analytics", url: "/analytics", icon: BarChart2 },
-    { title: "Domains", url: "/domains", icon: Globe },
-    { title: "Bio Links", url: "/bio-links", icon: PhoneIcon },
-    {
-      title: "Settings",
-      icon: SettingsIcon,
-      items: [
-        { title: "General", url: "/settings" },
-        { title: "Billing", url: "/settings/billing" },
-        { title: "API Keys", url: "/settings/api-keys" },
-        { title: "Library", url: "/settings/library/tags" },
-        { title: "Team", url: "/settings/team" },
-      ],
-    },
-  ] as NavItem[],
-};
-
-const NAV_ACCESS_CONTROL = {
-  restrictedSubItems: {
-    Billing: ["owner"] as const,
-    "API key": ["owner", "admin"] as const,
-    "API Keys": ["owner", "admin"] as const,
-    General: ["owner", "admin"] as const,
-  },
-} as const;
-
-const PREFETCH_ROUTES = ["/", "/analytics", "/bio-links"];
+// Prefetch policy: every primary nav destination (the sidebar's own links) is
+// prefetched. These routes are behind auth and frequently revisited, so the
+// RSC payload prefetch is worth it — previously a broken predicate silently
+// prefetched all main items while never prefetching Settings sub-items.
+const PREFETCH_NAV = true;
+const PREFETCH_SUBNAV = true;
 
 // ============================================================================
 // Utilities
@@ -125,10 +84,6 @@ function getLastSegment(url: string): string {
   return segments[segments.length - 1] || "";
 }
 
-function shouldPrefetch(url: string): boolean {
-  return PREFETCH_ROUTES.some((route) => url === route || url.includes(route));
-}
-
 // ============================================================================
 // Sub-Components
 // ============================================================================
@@ -139,7 +94,7 @@ const SubItemComponent = memo<{
   onClick?: () => void;
 }>(({ subItem, isActive, onClick }) => {
   return (
-    <SidebarMenuSubItem key={subItem.title}>
+    <SidebarMenuSubItem>
       <SidebarMenuSubButton
         asChild
         className={cn(
@@ -147,8 +102,8 @@ const SubItemComponent = memo<{
           isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
         )}
       >
-        <Link href={subItem.url} prefetch={false} onClick={onClick}>
-          <span className={cn("font-normal")}>{subItem.title}</span>
+        <Link href={subItem.url} prefetch={PREFETCH_SUBNAV} onClick={onClick}>
+          <span className={cn("text-sm font-normal")}>{subItem.title}</span>
         </Link>
       </SidebarMenuSubButton>
     </SidebarMenuSubItem>
@@ -184,29 +139,24 @@ const NavItemComponent = memo<{
   );
 
   return (
-    <Collapsible
-      key={item.title}
-      asChild
-      defaultOpen={isActive}
-      className="group/collapsible"
-    >
+    <Collapsible asChild defaultOpen={isActive} className="group/collapsible">
       <SidebarMenuItem>
         {item.url ? (
           <Link
             href={item.url}
-            prefetch={shouldPrefetch(item.url)}
+            prefetch={PREFETCH_NAV}
             onClick={onNavItemClick}
           >
             <SidebarMenuButton tooltip={item.title} className={buttonClasses}>
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}
-              <span>{item.title}</span>
+              <span className="text-sm">{item.title}</span>
             </SidebarMenuButton>
           </Link>
         ) : (
           <CollapsibleTrigger asChild>
             <SidebarMenuButton tooltip={item.title} className={buttonClasses}>
               {item.icon && <item.icon className="size-4" strokeWidth={2} />}
-              <span className={cn("font-normal")}>{item.title}</span>
+              <span className="text-sm font-normal">{item.title}</span>
               {item.items && (
                 <ChevronRight className="ml-auto size-4 transition-all duration-200 group-hover/menu-item:translate-x-0.5 group-data-[state=open]/collapsible:rotate-90" />
               )}
@@ -248,31 +198,34 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
     };
   }, [workspaces, workspaceslug]);
 
-  // Process navigation items with access control and URL building
-  const processedNavItems = useMemo(() => {
-    return SIDEBAR_DATA.navMain.map((item) => {
-      const isBioLinks = item.title === "Bio Links";
-      const itemUrl = item.url
-        ? isBioLinks
-          ? item.url
-          : buildUrl(baseUrl, item.url)
-        : undefined;
+  // Process navigation groups with access control and URL building
+  const processedGroups = useMemo<NavGroup[]>(() => {
+    return WORKSPACE_NAV_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.map((item) => {
+        const isBioLinks = item.title === "Bio Links";
+        const itemUrl = item.url
+          ? isBioLinks
+            ? item.url
+            : buildUrl(baseUrl, item.url)
+          : undefined;
 
-      const filteredSubItems = item.items
-        ?.filter((sub) => {
-          const allowedRoles =
-            NAV_ACCESS_CONTROL.restrictedSubItems[
-              sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
-            ];
-          return allowedRoles ? hasAccess(userRole, allowedRoles) : true;
-        })
-        .map((sub) => ({
-          ...sub,
-          url: isBioLinks ? sub.url : buildUrl(baseUrl, sub.url),
-        }));
+        const filteredSubItems = item.items
+          ?.filter((sub) => {
+            const allowedRoles =
+              NAV_ACCESS_CONTROL.restrictedSubItems[
+                sub.title as keyof typeof NAV_ACCESS_CONTROL.restrictedSubItems
+              ];
+            return allowedRoles ? hasAccess(userRole, allowedRoles) : true;
+          })
+          .map((sub) => ({
+            ...sub,
+            url: isBioLinks ? sub.url : buildUrl(baseUrl, sub.url),
+          }));
 
-      return { ...item, url: itemUrl, items: filteredSubItems };
-    });
+        return { ...item, url: itemUrl, items: filteredSubItems };
+      }),
+    }));
   }, [baseUrl, userRole]);
 
   // Memoize last segment for active state checks
@@ -309,19 +262,28 @@ export const NavMain = memo<NavMainProps>(({ workspaceslug, workspaces }) => {
   }, [isMobile, setOpenMobile]);
 
   return (
-    <SidebarGroup className="px-2">
-      <SidebarMenu className="gap-2">
-        {processedNavItems.map((item) => (
-          <NavItemComponent
-            key={item.title}
-            item={item}
-            isActive={isItemActive(item)}
-            isSubItemActive={isSubItemActive}
-            onNavItemClick={handleNavItemClick}
-          />
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+    <>
+      {processedGroups.map((group) => (
+        <SidebarGroup key={group.label} className="px-2">
+          <SidebarGroupLabel className="text-muted-foreground px-2 text-[11px] font-medium tracking-wider uppercase">
+            {group.label}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1.5">
+              {group.items.map((item) => (
+                <NavItemComponent
+                  key={item.title}
+                  item={item}
+                  isActive={isItemActive(item)}
+                  isSubItemActive={isSubItemActive}
+                  onNavItemClick={handleNavItemClick}
+                />
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+    </>
   );
 });
 NavMain.displayName = "NavMain";

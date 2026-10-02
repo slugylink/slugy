@@ -96,7 +96,7 @@ function UsageProgressRow({
   }, [progress, motionValue]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {icon}
@@ -200,7 +200,7 @@ export function UsageStatsClient({
           <div className="">
             <Link
               href={`/${workspaceslug}/settings/billing`}
-              className="text-muted-foreground flex items-center text-sm transition-colors hover:text-zinc-700"
+              className="text-muted-foreground flex items-center text-[13px] transition-colors hover:text-zinc-700"
             >
               Usage <ChevronRight className="ml-1 h-3 w-3" />
             </Link>
@@ -225,7 +225,7 @@ export function UsageStatsClient({
           />
         </div>
 
-        <p className="text-muted-foreground mt-2 text-xs">
+        <p className="text-muted-foreground text-xs">
           Usage will reset {resetDate}
         </p>
       </Card>

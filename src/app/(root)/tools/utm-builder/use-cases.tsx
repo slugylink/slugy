@@ -103,22 +103,22 @@ export default function UtmUseCases() {
         </p>
         <h2
           id="utm-use-cases"
-          className="mt-2 text-2xl font-medium text-balance sm:text-3xl"
+          className="mt-2 text-xl font-medium text-balance sm:text-2xl"
         >
           UTM Builder for agencies, SaaS, ecommerce and more
         </h2>
-        <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
+        <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm">
           One naming convention, every channel. See how each team tags campaigns
           so GA4 reporting stays clean.
         </p>
       </div>
 
-      <div className="mt-10 grid gap-6 sm:grid-cols-2">
+      <div className="mt-8 grid gap-4 sm:grid-cols-2 sm:gap-6">
         {UTM_SEGMENTS.map((segment) => (
           <article
             key={segment.id}
             id={segment.id}
-            className="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800"
+            className="flex flex-col rounded-xl border border-zinc-200 p-5 dark:border-zinc-800"
           >
             <h3 className="text-base font-medium">
               UTM Builder for {segment.name}
@@ -126,7 +126,7 @@ export default function UtmUseCases() {
             <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
               {segment.intro}
             </p>
-            <code className="mt-3 block overflow-x-auto rounded-md bg-zinc-100 p-2 text-xs text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+            <code className="mt-3 block rounded-md bg-zinc-100 p-2.5 font-mono text-[11px] leading-relaxed break-all text-zinc-700 sm:text-xs dark:bg-zinc-900 dark:text-zinc-300">
               {segment.example}
             </code>
           </article>

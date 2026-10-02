@@ -1,9 +1,7 @@
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import PageSkeleton from "@/components/web/skeletons/page-skeleton";
 
+// Workspace root (Links) loading state. Content-shaped skeleton instead of a
+// centered full-height spinner, so navigation doesn't blank the content area.
 export default function Loading() {
-  return (
-    <div className="flex h-full min-h-[80vh] w-full items-center justify-center">
-      <LoaderCircle className="text-muted-foreground h-5 w-5 animate-spin" />
-    </div>
-  );
+  return <PageSkeleton rows={8} />;
 }

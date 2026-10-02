@@ -68,7 +68,7 @@ export default function GetStartedButton({
 
   return (
     <div className={cn("flex gap-2", className)}>
-      {isGitVisible && (
+      {/* {isGitVisible && (
         <Link
           href="https://github.com/slugylink/slugy"
           target="_blank"
@@ -84,7 +84,7 @@ export default function GetStartedButton({
             />
           </Button>
         </Link>
-      )}
+      )} */}
 
       {showAuthButtons && (
         <>

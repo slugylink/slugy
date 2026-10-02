@@ -337,6 +337,30 @@
   display: none; /* Chrome, Safari */
 }
 
+/* Thin scrollbar for constrained panels (sidebar, pickers) */
+.scrollbar-thin {
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: color-mix(in oklab, #a1a1aa 55%, transparent) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, #a1a1aa 55%, transparent);
+  border-radius: 9999px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
 
 /* Shiny text animation */
 @keyframes shiny-text {

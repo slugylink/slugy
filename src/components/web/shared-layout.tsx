@@ -1,7 +1,6 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/web/_sidebar/app-sidebar";
-import { Suspense, memo } from "react";
-import { LoaderCircle } from "@/utils/icons/loader-circle";
+import { memo } from "react";
 import SidebarHeader from "./_sidebar/sidebar-header";
 import MaxWidthContainer from "../max-width-container";
 
@@ -9,6 +8,8 @@ export interface SharedLayoutProps {
   children: React.ReactNode;
   workspaceslug: string;
   className?: string;
+  /** From the `sidebar_state` cookie, so the collapsed state survives reload. */
+  defaultSidebarOpen?: boolean;
   workspaces?: {
     id: string;
     name: string;
@@ -17,25 +18,15 @@ export interface SharedLayoutProps {
   }[];
 }
 
-// Optimized loading skeleton with better UX
-const LayoutSkeleton = memo(() => (
-  <div className="flex h-screen items-center justify-center">
-    <div className="flex flex-col items-center gap-4">
-      <LoaderCircle className="h-5 w-5 animate-spin text-muted-foreground" />
-    </div>
-  </div>
-));
-
-LayoutSkeleton.displayName = "LayoutSkeleton";
-
 export const SharedLayout = memo(function SharedLayout({
   children,
   workspaceslug,
   workspaces,
   className,
+  defaultSidebarOpen = true,
 }: SharedLayoutProps) {
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={defaultSidebarOpen}>
       <AppSidebar
         workspaceslug={workspaceslug}
         workspaces={workspaces || []}
@@ -44,11 +35,13 @@ export const SharedLayout = memo(function SharedLayout({
       <SidebarInset>
         <MaxWidthContainer>
           <SidebarHeader />
-          <Suspense fallback={<LayoutSkeleton />}>
-            <div className={`m-0 w-full p-0 ${className || ""}`.trim()}>
-              {children}
-            </div>
-          </Suspense>
+          {/* No Suspense boundary here: each route owns its loading.tsx so the
+              skeleton matches the page being loaded. A full-screen fallback in
+              the shared layout would cover the sidebar and fight the route
+              skeleton. */}
+          <div className={`m-0 w-full p-0 ${className || ""}`.trim()}>
+            {children}
+          </div>
         </MaxWidthContainer>
       </SidebarInset>
     </SidebarProvider>

@@ -60,6 +60,42 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly",
       priority: 0.9,
     },
+    {
+      url: `${baseUrl}/tools/utm-builder/google-ads`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/tools/utm-builder/facebook`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/tools/utm-builder/tiktok`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/tools/utm-builder/linkedin`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/tools/utm-stripper`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/tools/redirect-checker`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
     ...posts,
     {
       url: `${baseUrl}/custom-domain`,

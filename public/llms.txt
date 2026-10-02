@@ -8,9 +8,11 @@
 
 - [Home](https://slugy.co/): Short links with powerful analytics. Free plan covers branded links, QR codes, and basic analytics.
 - [Pricing](https://slugy.co/pricing): Free, Pro, and Growth plans. Pro unlocks lead tracking; Growth adds sales analytics.
-- [Free marketing tools](https://slugy.co/tools): No-login QR code generator and UTM campaign URL builder.
+- [Free marketing tools](https://slugy.co/tools): No-login QR code generator, UTM Builder, UTM Stripper, and Redirect Checker.
 - [QR Code Generator](https://slugy.co/tools/qr-code-generator): Free custom QR codes with colors, shapes, and PNG/SVG export. No login.
-- [UTM Builder](https://slugy.co/tools/utm-builder): Free UTM Builder — build validated, GA4-ready campaign URLs (utm_source, medium, campaign, term, content). No login. Use cases for agencies, SaaS, ecommerce, performance, SEO, email, social, creators, teams, affiliate.
+- [UTM Builder](https://slugy.co/tools/utm-builder): Free UTM Builder — build validated, GA4-ready campaign URLs (utm_source, medium, campaign, term, content). No login. Use cases for agencies, SaaS, ecommerce, performance, SEO, email, social, creators, teams, affiliate. Platform guides: [Google Ads](https://slugy.co/tools/utm-builder/google-ads), [Meta](https://slugy.co/tools/utm-builder/facebook), [TikTok](https://slugy.co/tools/utm-builder/tiktok), [LinkedIn](https://slugy.co/tools/utm-builder/linkedin).
+- [UTM Stripper](https://slugy.co/tools/utm-stripper): Free UTM remover — strip utm_source, medium, campaign, term, content and ad click IDs (gclid, fbclid) from any URL. Runs privately in the browser. No login.
+- [Redirect Checker](https://slugy.co/tools/redirect-checker): Free redirect chain tracer — follow up to 10 hops with HTTP status codes (301, 302, 307). Verify short links land where they should. No login.
 - [Blog](https://slugy.co/blogs): Guides on link analytics, lead conversion tracking, and short-link migrations.
 - [Slugy vs Bitly](https://slugy.co/alternative/bitly): Honest pricing and feature comparison with migration guide.
 - [Custom domains](https://slugy.co/custom-domain): Connect your own domain with guided DNS setup.

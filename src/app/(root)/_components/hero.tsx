@@ -4,8 +4,6 @@ import { cn } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
-import HeroDemoButton from "./hero-demo-button";
-import { Button } from "@/components/ui/button";
 
 // Server component: hero copy paints in SSR HTML so LCP (the headline)
 // is not gated on hydration or entrance animations. Interactive pieces

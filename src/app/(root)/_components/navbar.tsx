@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, ArrowRight } from "lucide-react";
 import AppLogo from "@/components/web/app-logo";
 import {
   NavigationMenu,
@@ -67,6 +67,7 @@ function NavbarLogo() {
 
 function DesktopSubmenu({ link }: { link: NavLink }) {
   const isFeatures = link.title === "Features";
+  const isFreeTools = link.title === "Free Tools";
 
   return (
     <>
@@ -130,6 +131,20 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
               {menuItem.tagline}
             </ListItem>
           ))}
+
+          {isFreeTools && (
+            <li className="col-span-full mt-0.5 border-t pt-1.5">
+              <NavigationMenuLink asChild>
+                <Link
+                  href="/tools"
+                  className="text-muted-foreground hover:bg-accent hover:text-foreground flex flex-row items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors"
+                >
+                  View all free tools
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </NavigationMenuLink>
+            </li>
+          )}
         </ul>
       </NavigationMenuContent>
     </>
@@ -201,6 +216,15 @@ function MobileMenuContent() {
                         </div>
                       </Link>
                     ))}
+                    {section.title === "Free Tools" && (
+                      <Link
+                        href="/tools"
+                        className="text-muted-foreground hover:bg-accent hover:text-foreground mt-1 flex items-center justify-between gap-2 border-t px-2 pt-3 pb-2 text-[13px] font-medium transition-colors"
+                      >
+                        View all free tools
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </Link>
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>

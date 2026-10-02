@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { QrCode, Link2, ArrowRight } from "lucide-react";
+import { QrCode, Link2, ArrowRight, Eraser, Route } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -36,6 +36,24 @@ const TOOLS = [
       "Build campaign URLs with utm_source, medium, campaign, term and content. Validated, encoded and ready to paste into GA4.",
     keywords: "UTM Builder · campaign url builder · utm tags",
   },
+  {
+    href: "/tools/utm-stripper",
+    icon: Eraser,
+    badge: "No login · Private",
+    title: "UTM Stripper",
+    description:
+      "Remove UTM parameters and ad click IDs from any URL. Runs in your browser — nothing is uploaded.",
+    keywords: "utm stripper · remove utm · clean url",
+  },
+  {
+    href: "/tools/redirect-checker",
+    icon: Route,
+    badge: "No login · 10 hops",
+    title: "Redirect Checker",
+    description:
+      "Trace any link's redirect chain with status codes. Verify short links land where they should.",
+    keywords: "redirect checker · trace redirects · 301 chain",
+  },
 ];
 
 const jsonLd = {
@@ -60,6 +78,22 @@ const jsonLd = {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       url: "/tools/utm-builder",
     },
+    {
+      "@type": "SoftwareApplication",
+      name: "Slugy UTM Stripper",
+      applicationCategory: "UtilitiesApplication",
+      operatingSystem: "Web",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      url: "/tools/utm-stripper",
+    },
+    {
+      "@type": "SoftwareApplication",
+      name: "Slugy Redirect Checker",
+      applicationCategory: "UtilitiesApplication",
+      operatingSystem: "Web",
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      url: "/tools/redirect-checker",
+    },
   ],
 };
 
@@ -78,15 +112,16 @@ export default function ToolsPage() {
           Free tools for links that get clicked
         </h1>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-base">
-          Two keyword-magnet utilities, embedded right in Slugy. Generate QR
-          codes or build UTM-tagged campaign URLs in seconds.
+          Four keyword-magnet utilities, embedded right in Slugy. Generate QR
+          codes, build or strip UTM-tagged campaign URLs, and trace redirects in
+          seconds.
         </p>
       </section>
 
       <section className="mx-auto grid max-w-4xl gap-4 px-4 pb-16 sm:grid-cols-2">
         {TOOLS.map((tool) => (
           <Link key={tool.href} href={tool.href} className="group">
-            <Card className="h-full gap-3 border-zinc-200 p-6 transition-all group-hover:-translate-y-0.5 group-hover:shadow-md dark:border-white/10">
+            <Card className="h-full gap-3 border-zinc-200 p-6 transition-all group-hover:shadow-md dark:border-white/10">
               <CardContent className="flex flex-col gap-3 p-0">
                 <div className="flex items-center justify-between">
                   <span className="bg-muted flex h-10 w-10 items-center justify-center rounded-lg">

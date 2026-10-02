@@ -177,7 +177,8 @@ function WorkspaceSwitch({
         workspaceslug,
         workspace.slug,
       );
-      router.refresh();
+      // push() already fetches the new route; a preceding refresh() re-rendered
+      // the old workspace for nothing and delayed the switch.
       router.push(newPath);
     },
     [pathname, router, workspaceslug],
