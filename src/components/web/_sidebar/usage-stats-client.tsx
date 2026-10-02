@@ -139,11 +139,25 @@ function PlanBadge({
   );
 }
 
-function EmptyUsageCard() {
+function EmptyUsageCard({
+  isActivePro,
+  workspaceslug,
+}: {
+  isActivePro: boolean;
+  workspaceslug: string;
+}) {
   return (
-    <Card className="w-full max-w-xs p-3.5 shadow-sm">
-      <div className="text-muted-foreground flex items-center text-sm">
-        Usage <ChevronRight className="ml-1 h-3 w-3" />
+    <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="">
+          <Link
+            href={`/${workspaceslug}/settings/billing`}
+            className="text-muted-foreground flex items-center text-[13px] transition-colors hover:text-zinc-700"
+          >
+            Usage <ChevronRight className="ml-1 h-3 w-3" />
+          </Link>
+        </div>
+        <PlanBadge isActivePro={isActivePro} workspaceslug={workspaceslug} />
       </div>
 
       <div className="space-y-3">
@@ -163,7 +177,7 @@ function EmptyUsageCard() {
         />
       </div>
 
-      <p className="text-muted-foreground mt-2 text-xs">Usage will reset —</p>
+      <p className="text-muted-foreground text-xs">Usage will reset —</p>
     </Card>
   );
 }
@@ -181,7 +195,10 @@ export function UsageStatsClient({
   if (!workspace || !usage) {
     return (
       <LazyMotion features={domAnimation}>
-        <EmptyUsageCard />
+        <EmptyUsageCard
+          isActivePro={isActivePro}
+          workspaceslug={workspaceslug}
+        />
       </LazyMotion>
     );
   }
@@ -195,6 +212,7 @@ export function UsageStatsClient({
 
   return (
     <LazyMotion features={domAnimation}>
+      {/* real card */}
       <Card className="mt-2 w-full max-w-xs p-3.5 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="">
