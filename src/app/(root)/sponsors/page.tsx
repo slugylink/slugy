@@ -16,6 +16,8 @@ export const metadata: Metadata = {
     title: "Sponsors | Slugy",
     description:
       "Meet the sponsors and supporters behind Slugy, the open-source URL shortener.",
+    card: "summary_large_image",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

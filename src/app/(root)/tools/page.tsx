@@ -12,7 +12,7 @@ import {
 export const metadata: Metadata = {
   title: "Free Marketing Tools — QR Generator & UTM Builder",
   description:
-    "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM link builder with validation, presets and one-click copy.",
+    "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM Builder with validation, presets and one-click copy.",
   alternates: { canonical: "/tools" },
   openGraph: { url: "/tools" },
 };
@@ -34,7 +34,7 @@ const TOOLS = [
     title: "UTM Builder",
     description:
       "Build campaign URLs with utm_source, medium, campaign, term and content. Validated, encoded and ready to paste into GA4.",
-    keywords: "utm builder · campaign url builder · utm tags",
+    keywords: "UTM Builder · campaign url builder · utm tags",
   },
 ];
 
@@ -42,8 +42,7 @@ const jsonLd = {
   "@context": "https://schema.org",
   "@type": "CollectionPage",
   name: "Free Marketing Tools by Slugy",
-  description:
-    "Free QR code generator and UTM campaign URL builder. No login required.",
+  description: "Free QR code generator and UTM Builder. No login required.",
   hasPart: [
     {
       "@type": "SoftwareApplication",

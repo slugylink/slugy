@@ -14,6 +14,15 @@ export const metadata: Metadata = {
       "Guides and product updates from Slugy — analytics, lead conversion, and short links.",
     url: "/blogs",
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "Blog | Slugy",
+    description:
+      "Guides and product updates from Slugy — analytics, lead conversion, and short links.",
+    images: [
+      "https://files.slugy.co/Slugy%20-%20Short%20links%20with%20powerful%20analytics.webp",
+    ],
+  },
 };
 
 function formatDate(iso: string) {

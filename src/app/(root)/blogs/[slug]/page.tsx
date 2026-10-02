@@ -92,7 +92,7 @@ export default async function BlogPostPage({ params }: PageProps) {
           url: baseUrl,
           logo: {
             "@type": "ImageObject",
-            url: `${baseUrl}/web-app-manifest-512x512.png`,
+            url: `${baseUrl}/android-chrome-512x512.png`,
           },
         },
         mainEntityOfPage: {

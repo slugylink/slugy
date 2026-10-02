@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
+import ToolsSection from "./_components/tools-section";
 import { MotionProvider } from "./_components/reveal";
 
 export const metadata: Metadata = {
@@ -66,6 +67,8 @@ export default function Home() {
           <section id="features" className="scroll-mt-20">
             <Features />
           </section>
+
+          <ToolsSection />
 
           <section id="pricing" className="scroll-mt-20">
             <PricingSection />

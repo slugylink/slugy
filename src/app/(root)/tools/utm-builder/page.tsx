@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import UtmBuilderClient from "./utm-builder-client";
+import UtmUseCases from "./use-cases";
 
 export const metadata: Metadata = {
   title: "Free UTM Builder — Campaign URL Builder for GA4",
   description:
-    "Free UTM link builder with no login. Add utm_source, utm_medium, campaign, term and content with validation, presets, encoding and one-click copy.",
+    "Free UTM Builder with no login. Add utm_source, utm_medium, campaign, term and content with validation, presets, encoding and one-click copy.",
   keywords: [
     "utm builder",
     "campaign url builder",
@@ -12,6 +13,12 @@ export const metadata: Metadata = {
     "utm parameters",
     "google analytics utm",
     "utm_source medium campaign",
+    "utm builder for agencies",
+    "utm builder for ecommerce",
+    "utm builder for affiliate marketing",
+    "utm builder for creators",
+    "utm builder for saas",
+    "utm builder for teams",
   ],
   alternates: { canonical: "/tools/utm-builder" },
   openGraph: {
@@ -56,7 +63,7 @@ const jsonLd = {
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       url: "/tools/utm-builder",
       description:
-        "Free campaign URL builder with UTM validation, presets and one-click copy. No login required.",
+        "Free UTM Builder with validation, presets and one-click copy. No login required.",
     },
     {
       "@type": "FAQPage",
@@ -92,6 +99,7 @@ export default function UtmBuilderPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <UtmBuilderClient faqs={FAQ} />
+      <UtmUseCases />
     </main>
   );
 }

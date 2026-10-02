@@ -15,7 +15,7 @@ const jsonLd = {
       url: BASE_URL,
       logo: {
         "@type": "ImageObject",
-        url: `${BASE_URL}/web-app-manifest-512x512.png`,
+        url: `${BASE_URL}/android-chrome-512x512.png`,
       },
       sameAs: [
         "https://github.com/slugylink/slugy",
@@ -34,10 +34,23 @@ const jsonLd = {
       "@type": "SoftwareApplication",
       name: "Slugy",
       applicationCategory: "BusinessApplication",
+      applicationSubCategory: "Link Management",
       operatingSystem: "Web",
       url: BASE_URL,
       description:
         "Open-source URL shortener with advanced analytics, link-in-bio pages, custom domains, and team collaboration.",
+      isAccessibleForFree: true,
+      screenshot: "https://files.slugy.co/slugy-og.png",
+      featureList: [
+        "Branded short links",
+        "Click, lead, and sales analytics",
+        "QR code generator",
+        "Link-in-bio pages",
+        "Custom domains with SSL",
+        "UTM Builder",
+        "CSV link import and export",
+        "Team workspaces",
+      ],
       offers: {
         "@type": "Offer",
         url: `${BASE_URL}/pricing`,

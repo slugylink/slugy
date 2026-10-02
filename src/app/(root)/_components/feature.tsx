@@ -29,7 +29,7 @@ const ROWS: Row[] = [
       "Custom domains and branded slugs — every link on brand, whoever ships it.",
     bullets: [
       "Custom domains + branded slugs",
-      "UTM builder + bulk creation",
+      "UTM Builder + bulk creation",
       "Shared workspaces for teams",
     ],
     cta: "Create a branded link",
@@ -98,9 +98,10 @@ const MINIS1 = [
   {
     eyebrow: "UTM Builder",
     title: "Campaign URLs, done right",
-    description: "Presets and validation for clean GA4-ready attribution.",
-    cta: "Build a UTM URL",
-    href: "https://app.slugy.co",
+    description:
+      "Free, no-login builder with presets and validation for clean GA4-ready attribution.",
+    cta: "Open the free UTM Builder",
+    href: "/tools/utm-builder",
     visual: (
       <div
         aria-hidden

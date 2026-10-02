@@ -1,0 +1,71 @@
+# Slugy — full page map
+
+> Open-source link management: branded short links, click/lead/sales analytics,
+> QR codes, link-in-bio, custom domains, team workspaces.
+> Home: https://slugy.co/ — Start free, no credit card.
+
+## Product
+
+### [Home](https://slugy.co/)
+Short Links with Powerful Analytics. Branded links, QR codes, UTM builder, and
+client-ready analytics without the enterprise price tag. Live platform totals
+(users, links, clicks) published on-page.
+
+### [Pricing](https://slugy.co/pricing)
+- Free ($0): branded links, QR codes, basic click analytics.
+- Pro ($8/mo, $80/yr): adds lead tracking, custom domains, geo targeting, link passwords and expiry.
+- Growth ($29/mo, $290/yr): adds sales/revenue analytics. Cancel anytime in one click.
+
+### [Custom domains](https://slugy.co/custom-domain)
+Connect your own domain (e.g. yourbrand.co/sale) with guided DNS setup, SSL included.
+
+### [Sponsors](https://slugy.co/sponsors)
+Companies funding Slugy's open-source development.
+
+## Company and legal
+
+### [About](https://slugy.co/about)
+Slugy is an open-source link management platform. Public codebase at https://github.com/slugylink/slugy; live platform totals published on the home page.
+
+### [Privacy Policy](https://slugy.co/privacy)
+Collects account data, workspace/link data, and click analytics (timestamp, IP-derived country/city/continent, device, browser, OS, referrer, UTMs, click id). Cookies: session (auth), password-verification, and a first-party attribution cookie for conversion tracking. Data is not sold and is not used for ad profiles. Processors cover hosting, database, cache, analytics, object storage, billing, email, and error monitoring. Account deletion removes accounts, workspaces, and links.
+
+### [Terms of Service](https://slugy.co/terms)
+Acceptable use prohibits malware, phishing, spam, impersonation, and rate-limit bypass. Destinations may be scanned for safety. Paid plans bill monthly/yearly; plan limits are listed on the pricing page; cancellation takes effect at the end of the paid period. Service is provided "as is" with liability limited to fees paid in the prior twelve months.
+
+## Free tools (no login)
+
+### [QR Code Generator](https://slugy.co/tools/qr-code-generator)
+Custom QR codes for URLs, text, Wi-Fi, or email. Restyle colors and shapes;
+download print-ready PNG or SVG.
+
+### [UTM Builder](https://slugy.co/tools/utm-builder)
+Free UTM Builder: campaign URL builder for GA4. Add utm_source, utm_medium, utm_campaign, utm_term, utm_content; validated, encoded, presets, one-click copy. No login. Includes per-segment guidance for agencies, SaaS, ecommerce, performance marketing, SEO, email, social, creators, teams, and affiliate programs.
+
+## Comparisons and guides
+
+### [Blog](https://slugy.co/blogs)
+- [How to track lead conversions with Slugy](https://slugy.co/blogs/lead-conversion-tracking): enable lead tracking on a link, capture slugy_id on your site, attribute signups via the leads_track API.
+- [Slugy vs Bitly](https://slugy.co/blogs/slugy-vs-bitly): pricing, custom domains, QR codes, bio pages, lead attribution; what Bitly does better; how to migrate.
+- [Slugy vs Dub](https://slugy.co/blogs/slugy-vs-dub): pricing and feature comparison with migration guide.
+- [Slugy vs Rebrandly](https://slugy.co/blogs/slugy-vs-rebrandly): pricing and feature comparison.
+- [Slugy vs Short.io](https://slugy.co/blogs/slugy-vs-short-io): pricing and feature comparison.
+- [Slugy vs Blink](https://slugy.co/blogs/slugy-vs-blink): pricing and feature comparison.
+
+### [Slugy vs Bitly (alternative page)](https://slugy.co/alternative/bitly)
+Head-to-head alternative page with FAQ: migration, custom domains, pricing.
+
+## Frequently asked questions
+
+- Can I migrate from Bitly? Yes — CSV export from Bitly imports into Slugy with slugs, destinations, and UTMs intact; most teams finish in minutes.
+- Can I use my own domain? Yes — guided DNS setup in minutes; plan limits apply.
+- Is there a free plan? Yes — branded links, QR codes, basic analytics, no credit card.
+- Do QR codes cost extra? No — every short link includes a restyleable QR code.
+- Can I cancel anytime? Yes — one click in billing settings.
+- Is Slugy open source? Yes — public GitHub repo: https://github.com/slugylink/slugy
+
+## Developer notes
+
+- GitHub: https://github.com/slugylink/slugy
+- Migration from Bitly preserves slugs, destinations, and UTM parameters via CSV import.
+- Temporary demo links can be created on the homepage without an account (rate-limited).

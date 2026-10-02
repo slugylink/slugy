@@ -41,7 +41,8 @@ const heroData = {
     "mx-auto inline-block w-fit py-1  bg-clip-text text-center leading-none font-semibold",
   subheading1: (
     <>
-      Branded links, UTM builder, QR codes, and client-ready analytics
+      Branded links, <Link href="/tools/utm-builder">UTM Builder</Link>
+      , QR codes, and client-ready analytics
       <br className="hidden sm:block" /> — without the enterprise price tag.
     </>
   ),

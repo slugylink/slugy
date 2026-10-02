@@ -37,7 +37,7 @@ const ROWS: Array<{
     dub: { type: "none" },
   },
   {
-    label: "UTM builder",
+    label: "UTM Builder",
     slugy: { type: "check", label: "Included" },
     bitly: { type: "text", label: "Core plan and up" },
     dub: { type: "check", label: "Included" },
