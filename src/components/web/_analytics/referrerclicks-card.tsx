@@ -2,10 +2,26 @@
 import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import UrlAvatar from "@/components/web/url-avatar";
 import TableCard from "./table-card";
 import AnalyticsDialog from "./analytics-dialog";
+
+// Asset base URLs and helpers
+const BASE_ASSET_URL = "https://slugylink.github.io/slugy-assets/dist/colorful";
+
+// Referrers that map to a dedicated asset instead of a favicon.
+const SPECIAL_REFERRERS: Record<string, { icon: string; label?: string }> = {
+  direct: { icon: "direct.svg" },
+  qr: { icon: "qr.svg", label: "QR Code" },
+  qrcode: { icon: "qr.svg", label: "QR Code" },
+  "qr code": { icon: "qr.svg", label: "QR Code" },
+};
+
+function getSpecialReferrer(label: string) {
+  return SPECIAL_REFERRERS[label.trim().toLowerCase()];
+}
 
 interface ReferrerClicksProps {
   workspaceslug: string;
@@ -147,14 +163,34 @@ const ReferrerClicks = ({
 
   const keyPrefix = primaryTab === "referrers" ? "referrer" : utmTab;
   const useAvatar = primaryTab === "referrers" || utmTab === "utmSources";
+  const useSpecialReferrer = primaryTab === "referrers";
 
   const NameComponent = useMemo<React.ComponentType<{ item: RowItem }>>(
     () =>
       function UtmName({ item }) {
         const showAvatar = useAvatar && Boolean(item.avatarUrl);
+        const special = useSpecialReferrer
+          ? getSpecialReferrer(item.label)
+          : undefined;
         return (
           <div className="flex items-center gap-x-2">
-            {showAvatar ? (
+            {special ? (
+              <UrlAvatar
+                className="flex-shrink-0 rounded-sm"
+                size={5}
+                url={item.avatarUrl!}
+                icon={
+                  <Image
+                    src={`${BASE_ASSET_URL}/referrer/${special.icon}`}
+                    alt=""
+                    aria-hidden
+                    width={16}
+                    height={16}
+                    unoptimized
+                  />
+                }
+              />
+            ) : showAvatar ? (
               <UrlAvatar
                 className="flex-shrink-0 rounded-sm"
                 size={5}
@@ -163,12 +199,12 @@ const ReferrerClicks = ({
               />
             ) : null}
             <span className="line-clamp-1 max-w-[220px] text-ellipsis">
-              {formatLabel(item.label)}
+              {special?.label ?? formatLabel(item.label)}
             </span>
           </div>
         );
       },
-    [useAvatar],
+    [useAvatar, useSpecialReferrer],
   );
 
   function renderTable(rows: RowItem[], prefix: string, header: string) {

@@ -187,6 +187,7 @@ export const auth = betterAuth({
     freshAge: 60 * 60 * 24, // 1 day
   },
   baseURL: process.env.BETTER_AUTH_URL,
+  trustedOrigins: origins,
   advanced: {
     // Production cookies must be Secure + scoped to the parent domain so
     // app.slugy.co and slugy.co share the session across tab reopens.
@@ -205,7 +206,6 @@ export const auth = betterAuth({
       httpOnly: true,
       ...(isProd ? { secure: true } : {}),
     },
-    trustedOrigins: origins,
   },
   plugins: [
     magicLink({
