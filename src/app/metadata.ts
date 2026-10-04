@@ -10,9 +10,12 @@ const BASE_URL = `${IS_LOCAL ? "http" : "https"}://${ROOT_DOMAIN}`;
 // PNG/JPG at 1200x630 has the best scraper compatibility
 const OG_IMAGE_URL = "https://files.slugy.co/slugy-og.png";
 
-const TITLE = "Slugy - Short Links with Powerful Analytics";
+// Outcome-led, but keeps the "short link" head term so it still reads as a
+// category match in search and on link previews. The differentiator is that
+// Slugy attributes revenue, not just clicks — see hero.tsx for the same angle.
+const TITLE = "Slugy — Short Links That Track Revenue, Not Just Clicks";
 const DESCRIPTION =
-  "The open-source link management platform for developers. Branded links, analytics, QR codes and link-in-bio — without the enterprise price tag.";
+  "Open-source link analytics that tracks revenue, not just clicks. Branded short links, custom domains, QR codes and a free UTM builder — no enterprise pricing.";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -44,9 +47,12 @@ export const metadata: Metadata = {
     "short links",
     "link management",
     "link analytics",
+    "revenue analytics",
+    "link revenue tracking",
     "link-in-bio",
     "custom domains",
     "open source URL shortener",
+    "free UTM builder",
     "QR code generator",
     "branded links",
   ],
@@ -85,13 +91,14 @@ export const metadata: Metadata = {
     siteName: "Slugy",
     title: TITLE,
     description: DESCRIPTION,
+    url: BASE_URL,
     locale: "en_US",
     images: [
       {
         url: OG_IMAGE_URL,
         width: 1200,
         height: 630,
-        alt: "Slugy - Short Links with Powerful Analytics",
+        alt: "Slugy — short link analytics showing clicks, leads and revenue",
         type: "image/png",
       },
     ],
@@ -103,7 +110,10 @@ export const metadata: Metadata = {
     title: TITLE,
     description: DESCRIPTION,
     images: [
-      { url: OG_IMAGE_URL, alt: "Slugy - Short Links with Powerful Analytics" },
+      {
+        url: OG_IMAGE_URL,
+        alt: "Slugy — short link analytics showing clicks, leads and revenue",
+      },
     ],
   },
 };

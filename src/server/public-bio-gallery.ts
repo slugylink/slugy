@@ -261,6 +261,7 @@ export function createBioDefaultMetadata(): Metadata {
       "curated links",
       "Slugy",
     ],
+    alternates: { canonical: CANONICAL_BASE },
     openGraph: {
       title: "Bio Gallery | Slugy",
       description:
@@ -286,6 +287,10 @@ export function createBioDefaultMetadata(): Metadata {
       images: [OPENGRAPH_IMAGE_URL],
       creator: "@slugydotco",
       site: "@slugydotco",
+    },
+    robots: {
+      index: true,
+      follow: true,
     },
   };
 }

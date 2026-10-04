@@ -5,15 +5,12 @@ import { TrendingUp } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
 import HeroLinkForm from "./hero-linkform";
 
-// Server component: hero copy paints in SSR HTML so LCP (the headline)
-// is not gated on hydration or entrance animations. Interactive pieces
-// stay isolated client islands (demo scroll button, link form).
 const heroData = {
   announcement: {
     text: (
       <>
         <TrendingUp className="mr-1.5 h-3.5 w-3.5 sm:h-4 sm:w-4" />
-        Turn links into customers
+        Turn clicks into customers
       </>
     ),
   },
@@ -39,9 +36,8 @@ const heroData = {
     "mx-auto inline-block w-fit py-1  bg-clip-text text-center leading-none font-semibold",
   subheading1: (
     <>
-      Branded links, <Link href="/tools/utm-builder">UTM Builder</Link>
-      , QR codes, and client-ready analytics
-      <br className="hidden sm:block" /> — without the enterprise price tag.
+      Short links, custom domains, UTM tracking and click-to-revenue analytics —
+      all in one open-source toolkit.
     </>
   ),
 } as const;

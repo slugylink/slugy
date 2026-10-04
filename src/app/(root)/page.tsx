@@ -6,7 +6,27 @@ import { MotionProvider } from "./_components/reveal";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
-  openGraph: { url: "/" },
+  openGraph: {
+    title: "Slugy — Short Links That Track Revenue, Not Just Clicks",
+    description:
+      "Open-source link analytics that tracks revenue, not just clicks. Branded short links, custom domains, QR codes and a free UTM builder — no enterprise pricing.",
+    url: "/",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy — short link analytics showing clicks, leads and revenue",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Slugy — Short Links That Track Revenue, Not Just Clicks",
+    description:
+      "Open-source link analytics that tracks revenue, not just clicks. Branded short links, custom domains, QR codes and a free UTM builder.",
+    images: ["https://files.slugy.co/slugy-og.png"],
+  },
 };
 
 const LOADING_HEIGHT = {

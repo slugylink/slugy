@@ -33,13 +33,35 @@ export default async function GalleryLinksProfile({ params }: PageParams) {
     notFound();
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    name: `${gallery.name || gallery.username} | Slugy`,
+    description:
+      gallery.bio ||
+      `Discover and share curated links in ${gallery.username}'s gallery. Powered by Slugy.`,
+    url: `https://bio.slugy.co/${gallery.username}`,
+    mainEntity: {
+      "@type": "Person",
+      name: gallery.name || gallery.username,
+      identifier: gallery.username,
+      description: gallery.bio || undefined,
+    },
+  };
+
   return (
-    <PublicBioPage
-      gallery={gallery}
-      theme={resolveGalleryTheme(gallery.theme)}
-      avatarUrl={getAvatarUrl(gallery.logo, username)}
-      shortOrigin={shortOrigin}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <PublicBioPage
+        gallery={gallery}
+        theme={resolveGalleryTheme(gallery.theme)}
+        avatarUrl={getAvatarUrl(gallery.logo, username)}
+        shortOrigin={shortOrigin}
+      />
+    </>
   );
 }
 

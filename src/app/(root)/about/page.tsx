@@ -11,6 +11,14 @@ export const metadata: Metadata = {
     description:
       "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio.",
     url: "/about",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "About Slugy — open-source link management",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

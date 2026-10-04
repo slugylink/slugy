@@ -26,6 +26,21 @@ export const metadata: Metadata = {
     description:
       "Build clean, validated campaign URLs in seconds. Presets, encoding and copy included — no login.",
     url: "/tools/utm-builder",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy free UTM builder for GA4",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free UTM Builder — Campaign URL Builder for GA4",
+    description:
+      "Build clean, validated campaign URLs in seconds. Presets, encoding and copy included — no login.",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

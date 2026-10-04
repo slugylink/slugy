@@ -14,7 +14,27 @@ export const metadata: Metadata = {
   description:
     "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM Builder with validation, presets and one-click copy.",
   alternates: { canonical: "/tools" },
-  openGraph: { url: "/tools" },
+  openGraph: {
+    title: "Free Marketing Tools — QR Generator & UTM Builder | Slugy",
+    description:
+      "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM Builder with validation, presets and one-click copy.",
+    url: "/tools",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy free marketing tools — QR generator and UTM builder",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free Marketing Tools — QR Generator & UTM Builder | Slugy",
+    description:
+      "Free no-login tools: QR code generator plus UTM Builder, stripper and redirect checker.",
+    images: ["https://files.slugy.co/slugy-og.png"],
+  },
 };
 
 const TOOLS = [

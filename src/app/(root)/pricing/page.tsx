@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     description:
       "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
     url: "/pricing",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy pricing — plans for links, analytics and teams",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

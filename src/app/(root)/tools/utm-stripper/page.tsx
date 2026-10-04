@@ -19,6 +19,21 @@ export const metadata: Metadata = {
     description:
       "Remove UTM parameters and ad click IDs from any URL. Private, instant, no login.",
     url: "/tools/utm-stripper",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy free UTM stripper",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free UTM Stripper — Remove UTM Parameters & Click IDs",
+    description:
+      "Remove UTM parameters and ad click IDs from any URL. Private, instant, no login.",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

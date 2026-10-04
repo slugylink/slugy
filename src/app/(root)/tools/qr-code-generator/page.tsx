@@ -19,6 +19,21 @@ export const metadata: Metadata = {
     description:
       "Create custom QR codes in seconds. No login, no watermark. Download PNG or SVG.",
     url: "/tools/qr-code-generator",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy free QR code generator",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free QR Code Generator — Custom Colors, PNG & SVG Download",
+    description:
+      "Create custom QR codes in seconds. No login, no watermark. Download PNG or SVG.",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

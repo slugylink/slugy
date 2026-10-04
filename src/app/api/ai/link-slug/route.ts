@@ -2,8 +2,13 @@ import {
   GoogleGenerativeAI,
   type GenerativeModel,
 } from "@google/generative-ai";
-import { buildGeminiPrompt } from "@/lib/gemini-ai-slug-prompt";
+import {
+  buildGeminiUserInput,
+  SLUG_SYSTEM_INSTRUCTION,
+} from "@/lib/gemini-ai-slug-prompt";
 import { apiErrors, apiSuccess } from "@/lib/api-response";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
 
 const STOP_WORDS = new Set([
   "a",
@@ -276,14 +281,23 @@ async function generateWithGemini(
   const client = getGeminiClient();
   if (!client || GEMINI_MODELS.length === 0) return null;
 
-  const prompt = buildGeminiPrompt(cleanUrl, detectIntent(cleanUrl), pathHint);
+  // Untrusted URL data stays in the user-role message; the instruction lives
+  // in systemInstruction so injected path text cannot become instructions.
+  const userInput = buildGeminiUserInput(
+    cleanUrl,
+    detectIntent(cleanUrl),
+    pathHint,
+  );
 
   for (const modelName of GEMINI_MODELS) {
     const model = getGeminiModel(client, modelName);
 
     for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
       try {
-        const result = await model.generateContent(prompt);
+        const result = await model.generateContent({
+          systemInstruction: SLUG_SYSTEM_INSTRUCTION,
+          contents: [{ role: "user", parts: [{ text: userInput }] }],
+        });
         const slug = processSlug(cleanModelOutput(result.response.text()));
         if (slug.length >= MIN_SLUG_LENGTH) return slug;
       } catch (error) {
@@ -327,13 +341,26 @@ function isValidHttpUrl(url: string): boolean {
   }
 }
 
+const MAX_URL_LENGTH = 2048;
+
 export async function POST(req: Request) {
   try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+    if (!session?.user) {
+      return apiErrors.unauthorized("Authentication required");
+    }
+
     const body = (await req.json()) as { url?: unknown };
     const rawUrl = typeof body.url === "string" ? body.url : "";
 
     if (!rawUrl.trim()) {
       return apiErrors.badRequest("URL is required");
+    }
+
+    if (rawUrl.length > MAX_URL_LENGTH) {
+      return apiErrors.badRequest("URL too long");
     }
 
     const url = normalizeUrl(rawUrl);

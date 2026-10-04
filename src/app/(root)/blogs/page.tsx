@@ -13,6 +13,14 @@ export const metadata: Metadata = {
     description:
       "Guides and product updates from Slugy — analytics, lead conversion, and short links.",
     url: "/blogs",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy blog — guides on link analytics and conversion tracking",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -36,8 +44,28 @@ function formatDate(iso: string) {
 export default function BlogsPage() {
   const posts = getAllPosts();
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    name: "Slugy Blog",
+    description:
+      "Guides and product updates from Slugy — link analytics, lead conversion tracking, and building with short links.",
+    url: "/blogs",
+    blogPost: posts.map((post) => ({
+      "@type": "BlogPosting",
+      headline: post.title,
+      description: post.description,
+      url: `/blogs/${post.slug}`,
+      datePublished: post.publishedAt,
+    })),
+  };
+
   return (
     <main className="mx-auto mt-[120px] min-h-[50vh] w-full max-w-3xl px-4 pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header className="mb-12">
         <h1 className="text-3xl font-medium tracking-tight text-balance sm:text-4xl">
           Blog

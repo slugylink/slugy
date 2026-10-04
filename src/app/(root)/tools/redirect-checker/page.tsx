@@ -19,6 +19,21 @@ export const metadata: Metadata = {
     description:
       "Trace any link's redirect chain with status codes. Verify short links and campaign URLs. No login.",
     url: "/tools/redirect-checker",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy free redirect checker",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Free Redirect Checker — Trace Every Hop & Status Code",
+    description:
+      "Trace any link's redirect chain with status codes. Verify short links and campaign URLs. No login.",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

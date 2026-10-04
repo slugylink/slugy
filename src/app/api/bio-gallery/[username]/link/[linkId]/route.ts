@@ -174,9 +174,13 @@ export async function DELETE(
     select: { id: true, linkId: true, linkManagedByBio: true },
   });
 
+  if (!existing) {
+    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+  }
+
   await db.bioLinks.delete({
     where: {
-      id: linkId,
+      id: existing.id,
     },
   });
 
@@ -214,10 +218,34 @@ export async function PATCH(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const gallery = await db.bio.findFirst({
+    where: {
+      userId: session.user.id,
+      username: params.username,
+    },
+  });
+
+  if (!gallery) {
+    return NextResponse.json({ error: "Gallery not found" }, { status: 404 });
+  }
+
+  const link = await db.bioLinks.findFirst({
+    where: { id: params.linkId, bioId: gallery.id },
+    select: { id: true },
+  });
+
+  if (!link) {
+    return NextResponse.json({ error: "Link not found" }, { status: 404 });
+  }
+
   const { isPublic } = (await req.json()) as { isPublic: boolean };
 
+  if (typeof isPublic !== "boolean") {
+    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+  }
+
   await db.bioLinks.update({
-    where: { id: params.linkId },
+    where: { id: link.id },
     data: { isPublic },
   });
 

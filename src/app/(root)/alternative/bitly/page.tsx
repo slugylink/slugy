@@ -23,11 +23,21 @@ export const metadata: Metadata = {
     description:
       "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
     url: "/alternative/bitly",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy — Bitly alternative with branded links and analytics",
+      },
+    ],
   },
   twitter: {
+    card: "summary_large_image",
     title: "Best Bitly Alternative in 2026 | Slugy",
     description:
       "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
+    images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 

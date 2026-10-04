@@ -106,6 +106,24 @@ export async function inviteMember({
 
     const userId = session.user.id;
 
+    // The caller must belong to the organization — otherwise any signed-in
+    // user can mint invitations (including owner-role) for any org.
+    const callerMembership = await db.member.findFirst({
+      where: { organizationId, userId },
+      select: { role: true },
+    });
+
+    if (
+      !callerMembership ||
+      (callerMembership.role !== "owner" && callerMembership.role !== "admin")
+    ) {
+      return { success: false, error: "Forbidden" };
+    }
+
+    if (role === "owner" && callerMembership.role !== "owner") {
+      return { success: false, error: "Only owners can invite owners" };
+    }
+
     // Get organization details
     const organization = await db.organization.findUnique({
       where: { id: organizationId },

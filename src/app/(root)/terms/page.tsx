@@ -11,6 +11,14 @@ export const metadata: Metadata = {
     description:
       "The terms for using Slugy — acceptable use, plans and billing, rate limits, availability, and liability.",
     url: "/terms",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy terms of service",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

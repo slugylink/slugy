@@ -11,6 +11,14 @@ export const metadata: Metadata = {
     description:
       "How Slugy collects, uses, and protects data — accounts, links, click analytics, cookies, and processors.",
     url: "/privacy",
+    images: [
+      {
+        url: "https://files.slugy.co/slugy-og.png",
+        width: 1200,
+        height: 630,
+        alt: "Slugy privacy policy",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",

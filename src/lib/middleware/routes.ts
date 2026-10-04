@@ -78,4 +78,5 @@ export const FAST_API_PATTERNS = [
   /^\/api\/leads_track$/,
   /^\/api\/redirect\/[^\/]+$/,
   /^\/api\/metadata$/,
+  /^\/api\/ai\/link-slug$/,
 ];
