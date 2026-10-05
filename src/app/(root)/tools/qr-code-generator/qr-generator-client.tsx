@@ -226,7 +226,6 @@ export default function QrGeneratorClient({
 
   return (
     <>
-      {/* Breadcrumb + hero — Dub-style: tight, left-aligned, minimal */}
       <section className="mx-auto max-w-5xl px-4 pt-10 sm:pt-14">
         <nav
           aria-label="Breadcrumb"
@@ -263,13 +262,13 @@ export default function QrGeneratorClient({
         </div>
       </section>
 
-      {/* Tool — Dub-style single panel: controls left, sticky preview right */}
+      {/* Tool — fix -style single panel: controls left, sticky preview right */}
       <section className="mx-auto max-w-5xl px-4 pt-6 pb-12">
         <div className="bg-card overflow-hidden rounded-2xl border shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
           <div className="grid lg:grid-cols-[1fr_340px]">
             {/* ------- Controls ------- */}
             <div className="flex flex-col gap-7 p-5 sm:p-7">
-              {/* Content type — segmented control like Dub */}
+              {/* */}
               <div className="space-y-3">
                 <SectionLabel>1 · Content</SectionLabel>
                 <div
@@ -591,7 +590,6 @@ export default function QrGeneratorClient({
               </div>
             </div>
 
-            {/* ------- Preview (Dub-style muted rail) ------- */}
             <div className="bg-muted/60 flex flex-col border-t lg:border-t-0 lg:border-l">
               <div className="flex flex-1 flex-col items-center gap-4 p-5 sm:p-7">
                 <div className="flex w-full items-center justify-between">
@@ -681,7 +679,6 @@ export default function QrGeneratorClient({
           </div>
         </div>
 
-        {/* Steps — Dub-style numbered row */}
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {[
             {
@@ -714,7 +711,6 @@ export default function QrGeneratorClient({
         </div>
       </section>
 
-      {/* SEO copy — tighter, Dub-like */}
       <section className="mx-auto max-w-5xl px-4 pb-10">
         <div className="grid gap-8 rounded-2xl border bg-zinc-50/60 p-6 sm:p-8 md:grid-cols-[220px_1fr] dark:bg-zinc-900/40">
           <h2 className="text-base font-medium tracking-tight">

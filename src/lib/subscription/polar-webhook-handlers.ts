@@ -59,13 +59,22 @@ type PolarOrder = {
   paid?: boolean;
   totalAmount?: number;
   total_amount?: number;
+  amount?: number;
+  currency?: string;
+  metadata?: {
+    userId?: string;
+    slugy_click_id?: string;
+    slugyClickId?: string;
+    slugy_id?: string;
+  };
+  custom_data?: Record<string, unknown>;
+  customData?: Record<string, unknown>;
   customerId?: string;
   customer_id?: string;
   productId?: string;
   product_id?: string;
   subscriptionId?: string | null;
   subscription_id?: string | null;
-  metadata?: { userId?: string };
   customer?: { id?: string; externalId?: string; external_id?: string };
   product?: { name?: string };
   items?: {
@@ -429,8 +438,68 @@ function resolveUpdatedAccess(input: {
   };
 }
 
+/**
+ * Merchant sale attribution: when a Polar checkout carries `slugy_click_id`
+ * in metadata/customData, record a `sale` LeadEvent against the clicking link.
+ * Amounts from Polar are minor units (cents) — converted to major units.
+ * Never throws; billing must not stall on attribution failures.
+ */
+async function attributePolarOrderToSlugyClick(
+  order: PolarOrder,
+  sourceId: string,
+): Promise<void> {
+  const meta = {
+    ...(order.customData ?? {}),
+    ...(order.custom_data ?? {}),
+    ...(order.metadata ?? {}),
+  } as Record<string, unknown>;
+  const raw =
+    order.metadata?.slugy_click_id ??
+    order.metadata?.slugyClickId ??
+    order.metadata?.slugy_id ??
+    meta["slugy_click_id"] ??
+    meta["slugyClickId"] ??
+    meta["slugy_id"];
+  const clickId = typeof raw === "string" ? raw.trim() : "";
+  if (!clickId) return;
+
+  const cents = order.totalAmount ?? order.total_amount ?? order.amount ?? 0;
+  const saleAmount = typeof cents === "number" && cents > 0 ? cents / 100 : 0;
+  if (!saleAmount) return;
+
+  const currency =
+    typeof order.currency === "string"
+      ? order.currency
+      : typeof meta["currency"] === "string"
+        ? (meta["currency"] as string)
+        : "USD";
+  const customerExternalId =
+    getOrderUserId(order) ??
+    getOrderCustomerId(order) ??
+    (typeof meta["customerExternalId"] === "string"
+      ? (meta["customerExternalId"] as string)
+      : null);
+  if (!customerExternalId) return;
+
+  const { recordIntegrationSale } = await import("@/lib/leads/record-sale");
+  const result = await recordIntegrationSale({
+    clickId,
+    customerExternalId,
+    saleAmount,
+    saleCurrency: currency,
+    source: "polar",
+    sourceId: order.id ?? sourceId,
+  });
+  if (!result.ok) {
+    console.warn(`${LOG_PREFIX} attribution skipped:`, result.message);
+  }
+}
+
 async function handleOrderCreated(order: PolarOrder) {
   console.log(`${LOG_PREFIX} order.created`, order?.id ?? "no-id");
+  await attributePolarOrderToSlugyClick(order, "order.created").catch((e) =>
+    console.error(`${LOG_PREFIX} attribution failed`, e),
+  );
   if (await activateBasicOrderEntitlement(order)) return;
 
   const userId = getOrderUserId(order);
@@ -449,6 +518,9 @@ async function handleOrderCreated(order: PolarOrder) {
 
 async function handleOrderPaid(order: PolarOrder) {
   console.log(`${LOG_PREFIX} order.paid`, order?.id ?? "no-id");
+  await attributePolarOrderToSlugyClick(order, "order.paid").catch((e) =>
+    console.error(`${LOG_PREFIX} attribution failed`, e),
+  );
   if (await activateBasicOrderEntitlement(order)) return;
 
   const subscriptionId = order.subscriptionId ?? order.subscription_id ?? null;

@@ -127,7 +127,7 @@ export function transformTinybirdAnalytics(
 
   let totalClicks = 0;
   // Revenue is only present on sales-analytics rows. When it is, we also
-  // build a revenue-over-time series (amount, Dub-style) alongside counts.
+  // build a revenue-over-time series (amount) alongside counts.
   let hasRevenue = false;
   let totalRevenue = 0;
   const revenueTimeMap = new Map<string, { revenue: number; sales: number }>();

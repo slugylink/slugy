@@ -15,7 +15,7 @@ import type { TimePeriod } from "@/lib/analytics/transform-tinybird";
 
 export const dynamic = "force-dynamic";
 
-// Cap rows to keep CSV generation fast (Dub-style: "may take up to a minute").
+// Cap rows to keep CSV generation fast.
 const MAX_EXPORT_ROWS = 50000;
 
 const exportQuerySchema = analyticsFilterFieldsSchema

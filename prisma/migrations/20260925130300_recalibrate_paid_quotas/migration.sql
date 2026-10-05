@@ -3,7 +3,6 @@
 -- Essentials ~$13 = 250 links + 10K clicks + 2 domains).
 --
 -- Pro $8: match Rebrandly Essentials volume, beat it on domains (3 vs 2).
--- Business $29: match Dub Pro events (50K) and Rebrandly Pro links (1500),
 -- beat Bitly Growth on volume + retention at the same price.
 
 UPDATE "plans"

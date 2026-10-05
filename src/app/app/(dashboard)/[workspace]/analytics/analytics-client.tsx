@@ -166,7 +166,7 @@ function normalizeChartData(
 }
 
 /**
- * Sales series plots revenue amounts (Dub-style), carrying the sale count
+ * Sales series plots revenue amounts, carrying the sale count
  * per bucket for the tooltip ("16 ($241)").
  */
 function normalizeRevenueChartData(

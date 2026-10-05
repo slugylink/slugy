@@ -3,6 +3,7 @@ import { db } from "@/server/db";
 import { primarySql } from "@/server/neon";
 import { resolveClickAttribution } from "@/lib/leads/click-cache";
 import { sendLeadEvent } from "@/lib/tinybird/slugy_lead_events";
+import { emitIntegrationEvent } from "@/lib/integrations/dispatcher";
 
 export interface TrackLeadInput {
   clickId: string;
@@ -152,6 +153,25 @@ export async function trackLead(
   }
 
   if (created) {
+    const isSale = eventName === "sale" || saleAmount > 0;
+    emitIntegrationEvent({
+      workspaceId,
+      event: isSale ? "sale.created" : "lead.created",
+      payload: {
+        leadEventId,
+        linkId: attribution.linkId,
+        slug: attribution.slug,
+        domain: attribution.domain,
+        url: attribution.url,
+        clickId,
+        eventName,
+        customerExternalId,
+        customerEmail: input.customerEmail ?? null,
+        customerName: input.customerName ?? null,
+        saleAmount,
+        saleCurrency: saleCurrency || null,
+      },
+    });
     await Promise.allSettled([
       primarySql`
         UPDATE "links"

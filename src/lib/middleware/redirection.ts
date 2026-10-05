@@ -664,7 +664,7 @@ export async function URLRedirects(
         req.nextUrl.toString(),
         destinationUrl,
       );
-      // Dub-style: only append ?slugy_id= when conversion tracking is enabled.
+      // Only append ?slugy_id= when conversion tracking is enabled.
       const redirectUrl = linkData.trackConversion
         ? appendSlugyIdParam(baseRedirectUrl, clickId)
         : baseRedirectUrl;

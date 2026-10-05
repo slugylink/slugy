@@ -276,6 +276,8 @@ model Workspace {
   apiKeys          WorkspaceApiKey[]
   leadCustomers    LeadCustomer[]
   leadEvents       LeadEvent[]
+  integrations     Integration[]
+  webhookEndpoints WebhookEndpoint[]
 
   @@index([slug])
   @@index([userId, isDefault])
@@ -769,4 +771,59 @@ model LeadEvent {
   @@index([linkId, createdAt])
   @@index([clickId])
   @@map("lead_events")
+}
+
+
+model Integration {
+  id          String   @id @default(cuid())
+  workspaceId String
+  provider    String
+  status      String   @default("connected")
+  config      Json?
+  metadata    Json?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@index([workspaceId])
+  @@map("integrations")
+}
+
+model WebhookEndpoint {
+  id          String   @id @default(cuid())
+  workspaceId String
+  url         String
+  secretHash  String?
+  secretHint  String?
+  secretEnc   String?
+  events      String[] @default([])
+  active      Boolean  @default(true)
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId])
+  @@map("webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id         String   @id @default(cuid())
+  endpointId String
+  event      String
+  payload    Json
+  status     String   @default("pending")
+  attempts   Int      @default(0)
+  lastError  String?
+  createdAt  DateTime @default(now())
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@map("webhook_deliveries")
 }

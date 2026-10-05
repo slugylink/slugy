@@ -376,7 +376,7 @@
   animation: shiny-text 1.8s ease-in-out infinite;
 }
 
-/* Landing page — dub-like light hero + CSS entrance */
+/* Landing page — light hero + CSS entrance */
 @keyframes landing-fade-up {
   from {
     opacity: 0;
@@ -465,7 +465,7 @@
   background-size: 12px 12px;
 }
 
-/* Dub-style dotted backdrop for QR preview panels */
+/* Dotted backdrop for QR preview panels */
 .qr-dot-bg {
   background-image: radial-gradient(
     circle,

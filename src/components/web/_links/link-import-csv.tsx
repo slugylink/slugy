@@ -98,9 +98,15 @@ function guessDefaultMapping(headers: string[]): Record<CSVField, string> {
     return idx >= 0 ? headers[idx] : NONE_VALUE;
   };
 
-  // Dub-style common names support
+  // Common header-name aliases support
   return {
-    slug: findByAliases(["slug", "short link", "shortlink", "short url", "short"]),
+    slug: findByAliases([
+      "slug",
+      "short link",
+      "shortlink",
+      "short url",
+      "short",
+    ]),
     url: findByAliases([
       "url",
       "destination url",
@@ -120,7 +126,9 @@ function parseCSVToMatrix(text: string): ParsedCSV {
   if (lines.length === 0) return { headers: [], rows: [] };
 
   const headerLine = lines[0];
-  const rawHeaders = parseCSVLine(headerLine).map((h) => h.replace(/^\uFEFF/, ""));
+  const rawHeaders = parseCSVLine(headerLine).map((h) =>
+    h.replace(/^\uFEFF/, ""),
+  );
 
   const rows: string[][] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -238,15 +246,20 @@ async function postCsvImport(params: {
   const csvRows = buildRowsFromMapping(params.parsedCsv, params.mapping);
   const csvContent = rowsToCSV(csvRows);
   const csvBlob = new Blob([csvContent], { type: "text/csv" });
-  const csvFile = new File([csvBlob], params.sourceFileName, { type: "text/csv" });
+  const csvFile = new File([csvBlob], params.sourceFileName, {
+    type: "text/csv",
+  });
 
   const formData = new FormData();
   formData.append("file", csvFile);
 
-  const response = await fetch(`/api/workspace/${params.workspaceslug}/link/csv`, {
-    method: "POST",
-    body: formData,
-  });
+  const response = await fetch(
+    `/api/workspace/${params.workspaceslug}/link/csv`,
+    {
+      method: "POST",
+      body: formData,
+    },
+  );
 
   const data = (await response.json()) as ImportResponse;
   if (!response.ok) throw new Error(formatImportError(data));
@@ -280,34 +293,37 @@ export default function LinkImportCSV({
     }
   }, [isOpen, reset]);
 
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const selectedFile = acceptedFiles[0];
-    if (!selectedFile) return;
+  const onDrop = useCallback(
+    async (acceptedFiles: File[]) => {
+      const selectedFile = acceptedFiles[0];
+      if (!selectedFile) return;
 
-    setFile(selectedFile);
-    setIsParsing(true);
+      setFile(selectedFile);
+      setIsParsing(true);
 
-    try {
-      const text = await selectedFile.text();
-      const parsed = parseCSVToMatrix(text);
+      try {
+        const text = await selectedFile.text();
+        const parsed = parseCSVToMatrix(text);
 
-      if (parsed.rows.length === 0) {
-        toast.error("CSV file is empty or has no valid data");
+        if (parsed.rows.length === 0) {
+          toast.error("CSV file is empty or has no valid data");
+          reset();
+          return;
+        }
+
+        setParsedCsv(parsed);
+        setMapping(guessDefaultMapping(parsed.headers));
+        toast.success(`Parsed ${parsed.rows.length} row(s) from CSV`);
+      } catch (error) {
+        console.error("Error parsing CSV:", error);
+        toast.error("Failed to parse CSV file. Please check the format.");
         reset();
-        return;
+      } finally {
+        setIsParsing(false);
       }
-
-      setParsedCsv(parsed);
-      setMapping(guessDefaultMapping(parsed.headers));
-      toast.success(`Parsed ${parsed.rows.length} row(s) from CSV`);
-    } catch (error) {
-      console.error("Error parsing CSV:", error);
-      toast.error("Failed to parse CSV file. Please check the format.");
-      reset();
-    } finally {
-      setIsParsing(false);
-    }
-  }, [reset]);
+    },
+    [reset],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -342,7 +358,9 @@ export default function LinkImportCSV({
     })
       .then((message) => {
         // Revalidate with the correct key pattern
-        void mutate((key) => typeof key === "string" && key.includes("/link/get"));
+        void mutate(
+          (key) => typeof key === "string" && key.includes("/link/get"),
+        );
         router.refresh();
         onClose();
         return message;
@@ -356,13 +374,22 @@ export default function LinkImportCSV({
       success: (message: string) => message,
       error: (error: Error) => error.message || "Failed to import CSV",
     });
-  }, [canSubmitImport, file, mapping, onClose, parsedCsv, router, workspaceslug]);
+  }, [
+    canSubmitImport,
+    file,
+    mapping,
+    onClose,
+    parsedCsv,
+    router,
+    workspaceslug,
+  ]);
 
   const handleMappingChange = (field: CSVField, value: string) => {
     setMapping((prev) => ({ ...prev, [field]: value }));
   };
 
-  const hasParsedData = parsedCsv.headers.length > 0 && parsedCsv.rows.length > 0;
+  const hasParsedData =
+    parsedCsv.headers.length > 0 && parsedCsv.rows.length > 0;
   const isUrlMapped = mapping.url !== NONE_VALUE;
   const canImport = hasParsedData && isUrlMapped && !isImporting;
 
@@ -376,11 +403,11 @@ export default function LinkImportCSV({
       open={isOpen}
       onOpenChange={(open) => !isImporting && !open && onClose()}
     >
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col gap-0.5">
+      <DialogContent className="flex max-h-[90vh] flex-col gap-0.5 sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Import CSV</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4 flex-1 overflow-hidden">
+        <div className="grid flex-1 gap-4 overflow-hidden py-4">
           {!hasParsedData ? (
             <>
               <div
@@ -389,7 +416,10 @@ export default function LinkImportCSV({
                   isDragActive ? "border-primary" : "border-border"
                 } ${isImporting || isParsing ? "pointer-events-none opacity-60" : ""}`}
               >
-                <input {...getInputProps()} disabled={isImporting || isParsing} />
+                <input
+                  {...getInputProps()}
+                  disabled={isImporting || isParsing}
+                />
                 {isParsing ? (
                   <>
                     <LoaderCircle className="text-muted-foreground mx-auto h-4 w-4 animate-spin" />
@@ -411,7 +441,7 @@ export default function LinkImportCSV({
                   </p>
                 )}
               </div>
-              <div className="text-muted-foreground text-xs flex items-center gap-1 flex-wrap">
+              <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
                 <p>Max file size: 5MB. Only CSV files are supported.</p>
                 <div className="">
                   <span className="text-xs text-black">CSV Format</span>
@@ -432,7 +462,9 @@ export default function LinkImportCSV({
                               <tr>
                                 <th className="border px-2 py-1">slug</th>
                                 <th className="border px-2 py-1">url</th>
-                                <th className="border px-2 py-1">description</th>
+                                <th className="border px-2 py-1">
+                                  description
+                                </th>
                                 <th className="border px-2 py-1">tags</th>
                               </tr>
                             </thead>
@@ -453,9 +485,11 @@ export default function LinkImportCSV({
               </div>
             </>
           ) : (
-            <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+            <div className="flex flex-1 flex-col gap-4 overflow-hidden">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Parsed {parsedCsv.rows.length} rows</p>
+                <p className="text-sm font-medium">
+                  Parsed {parsedCsv.rows.length} rows
+                </p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -464,17 +498,17 @@ export default function LinkImportCSV({
                   }}
                   disabled={isImporting}
                 >
-                  <X className="h-4 w-4 mr-1" />
+                  <X className="mr-1 h-4 w-4" />
                   Clear
                 </Button>
               </div>
 
-              {/* Dub-style mapping */}
+              {/* Column mapping */}
               <div className="rounded-md border p-3">
                 <div className="mb-2 text-sm font-medium">Map CSV columns</div>
 
-                {/* Column headers (Dub-style) */}
-                <div className="mb-3 hidden grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs font-medium text-muted-foreground sm:grid">
+                {/* Column headers */}
+                <div className="text-muted-foreground mb-3 hidden grid-cols-[1fr_auto_1fr] items-center gap-2 text-xs font-medium sm:grid">
                   <div className="px-1">CSV DATA COLUMN</div>
                   <div />
                   <div className="px-1">APP DATA FIELD</div>
@@ -495,7 +529,9 @@ export default function LinkImportCSV({
                           <SelectValue placeholder="Select column..." />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value={NONE_VALUE}>— Not mapped —</SelectItem>
+                          <SelectItem value={NONE_VALUE}>
+                            — Not mapped —
+                          </SelectItem>
                           {parsedCsv.headers.map((h) => (
                             <SelectItem key={h} value={h}>
                               {h}
@@ -504,13 +540,13 @@ export default function LinkImportCSV({
                         </SelectContent>
                       </Select>
 
-                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                      <ArrowRight className="text-muted-foreground h-4 w-4" />
 
                       <div className="flex items-center justify-between rounded-md border px-3 py-2">
                         <Label className="text-sm">
                           {label}
                           {required ? (
-                            <span className="ml-1 text-destructive">*</span>
+                            <span className="text-destructive ml-1">*</span>
                           ) : null}
                         </Label>
                       </div>
@@ -519,7 +555,7 @@ export default function LinkImportCSV({
                 </div>
 
                 {!isUrlMapped && (
-                  <p className="mt-2 text-xs text-destructive">
+                  <p className="text-destructive mt-2 text-xs">
                     Map a CSV column to <strong>URL</strong> to enable import.
                   </p>
                 )}

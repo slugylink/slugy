@@ -167,7 +167,7 @@ export default memo(function ApiKeysClient({
           <div>
             <CardDescription className="mt-2 max-w-2xl">
               Generate workspace-scoped keys for integrations, including the
-              Chrome extension and lead tracking.
+              Chrome extension and lead tracking.{" "}
               <a
                 href="https://slugy.co/blogs/lead-conversion-tracking"
                 target="_blank"
@@ -175,6 +175,12 @@ export default memo(function ApiKeysClient({
                 className="text-foreground underline underline-offset-4 hover:no-underline"
               >
                 View setup instructions
+              </a>{" "}
+              <a
+                href={`/${workspaceslug}/settings/integrations`}
+                className="text-foreground underline underline-offset-4 hover:no-underline"
+              >
+                Manage integrations & webhooks
               </a>
             </CardDescription>
           </div>

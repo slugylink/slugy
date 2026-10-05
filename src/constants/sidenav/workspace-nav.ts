@@ -70,6 +70,7 @@ export const WORKSPACE_NAV_GROUPS: NavGroup[] = [
         icon: SettingsIcon,
         items: [
           { title: "General", url: "/settings" },
+          { title: "Integrations", url: "/settings/integrations" },
           { title: "Billing", url: "/settings/billing" },
           { title: "API Keys", url: "/settings/api-keys" },
           { title: "Team", url: "/settings/team" },
