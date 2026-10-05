@@ -2,21 +2,10 @@
 
 import { memo, useCallback, useState } from "react";
 import useSWR from "swr";
-import {
-  Activity,
-  Copy,
-  CreditCard,
-  Globe,
-  Plug,
-  Plus,
-  ShoppingBag,
-  Slack,
-  Trash2,
-  Workflow,
-  Zap,
-  type LucideIcon,
-} from "lucide-react";
+import { Copy, Plus, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
+import { brandFor } from "@/lib/integrations/branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -89,18 +78,7 @@ interface CreatedWebhookResponse {
   endpoint: WebhookRow & { secret: string };
 }
 
-const EVENT_OPTIONS = ["lead.created", "sale.created", "link.clicked"];
-
-const PROVIDER_ICONS: Record<string, LucideIcon> = {
-  slack: Slack,
-  zapier: Zap,
-  make: Workflow,
-  polar: CreditCard,
-  shopify: ShoppingBag,
-  wordpress: Globe,
-  stripe: CreditCard,
-  segment: Activity,
-};
+const EVENT_OPTIONS = ["lead.created", "sale.created"];
 
 async function fetcher(url: string) {
   const res = await fetch(url);
@@ -264,7 +242,7 @@ export default memo(function IntegrationsClient({
   return (
     <div className="space-y-6 py-3">
       <Card className="shadow-none">
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardDescription className="mt-2 max-w-2xl">
               Connect Slack, Zapier, Make, Polar, Shopify, and WordPress to
@@ -275,7 +253,7 @@ export default memo(function IntegrationsClient({
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="space-y-3 rounded-lg border p-4">
                   <div className="flex items-start justify-between">
@@ -289,9 +267,9 @@ export default memo(function IntegrationsClient({
               ))}
             </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {data?.integrations.map((item) => {
-                const Icon = PROVIDER_ICONS[item.provider] ?? Plug;
+                const brand = brandFor(item.provider);
                 const connected = item.status === "connected";
                 return (
                   <div
@@ -300,7 +278,21 @@ export default memo(function IntegrationsClient({
                   >
                     <div className="flex items-start justify-between">
                       <div className="bg-muted flex h-9 w-9 items-center justify-center rounded-md">
-                        <Icon className="h-4 w-4" />
+                        {brand.src ? (
+                          <Image
+                            src={brand.src}
+                            alt=""
+                            width={16}
+                            height={16}
+                            className={
+                              brand.invertOnDark ? "dark:invert" : undefined
+                            }
+                          />
+                        ) : (
+                          brand.Icon && (
+                            <brand.Icon className="h-4 w-4" aria-hidden />
+                          )
+                        )}
                       </div>
                       <Badge variant={connected ? "default" : "secondary"}>
                         {connected ? "Connected" : item.category}
@@ -313,7 +305,7 @@ export default memo(function IntegrationsClient({
                     <div className="mt-3 pt-1">
                       {item.provider === "slack" ? (
                         connected ? (
-                          <div className="flex gap-2">
+                          <div className="flex flex-wrap gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -353,7 +345,7 @@ export default memo(function IntegrationsClient({
       </Card>
 
       <Card className="shadow-none">
-        <CardHeader className="flex flex-row items-start justify-between gap-4">
+        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardDescription className="mt-2 max-w-2xl">
               Fan out <code>lead.created</code> and <code>sale.created</code> to
@@ -373,7 +365,7 @@ export default memo(function IntegrationsClient({
             }}
           >
             <DialogTrigger asChild>
-              <Button size="sm">
+              <Button size="sm" className="w-full sm:w-auto">
                 <Plus className="mr-1 h-4 w-4" />
                 Add webhook
               </Button>
@@ -455,7 +447,7 @@ export default memo(function IntegrationsClient({
             <TableHeader>
               <TableRow>
                 <TableHead>Destination</TableHead>
-                <TableHead>Events</TableHead>
+                <TableHead className="hidden md:table-cell">Events</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-[100px]" />
               </TableRow>
@@ -471,14 +463,14 @@ export default memo(function IntegrationsClient({
                 hooks.endpoints.map((hook) => (
                   <TableRow key={hook.id}>
                     <TableCell>
-                      <p className="max-w-[320px] truncate font-mono text-xs">
+                      <p className="max-w-[160px] truncate font-mono text-xs sm:max-w-[320px]">
                         {hook.url}
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {hook.secretHint ?? "no secret"}
                       </p>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
+                    <TableCell className="text-muted-foreground hidden text-xs md:table-cell">
                       {hook.events.join(", ")}
                     </TableCell>
                     <TableCell>

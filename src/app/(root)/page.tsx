@@ -31,6 +31,7 @@ export const metadata: Metadata = {
 
 const LOADING_HEIGHT = {
   features: "h-[400px]",
+  integrations: "h-[420px]",
   stats: "h-[300px]",
   pricing: "h-[500px]",
   openSource: "h-[300px]",
@@ -53,6 +54,13 @@ const PricingSection = dynamic(
   () => import("@/components/web/_pricing/pricing-section"),
   {
     loading: () => <SectionPlaceholder height={LOADING_HEIGHT.pricing} />,
+  },
+);
+
+const IntegrationsSection = dynamic(
+  () => import("./_components/integrations"),
+  {
+    loading: () => <SectionPlaceholder height={LOADING_HEIGHT.integrations} />,
   },
 );
 
@@ -89,6 +97,8 @@ export default function Home() {
           </section>
 
           <ToolsSection />
+
+          <IntegrationsSection />
 
           <section id="pricing" className="scroll-mt-20">
             <PricingSection />

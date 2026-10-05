@@ -1,8 +1,4 @@
-export const INTEGRATION_EVENTS = [
-  "lead.created",
-  "sale.created",
-  "link.clicked",
-] as const;
+export const INTEGRATION_EVENTS = ["lead.created", "sale.created"] as const;
 
 export type IntegrationEventName = (typeof INTEGRATION_EVENTS)[number];
 
