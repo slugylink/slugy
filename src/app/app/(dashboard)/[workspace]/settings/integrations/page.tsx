@@ -26,16 +26,5 @@ export default async function IntegrationsPage({
   });
   if (!ws) return redirect("/login");
 
-  return (
-    <div className="space-y-6 py-3">
-      <div>
-        <h1 className="text-xl font-semibold">Integrations</h1>
-        <p className="text-muted-foreground text-sm">
-          Connect Slack, Zapier, Make, Polar, Shopify, and WordPress to extend
-          your workspace.
-        </p>
-      </div>
-      <IntegrationsClient workspaceslug={ws.slug} />
-    </div>
-  );
+  return <IntegrationsClient workspaceslug={ws.slug} />;
 }
