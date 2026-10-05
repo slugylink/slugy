@@ -1,5 +1,6 @@
 import type { BlogPost, BlogPostMeta } from "./types";
 import LeadConversionTrackingPost from "./posts/lead-conversion-tracking";
+import SlugyIntegrationsPost from "./posts/slugy-integrations";
 import SlugyVsBitlyPost from "./posts/slugy-vs-bitly";
 import SlugyVsDubPost from "./posts/slugy-vs-dub";
 import SlugyVsRebrandlyPost from "./posts/slugy-vs-rebrandly";
@@ -24,6 +25,18 @@ export const BLOG_POSTS: BlogPost[] = [
     author: { name: "Slugy" },
     tags: ["leads", "analytics", "guides"],
     Content: LeadConversionTrackingPost,
+  },
+  {
+    slug: "slugy-integrations",
+    title:
+      "Slugy integrations: Slack, Zapier, Polar, Shopify, WordPress and more",
+    description:
+      "Connect notifications, automation, and revenue attribution: Slack alerts and /shorten, signed webhooks for Zapier and Make, Polar and Shopify sales, and WordPress auto-shorten.",
+    publishedAt: "2026-10-05",
+    updatedAt: "2026-10-05",
+    author: { name: "Slugy" },
+    tags: ["integrations", "guides", "automation"],
+    Content: SlugyIntegrationsPost,
   },
   {
     slug: "slugy-vs-bitly",
