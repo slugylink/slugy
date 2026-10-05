@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { isIntegrationEvent } from "@/lib/integrations/catalog";
-import { requireWorkspaceManager } from "@/lib/integrations/workspace";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
 
 const patchSchema = z.object({
   url: z.string().url().max(2048).optional(),
@@ -17,7 +17,7 @@ async function getEndpoint(
   userId: string,
   endpointId: string,
 ) {
-  const workspace = await requireWorkspaceManager(workspaceslug, userId);
+  const workspace = await requireIntegrationsAccess(workspaceslug, userId);
   if (!workspace) return null;
   return db.webhookEndpoint.findFirst({
     where: { id: endpointId, workspaceId: workspace.id },

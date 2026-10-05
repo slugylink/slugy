@@ -262,6 +262,9 @@ model Workspace {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   deletedAt      DateTime?
+
+  // Integrations: when true, only owners/admins may manage integrations.
+  integrationsManagerOnly Boolean @default(false)
   
   // Relations
   creator          User              @relation("owner", fields: [userId], references: [id], onDelete: Cascade)

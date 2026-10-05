@@ -4,7 +4,8 @@ import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { decryptSecret } from "@/lib/integrations/encrypt";
 import { postSlackMessage } from "@/lib/integrations/slack";
-import { requireWorkspaceManager } from "@/lib/integrations/workspace";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
+import { checkSlackTestRateLimit } from "@/lib/middleware/rate-limit";
 
 /**
  * Post a test message through the connected Slack integration, bypassing the
@@ -20,12 +21,23 @@ export async function POST(
   if (!session)
     return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
   const { workspaceslug } = await params;
-  const workspace = await requireWorkspaceManager(
+  const workspace = await requireIntegrationsAccess(
     workspaceslug,
     session.user.id,
   );
   if (!workspace)
     return jsonWithETag(req, { error: "Forbidden" }, { status: 403 });
+
+  // 5 test posts per workspace per 10 minutes — each one is a live
+  // chat.postMessage call.
+  const testLimit = await checkSlackTestRateLimit(workspace.id);
+  if (!testLimit.success) {
+    return jsonWithETag(
+      req,
+      { error: "Too many test posts — try again in a few minutes." },
+      { status: 429 },
+    );
+  }
 
   const integration = await db.integration.findUnique({
     where: {

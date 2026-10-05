@@ -3,7 +3,10 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
 import { INTEGRATION_CATALOG } from "@/lib/integrations/catalog";
-import { getWorkspaceBySlugForMember } from "@/lib/integrations/workspace";
+import {
+  getWorkspaceActorRole,
+  getWorkspaceBySlugForMember,
+} from "@/lib/integrations/workspace";
 
 export async function GET(
   req: Request,
@@ -20,7 +23,7 @@ export async function GET(
   if (!workspace)
     return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
 
-  const [connected, webhookCount] = await Promise.all([
+  const [connected, webhookCount, flag, actor] = await Promise.all([
     db.integration.findMany({
       where: { workspaceId: workspace.id },
       select: { provider: true, status: true, metadata: true, updatedAt: true },
@@ -28,6 +31,11 @@ export async function GET(
     db.webhookEndpoint.count({
       where: { workspaceId: workspace.id, active: true },
     }),
+    db.workspace.findUnique({
+      where: { id: workspace.id },
+      select: { integrationsManagerOnly: true },
+    }),
+    getWorkspaceActorRole(workspaceslug, session.user.id),
   ]);
 
   const byProvider = new Map(connected.map((c) => [c.provider, c]));
@@ -38,5 +46,7 @@ export async function GET(
       updatedAt: byProvider.get(entry.provider)?.updatedAt ?? null,
     })),
     webhookCount,
+    managersOnly: flag?.integrationsManagerOnly ?? false,
+    viewerRole: actor?.role ?? "member",
   });
 }

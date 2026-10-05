@@ -1,10 +1,10 @@
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { requireWorkspaceManager } from "@/lib/integrations/workspace";
 import { createOAuthState } from "@/lib/integrations/oauth-state";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
 
-/** Start Slack OAuth. State is HMAC-bound to the initiating manager + expiry. */
+/** Start Slack OAuth. State is HMAC-bound to the initiating user + expiry. */
 export async function GET(req: Request) {
   const clientId = process.env.SLACK_CLIENT_ID;
   if (!clientId) {
@@ -22,7 +22,7 @@ export async function GET(req: Request) {
   if (!workspace) {
     return NextResponse.json({ error: "Missing workspace" }, { status: 400 });
   }
-  const managed = await requireWorkspaceManager(workspace, session.user.id);
+  const managed = await requireIntegrationsAccess(workspace, session.user.id);
   if (!managed) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

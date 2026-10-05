@@ -16,6 +16,10 @@
     {
       "path": "/api/cron/usage",
       "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/cron/webhook-deliveries",
+      "schedule": "30 2 * * *"
     }
   ]
 }

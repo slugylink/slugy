@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { jsonWithETag } from "@/lib/http";
-import { requireWorkspaceManager } from "@/lib/integrations/workspace";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
 
 const patchSchema = z
   .object({
@@ -56,7 +56,7 @@ export async function PATCH(
   if (!session)
     return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
   const { workspaceslug, provider } = await params;
-  const workspace = await requireWorkspaceManager(
+  const workspace = await requireIntegrationsAccess(
     workspaceslug,
     session.user.id,
   );
@@ -114,7 +114,7 @@ export async function DELETE(
   if (!session)
     return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
   const { workspaceslug, provider } = await params;
-  const workspace = await requireWorkspaceManager(
+  const workspace = await requireIntegrationsAccess(
     workspaceslug,
     session.user.id,
   );

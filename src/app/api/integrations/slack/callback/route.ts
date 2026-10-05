@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { encryptSecret } from "@/lib/integrations/encrypt";
 import { verifyOAuthState } from "@/lib/integrations/oauth-state";
-import { requireWorkspaceManager } from "@/lib/integrations/workspace";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
 
 interface SlackOAuthResponse {
   ok: boolean;
@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     );
   }
 
-  const workspace = await requireWorkspaceManager(
+  const workspace = await requireIntegrationsAccess(
     workspaceSlug,
     session.user.id,
   );

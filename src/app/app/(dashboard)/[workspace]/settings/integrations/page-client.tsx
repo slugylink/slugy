@@ -68,6 +68,8 @@ interface WebhookRow {
 interface IntegrationsResponse {
   integrations: CatalogEntry[];
   webhookCount: number;
+  managersOnly: boolean;
+  viewerRole: "owner" | "admin" | "member";
 }
 
 interface WebhooksResponse {
@@ -102,6 +104,7 @@ export default memo(function IntegrationsClient({
   const [hookToDelete, setHookToDelete] = useState<WebhookRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [savingPolicy, setSavingPolicy] = useState(false);
 
   const { data, mutate, isLoading } = useSWR<IntegrationsResponse>(
     `/api/workspace/${workspaceslug}/integrations`,
@@ -239,6 +242,43 @@ export default memo(function IntegrationsClient({
     toast.success(`${label} copied`);
   }, []);
 
+  const managersOnly = data?.managersOnly ?? false;
+  const viewerRole = data?.viewerRole ?? "member";
+  const canManagePolicy = viewerRole === "owner";
+  const readOnly = managersOnly && viewerRole === "member";
+
+  const handlePolicyToggle = useCallback(
+    async (next: boolean) => {
+      setSavingPolicy(true);
+      try {
+        const res = await fetch(
+          `/api/workspace/${workspaceslug}/integrations/settings`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ managersOnly: next }),
+          },
+        );
+        const payload = (await res.json()) as { error?: string };
+        if (!res.ok) {
+          toast.error(payload.error ?? "Failed to update setting");
+          return;
+        }
+        toast.success(
+          next
+            ? "Only owners and admins can manage integrations"
+            : "All members can manage integrations",
+        );
+        void mutate();
+      } catch {
+        toast.error("Failed to update setting");
+      } finally {
+        setSavingPolicy(false);
+      }
+    },
+    [workspaceslug, mutate],
+  );
+
   return (
     <div className="space-y-6 py-3">
       <Card className="shadow-none">
@@ -250,8 +290,28 @@ export default memo(function IntegrationsClient({
               webhooks below.
             </CardDescription>
           </div>
+          {canManagePolicy && (
+            <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs">
+              <Switch
+                aria-label="Restrict integrations to owners and admins"
+                checked={managersOnly}
+                disabled={isLoading || savingPolicy}
+                onCheckedChange={(next) => void handlePolicyToggle(next)}
+              />
+              <span className="text-muted-foreground">
+                Owners + admins only
+              </span>
+            </label>
+          )}
         </CardHeader>
-        <CardContent>
+        {readOnly && (
+          <CardContent className="pt-0">
+            <p className="bg-muted/40 text-muted-foreground rounded-md border p-3 text-xs">
+              Only owners and admins can change integrations in this workspace.
+            </p>
+          </CardContent>
+        )}
+        <CardContent className={readOnly ? "pt-0" : undefined}>
           {isLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (

@@ -13,10 +13,7 @@ import {
   hashWebhookSecret,
   webhookSecretHint,
 } from "@/lib/integrations/encrypt";
-import {
-  getWorkspaceBySlugForMember,
-  requireWorkspaceManager,
-} from "@/lib/integrations/workspace";
+import { requireIntegrationsAccess } from "@/lib/integrations/workspace";
 
 const createSchema = z.object({
   url: z.string().url().max(2048),
@@ -31,7 +28,7 @@ export async function GET(
   if (!session)
     return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
   const { workspaceslug } = await params;
-  const workspace = await getWorkspaceBySlugForMember(
+  const workspace = await requireIntegrationsAccess(
     workspaceslug,
     session.user.id,
   );
@@ -62,7 +59,7 @@ export async function POST(
   if (!session)
     return jsonWithETag(req, { error: "Unauthorized" }, { status: 401 });
   const { workspaceslug } = await params;
-  const workspace = await requireWorkspaceManager(
+  const workspace = await requireIntegrationsAccess(
     workspaceslug,
     session.user.id,
   );
