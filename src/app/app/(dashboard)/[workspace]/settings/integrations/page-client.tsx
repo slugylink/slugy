@@ -224,6 +224,23 @@ export default memo(function IntegrationsClient({
     window.location.href = `/api/integrations/slack/install?workspace=${encodeURIComponent(workspaceslug)}`;
   }, [workspaceslug]);
 
+  const sendSlackTest = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `/api/workspace/${workspaceslug}/integrations/slack/test`,
+        { method: "POST" },
+      );
+      const payload = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        toast.error(payload.error ?? "Test notification failed");
+        return;
+      }
+      toast.success("Test notification sent — check Slack");
+    } catch {
+      toast.error("Test notification failed");
+    }
+  }, [workspaceslug]);
+
   const disconnect = useCallback(
     async (provider: string) => {
       const res = await fetch(
@@ -296,13 +313,22 @@ export default memo(function IntegrationsClient({
                     <div className="mt-3 pt-1">
                       {item.provider === "slack" ? (
                         connected ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void disconnect("slack")}
-                          >
-                            Disconnect
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void disconnect("slack")}
+                            >
+                              Disconnect
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void sendSlackTest()}
+                            >
+                              Send test
+                            </Button>
+                          </div>
                         ) : (
                           <Button size="sm" onClick={connectSlack}>
                             Connect
