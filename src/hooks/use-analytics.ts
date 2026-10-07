@@ -19,6 +19,7 @@ export interface AnalyticsData {
   browsers: Array<{ browser: string; clicks: number }>;
   oses: Array<{ os: string; clicks: number }>;
   referrers: Array<{ referrer: string; clicks: number }>;
+  triggers: Array<{ trigger: string; clicks: number }>;
   destinations: Array<{ destination: string; clicks: number }>;
   utmSources: Array<{ source: string; clicks: number }>;
   utmMediums: Array<{ medium: string; clicks: number }>;
@@ -65,6 +66,7 @@ const DEFAULT_METRICS: Array<keyof AnalyticsData> = [
   "browsers",
   "oses",
   "referrers",
+  "triggers",
   "destinations",
   "utmSources",
   "utmMediums",
@@ -88,6 +90,7 @@ const METRIC_FALLBACKS: Record<
   browsers: [],
   oses: [],
   referrers: [],
+  triggers: [],
   destinations: [],
   utmSources: [],
   utmMediums: [],
@@ -106,6 +109,7 @@ const SORTABLE_METRICS: Array<keyof AnalyticsData> = [
   "browsers",
   "oses",
   "referrers",
+  "triggers",
   "destinations",
   "utmSources",
   "utmMediums",
@@ -347,6 +351,7 @@ export function useAnalytics({
       browsers: sortedData.browsers ?? data?.browsers ?? [],
       oses: sortedData.oses ?? data?.oses ?? [],
       referrers: sortedData.referrers ?? data?.referrers ?? [],
+      triggers: sortedData.triggers ?? data?.triggers ?? [],
       destinations: sortedData.destinations ?? data?.destinations ?? [],
       utmSources: sortedData.utmSources ?? data?.utmSources ?? [],
       utmMediums: sortedData.utmMediums ?? data?.utmMediums ?? [],

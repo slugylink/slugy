@@ -27,6 +27,7 @@ SELECT
     ev.browser,
     ev.os,
     ev.referer,
+    COALESCE(ev.trigger, '') AS trigger,
     ev.utm_source,
     ev.utm_medium,
     ev.utm_campaign,
@@ -59,6 +60,7 @@ WHERE
     AND ({{ String(browser, "", required=False) }} = '' OR ev.browser = {{ String(browser, "", required=False) }})
     AND ({{ String(os, "", required=False) }} = '' OR ev.os = {{ String(os, "", required=False) }})
     AND ({{ String(referer, "", required=False) }} = '' OR ev.referer = {{ String(referer, "", required=False) }})
+    AND ({{ String(trigger, "", required=False) }} = '' OR COALESCE(ev.trigger, '') = {{ String(trigger, "", required=False) }})
 GROUP BY
     ev.link_id,
     meta.slug,
@@ -72,6 +74,7 @@ GROUP BY
     ev.browser,
     ev.os,
     ev.referer,
+    COALESCE(ev.trigger, ''),
     ev.utm_source,
     ev.utm_medium,
     ev.utm_campaign,

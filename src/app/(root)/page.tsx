@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
 import ToolsSection from "./_components/tools-section";
-import { MotionProvider } from "./_components/reveal";
+import { MotionProvider, Reveal } from "./_components/reveal";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -85,9 +85,9 @@ export default function Home() {
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
       <div className="landing-hero-shell relative mx-auto w-[99%] overflow-hidden rounded-3xl border py-10 pb-20 sm:py-14 sm:pb-24">
         <div className="landing-hero-axes pointer-events-none absolute inset-0" />
-        <div className="relative z-20 mx-auto max-w-6xl py-4">
+        <Reveal className="relative z-20 mx-auto max-w-6xl py-4">
           <Hero />
-        </div>
+        </Reveal>
       </div>
 
       <div>

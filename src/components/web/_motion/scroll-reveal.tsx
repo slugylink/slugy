@@ -1,21 +1,21 @@
-"use client";
+﻿"use client";
 
-import { MotionConfig, motion, type Variants } from "motion/react";
-import type { ReactNode } from "react";
-
-/**
- * Single scroll-animation system for marketing pages. Every section uses
- * these primitives — one easing curve, one viewport rule, one reveal feel —
- * so scrubs feel consistent instead of each section inventing its own.
- */
+import { MotionConfig, motion, useReducedMotion } from "motion/react";
+import { Children, createContext, useContext, type ReactNode } from "react";
 
 export const EASE = [0.16, 1, 0.3, 1] as const;
 
-/** Trigger when the element is 80px inside the viewport, animate once. */
-export const SCROLL_VIEWPORT = { once: true, margin: "-80px" } as const;
+// A small bottom inset works for short mobile viewports and tall sections.
+export const SCROLL_VIEWPORT = {
+  once: true,
+  amount: "some",
+  margin: "0px 0px -32px 0px",
+} as const;
 
-export const REVEAL_DURATION = 0.7;
-export const REVEAL_BLUR = "blur(6px)";
+export const REVEAL_DURATION = 0.5;
+export const REVEAL_BLUR = "blur(0px)";
+const VISIBLE = { opacity: 1, y: 0 };
+const StaggerDelay = createContext(0);
 
 export function MotionProvider({ children }: { children: ReactNode }) {
   return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
@@ -29,43 +29,33 @@ interface RevealProps {
   duration?: number;
 }
 
-/** Buttery fade-rise-blur reveal on scroll into view. */
+/** Animate once with opacity and transform, avoiding costly blur filters. */
 export function Reveal({
   children,
   className,
   delay = 0,
-  y = 24,
+  y = 16,
   duration = REVEAL_DURATION,
 }: RevealProps) {
+  const reducedMotion = useReducedMotion();
+
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y, filter: `blur(6px)` }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={{ opacity: 0, y: Math.min(y, 24) }}
+      animate={reducedMotion ? VISIBLE : undefined}
+      whileInView={VISIBLE}
       viewport={SCROLL_VIEWPORT}
-      transition={{ duration, ease: EASE, delay }}
+      transition={{
+        duration: reducedMotion ? 0 : duration,
+        ease: EASE,
+        delay: reducedMotion ? 0 : delay,
+      }}
     >
       {children}
     </motion.div>
   );
 }
-
-const groupVariants: Variants = {
-  hidden: {},
-  show: (stagger: number = 0.08) => ({
-    transition: { staggerChildren: stagger },
-  }),
-};
-
-const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 24, filter: "blur(6px)" },
-  show: {
-    opacity: 1,
-    y: 0,
-    filter: "blur(0px)",
-    transition: { duration: 0.65, ease: EASE },
-  },
-};
 
 export function Stagger({
   children,
@@ -77,16 +67,13 @@ export function Stagger({
   stagger?: number;
 }) {
   return (
-    <motion.div
-      className={className}
-      variants={groupVariants}
-      custom={stagger}
-      initial="hidden"
-      whileInView="show"
-      viewport={SCROLL_VIEWPORT}
-    >
-      {children}
-    </motion.div>
+    <div className={className}>
+      {Children.map(children, (child, index) => (
+        <StaggerDelay.Provider value={Math.min(index * stagger, 0.16)}>
+          {child}
+        </StaggerDelay.Provider>
+      ))}
+    </div>
   );
 }
 
@@ -97,9 +84,13 @@ export function StaggerItem({
   children: ReactNode;
   className?: string;
 }) {
+  const delay = useContext(StaggerDelay);
+
+  // Observe each card, not the entire grid: stacked cards must not reveal
+  // offscreen on mobile. Cap delays so longer grids stay responsive.
   return (
-    <motion.div className={className} variants={itemVariants}>
+    <Reveal className={className} delay={delay}>
       {children}
-    </motion.div>
+    </Reveal>
   );
 }

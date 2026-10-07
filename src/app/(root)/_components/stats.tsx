@@ -1,5 +1,5 @@
 "use client";
-import { useInView, useSpring } from "motion/react";
+import { useInView, useSpring, useReducedMotion } from "motion/react";
 import { useEffect, useRef, memo, type ComponentType } from "react";
 import useSWR from "swr";
 import { Users, Link } from "lucide-react";
@@ -34,51 +34,42 @@ const fetcher = async (url: string): Promise<SiteStats> => {
 // shared ETag fetcher's per-tab cache would serve day-old totals past the
 // 24h CDN window. This fetcher always revalidates via CDN cache.
 
-// Memoized StatCard component
-const StatCard = memo(
+const StatItem = memo(
   ({
     stat,
-    showDivider,
   }: {
     stat: {
       title: string;
       count: number;
       suffix: string;
       icon: ComponentType<{ className?: string }>;
-      iconColor: string;
-      iconBg: string;
     };
-    showDivider: boolean;
   }) => {
     const Icon = stat.icon;
     return (
-      <StaggerItem
-        className={
-          showDivider
-            ? "border-t border-zinc-200/70 pt-8 md:border-t-0 md:border-l md:pt-0 md:pl-8 dark:border-zinc-800"
-            : ""
-        }
-      >
-        <div className="flex flex-col items-center gap-3 text-center">
+      <StaggerItem className="flex min-w-0 flex-col items-center py-4 text-center sm:py-6">
+        <div className="flex items-center gap-3">
           <span
-            className={`flex size-10 items-center justify-center rounded-xl ${stat.iconBg} dark:bg-zinc-800`}
+            aria-hidden
+            className="flex shrink-0 items-center justify-center"
           >
-            <Icon className={`size-5 ${stat.iconColor} dark:text-zinc-200`} />
+            <Icon className="text-muted-foreground size-4" />
           </span>
-          <p className="text-3xl font-medium tracking-tight tabular-nums sm:text-4xl">
-            <AnimatedNumber value={stat.count} suffix={stat.suffix} />
-          </p>
-          <h3 className="text-muted-foreground text-sm">{stat.title}</h3>
+          <h3 className="text-sm font-medium">{stat.title}</h3>
         </div>
+        <p className="mt-4 text-3xl font-medium tracking-tight tabular-nums sm:text-4xl">
+          <AnimatedNumber value={stat.count} suffix={stat.suffix} />
+        </p>
       </StaggerItem>
     );
   },
 );
 
-StatCard.displayName = "StatCard";
+StatItem.displayName = "StatItem";
 
 function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
   const ref = useRef<HTMLSpanElement>(null);
+  const reducedMotion = useReducedMotion();
   const inView = useInView(ref, { once: true });
   const spring = useSpring(0, {
     mass: 0.8,
@@ -87,10 +78,12 @@ function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
   });
 
   useEffect(() => {
-    if (inView) {
+    if (reducedMotion) {
+      spring.jump(value);
+    } else if (inView) {
       spring.set(value);
     }
-  }, [inView, value, spring]);
+  }, [inView, value, spring, reducedMotion]);
 
   useEffect(() => {
     if (!ref.current) return;
@@ -103,7 +96,8 @@ function AnimatedNumber({ value, suffix = "" }: AnimatedNumberProps) {
 
   return (
     <span ref={ref} className="tabular-nums">
-      0{suffix}
+      {reducedMotion ? formatStatNumber.format(value) : "0"}
+      {suffix}
     </span>
   );
 }
@@ -126,34 +120,34 @@ export default function Stats() {
       count: data.users,
       suffix: "+",
       icon: Users,
-      iconColor: "text-blue-500",
-      iconBg: "bg-blue-50",
     },
     {
       title: "Links Created",
       count: data.links,
       suffix: "+",
       icon: Link,
-      iconColor: "text-purple-500",
-      iconBg: "bg-purple-50",
     },
     {
       title: "Clicks Tracked",
       count: data.clicks,
       suffix: "+",
       icon: AnalyticsIcon,
-      iconColor: "text-green-500",
-      iconBg: "bg-green-50",
     },
   ] as const;
 
   return (
-    <section className="relative mx-auto max-w-6xl px-3 py-10 sm:px-4 sm:py-16">
+    <section
+      aria-labelledby="stats-heading"
+      className="mx-auto mt-8 max-w-6xl px-2 py-10 sm:px-4 sm:py-16"
+    >
       <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Open startup
         </p>
-        <h2 className="mt-2 text-2xl font-medium tracking-tight text-balance sm:text-4xl">
+        <h2
+          id="stats-heading"
+          className="mt-2 text-2xl font-medium text-balance sm:text-4xl"
+        >
           Growing in the open
         </h2>
         <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
@@ -161,12 +155,10 @@ export default function Stats() {
         </p>
       </Reveal>
 
-      <Stagger className="mx-auto mt-8 max-w-4xl sm:mt-10" stagger={0.2}>
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-0">
-          {statsData.map((stat, index) => (
-            <StatCard key={stat.title} stat={stat} showDivider={index > 0} />
-          ))}
-        </div>
+      <Stagger className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 md:grid-cols-3">
+        {statsData.map((stat) => (
+          <StatItem key={stat.title} stat={stat} />
+        ))}
       </Stagger>
     </section>
   );

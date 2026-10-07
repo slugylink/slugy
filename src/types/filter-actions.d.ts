@@ -41,6 +41,10 @@ export interface ReferrerAnalytics extends BaseOption {
   referrer: string;
 }
 
+export interface TriggerAnalytics extends BaseOption {
+  trigger: string;
+}
+
 export interface DestinationAnalytics extends BaseOption {
   destination: string;
 }
@@ -55,6 +59,7 @@ export type FilterOption =
   | OsAnalytics
   | DeviceAnalytics
   | ReferrerAnalytics
+  | TriggerAnalytics
   | DestinationAnalytics;
 
 // Literal type for category IDs
@@ -67,6 +72,7 @@ export type CategoryId =
   | "os_key"
   | "device_key"
   | "referrer_key"
+  | "trigger_key"
   | "destination_key";
 
 // Interface for filter categories

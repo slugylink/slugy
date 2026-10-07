@@ -1,9 +1,10 @@
+import { Reveal, Stagger, StaggerItem } from "./reveal";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { brandFor } from "@/lib/integrations/branding";
 
-// Server component: zero client JS, fully crawlable. Mirrors the workspace
+// Server-rendered content with shared client animation wrappers. Mirrors the workspace
 // integrations catalog so marketing and product never drift apart.
 const INTEGRATIONS: Array<{
   provider: string;
@@ -59,7 +60,7 @@ export default function IntegrationsSection() {
       aria-labelledby="integrations-heading"
       className="mx-auto mt-8 max-w-6xl scroll-mt-20 px-2 py-10 sm:px-4 sm:py-16"
     >
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Integrations
         </p>
@@ -73,13 +74,13 @@ export default function IntegrationsSection() {
           Notifications where your team works, automation without glue code, and
           revenue attribution for the checkouts that matter.
         </p>
-      </div>
+      </Reveal>
 
-      <div className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 lg:grid-cols-4">
+      <Stagger className="mt-8 grid grid-cols-2 gap-4 sm:mt-10 lg:grid-cols-4">
         {INTEGRATIONS.map(({ provider, name, description }) => {
           const brand = brandFor(provider);
           return (
-            <div
+            <StaggerItem
               key={name}
               className="flex flex-col rounded-[20px] border p-5 sm:p-6"
             >
@@ -100,10 +101,10 @@ export default function IntegrationsSection() {
               <p className="text-muted-foreground mt-1 text-xs leading-relaxed sm:text-sm">
                 {description}
               </p>
-            </div>
+            </StaggerItem>
           );
         })}
-      </div>
+      </Stagger>
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         <Link

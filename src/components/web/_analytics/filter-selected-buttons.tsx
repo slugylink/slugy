@@ -1,9 +1,12 @@
 "use client";
 
 import { X } from "lucide-react";
+import Image from "next/image";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CategoryId, FilterCategory } from "./filter";
 import { cn } from "@/lib/utils";
+import UrlAvatar from "@/components/web/url-avatar";
+import CountryFlag from "./country-flag";
 import type {
   LinkAnalytics,
   ContinentAnalytics,
@@ -14,9 +17,11 @@ import type {
   FilterOption,
   DeviceAnalytics,
   ReferrerAnalytics,
+  TriggerAnalytics,
   DestinationAnalytics,
 } from "@/types/filter-actions";
-import { Button } from "@/components/ui/button";
+import { triggerLabel } from "@/lib/ai/analytics-ask-prompt";
+import { useState } from "react";
 
 interface FilterSelectedButtonsProps {
   filterCategories: FilterCategory[];
@@ -35,67 +40,134 @@ const CONTINENT_NAMES = Object.freeze({
   unknown: "Unknown",
 } as const);
 
-const CATEGORY_BG_CLASSES = Object.freeze({
-  slug_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  destination_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  continent_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  country_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  city_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  browser_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  os_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  device_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 capitalize dark:bg-zinc-800 dark:hover:bg-zinc-700",
-  referrer_key:
-    "bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-800 dark:hover:bg-zinc-700",
-} as const);
-
-interface FilterButtonProps {
+interface FilterPillProps {
   category: FilterCategory;
   value: string;
+  option: FilterOption | undefined;
   getOptionLabel: (category: FilterCategory, value: string) => string;
   onRemoveFilter: (categoryId: CategoryId, value: string) => void;
 }
 
-const FilterButton = ({
+const formatAssetName = (name: string): string =>
+  name.toLowerCase().replace(/\s+/g, "-");
+
+/** Small value icon for the pill (flag / favicon / browser / os / device glyph). */
+const FilterValueIcon = ({
   category,
   value,
+  option,
+}: {
+  category: FilterCategory;
+  value: string;
+  option: FilterOption | undefined;
+}) => {
+  switch (category.id) {
+    case "slug_key": {
+      const url = (option as LinkAnalytics | undefined)?.url || value;
+      return <UrlAvatar size={5} url={url} />;
+    }
+    case "country_key":
+      return <CountryFlag allowCountry={false} code={value} size={14} />;
+    case "city_key": {
+      const country = (option as CityAnalytics | undefined)?.country;
+      return country ? (
+        <CountryFlag allowCountry={false} code={country} size={14} />
+      ) : null;
+    }
+    case "continent_key":
+      // No distinct glyph available (ContinentFlag renders text only);
+      // the category icon already identifies the dimension.
+      return null;
+    case "browser_key":
+    case "os_key":
+    case "device_key": {
+      const folder =
+        category.id === "browser_key"
+          ? "browser"
+          : category.id === "os_key"
+            ? "os"
+            : "device";
+      return (
+        <AssetImage
+          src={`https://slugylink.github.io/slugy-assets/dist/colorful/${folder}/${formatAssetName(value)}.svg`}
+          alt={value}
+        />
+      );
+    }
+    case "referrer_key":
+    case "destination_key":
+      return <UrlAvatar size={5} url={value} />;
+    case "trigger_key":
+      // Category icon already identifies the dimension; value is a short label.
+      return null;
+    default:
+      return null;
+  }
+};
+
+const AssetImage = ({ src, alt }: { src: string; alt: string }) => {
+  const [error, setError] = useState(false);
+  if (error) return null;
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={16}
+      height={16}
+      loading="lazy"
+      className="h-4 w-4"
+      onError={() => setError(true)}
+    />
+  );
+};
+
+/**
+ * Dub-style segmented pill: `[icon] Label | is | [icon] value | x`.
+ * The whole pill (minus X) is display-only; X removes the filter.
+ */
+const FilterPill = ({
+  category,
+  value,
+  option,
   getOptionLabel,
   onRemoveFilter,
-}: FilterButtonProps) => {
-  const optionLabel = getOptionLabel(category, value);
+}: FilterPillProps) => {
+  const rawLabel = getOptionLabel(category, value);
+  const optionLabel = rawLabel
+    .replace("https://", "")
+    .replace("http://", "")
+    .replace("www.", "");
 
   return (
-    <Button
-      size="sm"
-      variant="secondary"
+    <div
       className={cn(
-        "flex h-7 items-center gap-1.5 rounded-md border border-transparent py-0 pr-1.5 pl-2 text-xs font-normal transition-colors",
-        CATEGORY_BG_CLASSES[category.id as keyof typeof CATEGORY_BG_CLASSES] ??
-          "",
+        "flex h-8 items-center overflow-hidden rounded-lg border border-zinc-200 bg-white",
+        "text-xs dark:border-zinc-800 dark:bg-zinc-900",
       )}
-      type="button"
-      aria-label={`Remove filter: ${optionLabel}`}
-      onClick={() => onRemoveFilter(category.id, value)}
+      aria-label={`Active filter: ${category.label} is ${optionLabel}`}
     >
-      <span className="max-w-[150px] truncate">
-        {optionLabel
-          .replace("https://", "")
-          .replace("http://", "")
-          .replace("www.", "")}
+      <span className="flex items-center gap-1.5 px-2.5 font-medium whitespace-nowrap text-zinc-700 dark:text-zinc-200">
+        <span className="flex items-center [&_svg]:h-3.5 [&_svg]:w-3.5">
+          {category.icon}
+        </span>
+        {category.label}
       </span>
-      <X
-        className="text-muted-foreground h-3 w-3 cursor-pointer"
-        aria-hidden="true"
-        focusable={false}
-      />
-    </Button>
+      <span className="flex h-full items-center bg-zinc-100 px-2 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+        is
+      </span>
+      <span className="flex items-center gap-1.5 px-2.5 whitespace-nowrap text-zinc-900 dark:text-zinc-100">
+        <FilterValueIcon category={category} value={value} option={option} />
+        <span className="max-w-[180px] truncate">{optionLabel}</span>
+      </span>
+      <button
+        type="button"
+        aria-label={`Remove filter: ${optionLabel}`}
+        onClick={() => onRemoveFilter(category.id, value)}
+        className="flex h-full items-center px-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+      >
+        <X className="h-3.5 w-3.5" aria-hidden="true" focusable={false} />
+      </button>
+    </div>
   );
 };
 
@@ -145,6 +217,9 @@ const FilterSelectedButtons = ({
             break;
           case "referrer_key":
             key = (option as ReferrerAnalytics).referrer;
+            break;
+          case "trigger_key":
+            key = (option as TriggerAnalytics).trigger;
             break;
           case "destination_key":
             key = (option as DestinationAnalytics).destination;
@@ -197,6 +272,8 @@ const FilterSelectedButtons = ({
         return (option as DeviceAnalytics).device || value;
       case "referrer_key":
         return (option as ReferrerAnalytics).referrer || value;
+      case "trigger_key":
+        return triggerLabel((option as TriggerAnalytics).trigger || value);
       case "destination_key":
         return (option as DestinationAnalytics).destination || value;
       default:
@@ -218,33 +295,18 @@ const FilterSelectedButtons = ({
     <div className="mt-2">
       <ScrollArea className="max-w-full pb-1">
         <div className="flex flex-wrap items-center gap-1.5">
-          {filtersByCategory.map(({ category, values }) => (
-            <div
-              key={category.id}
-              className="flex flex-wrap items-center gap-1.5"
-              aria-label={`Selected filters for ${category.label}`}
-            >
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 rounded-md border-zinc-200 bg-white text-xs font-medium"
-                aria-disabled="true"
-                tabIndex={-1}
-              >
-                <span className="mr-1 flex items-center">{category.icon}</span>
-                {category.label}
-              </Button>
-              {values.map((value) => (
-                <FilterButton
-                  key={`${category.id}-${value}`}
-                  category={category}
-                  value={value}
-                  getOptionLabel={getOptionLabel}
-                  onRemoveFilter={onRemoveFilter}
-                />
-              ))}
-            </div>
-          ))}
+          {filtersByCategory.flatMap(({ category, values }) =>
+            values.map((value) => (
+              <FilterPill
+                key={`${category.id}-${value}`}
+                category={category}
+                value={value}
+                option={getOptionByValue(category, value)}
+                getOptionLabel={getOptionLabel}
+                onRemoveFilter={onRemoveFilter}
+              />
+            )),
+          )}
         </div>
       </ScrollArea>
     </div>

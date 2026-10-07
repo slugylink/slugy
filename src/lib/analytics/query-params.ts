@@ -31,6 +31,7 @@ export const analyticsFilterFieldsSchema = z
     browser_key: filterValueSchema,
     os_key: filterValueSchema,
     referrer_key: filterValueSchema,
+    trigger_key: filterValueSchema,
     device_key: filterValueSchema,
     destination_key: filterValueSchema,
     domain_key: filterValueSchema,
@@ -50,6 +51,7 @@ export function tinybirdFilterParams(
     browser: props.browser_key || "",
     os: props.os_key || "",
     referer: props.referrer_key || "",
+    trigger: props.trigger_key || "",
     device: props.device_key || "",
     domain: props.domain_key || "",
   };
@@ -81,8 +83,12 @@ export const salesLeadFilterFieldsSchema = analyticsFilterFieldsSchema.extend({
 export function tinybirdLeadsFilterParams(
   props: z.infer<typeof salesLeadFilterFieldsSchema>,
 ) {
+  // Lead/sales events carry no trigger column — drop it so the deployed
+  // leads/sales endpoints never see an undeclared param.
+  const { trigger: _trigger, ...clickParams } = tinybirdFilterParams(props);
+  void _trigger;
   return {
-    ...tinybirdFilterParams(props),
+    ...clickParams,
     event_name: props.event_name || "",
     customer_external_id: props.customer_external_id || "",
     utm_source: props.utm_source || "",

@@ -19,6 +19,7 @@ export interface DemoAnalyticsData {
   browsers: Array<{ browser: string; clicks: number }>;
   oses: Array<{ os: string; clicks: number }>;
   referrers: Array<{ referrer: string; clicks: number }>;
+  triggers?: Array<{ trigger: string; clicks: number }>;
   destinations: Array<{ destination: string; clicks: number }>;
   utmSources: Array<{ source: string; clicks: number }>;
   utmMediums: Array<{ medium: string; clicks: number }>;
@@ -271,6 +272,15 @@ const clickData = {
     destination: link.url,
     clicks: link.clicks,
   })),
+
+  triggers: [
+    { trigger: "link", clicks: 512 },
+    { trigger: "social", clicks: 383 },
+    { trigger: "direct", clicks: 296 },
+    { trigger: "qr", clicks: 142 },
+    { trigger: "email", clicks: 98 },
+    { trigger: "campaign", clicks: 64 },
+  ],
 
   utmSources: [
     {

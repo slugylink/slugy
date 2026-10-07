@@ -1,7 +1,8 @@
+import { Reveal, Stagger, StaggerItem } from "./reveal";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-// Server component: zero client JS, fully crawlable. Links the landing page
+// Server-rendered content with shared client animation wrappers. Links the landing page
 // (highest-authority URL) to the free-tool hub and both tools so they collect
 // internal link equity — the tools are the no-login top-of-funnel entry.
 const TOOLS = [
@@ -32,7 +33,7 @@ export default function ToolsSection() {
       aria-labelledby="free-tools-heading"
       className="mx-auto mt-8 max-w-6xl px-2 py-10 sm:px-4 sm:py-16"
     >
-      <div className="mx-auto max-w-2xl text-center">
+      <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
           Free tools
         </p>
@@ -46,11 +47,11 @@ export default function ToolsSection() {
           Shorten later. Start with the tools you need right now — both are free
           and need no signup.
         </p>
-      </div>
+      </Reveal>
 
-      <div className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 md:grid-cols-2">
+      <Stagger className="mt-8 grid grid-cols-1 gap-6 sm:mt-10 md:grid-cols-2">
         {TOOLS.map((tool) => (
-          <div
+          <StaggerItem
             key={tool.href}
             className="flex flex-col rounded-[20px] border p-6 sm:p-8"
           >
@@ -67,9 +68,9 @@ export default function ToolsSection() {
             >
               {tool.cta} <ArrowRight className="h-4 w-4" />
             </Link>
-          </div>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         <Link

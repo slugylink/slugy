@@ -13,6 +13,7 @@ export type AnalyticsMetric =
   | "browsers"
   | "oses"
   | "referrers"
+  | "triggers"
   | "destinations"
   | "utmSources"
   | "utmMediums"
@@ -36,6 +37,8 @@ export interface TinybirdAnalyticsRow {
   browser: string;
   os: string;
   referer: string;
+  /** Click trigger (qr, email, social, campaign, direct, link, api). Absent on old pipe versions. */
+  trigger?: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
@@ -105,6 +108,9 @@ export function transformTinybirdAnalytics(
     : null;
   const referrersMap = metricSet.has("referrers")
     ? new Map<string, { referrer: string; clicks: number }>()
+    : null;
+  const triggersMap = metricSet.has("triggers")
+    ? new Map<string, { trigger: string; clicks: number }>()
     : null;
   const destinationsMap = metricSet.has("destinations")
     ? new Map<string, { destination: string; clicks: number }>()
@@ -223,6 +229,12 @@ export function transformTinybirdAnalytics(
       else referrersMap.set(key, { referrer: key, clicks });
     }
 
+    if (triggersMap && item.trigger) {
+      const existing = triggersMap.get(item.trigger);
+      if (existing) existing.clicks += clicks;
+      else triggersMap.set(item.trigger, { trigger: item.trigger, clicks });
+    }
+
     if (destinationsMap && item["meta.url"]) {
       const existing = destinationsMap.get(item["meta.url"]);
       if (existing) existing.clicks += clicks;
@@ -339,6 +351,11 @@ export function transformTinybirdAnalytics(
   }
   if (referrersMap) {
     result.referrers = Array.from(referrersMap.values()).sort(
+      (a, b) => b.clicks - a.clicks,
+    );
+  }
+  if (triggersMap) {
+    result.triggers = Array.from(triggersMap.values()).sort(
       (a, b) => b.clicks - a.clicks,
     );
   }

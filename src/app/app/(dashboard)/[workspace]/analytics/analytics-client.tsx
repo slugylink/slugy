@@ -24,6 +24,7 @@ import {
   LinkIcon,
   Map,
   MapPinned,
+  MousePointerClick,
   Smartphone,
   Share2,
   Redo2,
@@ -42,6 +43,7 @@ type FilterKey =
   | "os_key"
   | "device_key"
   | "referrer_key"
+  | "trigger_key"
   | "destination_key"
   | "domain_key";
 
@@ -55,6 +57,7 @@ type FilterSource = Pick<
   | "oses"
   | "devices"
   | "referrers"
+  | "triggers"
   | "destinations"
 >;
 
@@ -78,6 +81,7 @@ const VALID_FILTER_KEYS = [
   "os_key",
   "device_key",
   "referrer_key",
+  "trigger_key",
   "destination_key",
   "domain_key",
 ] as const satisfies readonly FilterKey[];
@@ -93,6 +97,7 @@ const ANALYTICS_METRICS = [
   "browsers",
   "oses",
   "referrers",
+  "triggers",
   "destinations",
   "utmSources",
   "utmMediums",
@@ -234,6 +239,12 @@ function buildFilterCategories(data: FilterSource): FilterCategory[] {
       options: data.referrers,
     },
     {
+      id: "trigger_key" as CategoryId,
+      label: "Trigger",
+      icon: <MousePointerClick {...ICON_PROPS} />,
+      options: data.triggers,
+    },
+    {
       id: "destination_key" as CategoryId,
       label: "Destination URL",
       icon: <Redo2 {...ICON_PROPS} />,
@@ -335,6 +346,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       oses: activeData?.oses ?? [],
       devices: activeData?.devices ?? [],
       referrers: activeData?.referrers ?? [],
+      triggers: activeData?.triggers ?? [],
       destinations: activeData?.destinations ?? [],
     }),
     [
@@ -346,6 +358,7 @@ export const AnalyticsClient = memo(function AnalyticsClient({
       activeData?.oses,
       activeData?.devices,
       activeData?.referrers,
+      activeData?.triggers,
       activeData?.destinations,
     ],
   );

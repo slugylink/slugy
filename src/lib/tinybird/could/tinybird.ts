@@ -241,6 +241,7 @@ const analyticsOutput = {
   browser: t.string(),
   os: t.string(),
   referer: t.string(),
+  trigger: t.string(),
   utm_source: t.string(),
   utm_medium: t.string(),
   utm_campaign: t.string(),
@@ -261,6 +262,7 @@ const analyticsParams = {
   browser: p.string().optional(""),
   os: p.string().optional(""),
   referer: p.string().optional(""),
+  trigger: p.string().optional(""),
 } as const;
 
 // Sales-lead analytics (Pro + Growth): click dimensions plus the sales
@@ -323,6 +325,7 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           ev.browser,
           ev.os,
           ev.referer,
+          COALESCE(ev.trigger, '') AS trigger,
           ev.utm_source,
           ev.utm_medium,
           ev.utm_campaign,
@@ -355,6 +358,7 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           AND ({{String(browser, '')}} = '' OR ev.browser = {{String(browser, '')}})
           AND ({{String(os, '')}} = '' OR ev.os = {{String(os, '')}})
           AND ({{String(referer, '')}} = '' OR ev.referer = {{String(referer, '')}})
+          AND ({{String(trigger, '')}} = '' OR COALESCE(ev.trigger, '') = {{String(trigger, '')}})
         GROUP BY
           ev.link_id,
           meta.slug,
@@ -368,6 +372,7 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
           ev.browser,
           ev.os,
           ev.referer,
+          COALESCE(ev.trigger, ''),
           ev.utm_source,
           ev.utm_medium,
           ev.utm_campaign,
