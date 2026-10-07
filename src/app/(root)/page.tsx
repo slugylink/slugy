@@ -96,19 +96,18 @@ export default function Home() {
             <Features />
           </section>
 
-          <ToolsSection />
-
           <IntegrationsSection />
 
-          <section id="pricing" className="scroll-mt-20">
-            <PricingSection />
-          </section>
           <section id="stats-metrics" className="scroll-mt-20">
             <Stats />
           </section>
 
           <section id="sponsors" className="scroll-mt-20">
             <Sponsors />
+          </section>
+
+          <section id="pricing" className="scroll-mt-20">
+            <PricingSection />
           </section>
 
           <section id="faq" className="scroll-mt-20">
@@ -118,6 +117,8 @@ export default function Home() {
           <section id="get-started" className="scroll-mt-20">
             <FinalCta />
           </section>
+
+          <ToolsSection />
         </MotionProvider>
       </div>
     </main>

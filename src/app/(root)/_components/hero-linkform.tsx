@@ -13,7 +13,7 @@ import HeroLinkCard from "./hero-linkcard";
 import { LoaderCircle } from "@/utils/icons/loader-circle";
 import { fetcher } from "@/lib/fetcher";
 import { Button } from "@/components/ui/button";
-import Image from "next/image";
+import SignupLink from "@/components/web/signup-link";
 
 // ----------------- Constants -----------------
 const API_ENDPOINT = "/api/temp";
@@ -27,11 +27,12 @@ const DEFAULT_LINK = {
 
 // Memoized validation schema for better performance
 const createLinkSchema = (() => {
-  const urlPattern = /^https?:\/\//;
+  const urlPattern = /^https?:\/\//i;
   return z.object({
     url: z
       .string()
-      .min(3, "Destination URL is required")
+      .trim()
+      .min(3)
       .refine(
         (url) => {
           if (urlPattern.test(url)) {
@@ -48,6 +49,11 @@ const createLinkSchema = (() => {
           message:
             "Please enter a valid URL (e.g., https://example.com or example.com)",
         },
+      )
+      .transform((url) =>
+        urlPattern.test(url)
+          ? new URL(url).href
+          : new URL(`https://${url}`).href,
       ),
   });
 })();
@@ -102,7 +108,7 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     register,
     handleSubmit,
     reset,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useForm<FormData>({
     resolver: zodResolver(createLinkSchema),
   });
@@ -112,17 +118,9 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     // Handle both wrapped (data.data.links) and unwrapped (data.links) response formats
     const linksArray = data?.data?.links || data?.links || [];
 
-    if (!linksArray.length) return;
+    if (!data) return;
 
-    setLinks((prevLinks) => {
-      const newLinks = linksArray.filter(
-        (l) => !prevLinks.some((existing) => existing.short === l.short),
-      );
-      const updatedLinks = prevLinks.map(
-        (prev) => linksArray.find((l) => l.short === prev.short) ?? prev,
-      );
-      return [...newLinks, ...updatedLinks];
-    });
+    setLinks([...linksArray, DEFAULT_LINK]);
   }, [data]);
 
   // Form submit handler
@@ -139,10 +137,10 @@ const HeroLinkForm = memo(function HeroLinkForm() {
           | ApiResponse
           | { success: boolean; data?: ApiResponse; error?: string };
 
-        if (!response.ok) {
+        if (!response.ok || ("success" in result && !result.success)) {
           throw new Error(
             response.status === 429
-              ? "You can only create 1 temporary link at a time. Please wait for it to expire or create an account for unlimited links."
+              ? "You can only create 1 temporary link at a time. Please wait for it to expire or create an account to manage more links."
               : "error" in result
                 ? result.error
                 : "Failed to create link",
@@ -153,16 +151,17 @@ const HeroLinkForm = memo(function HeroLinkForm() {
         const linkData =
           "data" in result && result.data
             ? result.data
-            : "success" in result && result.success
+            : "short" in result
               ? result
               : null;
 
-        if (linkData && "short" in linkData) {
-          setLinks((prev) => [linkData as Link, ...prev]);
+        if (!linkData || !("short" in linkData)) {
+          throw new Error("Could not create the link. Please try again.");
         }
+        setLinks([linkData as Link, DEFAULT_LINK]);
         reset();
         toast.success("Link created successfully!");
-        await mutate();
+        void mutate().catch(() => {});
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Failed to create link",
@@ -172,22 +171,51 @@ const HeroLinkForm = memo(function HeroLinkForm() {
     [reset, mutate],
   );
 
+  // Re-enable the trial when its temporary link expires, even without a reload.
+  useEffect(() => {
+    const expirations = links
+      .flatMap((link) => (link.expires ? [Date.parse(link.expires)] : []))
+      .filter(Number.isFinite);
+    if (!expirations.length) return;
+    const timeout = setTimeout(
+      () => {
+        setLinks((current) =>
+          current.filter(
+            (link) => !link.expires || Date.parse(link.expires) > Date.now(),
+          ),
+        );
+        void mutate().catch(() => {});
+      },
+      Math.max(0, Math.min(...expirations) - Date.now()) + 100,
+    );
+    return () => clearTimeout(timeout);
+  }, [links, mutate]);
+
   const isFormDisabled = isSubmitting || links.length >= MAX_LINKS_DISPLAY;
 
   return (
     <div>
       <form
         onSubmit={handleSubmit(onSubmit)}
+        noValidate
         className="relative z-30 mx-auto mt-10 max-w-[580px] rounded-[18px] bg-zinc-100/80 p-2 shadow-sm sm:p-2.5"
       >
         <div className="flex items-center gap-2 rounded-xl border bg-white p-1">
           <Input
+            id="trial-url"
             type="text"
+            inputMode="url"
+            autoCapitalize="none"
+            spellCheck={false}
+            aria-invalid={!!errors.url}
+            aria-describedby={
+              errors.url ? "trial-error trial-hint" : "trial-hint"
+            }
             placeholder="Enter a destination URL"
             disabled={isFormDisabled}
             autoComplete="off"
             {...register("url")}
-            className="w-full border-none focus-visible:ring-0"
+            className="min-w-0 flex-1 border-none focus-visible:ring-2"
             required
           />
           <Button
@@ -201,6 +229,15 @@ const HeroLinkForm = memo(function HeroLinkForm() {
             Shorten{" "}
           </Button>
         </div>
+        {errors.url && (
+          <p
+            id="trial-error"
+            role="alert"
+            className="text-destructive mt-2 px-1 text-sm"
+          >
+            {errors.url.message}
+          </p>
+        )}
         <div className="mx-auto mt-4 max-w-[580px] space-y-2">
           <LazyMotion features={domAnimation}>
             <AnimatePresence initial={false}>
@@ -226,12 +263,9 @@ const HeroLinkForm = memo(function HeroLinkForm() {
       {/* CTA */}
       <div className="mx-auto mt-5 max-w-sm text-center text-sm text-zinc-800">
         Want to claim your links, edit them, or view their analytics?{" "}
-        <a
-          href="https://app.slugy.co/login"
-          className="text-black underline hover:text-gray-700"
-        >
+        <SignupLink className="text-black underline hover:text-gray-700">
           Create an account to get started.
-        </a>
+        </SignupLink>
       </div>
     </div>
   );

@@ -63,7 +63,7 @@ const jsonLd = {
 
 const HomeLayout = ({ children }: { children: React.ReactNode }) => {
   return (
-    <main className="h-full flex-col bg-white dark:bg-[#121212]">
+    <div className="h-full flex-col bg-white dark:bg-[#121212]">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -71,7 +71,7 @@ const HomeLayout = ({ children }: { children: React.ReactNode }) => {
       <Navbar />
       <div className="">{children}</div>
       <Footer />
-    </main>
+    </div>
   );
 };
 

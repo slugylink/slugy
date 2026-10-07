@@ -1,5 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import SignupLink from "@/components/web/signup-link";
 import { cn } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 import AnimatedShinyText from "@/components/web/animated-text";
@@ -16,7 +18,7 @@ const heroData = {
   },
   heading1: "Short Links with Powerful",
   heading2: (
-    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
+    <span className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
       Analytics
       <span className="text-[#ffaa40]">
         <Image
@@ -30,7 +32,7 @@ const heroData = {
           className="h-8 w-8 sm:h-[50px] sm:w-[50px]"
         />
       </span>
-    </div>
+    </span>
   ),
   heading2Gradient:
     "mx-auto inline-block w-fit py-1  bg-clip-text text-center leading-none font-semibold",
@@ -74,15 +76,17 @@ export default function Hero() {
             <p className="mt-4 px-1 text-sm sm:mt-4 sm:text-base md:px-0 md:text-lg">
               {heroData.subheading1}
             </p>
-            {/* <div className="mt-6 flex flex-row items-center justify-center gap-3 sm:mt-7">
-              <Button
-                asChild
-                className="w-auto transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Link href="https://app.slugy.co">Get Started</Link>
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-7">
+              <Button asChild size="lg">
+                <SignupLink>Start for free</SignupLink>
               </Button>
-              <HeroDemoButton />
-            </div> */}
+              <Button asChild size="lg" variant="outline">
+                <Link href="#analytics-preview">Explore analytics</Link>
+              </Button>
+            </div>
+            <p className="text-muted-foreground mt-3 text-xs">
+              Free plan available. No credit card required.
+            </p>
           </div>
         </div>
 

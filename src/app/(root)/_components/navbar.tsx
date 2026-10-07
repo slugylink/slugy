@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import SignupLink from "@/components/web/signup-link";
 import { usePathname } from "next/navigation";
 import { Menu, ArrowRight } from "lucide-react";
 import AppLogo from "@/components/web/app-logo";
@@ -255,11 +256,9 @@ function MobileMenuContent() {
 function MobileMenu() {
   return (
     <div className="flex items-center gap-2 lg:hidden">
-      <GetStartedButton
-        isGitVisible={true}
-        showAuthButtons={false}
-        className="flex"
-      />
+      <Button asChild size="sm">
+        <SignupLink>Start for free</SignupLink>
+      </Button>
       <Sheet>
         <SheetTrigger asChild>
           <Button variant="ghost" size="icon" className="lg:hidden">

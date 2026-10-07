@@ -116,7 +116,7 @@ export default function GetStartedButton({
               disabled={navigatingTo !== null}
               className="w-full sm:w-fit"
             >
-              Sign up
+              Start for free
             </Button>
           </a>
         </>

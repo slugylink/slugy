@@ -31,7 +31,7 @@ export default function ToolsSection() {
     <section
       id="free-tools"
       aria-labelledby="free-tools-heading"
-      className="mx-auto mt-8 max-w-6xl px-2 py-10 sm:px-4 sm:py-16"
+      className="mx-auto max-w-6xl px-2 py-10 sm:px-4 sm:py-12"
     >
       <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
@@ -41,11 +41,10 @@ export default function ToolsSection() {
           id="free-tools-heading"
           className="mt-2 text-2xl font-medium text-balance sm:text-4xl"
         >
-          Free marketing tools
+          Just need a quick tool?
         </h2>
         <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm sm:text-base">
-          Shorten later. Start with the tools you need right now — both are free
-          and need no signup.
+          Create a QR code or build a campaign URL. Free, with no signup.
         </p>
       </Reveal>
 
@@ -53,15 +52,9 @@ export default function ToolsSection() {
         {TOOLS.map((tool) => (
           <StaggerItem
             key={tool.href}
-            className="flex flex-col rounded-[20px] border p-6 sm:p-8"
+            className="flex flex-col rounded-[20px] border p-5 sm:p-6"
           >
-            <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
-              {tool.eyebrow}
-            </p>
-            <h3 className="mt-2 text-lg font-medium">{tool.title}</h3>
-            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-              {tool.description}
-            </p>
+            <h3 className="text-lg font-medium">{tool.title}</h3>
             <Link
               href={tool.href}
               className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"

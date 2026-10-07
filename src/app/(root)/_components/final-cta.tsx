@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import SignupLink from "@/components/web/signup-link";
 import { FaGithub } from "react-icons/fa6";
 import { Reveal } from "./reveal";
 
@@ -28,7 +29,7 @@ export default function FinalCta() {
                 size="lg"
                 className="rounded-lg bg-white text-zinc-900 hover:bg-zinc-200"
               >
-                <Link href="https://app.slugy.co/signup">Start for free</Link>
+                <SignupLink>Start for free</SignupLink>
               </Button>
               <Button
                 asChild

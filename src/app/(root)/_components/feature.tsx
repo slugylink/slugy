@@ -33,7 +33,7 @@ const ROWS: Row[] = [
       "Shared workspaces for teams",
     ],
     cta: "Create a branded link",
-    href: "https://app.slugy.co",
+    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -53,7 +53,7 @@ const ROWS: Row[] = [
   },
 ];
 
-// ── Card 4: Click analytics (rendered AFTER the QR + UTM mini row) ──
+// ── Card 4: Click analytics (rendered after branded links) ──
 const ANALYTICS_ROW: Row = {
   eyebrow: "Click analytics",
   title: "Every click, accounted for",
@@ -62,8 +62,8 @@ const ANALYTICS_ROW: Row = {
     "Referrer + campaign + geo breakdown",
     "Shareable client-ready reports",
   ],
-  cta: "See live analytics",
-  href: "https://app.slugy.co",
+  cta: "Start tracking your links",
+  href: "https://app.slugy.co/signup",
   visual: <AnalyticsDemoVisual />,
   fullWidth: true,
 };
@@ -76,7 +76,7 @@ const MINIS1 = [
     title: "From link to scan in one click",
     description: "A print-ready, on-brand QR with every short link.",
     cta: "Create a QR code",
-    href: "https://app.slugy.co",
+    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -129,7 +129,7 @@ const MINIS2 = [
     title: "Know where every click comes from",
     description: "Country, city and browser breakdown on every link.",
     cta: "Explore click insights",
-    href: "https://app.slugy.co",
+    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -153,7 +153,7 @@ const MINIS2 = [
     title: "One page for all your links",
     description: "Your posts, videos, and QR codes behind a single URL.",
     cta: "Build your bio page",
-    href: "https://app.slugy.co",
+    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -248,7 +248,52 @@ const Features = memo(function Features() {
           </Reveal>
         ))}
 
-        {/* Cards 2–3: QR codes + UTM Builder (below Branded links) */}
+        {/* Card 4: Click analytics (directly after branded links) */}
+        <div id="analytics-preview" className="scroll-mt-20">
+          <Reveal y={32} className="min-w-0 border-t p-6 sm:p-10">
+            <div className="mx-auto max-w-2xl min-w-0 text-center">
+              <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+                {ANALYTICS_ROW.eyebrow}
+              </p>
+              <h3 className="mt-2 text-xl font-medium text-balance sm:text-2xl">
+                {ANALYTICS_ROW.title}
+              </h3>
+              <p className="text-muted-foreground mx-auto mt-3 max-w-md text-sm leading-relaxed sm:text-base">
+                {ANALYTICS_ROW.description}
+              </p>
+              <ul className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5">
+                {ANALYTICS_ROW.bullets.map((bullet) => (
+                  <li
+                    key={bullet}
+                    className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"
+                  >
+                    <span
+                      aria-hidden
+                      className="text-zinc-400 dark:text-zinc-500"
+                    >
+                      •
+                    </span>
+                    {bullet}
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href={ANALYTICS_ROW.href}
+                className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+              >
+                {ANALYTICS_ROW.cta} <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+            <div className="relative mt-8 min-w-0">
+              <p className="text-muted-foreground mb-3 text-center text-xs">
+                Interactive preview with sample data
+              </p>
+              {ANALYTICS_ROW.visual}
+            </div>
+          </Reveal>
+        </div>
+
+        {/* Cards 2–3: QR codes + UTM Builder (supporting features) */}
         <Stagger className="grid grid-cols-1 border-t md:grid-cols-2">
           {MINIS1.map((mini, i) => (
             <StaggerItem
@@ -287,50 +332,6 @@ const Features = memo(function Features() {
             </StaggerItem>
           ))}
         </Stagger>
-
-        {/* Card 4: Click analytics (full-width, below QR + UTM) */}
-        <Reveal y={32} className="min-w-0 border-t p-6 sm:p-10">
-          <div className="mx-auto max-w-2xl min-w-0 text-center">
-            <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
-              {ANALYTICS_ROW.eyebrow}
-            </p>
-            <h3 className="mt-2 text-xl font-medium text-balance sm:text-2xl">
-              {ANALYTICS_ROW.title}
-            </h3>
-            <p className="text-muted-foreground mx-auto mt-3 max-w-md text-sm leading-relaxed sm:text-base">
-              {ANALYTICS_ROW.description}
-            </p>
-            <ul className="mt-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-1.5">
-              {ANALYTICS_ROW.bullets.map((bullet) => (
-                <li
-                  key={bullet}
-                  className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300"
-                >
-                  <span
-                    aria-hidden
-                    className="text-zinc-400 dark:text-zinc-500"
-                  >
-                    •
-                  </span>
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-            <Link
-              href={ANALYTICS_ROW.href}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-            >
-              {ANALYTICS_ROW.cta} <ArrowRight className="h-4 w-4" />
-            </Link>
-          </div>
-          <div className="relative mt-8 min-w-0">
-            {ANALYTICS_ROW.visual}
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-80 bg-gradient-to-t from-white via-white/70 to-transparent dark:from-zinc-900 dark:via-zinc-900/70"
-            />
-          </div>
-        </Reveal>
 
         {/* Cards 5–6: Geo insights + Bio links (below Click analytics) */}
         <Stagger className="grid grid-cols-1 border-t md:grid-cols-2">

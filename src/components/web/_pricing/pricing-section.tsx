@@ -7,7 +7,7 @@ import {
   StaggerItem,
 } from "@/components/web/_motion/scroll-reveal";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import SignupLink from "@/components/web/signup-link";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,7 +30,6 @@ import {
   FlaskConical,
   Globe,
   LayoutGrid,
-  Link as LinkIcon,
   Link2,
   Lock,
   MapPin,
@@ -130,7 +129,7 @@ function PlanCard({
                 : "mt-4 w-full bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800"
             }
           >
-            <Link href={PRICING_COPY.loginUrl}>{getPlanCtaLabel(plan)}</Link>
+            <SignupLink>{getPlanCtaLabel(plan)}</SignupLink>
           </Button>
         )}
       </div>

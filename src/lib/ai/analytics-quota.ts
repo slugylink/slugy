@@ -31,58 +31,67 @@ export function quotaForPlan(planType: string | null | undefined): {
   return { limit: FREE_AI_QUOTA_PER_DAY, isLimited: true };
 }
 
+export class AiQuotaUnavailableError extends Error {
+  constructor() {
+    super("AI quota enforcement is unavailable");
+    this.name = "AiQuotaUnavailableError";
+  }
+}
+
 export async function getAiQuota(
   workspaceId: string,
   planType: string | null | undefined,
 ): Promise<AiQuota> {
   const { limit, isLimited } = quotaForPlan(planType);
   try {
-    const used = Number(await redis.get(quotaKey(workspaceId))) || 0;
+    const raw = await redis.get(quotaKey(workspaceId));
+    const used = raw === null ? 0 : Number(raw);
+    if (!Number.isSafeInteger(used) || used < 0)
+      throw new Error("Invalid quota counter");
     return { limit, used, remaining: Math.max(0, limit - used), isLimited };
   } catch {
-    return { limit, used: 0, remaining: limit, isLimited };
+    throw new AiQuotaUnavailableError();
   }
 }
 
-/**
- * Atomically consume one quota unit. Returns the quota AFTER consuming,
- * or `allowed: false` when a limited plan is exhausted (nothing consumed).
- */
+// Check, increment, and TTL initialization are one atomic operation for every plan.
+const CONSUME_QUOTA = `
+local used = tonumber(redis.call('GET', KEYS[1]) or '0')
+if not used or used < 0 or used ~= math.floor(used) then
+  return redis.error_reply('Invalid quota counter')
+end
+if used >= tonumber(ARGV[1]) then return {0, used} end
+used = redis.call('INCR', KEYS[1])
+if redis.call('TTL', KEYS[1]) < 0 then redis.call('EXPIRE', KEYS[1], ARGV[2]) end
+return {1, used}
+`;
+
 export async function consumeAiQuota(
   workspaceId: string,
   planType: string | null | undefined,
 ): Promise<{ allowed: boolean; quota: AiQuota }> {
   const { limit, isLimited } = quotaForPlan(planType);
-  const key = quotaKey(workspaceId);
-
   try {
-    if (isLimited) {
-      const used = Number(await redis.get(key)) || 0;
-      if (used >= limit) {
-        return {
-          allowed: false,
-          quota: { limit, used, remaining: 0, isLimited },
-        };
-      }
+    const result = await redis.eval(
+      CONSUME_QUOTA,
+      [quotaKey(workspaceId)],
+      [limit, 86400],
+    );
+    if (
+      !Array.isArray(result) ||
+      result.length !== 2 ||
+      ![0, 1].includes(result[0]) ||
+      !Number.isSafeInteger(result[1]) ||
+      result[1] < 0
+    ) {
+      throw new Error("Invalid quota response");
     }
-    const used = await redis.incr(key);
-    if (used === 1) await redis.expire(key, 60 * 60 * 24);
-    // Paid soft cap: block only absurd bursts.
-    if (!isLimited && used > limit) {
-      return {
-        allowed: false,
-        quota: { limit, used, remaining: 0, isLimited },
-      };
-    }
+    const [allowed, used] = result as [number, number];
     return {
-      allowed: true,
+      allowed: allowed === 1,
       quota: { limit, used, remaining: Math.max(0, limit - used), isLimited },
     };
   } catch {
-    // Redis down -> fail open (AI is non-critical), still report quota.
-    return {
-      allowed: true,
-      quota: { limit, used: 0, remaining: limit, isLimited },
-    };
+    throw new AiQuotaUnavailableError();
   }
 }

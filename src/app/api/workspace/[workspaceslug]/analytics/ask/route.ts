@@ -9,7 +9,11 @@ import {
   sanitizeAskAiResult,
 } from "@/lib/ai/analytics-ask-prompt";
 import { groqChatJson, isGroqConfigured } from "@/lib/ai/groq";
-import { consumeAiQuota, getAiQuota } from "@/lib/ai/analytics-quota";
+import {
+  AiQuotaUnavailableError,
+  consumeAiQuota,
+  getAiQuota,
+} from "@/lib/ai/analytics-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +43,12 @@ export async function GET(
   if (!access.ok) return access.response;
 
   const planType = await getWorkspaceOwnerPlanType(access.workspace.id);
-  const quota = await getAiQuota(access.workspace.id, planType);
-  return apiSuccess({ quota }, undefined, 200, quotaHeaders(quota));
+  try {
+    const quota = await getAiQuota(access.workspace.id, planType);
+    return apiSuccess({ quota }, undefined, 200, quotaHeaders(quota));
+  } catch {
+    return apiErrors.serviceUnavailable("AI quota is temporarily unavailable");
+  }
 }
 
 export async function POST(
@@ -68,15 +76,15 @@ export async function POST(
   }
 
   const planType = await getWorkspaceOwnerPlanType(access.workspace.id);
-  const { allowed, quota } = await consumeAiQuota(
-    access.workspace.id,
-    planType,
-  );
-  if (!allowed) {
-    return apiErrors.rateLimitExceeded();
-  }
-
   try {
+    const { allowed, quota } = await consumeAiQuota(
+      access.workspace.id,
+      planType,
+    );
+    if (!allowed) {
+      return apiErrors.rateLimitExceeded();
+    }
+
     const result = await groqChatJson<unknown>(
       [
         { role: "system", content: ASK_AI_SYSTEM_INSTRUCTION },
@@ -104,6 +112,11 @@ export async function POST(
       quotaHeaders(quota),
     );
   } catch (error) {
+    if (error instanceof AiQuotaUnavailableError) {
+      return apiErrors.serviceUnavailable(
+        "AI quota is temporarily unavailable",
+      );
+    }
     console.error("[analytics ask-ai] Groq error:", error);
     const message =
       error instanceof Error ? error.message : "AI request failed";
