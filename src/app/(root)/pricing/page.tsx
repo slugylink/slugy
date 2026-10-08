@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import PricingPageClient from "./page-client";
 import PricingFaq from "./faq-section";
+import PricingDetailContent from "./detail-content";
 import { FREE_PLAN, PRO_PLAN, GROWTH_PLAN } from "@/constants/data/price";
 
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Simple pricing for Slugy — URL shortener plans with analytics, bio links, custom domains, and team collaboration. Start free.",
+    "Simple pricing for Slugy — free branded short links with click analytics, Pro with lead conversion tracking, Growth with sales and revenue analytics. Custom domains, QR codes, bio pages and team collaboration. Start free.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     title: "Pricing | Slugy",
@@ -62,6 +63,7 @@ export default function PricingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
       <PricingPageClient />
+      <PricingDetailContent />
       <PricingFaq />
     </>
   );

@@ -43,6 +43,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/integrations`,
+      lastModified: lastWeek,
+      changeFrequency: "weekly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/integrations/shopify`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/integrations/zapier`,
+      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/tools`,
       lastModified: lastWeek,
       changeFrequency: "monthly",

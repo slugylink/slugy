@@ -108,10 +108,28 @@ export default function IntegrationsSection() {
 
       <p className="text-muted-foreground mt-6 text-center text-sm">
         <Link
-          href="/blogs/lead-conversion-tracking"
+          href="/integrations"
           className="text-foreground inline-flex items-center gap-1 font-medium underline underline-offset-4"
         >
           See the setup guides <ArrowRight className="h-4 w-4" />
+        </Link>
+        <span className="mx-2" aria-hidden>
+          ·
+        </span>
+        <Link
+          href="/integrations/shopify"
+          className="text-foreground inline-flex items-center gap-1 font-medium underline underline-offset-4"
+        >
+          Shopify guide
+        </Link>
+        <span className="mx-2" aria-hidden>
+          ·
+        </span>
+        <Link
+          href="/integrations/zapier"
+          className="text-foreground inline-flex items-center gap-1 font-medium underline underline-offset-4"
+        >
+          Zapier guide
         </Link>
       </p>
     </section>

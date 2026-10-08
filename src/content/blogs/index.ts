@@ -1,5 +1,7 @@
 import type { BlogPost, BlogPostMeta } from "./types";
 import LeadConversionTrackingPost from "./posts/lead-conversion-tracking";
+import TrackRevenueWithShortLinksPost from "./posts/track-revenue-with-short-links";
+import QrCodeAnalyticsPost from "./posts/qr-code-generator-with-analytics";
 import SlugyIntegrationsPost from "./posts/slugy-integrations";
 import SlugyVsBitlyPost from "./posts/slugy-vs-bitly";
 import SlugyVsDubPost from "./posts/slugy-vs-dub";
@@ -15,6 +17,26 @@ import SlugyVsBlinkPost from "./posts/slugy-vs-blink";
 const REFRESHED_ON = "2026-09-30";
 
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "track-revenue-with-short-links",
+    title: "How to use Slugy for revenue tracking",
+    description:
+      "Turn clicks into revenue: set up conversion tracking, connect Shopify and Zapier, and read revenue per short link.",
+    publishedAt: "2026-10-09",
+    author: { name: "Slugy" },
+    tags: ["revenue", "analytics", "guides"],
+    Content: TrackRevenueWithShortLinksPost,
+  },
+  {
+    slug: "qr-code-generator-with-analytics",
+    title: "Free QR code generator with analytics: track every scan",
+    description:
+      "Shorten first, generate second: create tracked QR codes with Slugy and measure scans, leads, and revenue per placement.",
+    publishedAt: "2026-10-09",
+    author: { name: "Slugy" },
+    tags: ["qr", "analytics", "guides"],
+    Content: QrCodeAnalyticsPost,
+  },
   {
     slug: "lead-conversion-tracking",
     title: "How to track lead conversions with Slugy",
