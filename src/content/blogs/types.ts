@@ -10,6 +10,8 @@ export interface BlogPostMeta {
     name: string;
   };
   tags: string[];
+  /** Optional Q&A rendered as a visible FAQ section plus FAQPage JSON-LD. */
+  faqs?: Array<{ q: string; a: string }>;
 }
 
 export interface BlogPost extends BlogPostMeta {

@@ -101,7 +101,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
     name: "Google Ads",
     title: "Google Ads UTM Builder — Tag Campaign URLs Correctly",
     description:
-      "Free Google Ads UTM builder with no login. Tag search, Performance Max and YouTube campaigns with utm_source=google, utm_medium=cpc and a keyword-aware utm_term.",
+      "Free Google Ads UTM builder, no login. Tag search, Performance Max and YouTube campaigns with utm_source=google, utm_medium=cpc and keyword-aware utm_term.",
     keywords: [
       "google ads utm builder",
       "google ads utm parameters",
@@ -187,7 +187,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
     name: "Meta",
     title: "Facebook & Instagram UTM Builder — Meta Ads Tracking",
     description:
-      "Free Meta ads UTM builder with no login. Tag Facebook and Instagram campaigns with utm_source, paid_social medium and creative-level utm_content for clean GA4 attribution.",
+      "Free Meta ads UTM builder, no login. Tag Facebook and Instagram campaigns with utm_source, paid_social medium and creative-level utm_content.",
     keywords: [
       "facebook utm builder",
       "instagram utm builder",
@@ -358,7 +358,7 @@ export const PLATFORM_PAGES: PlatformPage[] = [
     name: "LinkedIn",
     title: "LinkedIn UTM Builder — Tag LinkedIn Ads & Posts",
     description:
-      "Free LinkedIn UTM builder with no login. Tag LinkedIn campaign manager ads and organic posts with utm_source=linkedin, paid_social medium and audience-level utm_term.",
+      "Free LinkedIn UTM builder, no login. Tag LinkedIn ads and organic posts with utm_source=linkedin, paid_social medium and audience-level utm_term.",
     keywords: [
       "linkedin utm builder",
       "linkedin ads utm",

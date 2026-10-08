@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About Slugy — Open-Source Link Analytics",
   description:
     "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio, built in the open.",
   alternates: { canonical: "/about" },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "About | Slugy",
+    title: "About Slugy — Open-Source Link Analytics | Slugy",
     description:
       "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio.",
     url: "/about",
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "About | Slugy",
+    title: "About Slugy — Open-Source Link Analytics | Slugy",
     description:
       "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio.",
     images: ["https://files.slugy.co/slugy-og.png"],

@@ -259,3 +259,22 @@ Content-Type: application/json
     </article>
   );
 }
+
+export const SlugyIntegrationsFaqs = [
+  {
+    q: "Which integrations does Slugy support?",
+    a: "Slack for notifications and /shorten, signed webhooks for Zapier, Make, and Segment, revenue attribution for Polar and Shopify, and auto-shorten for WordPress.",
+  },
+  {
+    q: "Do integrations need a paid plan?",
+    a: "Lead events (lead.created) need Pro; revenue events (sale.created) need Growth. Click analytics and webhook configuration work on every plan.",
+  },
+  {
+    q: "How do Slugy webhooks stay secure?",
+    a: "Every delivery carries an HMAC-SHA256 signature over timestamp and body. Verify it and reject timestamps older than five minutes to block replays.",
+  },
+  {
+    q: "Where do I connect integrations?",
+    a: "In your workspace under Settings → Integrations. Slack connects with one click; webhooks need only a target URL and an event selection.",
+  },
+];

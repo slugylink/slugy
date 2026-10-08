@@ -1,13 +1,19 @@
 import type { BlogPost, BlogPostMeta } from "./types";
 import LeadConversionTrackingPost from "./posts/lead-conversion-tracking";
-import TrackRevenueWithShortLinksPost from "./posts/track-revenue-with-short-links";
-import QrCodeAnalyticsPost from "./posts/qr-code-generator-with-analytics";
-import SlugyIntegrationsPost from "./posts/slugy-integrations";
+import TrackRevenueWithShortLinksPost, {
+  TrackRevenueFaqs,
+} from "./posts/track-revenue-with-short-links";
+import QrCodeAnalyticsPost, {
+  QrCodeAnalyticsFaqs,
+} from "./posts/qr-code-generator-with-analytics";
+import SlugyIntegrationsPost, {
+  SlugyIntegrationsFaqs,
+} from "./posts/slugy-integrations";
 import SlugyVsBitlyPost from "./posts/slugy-vs-bitly";
 import SlugyVsDubPost from "./posts/slugy-vs-dub";
 import SlugyVsRebrandlyPost from "./posts/slugy-vs-rebrandly";
 import SlugyVsShortIoPost from "./posts/slugy-vs-short-io";
-import SlugyVsBlinkPost from "./posts/slugy-vs-blink";
+import SlugyVsBlinkPost, { SlugyVsBlinkFaqs } from "./posts/slugy-vs-blink";
 
 // Comparisons are published on their own cadence, spaced weeks apart, and each
 // one is re-checked against the competitor's public pricing pages on a schedule.
@@ -26,6 +32,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: { name: "Slugy" },
     tags: ["revenue", "analytics", "guides"],
     Content: TrackRevenueWithShortLinksPost,
+    faqs: TrackRevenueFaqs,
   },
   {
     slug: "qr-code-generator-with-analytics",
@@ -36,6 +43,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: { name: "Slugy" },
     tags: ["qr", "analytics", "guides"],
     Content: QrCodeAnalyticsPost,
+    faqs: QrCodeAnalyticsFaqs,
   },
   {
     slug: "lead-conversion-tracking",
@@ -50,15 +58,15 @@ export const BLOG_POSTS: BlogPost[] = [
   },
   {
     slug: "slugy-integrations",
-    title:
-      "Slugy integrations: Slack, Zapier, Polar, Shopify, WordPress and more",
+    title: "Slugy integrations: Slack, Zapier, Shopify, WordPress",
     description:
-      "Connect notifications, automation, and revenue attribution: Slack alerts and /shorten, signed webhooks for Zapier and Make, Polar and Shopify sales, and WordPress auto-shorten.",
+      "Connect Slack alerts, Zapier automation, and revenue attribution: signed webhooks for Make, Polar and Shopify sales, and WordPress auto-shorten.",
     publishedAt: "2026-10-05",
     updatedAt: "2026-10-05",
     author: { name: "Slugy" },
     tags: ["integrations", "guides", "automation"],
     Content: SlugyIntegrationsPost,
+    faqs: SlugyIntegrationsFaqs,
   },
   {
     slug: "slugy-vs-bitly",
@@ -114,6 +122,7 @@ export const BLOG_POSTS: BlogPost[] = [
     author: { name: "Slugy" },
     tags: ["comparison", "blink", "alternative"],
     Content: SlugyVsBlinkPost,
+    faqs: SlugyVsBlinkFaqs,
   },
 ];
 

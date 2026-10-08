@@ -5,16 +5,16 @@ import PricingDetailContent from "./detail-content";
 import { FREE_PLAN, PRO_PLAN, GROWTH_PLAN } from "@/constants/data/price";
 
 export const metadata: Metadata = {
-  title: "Pricing",
+  title: "Pricing — Short Links with Revenue Analytics",
   description:
-    "Simple pricing for Slugy — free branded short links with click analytics, Pro with lead conversion tracking, Growth with sales and revenue analytics. Custom domains, QR codes, bio pages and team collaboration. Start free.",
+    "Simple Slugy pricing: free branded short links, Pro with lead tracking, Growth with revenue analytics. Custom domains, QR codes, teams.",
   alternates: { canonical: "/pricing" },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Pricing | Slugy",
+    title: "Pricing — Short Links with Revenue Analytics | Slugy",
     description:
-      "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
+      "Free branded short links, Pro lead tracking, Growth revenue analytics — plus custom domains, QR codes, and teams.",
     url: "/pricing",
     images: [
       {
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pricing | Slugy",
+    title: "Pricing — Short Links with Revenue Analytics | Slugy",
     description:
-      "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
+      "Free branded short links, Pro lead tracking, Growth revenue analytics — plus custom domains, QR codes, and teams.",
     images: ["https://files.slugy.co/slugy-og.png"],
   },
 };

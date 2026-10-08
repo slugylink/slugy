@@ -123,6 +123,18 @@ export default async function BlogPostPage({ params }: PageProps) {
           },
         ],
       },
+      ...(post.faqs?.length
+        ? [
+            {
+              "@type": "FAQPage",
+              mainEntity: post.faqs.map((f) => ({
+                "@type": "Question",
+                name: f.q,
+                acceptedAnswer: { "@type": "Answer", text: f.a },
+              })),
+            },
+          ]
+        : []),
     ],
   };
 
@@ -179,6 +191,24 @@ export default async function BlogPostPage({ params }: PageProps) {
       </header>
 
       <Content />
+
+      {post.faqs && post.faqs.length > 0 && (
+        <section className="mt-12 border-t pt-8">
+          <h2 className="text-foreground text-xl font-semibold tracking-tight sm:text-2xl">
+            Frequently asked questions
+          </h2>
+          <div className="mt-6 space-y-6">
+            {post.faqs.map((f) => (
+              <div key={f.q}>
+                <h3 className="text-foreground text-base font-medium">{f.q}</h3>
+                <p className="text-muted-foreground mt-1 text-[15px] leading-7">
+                  {f.a}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }

@@ -77,7 +77,7 @@ export default function TrackRevenueWithShortLinksPost() {
       </Callout>
 
       <H2 id="why-clicks-are-not-enough">
-        Why traditional click tracking is not enough
+        Why isn&apos;t click tracking enough?
       </H2>
       <P>
         Two links can each earn 1,000 clicks while driving wildly different
@@ -175,7 +175,7 @@ export default function TrackRevenueWithShortLinksPost() {
         </li>
       </Ul>
 
-      <H2 id="analyze">Analyzing your revenue data</H2>
+      <H2 id="analyze">How do you read the revenue report?</H2>
       <P>
         Open <strong className="text-foreground">Analytics</strong> in your
         workspace and switch the metric from Clicks to Leads or Sales. Filter by
@@ -208,6 +208,22 @@ export default function TrackRevenueWithShortLinksPost() {
         </li>
       </Ul>
 
+      <H2 id="cost">How much does revenue tracking cost?</H2>
+      <P>
+        Click analytics are free forever. Lead conversion tracking is a Pro
+        feature at $8/mo; sales and revenue analytics are a Growth feature at
+        $29/mo. Both paid tiers include everything below them — custom domains,
+        QR codes, bio pages, and team workspaces — so the upgrade only ever buys
+        you deeper attribution, never the basics. See{" "}
+        <Link
+          href="/pricing"
+          className="text-foreground font-medium underline underline-offset-4"
+        >
+          pricing
+        </Link>{" "}
+        for exact link, click, and retention limits per plan.
+      </P>
+
       <H2 id="get-started">Get started</H2>
       <P>
         Create one tracking-enabled link today, wire the cookie snippet from the
@@ -231,3 +247,22 @@ export default function TrackRevenueWithShortLinksPost() {
     </article>
   );
 }
+
+export const TrackRevenueFaqs = [
+  {
+    q: "What is revenue tracking for short links?",
+    a: "Attributing leads and sales back to the exact short link that drove them, so each link reports conversions and dollars alongside clicks.",
+  },
+  {
+    q: "Do I need a paid plan to track revenue?",
+    a: "Click analytics work on every plan including free. Lead conversion tracking needs Pro; sales and revenue analytics need Growth.",
+  },
+  {
+    q: "How does Slugy connect a sale to a click?",
+    a: "Clicks on tracking-enabled links carry a slugy_id click id. Your site persists it in a first-party cookie and posts it back from your server when the visitor converts.",
+  },
+  {
+    q: "Which integrations support revenue attribution?",
+    a: "Shopify via a web pixel and order API, Polar via checkout metadata, and Zapier, Make, or Segment via signed webhooks for lead.created and sale.created events.",
+  },
+];

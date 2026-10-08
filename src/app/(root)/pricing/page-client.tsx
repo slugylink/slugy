@@ -9,10 +9,12 @@ export default function PricingPageClient() {
       <MaxWidthContainer>
         <div className="mb-20 text-center">
           <h1 className="text-2xl font-medium text-balance sm:text-4xl">
-            Flexible Pricing for Everyone
+            Simple pricing for short links that track revenue
           </h1>
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
-            Pick a plan that fits your needs. Upgrade anytime.
+            Slugy is a URL shortener with click, lead, and revenue analytics.
+            Free branded short links on every plan — Pro adds lead conversion
+            tracking, Growth adds sales analytics. Upgrade anytime.
           </p>
         </div>
 

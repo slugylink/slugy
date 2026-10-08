@@ -40,7 +40,7 @@ const heroData = {
   subheading1: (
     <>
       Short links, custom domains, UTM tracking and click-to-revenue analytics —
-      all in one open-source toolkit.
+      all in one open-source URL shortener toolkit.
     </>
   ),
 } as const;

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getAllPosts } from "@/content/blogs";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Blog — Link Analytics & Conversion Guides",
   description:
     "Guides and product updates from Slugy — link analytics, lead conversion tracking, and building with short links.",
   robots: { index: true, follow: true },
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Blog | Slugy",
+    title: "Blog — Link Analytics & Conversion Guides | Slugy",
     description:
       "Guides and product updates from Slugy — analytics, lead conversion, and short links.",
     url: "/blogs",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Blog | Slugy",
+    title: "Blog — Link Analytics & Conversion Guides | Slugy",
     description:
       "Guides and product updates from Slugy — analytics, lead conversion, and short links.",
     images: [

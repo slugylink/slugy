@@ -109,6 +109,26 @@ export default function RedirectCheckerPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <RedirectCheckerClient />
+      <section className="mx-auto max-w-3xl px-4 pt-4 pb-2">
+        <h2 className="text-xl font-medium">
+          When should you check a redirect chain?
+        </h2>
+        <p className="text-muted-foreground mt-3 text-sm leading-7">
+          Trace any shortened or affiliate link before it goes into ads, emails,
+          or QR codes: long chains slow down visitors, dilute SEO equity, and
+          occasionally land somewhere unexpected. A clean short link resolves in
+          one hop with its campaign tags forwarded intact — which is exactly
+          what Slugy short links do. If a chain looks wrong, rebuild the
+          destination with the{" "}
+          <a
+            href="/tools/utm-builder"
+            className="font-medium underline underline-offset-4"
+          >
+            UTM builder
+          </a>{" "}
+          and re-shorten it.
+        </p>
+      </section>
       <section className="mx-auto max-w-3xl px-4 pb-16">
         <h2 className="text-xl font-medium">Redirect checker FAQ</h2>
         <div className="mt-4 space-y-4">

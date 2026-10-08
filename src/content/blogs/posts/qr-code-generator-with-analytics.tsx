@@ -84,6 +84,22 @@ export default function QrCodeAnalyticsPost() {
         per-placement scan counts instead of one blended number.
       </P>
 
+      <H2 id="account">Do I need an account to track scans?</H2>
+      <P>
+        Generating the QR image itself needs nothing — the{" "}
+        <Link
+          href="/tools/qr-code-generator"
+          className="text-foreground font-medium underline underline-offset-4"
+        >
+          QR generator
+        </Link>{" "}
+        runs free with no login. Measurement is what needs the account: the
+        short link behind the code must live in a Slugy workspace so scans have
+        somewhere to report to. The free workspace covers branded links and
+        click-level scan analytics; lead attribution is Pro and revenue
+        attribution is Growth, exactly as with any other short link.
+      </P>
+
       <H2 id="step-by-step">Step by step: tracked QR codes</H2>
       <Ol>
         <li>
@@ -199,3 +215,22 @@ export default function QrCodeAnalyticsPost() {
     </article>
   );
 }
+
+export const QrCodeAnalyticsFaqs = [
+  {
+    q: "How do I track QR code scans?",
+    a: "Create a Slugy short link first, then generate the QR code from that short URL. Every scan registers as a click with device, country, and referrer data in your link analytics.",
+  },
+  {
+    q: "Is the QR code generator really free?",
+    a: "Yes — no account, no watermark, unlimited generation, rendered locally in your browser. Link analytics for scans need a free Slugy workspace.",
+  },
+  {
+    q: "Can tracked QR codes attribute sales?",
+    a: "Yes. Turn on lead tracking (Pro) or add sale attribution (Growth) on the underlying short link, and scans attribute signups and revenue like any other click.",
+  },
+  {
+    q: "Why use one QR code per placement?",
+    a: "Separate codes for packaging, posters, and events report scans per placement instead of one blended number, so you can compare which placement actually converted.",
+  },
+];

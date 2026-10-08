@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Integrate Shopify with Slugy — Attribute Revenue to Short Links",
+  title: "Integrate Shopify with Slugy — Revenue Attribution",
   description:
-    "Step-by-step guide to integrate Shopify with Slugy: capture slugy_click_id with a web pixel, post orders to Slugy, and track link conversions and revenue per short link.",
+    "Integrate Shopify with Slugy: capture slugy_click_id with a web pixel, post orders to Slugy, and track revenue per short link.",
   keywords: [
     "integrate Shopify with URL shortener",
     "Shopify URL shortener integration",
@@ -241,6 +241,10 @@ Content-Type: application/json
             <Link href="/integrations">All integrations</Link>
           </Button>
         </div>
+        <p className="text-muted-foreground mt-6 text-sm leading-7">
+          Bottom line: one web pixel plus one order POST turns every Shopify
+          checkout into revenue attributed to the short link behind it.
+        </p>
       </section>
     </main>
   );

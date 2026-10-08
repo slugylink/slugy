@@ -2,12 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { QrCode, Link2, ArrowRight, Eraser, Route } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Free Marketing Tools — QR Generator & UTM Builder",
@@ -134,9 +129,8 @@ export default function ToolsPage() {
           Free tools for links that get clicked
         </h1>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-base">
-          Four keyword-magnet utilities, embedded right in Slugy. Generate QR
-          codes, build or strip UTM-tagged campaign URLs, and trace redirects in
-          seconds.
+          Four free utilities, embedded right in Slugy: generate QR codes, build
+          or strip UTM-tagged campaign URLs, and trace redirects in seconds.
         </p>
       </section>
 
@@ -153,10 +147,10 @@ export default function ToolsPage() {
                     {tool.badge}
                   </Badge>
                 </div>
-                <CardTitle className="flex items-center gap-2 text-lg">
+                <h2 className="flex items-center gap-2 text-lg leading-none font-medium">
                   {tool.title}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                </CardTitle>
+                </h2>
                 <CardDescription className="text-sm leading-relaxed">
                   {tool.description}
                 </CardDescription>

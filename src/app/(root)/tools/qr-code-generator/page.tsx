@@ -109,6 +109,28 @@ export default function QrCodeGeneratorPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <QrGeneratorClient faqs={FAQ} />
+      <section className="mx-auto max-w-3xl px-4 pb-4">
+        <h2 className="text-xl font-medium">
+          Why generate QR codes from short links?
+        </h2>
+        <p className="text-muted-foreground mt-3 text-sm leading-7">
+          A QR code is only as useful as the URL inside it. Pasting a long
+          destination produces a dense code that scans poorly at small sizes —
+          and tells you nothing afterwards. Generate the code from a Slugy short
+          link instead: the code stays simple, you can repoint the destination
+          without reprinting, and every scan shows up in your link analytics
+          with device and country breakdowns. One code per placement (packaging,
+          poster, event badge) keeps scan counts comparable. The full method is
+          covered in{" "}
+          <a
+            href="/blogs/qr-code-generator-with-analytics"
+            className="font-medium underline underline-offset-4"
+          >
+            the QR analytics guide
+          </a>
+          .
+        </p>
+      </section>
     </main>
   );
 }

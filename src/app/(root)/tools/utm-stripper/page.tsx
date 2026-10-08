@@ -4,7 +4,7 @@ import UtmStripperClient from "./stripper-client";
 export const metadata: Metadata = {
   title: "Free UTM Stripper — Remove UTM Parameters & Click IDs",
   description:
-    "Free UTM remover with no login. Strip utm_source, medium, campaign, term, content and ad click IDs (gclid, fbclid) from any URL — runs privately in your browser.",
+    "Free UTM remover, no login. Strip utm_source, medium, campaign, term, content and ad click IDs (gclid, fbclid) from any URL — private, in-browser.",
   keywords: [
     "utm stripper",
     "remove utm parameters",
@@ -106,6 +106,23 @@ export default function UtmStripperPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <UtmStripperClient />
+      <section className="mx-auto max-w-3xl px-4 pt-4 pb-2">
+        <h2 className="text-xl font-medium">When should you strip UTMs?</h2>
+        <p className="text-muted-foreground mt-3 text-sm leading-7">
+          Strip before sharing a link publicly or re-tagging a campaign: stale
+          tags would otherwise pollute your new reports with the old
+          campaign&apos;s name. Stripping never breaks the destination — UTMs
+          and click IDs are analytics metadata, and the page loads identically
+          without them. Once clean, build fresh tags with the{" "}
+          <a
+            href="/tools/utm-builder"
+            className="font-medium underline underline-offset-4"
+          >
+            UTM builder
+          </a>{" "}
+          and shorten the result with Slugy so every click attributes correctly.
+        </p>
+      </section>
       <section className="mx-auto max-w-3xl px-4 pb-16">
         <h2 className="text-xl font-medium">UTM stripper FAQ</h2>
         <div className="mt-4 space-y-4">

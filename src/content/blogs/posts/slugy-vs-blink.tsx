@@ -12,6 +12,25 @@ import {
   Ul,
 } from "./_compare";
 
+export const SlugyVsBlinkFaqs = [
+  {
+    q: "Should I choose BL.INK or Slugy?",
+    a: "Choose BL.INK if compliance review, SSO, audit logs, and a contract are requirements. Choose Slugy if you want analytics depth, QR codes, bio pages, and conversion tracking without an enterprise sales cycle.",
+  },
+  {
+    q: "Does Slugy offer SSO or compliance documentation?",
+    a: "No. Slugy has no SSO, SCIM, audit log, or contractual SLA. Its codebase is public, which makes an internal review easier, but that is not a compliance attestation.",
+  },
+  {
+    q: "How much does Slugy cost compared to BL.INK?",
+    a: "Slugy starts free, with Pro at $8/mo for lead tracking and Growth at $29/mo for revenue analytics. BL.INK does not publish list pricing and sells through enterprise engagement.",
+  },
+  {
+    q: "Can I migrate from BL.INK to Slugy?",
+    a: "Yes: export links to CSV, reconnect your domain with the guided DNS setup, and import. Colliding slugs are regenerated — reconcile the report before sending live traffic.",
+  },
+];
+
 export default function SlugyVsBlinkPost() {
   return (
     <article className="prose-slugy">
@@ -37,7 +56,9 @@ export default function SlugyVsBlinkPost() {
 
       <Disclosure />
 
-      <H2 id="what-blink-does-better">What BL.INK does better</H2>
+      <H2 id="what-blink-does-better">
+        What does BL.INK do better than Slugy?
+      </H2>
       <Ul>
         <li>
           <strong className="text-foreground">Compliance posture</strong> — SOC
@@ -136,7 +157,7 @@ export default function SlugyVsBlinkPost() {
         </li>
       </Ul>
 
-      <H2 id="migrating">Migrating from BL.INK to Slugy</H2>
+      <H2 id="migrating">How do I migrate from BL.INK to Slugy?</H2>
       <Steps
         items={[
           <>

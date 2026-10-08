@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 export const metadata: Metadata = {
   title: "Integrate Zapier with Slugy — Automate Leads & Sales",
   description:
-    "Step-by-step guide to integrate Zapier with Slugy: forward lead.created and sale.created webhooks to a catch hook, verify signatures, and trigger 7,000+ app workflows.",
+    "Integrate Zapier with Slugy: forward lead and sale webhooks to a catch hook and trigger 7,000+ app workflows — no code.",
   keywords: [
     "Zapier URL shortener integration",
     "integrate Zapier with short links",
@@ -228,6 +228,10 @@ content-type: application/json
             <Link href="/integrations">All integrations</Link>
           </Button>
         </div>
+        <p className="text-muted-foreground mt-6 text-sm leading-7">
+          Bottom line: paste one webhook URL and every lead and sale flows into
+          the 7,000+ apps Zapier connects — no code, no servers.
+        </p>
       </section>
     </main>
   );

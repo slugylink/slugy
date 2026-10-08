@@ -6,10 +6,9 @@ import CompareTable from "../../_components/compare-table";
 import Faq from "../../_components/faq";
 
 export const metadata: Metadata = {
-  title:
-    "Best Bitly Alternative in 2026 — Branded Links Without Enterprise Pricing",
+  title: "Best Bitly Alternative in 2026 — No Enterprise Pricing",
   description:
-    "The best Bitly alternative for teams: free branded links, custom domains, QR codes, bio pages, and conversion tracking — plus CSV migration from Bitly in minutes.",
+    "The best Bitly alternative for teams: branded links, custom domains, QR codes, bio pages, and conversion tracking — plus CSV migration in minutes.",
   keywords: [
     "bitly alternative",
     "best bitly alternative",
@@ -125,8 +124,9 @@ export default function BitlyAlternativePage() {
           The best Bitly alternative without the enterprise price tag
         </h1>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-lg">
-          Branded links, QR codes, bio pages, and conversion tracking — free to
-          start, open source, no sales call.
+          Slugy is the open-source URL shortener for teams: branded links, QR
+          codes, bio pages, and conversion tracking — free to start, no sales
+          call.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg">
@@ -242,6 +242,10 @@ export default function BitlyAlternativePage() {
         <h2 className="text-2xl font-medium text-balance sm:text-4xl">
           Ready to leave per-link limits behind?
         </h2>
+        <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-base">
+          Switch in minutes: custom domains from day one, revenue analytics on
+          every link, and CSV migration from Bitly included.
+        </p>
         <div className="mt-8">
           <Button asChild size="lg">
             <Link href="https://app.slugy.co/signup">
