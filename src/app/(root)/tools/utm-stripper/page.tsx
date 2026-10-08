@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/tools/utm-stripper" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Free UTM Stripper — Clean URLs in One Click",
     description:
       "Remove UTM parameters and ad click IDs from any URL. Private, instant, no login.",

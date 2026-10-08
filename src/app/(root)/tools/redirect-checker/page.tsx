@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/tools/redirect-checker" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Free Redirect Checker — See Every Hop",
     description:
       "Trace any link's redirect chain with status codes. Verify short links and campaign URLs. No login.",

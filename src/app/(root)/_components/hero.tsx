@@ -25,7 +25,8 @@ const heroData = {
           src={"/icons/star.svg"}
           width={50}
           height={50}
-          alt="Short links with powerful analytics highlight"
+          alt=""
+          aria-hidden="true"
           priority
           fetchPriority="high"
           sizes="(max-width: 640px) 32px, 50px"

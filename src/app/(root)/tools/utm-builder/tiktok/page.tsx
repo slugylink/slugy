@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   keywords: page.keywords,
   alternates: { canonical: `/tools/utm-builder/${page.slug}` },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: page.title,
     description: page.description,
     url: `/tools/utm-builder/${page.slug}`,

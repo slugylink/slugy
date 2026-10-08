@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/integrations/zapier" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Integrating Slugy with Zapier — Step-by-Step Guide",
     description:
       "Trigger 7,000+ app workflows on every lead or sale. Signed webhooks, no glue code.",

@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/alternative/bitly" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Best Bitly Alternative in 2026 | Slugy",
     description:
       "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",

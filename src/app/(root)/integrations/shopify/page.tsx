@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/integrations/shopify" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Integrating Slugy with Shopify — Step-by-Step Guide",
     description:
       "Tie Shopify orders back to the short links that drove them. Web pixel to sale attribution in minutes.",

@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   robots: { index: true, follow: true },
   alternates: { canonical: "/blogs" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Blog | Slugy",
     description:
       "Guides and product updates from Slugy — analytics, lead conversion, and short links.",

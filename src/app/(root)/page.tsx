@@ -7,6 +7,8 @@ import { MotionProvider, Reveal } from "./_components/reveal";
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Slugy — Short Links That Track Revenue, Not Just Clicks",
     description:
       "Open-source link analytics that tracks revenue, not just clicks. Branded short links, custom domains, QR codes and a free UTM builder — no enterprise pricing.",

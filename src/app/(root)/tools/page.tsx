@@ -15,6 +15,8 @@ export const metadata: Metadata = {
     "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM Builder with validation, presets and one-click copy.",
   alternates: { canonical: "/tools" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Free Marketing Tools — QR Generator & UTM Builder | Slugy",
     description:
       "Free no-login tools: QR code generator with custom colors and PNG/SVG export, plus a UTM Builder with validation, presets and one-click copy.",

@@ -8,6 +8,8 @@ export const metadata: Metadata = {
     "Connect a custom domain to Slugy for branded short links with automatic SSL, guided DNS setup, and link analytics.",
   alternates: { canonical: "/custom-domain" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Custom Domain - Powered by Slugy",
     description:
       "Connect a custom domain to Slugy for branded short links with automatic SSL and analytics.",

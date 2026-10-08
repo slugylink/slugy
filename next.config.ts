@@ -57,6 +57,14 @@ const nextConfig: import("next").NextConfig = {
 
   async redirects() {
     return [
+      // www → apex: without this, www.slugy.co serves the custom-domain
+      // parked page instead of the site (duplicate thin content).
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.slugy.co" }],
+        destination: "https://slugy.co/:path*",
+        permanent: true,
+      },
       {
         source: "/onboarding",
         destination: "/onboarding/welcome",

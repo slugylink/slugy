@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio, built in the open.",
   alternates: { canonical: "/about" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "About | Slugy",
     description:
       "Slugy is an open-source link management platform — branded short links, analytics, QR codes, and link-in-bio.",

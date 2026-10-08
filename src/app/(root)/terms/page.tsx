@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     "The terms for using Slugy — acceptable use, plans and billing, rate limits, availability, and liability.",
   alternates: { canonical: "/terms" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Terms of Service | Slugy",
     description:
       "The terms for using Slugy — acceptable use, plans and billing, rate limits, availability, and liability.",

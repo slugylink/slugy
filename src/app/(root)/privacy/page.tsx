@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     "How Slugy collects, uses, and protects data — accounts, links, click analytics, cookies, and third-party processors.",
   alternates: { canonical: "/privacy" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Privacy Policy | Slugy",
     description:
       "How Slugy collects, uses, and protects data — accounts, links, click analytics, cookies, and processors.",

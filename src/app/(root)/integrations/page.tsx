@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/integrations" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Slugy Integrations — Shopify, Zapier, Slack & More",
     description:
       "Notifications where your team works, automation without glue code, and revenue attribution for every checkout.",

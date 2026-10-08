@@ -7,6 +7,8 @@ export const metadata: Metadata = {
     "Meet the sponsors and supporters behind Slugy, the open-source URL shortener. Learn how companies help us build better link management tools.",
   alternates: { canonical: "/sponsors" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Sponsors | Slugy",
     description:
       "Meet the sponsors and supporters behind Slugy, the open-source URL shortener.",

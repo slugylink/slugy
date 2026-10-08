@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/tools/utm-builder" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Free UTM Builder — Campaign URL Builder for GA4",
     description:
       "Build clean, validated campaign URLs in seconds. Presets, encoding and copy included — no login.",

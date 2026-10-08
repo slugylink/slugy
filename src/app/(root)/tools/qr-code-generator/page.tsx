@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/tools/qr-code-generator" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Free QR Code Generator — Custom Colors, PNG & SVG Download",
     description:
       "Create custom QR codes in seconds. No login, no watermark. Download PNG or SVG.",

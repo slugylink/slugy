@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     "Simple pricing for Slugy — free branded short links with click analytics, Pro with lead conversion tracking, Growth with sales and revenue analytics. Custom domains, QR codes, bio pages and team collaboration. Start free.",
   alternates: { canonical: "/pricing" },
   openGraph: {
+    type: "website",
+    siteName: "Slugy",
     title: "Pricing | Slugy",
     description:
       "Simple pricing for Slugy — URL shortener plans with analytics, bio links, and custom domains.",
