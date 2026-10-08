@@ -1,5 +1,5 @@
 import { tb } from "@/constants/tinybird";
-import { ingestTinybirdEvent } from "@/lib/tinybird/http";
+import { enqueueTinybirdEvent } from "@/lib/tinybird/outbox";
 
 export interface LinkMetadata {
   link_id: string;
@@ -24,7 +24,7 @@ interface LinkData {
 }
 
 export async function sendLinkMetadata(event: LinkMetadata) {
-  await ingestTinybirdEvent(tb.links_metadata, {
+  await enqueueTinybirdEvent(tb.links_metadata, {
     ...event,
     deleted: event.deleted ?? 0,
     timestamp: event.timestamp ?? new Date().toISOString(),
@@ -33,7 +33,7 @@ export async function sendLinkMetadata(event: LinkMetadata) {
 
 export async function deleteLink(link: LinkData) {
   try {
-    await ingestTinybirdEvent(tb.links_metadata, {
+    await enqueueTinybirdEvent(tb.links_metadata, {
       link_id: link.id,
       domain: link.domain ?? "slugy.co",
       slug: link.slug,
@@ -51,7 +51,7 @@ export async function deleteLink(link: LinkData) {
 
 export async function updateLink(link: LinkData) {
   try {
-    await ingestTinybirdEvent(tb.links_metadata, {
+    await enqueueTinybirdEvent(tb.links_metadata, {
       link_id: link.id,
       domain: link.domain ?? "slugy.co",
       slug: link.slug,

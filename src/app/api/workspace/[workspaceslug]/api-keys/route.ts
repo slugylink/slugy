@@ -8,7 +8,7 @@ import {
   generateApiKey,
   hashApiKey,
 } from "@/lib/api-keys/generate";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 import { canUseLeadTracking } from "@/lib/subscription/entitlements";
 
 const createKeySchema = z.object({

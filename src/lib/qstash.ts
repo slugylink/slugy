@@ -76,13 +76,13 @@ export async function createAnalyticsBatchSchedule() {
     assertQstashConfig();
     await getClient().schedules.create({
       destination: `${getCronBaseUrl()}/api/analytics/batch`,
-      cron: "0 */4 * * *", // Every 4 hours
+      cron: "*/5 * * * *", // Every five minutes
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        maxBatchSize: 1000, // Process up to 1000 events per batch
+        maxBatchSize: 5000,
       }),
     });
     console.log("Analytics batch processing schedule created successfully");

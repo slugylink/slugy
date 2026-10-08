@@ -43,16 +43,15 @@ export async function createLinkWithQuota<T>(
 ): Promise<T> {
   const maxAttempts = input.customSlug ? 1 : (input.maxAttempts ?? 5);
 
-  const usage = await ensureCurrentUsageRecord(db, {
-    workspaceId: input.workspaceId,
-    userId: input.ownerUserId,
-  });
-
   let lastError: unknown = null;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const slug = input.customSlug ?? generateRandomSlug();
     try {
       return await db.$transaction(async (tx) => {
+        const usage = await ensureCurrentUsageRecord(tx, {
+          workspaceId: input.workspaceId,
+          userId: input.ownerUserId,
+        });
         const rows = await tx.$queryRaw<
           Array<{ id: string; linksCreated: number }>
         >`SELECT id, "linksCreated" FROM "usages" WHERE id = ${usage.id} AND "deletedAt" IS NULL FOR UPDATE`;

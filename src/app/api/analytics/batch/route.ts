@@ -1,3 +1,5 @@
+import { retryTinybirdEvents } from "@/lib/tinybird/outbox";
+import { createHash } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/server/db";
 import { z } from "zod";
@@ -15,12 +17,7 @@ import { withCronAuth } from "@/lib/cron-auth";
 const BATCH_PROCESS = 5000;
 const MAX_PROCESS_ALL = 20000; // Max events to process in one go
 
-/**
- * Stores one batch idempotently. Returns the stored events' index keys so
- * the caller removes exactly what landed. Retries are safe: already-stored
- * clickIds are skipped (Analytics has no unique constraint on clickId, so
- * `skipDuplicates` alone is a no-op — this explicit check is the dedupe).
- */
+// Unique click IDs make overlapping batches and retries idempotent.
 async function storeBatch(
   batch: CachedAnalyticsData[],
   batchKeys: string[],
@@ -45,34 +42,16 @@ async function storeBatch(
         );
       }
 
-      // Idempotency: skip clickIds already stored (retry-safe without a
-      // DB unique constraint; add @@unique([clickId]) to skip this read).
-      const clickIds = [
-        ...new Set(
-          indexed.map(({ event }) => event.clickId).filter(Boolean) as string[],
-        ),
-      ];
-      const alreadyStored = new Set<string>();
-      if (clickIds.length > 0) {
-        const rows = await tx.analytics.findMany({
-          where: { clickId: { in: clickIds } },
-          select: { clickId: true },
-        });
-        for (const row of rows) {
-          if (row.clickId) alreadyStored.add(row.clickId);
-        }
-      }
-
-      const fresh = indexed.filter(
-        ({ event }) => !event.clickId || !alreadyStored.has(event.clickId),
-      );
-
-      if (fresh.length > 0) {
-        await tx.analytics.createMany({
-          data: fresh.map(({ event }) => ({
+      let count = 0;
+      if (indexed.length > 0) {
+        const result = await tx.analytics.createMany({
+          skipDuplicates: true,
+          data: indexed.map(({ event, key }) => ({
             linkId: event.linkId,
             clickedAt: new Date(event.timestamp),
-            clickId: event.clickId,
+            clickId:
+              event.clickId ||
+              `legacy:${createHash("sha256").update(key).digest("hex")}`,
             ipAddress: event.ipAddress?.substring(0, 45),
             country: event.country?.substring(0, 100),
             city: event.city?.substring(0, 100),
@@ -93,9 +72,10 @@ async function storeBatch(
             utm_content: event.utm_content,
           })),
         });
+        count = result.count;
       }
-
-      return { count: fresh.length, keys: fresh.map(({ key }) => key) };
+      // Also acknowledge duplicates and events whose links were deleted.
+      return { count, keys: batchKeys };
     },
     {
       timeout: 60000, // 60 second timeout for batch
@@ -108,6 +88,7 @@ async function storeBatch(
 const batchProcessSchema = z.object({
   maxBatchSize: z
     .number()
+    .int()
     .min(1)
     .max(MAX_PROCESS_ALL)
     .optional()
@@ -150,6 +131,16 @@ async function handler(req: NextRequest) {
     }
 
     const { maxBatchSize, dryRun, processAll } = validationResult.data;
+    // Complete the database backfill even if Tinybird is unavailable.
+    let deliveryFailed = false;
+    if (!dryRun) {
+      try {
+        await retryTinybirdEvents();
+      } catch (error) {
+        deliveryFailed = true;
+        console.error("Tinybird retry failed", error);
+      }
+    }
 
     console.log(
       `Starting analytics batch processing (dryRun: ${dryRun}, maxBatchSize: ${maxBatchSize}, processAll: ${processAll})`,
@@ -180,12 +171,15 @@ async function handler(req: NextRequest) {
 
     if (eventKeys.length === 0) {
       console.log("No cached analytics events to process");
-      return NextResponse.json({
-        success: true,
-        message: "No analytics events to process",
-        processedCount: 0,
-        cachedCount: 0,
-      });
+      return NextResponse.json(
+        {
+          success: !deliveryFailed,
+          message: "No analytics events to process",
+          processedCount: 0,
+          cachedCount: 0,
+        },
+        { status: deliveryFailed ? 503 : 200 },
+      );
     }
 
     let paired: KeyedAnalyticsEvent[];
@@ -214,7 +208,11 @@ async function handler(req: NextRequest) {
         console.warn(`Invalid event at index ${index}: not an object`);
         return false;
       }
-      if (!event.linkId || !event.timestamp) {
+      if (
+        !event.linkId ||
+        !event.timestamp ||
+        !Number.isFinite(Date.parse(event.timestamp))
+      ) {
         console.warn(
           `Invalid event at index ${index}: missing required fields`,
         );
@@ -223,18 +221,8 @@ async function handler(req: NextRequest) {
       return true;
     });
 
-    // In-batch clickId dedupe (same click re-cached twice keeps first).
-    const seenClickIds = new Set<string>();
-    const deduped = keyedValid.filter(({ event }) => {
-      if (!event.clickId) return true;
-      if (seenClickIds.has(event.clickId)) return false;
-      seenClickIds.add(event.clickId);
-      return true;
-    });
-
-    const validEvents = deduped.map(({ event }) => event);
-    const validKeys = deduped.map(({ key }) => key);
-
+    const validEvents = keyedValid.map(({ event }) => event);
+    const validKeys = keyedValid.map(({ key }) => key);
     if (validEvents.length !== paired.length) {
       console.warn(
         `Filtered out ${paired.length - validEvents.length} invalid/duplicate events`,
@@ -257,7 +245,9 @@ async function handler(req: NextRequest) {
     let successCount = 0;
     let errorCount = 0;
     const errors: string[] = [];
-    const processedEventKeys: string[] = [];
+    const processedEventKeys: string[] = paired
+      .filter(({ key }) => !validKeys.includes(key))
+      .map(({ key }) => key);
 
     for (let i = 0; i < validEvents.length; i += BATCH_SIZE) {
       const batch = validEvents.slice(i, i + BATCH_SIZE);
@@ -307,15 +297,18 @@ async function handler(req: NextRequest) {
       `Batch processing completed: ${successCount} successful, ${errorCount} errors, ${remainingCount} remaining`,
     );
 
-    const response = NextResponse.json({
-      success: true,
-      message: "Batch processing completed",
-      processedCount: successCount,
-      errorCount,
-      cachedCount: eventKeys.length,
-      remainingCount,
-      errors: errors.length > 0 ? errors : undefined,
-    });
+    const response = NextResponse.json(
+      {
+        success: errorCount === 0 && !deliveryFailed,
+        message: "Batch processing completed",
+        processedCount: successCount,
+        errorCount,
+        cachedCount: eventKeys.length,
+        remainingCount,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+      { status: errorCount > 0 || deliveryFailed ? 503 : 200 },
+    );
 
     response.headers.set("Cache-Control", "no-store");
     return response;

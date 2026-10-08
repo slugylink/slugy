@@ -26,47 +26,23 @@ export interface CachedAnalyticsData {
 }
 
 const ANALYTICS_ZSET_KEY = "analytics:batch";
-const ANALYTICS_TTL = 60 * 60 * 24; // 24 hours TTL for safety
-
-/**
- * Store analytics event in Redis ZSET for batch processing
- */
+/** Persist payload and index atomically; retain until the batch acknowledges it. */
 export async function cacheAnalyticsEvent(
   data: CachedAnalyticsData,
 ): Promise<void> {
-  try {
-    const timestamp = new Date(data.timestamp).getTime();
-    const eventId = `${timestamp}:${Math.random().toString(36).substr(2, 9)}`;
-    const eventKey = `analytics:event:${eventId}`;
-
-    await redis.set(eventKey, JSON.stringify(data), { ex: ANALYTICS_TTL });
-
-    try {
-      await redis.zadd(ANALYTICS_ZSET_KEY, {
-        score: timestamp,
-        member: eventKey,
-      });
-    } catch (zsetError: unknown) {
-      if (
-        zsetError instanceof Error &&
-        zsetError.message?.includes("WRONGTYPE")
-      ) {
-        console.log("Migrating analytics cache from SET to ZSET...");
-        await redis.del(ANALYTICS_ZSET_KEY); // Clear old SET
-        await redis.zadd(ANALYTICS_ZSET_KEY, {
-          score: timestamp,
-          member: eventKey,
-        });
-        console.log("Migration completed successfully");
-      } else {
-        throw zsetError;
-      }
-    }
-
-    // console.log(`Cached analytics event: ${eventKey} (score: ${timestamp})`);
-  } catch (error) {
-    console.error("Failed to cache analytics event:", error);
-  }
+  const timestamp = new Date(data.timestamp).getTime();
+  const eventKey = `analytics:event:${crypto.randomUUID()}`;
+  await redis.eval(
+    `
+    local kind = redis.call('TYPE', KEYS[2]).ok
+    if kind ~= 'none' and kind ~= 'zset' then return redis.error_reply('Invalid analytics index type') end
+    redis.call('SET', KEYS[1], ARGV[1])
+    redis.call('ZADD', KEYS[2], ARGV[2], KEYS[1])
+    return 1
+  `,
+    [eventKey, ANALYTICS_ZSET_KEY],
+    [JSON.stringify(data), timestamp],
+  );
 }
 
 /**

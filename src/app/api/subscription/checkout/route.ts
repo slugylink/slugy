@@ -1,3 +1,4 @@
+import { getPolarServer } from "@/lib/polar-config";
 import { auth } from "@/lib/auth";
 import { Checkout } from "@polar-sh/nextjs";
 import { headers } from "next/headers";
@@ -9,8 +10,7 @@ import {
   shouldApplyCheckoutPromo,
 } from "@/lib/subscription/promo";
 
-const POLAR_MODE =
-  (process.env.POLAR_MODE as "sandbox" | "production") || "sandbox";
+const POLAR_MODE = getPolarServer();
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 const DEFAULT_SUCCESS_URL = IS_PRODUCTION
   ? "https://app.slugy.co/"
@@ -37,24 +37,23 @@ function parseProductIds(productsParam: string | null): string[] {
 
 // Add customer information to URL params
 function addCustomerParams(url: URL, user: UserData): void {
-  if (!url.searchParams.has("customerExternalId")) {
-    url.searchParams.set("customerExternalId", user.id);
+  for (const key of [
+    "customerId",
+    "customerExternalId",
+    "customerEmail",
+    "customerName",
+    "customerMetadata",
+  ]) {
+    url.searchParams.delete(key);
   }
-
-  if (user.email && !url.searchParams.has("customerEmail")) {
-    url.searchParams.set("customerEmail", user.email);
-  }
-
-  if (user.name && !url.searchParams.has("customerName")) {
-    url.searchParams.set("customerName", user.name);
-  }
+  url.searchParams.set("customerExternalId", user.id);
+  if (user.customerId) url.searchParams.set("customerId", user.customerId);
+  if (user.email) url.searchParams.set("customerEmail", user.email);
+  if (user.name) url.searchParams.set("customerName", user.name);
 }
 
-// Add metadata with userId for webhook processing
 function addMetadata(url: URL, userId: string): void {
-  if (!url.searchParams.has("metadata")) {
-    url.searchParams.set("metadata", JSON.stringify({ userId }));
-  }
+  url.searchParams.set("metadata", JSON.stringify({ userId }));
 }
 
 // Convert comma-separated products param to multiple query params

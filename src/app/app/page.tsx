@@ -19,8 +19,6 @@ export default async function App() {
 
   const { session } = authResult;
 
-  // The cookie can hold the PREVIOUS account's slug after logout/login —
-  // only honor it when the current user can access it.
   const cookieSlug = parseWorkspaceSlug(
     (await cookies()).get(WORKSPACE_COOKIE_NAME)?.value,
   );
@@ -29,11 +27,8 @@ export default async function App() {
     if (validation.success && validation.workspace) {
       redirect(`/${cookieSlug}`);
     }
-    // Stale/foreign slug: fall through to this user's workspace below.
   }
 
-  // Owned default → oldest owned → oldest member workspace. Invited-only
-  // users land in their shared workspace instead of onboarding.
   const defaultWorkspace = await getRedirectWorkspace(session.user.id);
 
   if (!defaultWorkspace.success || !defaultWorkspace.workspace) {

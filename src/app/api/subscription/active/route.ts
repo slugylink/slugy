@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getActiveSubscription } from "@/server/actions/subscription";
+import { getActiveSubscription } from "@/lib/subscription/queries";
 import { jsonWithETag } from "@/lib/http";
 import { db } from "@/server/db";
 import { polarClient } from "@/lib/polar";

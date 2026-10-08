@@ -1,5 +1,5 @@
 import { tb } from "@/constants/tinybird";
-import { ingestTinybirdEvent } from "@/lib/tinybird/http";
+import { enqueueTinybirdEvent } from "@/lib/tinybird/outbox";
 import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 export interface LinkClickEvent {
@@ -29,7 +29,7 @@ export interface LinkClickEvent {
 }
 
 export async function sendLinkClickEvent(event: LinkClickEvent) {
-  await ingestTinybirdEvent(tb.link_click_events, {
+  await enqueueTinybirdEvent(tb.link_click_events, {
     timestamp: event.timestamp ?? new Date().toISOString(),
     link_id: event.link_id,
     workspace_id: event.workspace_id,

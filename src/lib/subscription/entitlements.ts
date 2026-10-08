@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 
 export function canUseLeadTracking(planType: string | null | undefined) {
   const normalized = planType?.toLowerCase();

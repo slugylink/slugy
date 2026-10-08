@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { customAlphabet } from "nanoid";
 import { z } from "zod";
 import { headers } from "next/headers";
-import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { checkWorkspaceAccessAndLimits } from "@/lib/subscription/limit-queries";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";

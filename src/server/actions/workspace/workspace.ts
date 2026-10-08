@@ -1,4 +1,7 @@
 "use server";
+import { z } from "zod";
+import { parseWorkspaceSlug } from "@/lib/workspace-cookie";
+import { requireSelf } from "@/lib/require-self";
 
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
@@ -46,6 +49,22 @@ export async function createWorkspace({
       return { success: false, error: "Unauthorized" };
     }
 
+    const validated = z
+      .object({
+        name: z.string().trim().min(3).max(30),
+        slug: z
+          .string()
+          .min(1)
+          .max(30)
+          .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+          .refine((value) => parseWorkspaceSlug(value) === value),
+        logo: z.string().url().optional(),
+        isDefault: z.boolean(),
+      })
+      .safeParse({ name, slug, logo, isDefault });
+    if (!validated.success)
+      return { success: false, error: "Invalid workspace details" };
+    name = validated.data.name;
     const userId = authResult.session.user.id;
 
     // Check workspace limits before creating
@@ -63,6 +82,12 @@ export async function createWorkspace({
     }
 
     const workspace = await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "user" WHERE id = ${userId} FOR UPDATE`;
+      const count = await tx.workspace.count({
+        where: { userId, deletedAt: null },
+      });
+      if (count >= limitCheck.maxLimit)
+        throw new Error("Workspace limit reached");
       if (isDefault) {
         await tx.workspace.updateMany({
           where: { userId, isDefault: true },
@@ -154,6 +179,7 @@ export async function createWorkspace({
 
 export async function getDefaultWorkspace(userId: string) {
   try {
+    await requireSelf(userId);
     const cachedWorkspace = await getDefaultWorkspaceCache(userId);
     if (cachedWorkspace) {
       return {
@@ -164,7 +190,7 @@ export async function getDefaultWorkspace(userId: string) {
     }
 
     const workspace = await db.workspace.findFirst({
-      where: { userId, isDefault: true },
+      where: { userId, isDefault: true, deletedAt: null },
       select: { id: true, name: true, slug: true, logo: true },
     });
 
@@ -192,6 +218,7 @@ export async function getDefaultWorkspace(userId: string) {
  */
 export async function getRedirectWorkspace(userId: string) {
   try {
+    await requireSelf(userId);
     const workspace = await db.workspace.findFirst({
       where: {
         deletedAt: null,
@@ -237,6 +264,7 @@ export async function getRedirectWorkspace(userId: string) {
 
 export async function fetchAllWorkspaces(userId: string) {
   try {
+    await requireSelf(userId);
     const cachedWorkspaces = await getAllWorkspacesCache(userId);
     if (cachedWorkspaces) {
       return { success: true, workspaces: cachedWorkspaces };
@@ -244,6 +272,7 @@ export async function fetchAllWorkspaces(userId: string) {
 
     const workspaces = await db.workspace.findMany({
       where: {
+        deletedAt: null,
         OR: [{ userId }, { members: { some: { userId } } }],
       },
       select: {
@@ -285,6 +314,7 @@ export async function fetchAllWorkspaces(userId: string) {
 
 export async function validateWorkspaceSlug(userId: string, slug: string) {
   try {
+    await requireSelf(userId);
     const cachedWorkspaceResult = await getWorkspaceValidationCache(
       userId,
       slug,
@@ -300,6 +330,7 @@ export async function validateWorkspaceSlug(userId: string, slug: string) {
     const workspace = await db.workspace.findFirst({
       where: {
         slug,
+        deletedAt: null,
         OR: [{ userId }, { members: { some: { userId } } }],
       },
       select: { id: true, name: true, slug: true, logo: true },

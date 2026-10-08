@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { checkLinkLimit } from "@/server/actions/limit";
+import { checkLinkLimit } from "@/lib/subscription/limit-queries";
 import {
   setLinkCache,
   invalidateLinkCache,

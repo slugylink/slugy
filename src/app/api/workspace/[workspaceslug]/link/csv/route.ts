@@ -5,7 +5,7 @@ import { customAlphabet } from "nanoid";
 import { parse as csvParse } from "csv-parse/sync";
 import { stringify } from "csv-stringify/sync";
 import { headers } from "next/headers";
-import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { checkWorkspaceAccessAndLimits } from "@/lib/subscription/limit-queries";
 import { invalidateLinkCacheBatch } from "@/lib/cache-utils/link-cache";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { sendLinkMetadata } from "@/lib/tinybird/slugy-links-metadata";

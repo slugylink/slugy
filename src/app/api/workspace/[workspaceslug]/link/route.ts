@@ -10,7 +10,7 @@ import {
   validateLinkSlug,
 } from "@/lib/link-slug";
 import { createLinkWithQuota, QuotaExceededError } from "@/lib/usage/quota";
-import { checkWorkspaceAccessAndLimits } from "@/server/actions/limit";
+import { checkWorkspaceAccessAndLimits } from "@/lib/subscription/limit-queries";
 import {
   canUseLeadTracking,
   canUsePremiumLinkFeatures,

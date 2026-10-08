@@ -314,7 +314,7 @@ export const analyticsPipe = defineEndpoint("analytics_pipe", {
             WHEN dr = '24h' THEN toString(toStartOfHour(ev.timestamp))
             ELSE toString(toDate(ev.timestamp))
           END AS day,
-          count() AS clicks,
+          uniqExactIf(ev.click_id, isNotNull(ev.click_id) AND ev.click_id != '') + countIf(isNull(ev.click_id) OR ev.click_id = '') AS clicks,
           meta.slug AS \`meta.slug\`,
           meta.url AS \`meta.url\`,
           ev.domain,

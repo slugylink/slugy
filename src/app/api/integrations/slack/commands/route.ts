@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { verifySlackSignature } from "@/lib/integrations/slack";
 import { validateLinkSlug } from "@/lib/link-slug";
 import { createLinkWithQuota } from "@/lib/usage/quota";
-import { checkLinkLimit } from "@/server/actions/limit";
+import { checkLinkLimit } from "@/lib/subscription/limit-queries";
 
 /**
  * Slack `/shorten <url> [custom-slug]` — verifies signing secret, resolves the

@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { sendOrganizationInvitation } from "@/server/actions/email";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 
 const INVITE_EXPIRY_DAYS = 7;
 

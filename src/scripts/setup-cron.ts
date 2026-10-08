@@ -5,6 +5,7 @@ loadEnvConfig(process.cwd());
 import {
   createSubscriptionRenewalCronSchedule,
   createUsageCronSchedule,
+  createAnalyticsBatchSchedule,
 } from "../lib/qstash";
 
 async function main() {
@@ -12,6 +13,7 @@ async function main() {
   await createUsageCronSchedule();
   console.log("Setting up subscription renewal cron schedule...");
   await createSubscriptionRenewalCronSchedule();
+  await createAnalyticsBatchSchedule();
   console.log("Setup complete!");
 }
 

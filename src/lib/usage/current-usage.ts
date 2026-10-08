@@ -26,6 +26,11 @@ export async function ensureCurrentUsageRecord(
   client: UsageClient,
   input: { workspaceId: string; userId: string; now?: Date },
 ): Promise<CurrentUsageRecord> {
+  if (client === db) {
+    return db.$transaction((tx) => ensureCurrentUsageRecord(tx, input));
+  }
+  // All rollover paths serialize on the same workspace, including edge clicks.
+  await client.$queryRaw`SELECT id FROM workspaces WHERE id = ${input.workspaceId} FOR UPDATE`;
   const now = input.now ?? new Date();
 
   const [currentUsage, memberCount] = await Promise.all([
@@ -63,30 +68,10 @@ export async function ensureCurrentUsageRecord(
     return currentUsage;
   }
 
-  // Rollover is claim-guarded: exactly one concurrent roller wins the
-  // soft-delete (updateMany count), losers re-read. A final periodStart
-  // check catches the exact-interleave case (both computed the same chained
-  // period). No $transaction wrapper — callers may already pass a tx client,
-  // and each step here is individually atomic.
-  const claimed = await client.usage.updateMany({
+  await client.usage.updateMany({
     where: { id: currentUsage.id, deletedAt: null },
     data: { deletedAt: now },
   });
-
-  if (claimed.count === 0) {
-    const winner = await client.usage.findFirst({
-      where: {
-        workspaceId: input.workspaceId,
-        userId: input.userId,
-        deletedAt: null,
-      },
-      orderBy: { createdAt: "desc" },
-      select: usageSelect,
-    });
-    if (winner && !isUsagePeriodExpired(winner.periodEnd, now)) return winner;
-    // Extremely rare interleave (claim lost AND no fresh row visible yet):
-    // fall through and create; the periodStart check below dedupes.
-  }
 
   const { periodStart, periodEnd } = calculateUsagePeriod(
     currentUsage.periodEnd,

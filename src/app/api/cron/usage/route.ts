@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/server/db";
-import { calculateUsagePeriod, isUsagePeriodExpired } from "@/lib/usage-period";
+import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
 import { withCronAuth } from "@/lib/cron-auth";
 
 const BATCH_SIZE = 100;
@@ -10,36 +10,6 @@ type BatchWorkspace = { id: string; userId: string };
 async function processBatch(workspaces: BatchWorkspace[]) {
   const now = new Date();
 
-  const workspaceIds = workspaces.map((w) => w.id);
-
-  const members = await db.member.findMany({
-    where: { workspaceId: { in: workspaceIds } },
-    select: { workspaceId: true },
-  });
-
-  const memberCountMap = new Map<string, number>();
-  for (const member of members) {
-    const count = memberCountMap.get(member.workspaceId) ?? 0;
-    memberCountMap.set(member.workspaceId, count + 1);
-  }
-
-  const latestUsagesRaw = await db.usage.findMany({
-    where: {
-      workspaceId: { in: workspaceIds },
-      deletedAt: null,
-    },
-    orderBy: [{ workspaceId: "asc" }, { createdAt: "desc" }],
-  });
-
-  const latestUsageMap = new Map<string, (typeof latestUsagesRaw)[number]>();
-  for (const usage of latestUsagesRaw) {
-    const wid = usage.workspaceId;
-    if (!wid) continue;
-    if (!latestUsageMap.has(wid)) {
-      latestUsageMap.set(wid, usage);
-    }
-  }
-
   let resetCount = 0;
   let processedCount = 0;
   let failedCount = 0;
@@ -47,67 +17,13 @@ async function processBatch(workspaces: BatchWorkspace[]) {
 
   for (const workspace of workspaces) {
     processedCount++;
-    const currentUsage = latestUsageMap.get(workspace.id);
-    const memberCount = memberCountMap.get(workspace.id) ?? 0;
-
     try {
-      if (currentUsage && isUsagePeriodExpired(currentUsage.periodEnd, now)) {
-        await db.$transaction(async (tx) => {
-          // Claim-guarded like the lazy rollover: concurrent cron runs
-          // (QStash retry overlap) can't double-create the period.
-          const claimed = await tx.usage.updateMany({
-            where: { id: currentUsage.id, deletedAt: null },
-            data: { deletedAt: now },
-          });
-          if (claimed.count === 0) return;
-
-          const { periodStart, periodEnd } = calculateUsagePeriod(
-            currentUsage.periodEnd,
-            now,
-          );
-
-          const duplicate = await tx.usage.findFirst({
-            where: {
-              workspaceId: workspace.id,
-              userId: workspace.userId,
-              deletedAt: null,
-              periodStart,
-            },
-            select: { id: true },
-          });
-          if (duplicate) return;
-
-          await tx.usage.create({
-            data: {
-              userId: workspace.userId,
-              workspaceId: workspace.id,
-              linksCreated: 0,
-              clicksTracked: 0,
-              addedUsers: memberCount,
-              periodStart,
-              periodEnd,
-            },
-          });
-        });
-
-        resetCount++;
-      } else if (!currentUsage) {
-        const { periodStart, periodEnd } = calculateUsagePeriod(null, now);
-
-        await db.usage.create({
-          data: {
-            userId: workspace.userId,
-            workspaceId: workspace.id,
-            linksCreated: 0,
-            clicksTracked: 0,
-            addedUsers: memberCount,
-            periodStart,
-            periodEnd,
-          },
-        });
-
-        resetCount++;
-      }
+      const usage = await ensureCurrentUsageRecord(db, {
+        workspaceId: workspace.id,
+        userId: workspace.userId,
+        now,
+      });
+      if (usage.createdAt >= now) resetCount++;
     } catch (error) {
       failedCount++;
       const message = error instanceof Error ? error.message : "Unknown error";

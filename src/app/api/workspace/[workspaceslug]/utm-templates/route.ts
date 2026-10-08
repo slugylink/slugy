@@ -57,6 +57,7 @@ export async function POST(
     const workspace = await db.workspace.findFirst({
       where: {
         slug: context.workspaceslug,
+        deletedAt: null,
         OR: [
           { userId: session.user.id },
           {
@@ -80,59 +81,70 @@ export async function POST(
       );
     }
 
-    const templateCount = await db.utmTemplate.count({
-      where: {
-        workspaceId: workspace.id,
-        deletedAt: null,
-      },
-    });
-
-    if (
-      workspace.maxUtmTemplates != null &&
-      templateCount >= workspace.maxUtmTemplates
-    ) {
-      return jsonWithETag(
-        req,
-        {
-          error: `Maximum number of UTM templates (${workspace.maxUtmTemplates}) reached for this workspace. Upgrade to pro!`,
-          code: "UTM_TEMPLATE_LIMIT_REACHED",
+    return await db.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        Array<{ maxUtmTemplates: number }>
+      >`SELECT "maxUtmTemplates" FROM workspaces WHERE id = ${workspace.id} AND "deletedAt" IS NULL FOR UPDATE`;
+      if (!locked.length)
+        return jsonWithETag(
+          req,
+          { error: "Workspace not found" },
+          { status: 404 },
+        );
+      workspace.maxUtmTemplates = locked[0]!.maxUtmTemplates;
+      const templateCount = await tx.utmTemplate.count({
+        where: {
+          workspaceId: workspace.id,
+          deletedAt: null,
         },
-        { status: 400 },
-      );
-    }
+      });
 
-    const existingTemplate = await db.utmTemplate.findFirst({
-      where: {
-        workspaceId: workspace.id,
-        name: validatedData.name,
-        deletedAt: null,
-      },
-      select: { id: true },
+      if (
+        workspace.maxUtmTemplates != null &&
+        templateCount >= workspace.maxUtmTemplates
+      ) {
+        return jsonWithETag(
+          req,
+          {
+            error: `Maximum number of UTM templates (${workspace.maxUtmTemplates}) reached for this workspace. Upgrade to pro!`,
+            code: "UTM_TEMPLATE_LIMIT_REACHED",
+          },
+          { status: 400 },
+        );
+      }
+
+      const existingTemplate = await tx.utmTemplate.findFirst({
+        where: {
+          workspaceId: workspace.id,
+          name: validatedData.name,
+        },
+        select: { id: true },
+      });
+
+      if (existingTemplate) {
+        return jsonWithETag(
+          req,
+          { error: "A template with this name already exists" },
+          { status: 400 },
+        );
+      }
+
+      const template = await tx.utmTemplate.create({
+        data: {
+          name: validatedData.name,
+          utm_source: validatedData.source,
+          utm_medium: validatedData.medium,
+          utm_campaign: validatedData.campaign,
+          utm_term: validatedData.term,
+          utm_content: validatedData.content,
+          referral: validatedData.referral,
+          workspaceId: workspace.id,
+        },
+        select: utmTemplateSelect,
+      });
+
+      return jsonWithETag(req, template, { status: 201 });
     });
-
-    if (existingTemplate) {
-      return jsonWithETag(
-        req,
-        { error: "A template with this name already exists" },
-        { status: 400 },
-      );
-    }
-
-    const template = await db.utmTemplate.create({
-      data: {
-        name: validatedData.name,
-        utm_source: validatedData.source,
-        utm_medium: validatedData.medium,
-        utm_campaign: validatedData.campaign,
-        utm_term: validatedData.term,
-        utm_content: validatedData.content,
-        referral: validatedData.referral,
-        workspaceId: workspace.id,
-      },
-      select: utmTemplateSelect,
-    });
-
-    return jsonWithETag(req, template, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return jsonWithETag(
@@ -167,6 +179,7 @@ export async function GET(
     const workspace = await db.workspace.findFirst({
       where: {
         slug: context.workspaceslug,
+        deletedAt: null,
         OR: [
           { userId: session.user.id },
           {

@@ -40,97 +40,63 @@ export async function recordLinkClick(input: {
       return { ok: false };
     }
 
-    const usageRows = await primarySql`
-      SELECT id, "clicksTracked"
-      FROM "usages"
-      WHERE "workspaceId" = ${input.workspaceId}
-        AND "userId" = ${workspace.userId}
-        AND "deletedAt" IS NULL
-        AND "periodEnd" > NOW()
-      ORDER BY "createdAt" DESC
-      LIMIT 1
+    const latestRows = await primarySql`
+      SELECT "periodEnd" FROM usages
+      WHERE "workspaceId" = ${input.workspaceId} AND "userId" = ${workspace.userId}
+      ORDER BY "createdAt" DESC LIMIT 1
     `;
-    const usage = usageRows[0];
-    if (!usage) {
-      // No ACTIVE usage period (rollover pending). Create the chained period
-      // inline so Link.clicks and Usage.clicksTracked can't diverge — the
-      // alternative (link-only increment) drifts every click until some other
-      // path happens to roll over. Concurrent creators may orphan a duplicate
-      // row; rollover readers always pick the latest, so orphans are inert.
-      const latestRows = await primarySql`
-        SELECT "periodEnd"
-        FROM "usages"
-        WHERE "workspaceId" = ${input.workspaceId}
-          AND "userId" = ${workspace.userId}
-          AND "deletedAt" IS NULL
-        ORDER BY "createdAt" DESC
-        LIMIT 1
-      `;
-      const latestEnd = latestRows[0]?.periodEnd
+    const { periodStart, periodEnd } = calculateUsagePeriod(
+      latestRows[0]?.periodEnd
         ? new Date(latestRows[0].periodEnd as string)
-        : null;
-      const { periodStart, periodEnd } = calculateUsagePeriod(
-        latestEnd,
-        new Date(),
-      );
-      const memberRows = await primarySql`
-        SELECT COUNT(*)::int AS count
-        FROM "members"
-        WHERE "workspaceId" = ${input.workspaceId}
-      `;
-      const addedUsers = Number(memberRows[0]?.count ?? 1);
-      await primarySql`
-        INSERT INTO "usages"
-          ("id", "userId", "workspaceId", "linksCreated", "clicksTracked", "addedUsers", "periodStart", "periodEnd", "createdAt", "updatedAt")
-        VALUES
-          (${crypto.randomUUID()}, ${workspace.userId}, ${input.workspaceId}, 0, 1, ${addedUsers}, ${periodStart.toISOString()}::timestamptz, ${periodEnd.toISOString()}::timestamptz, NOW(), NOW())
-      `;
-      await primarySql`
-        UPDATE "links"
-        SET clicks = clicks + 1, "lastClicked" = NOW()
-        WHERE id = ${input.linkId}
-      `;
-      if (workspace.maxClicksLimit != null) {
-        void setWorkspaceLimitsCache(input.workspaceId, {
-          maxClicksLimit: workspace.maxClicksLimit,
-          clicksTracked: 1,
-        });
-      }
-      return { ok: true };
-    }
-
-    if (
-      workspace.maxClicksLimit != null &&
-      usage.clicksTracked >= workspace.maxClicksLimit
-    ) {
-      void setWorkspaceLimitsCache(input.workspaceId, {
-        maxClicksLimit: workspace.maxClicksLimit,
-        clicksTracked: usage.clicksTracked,
-      });
-      return { ok: false, limited: true };
-    }
-
-    // Single-statement CTE: both counters move together or not at all.
-    // (Neon HTTP has no interactive transactions; two Promise.all UPDATEs
-    // could land one and lose the other, drifting link vs usage counts.)
-    await primarySql`
-      WITH updated_usage AS (
-        UPDATE "usages"
-        SET "clicksTracked" = "clicksTracked" + 1
-        WHERE id = ${usage.id}
-        RETURNING id
-      )
-      UPDATE "links"
-      SET clicks = clicks + 1, "lastClicked" = NOW()
-      WHERE id = ${input.linkId}
-    `;
-
-    const nextTracked = Number(usage.clicksTracked) + 1;
+        : null,
+      new Date(),
+    );
+    // The first statement serializes rollover on the workspace. The second
+    // gets a fresh READ COMMITTED snapshot and updates both counters atomically.
+    const results = await primarySql.transaction(
+      [
+        primarySql`SELECT id FROM workspaces WHERE id = ${input.workspaceId} FOR UPDATE`,
+        primarySql`
+        WITH target AS (
+          SELECT l.id, w."userId", w."maxClicksLimit"
+          FROM links l JOIN workspaces w ON w.id = l."workspaceId"
+          WHERE l.id = ${input.linkId} AND w.id = ${input.workspaceId}
+            AND l."deletedAt" IS NULL AND w."deletedAt" IS NULL
+        ), current_usage AS (
+          SELECT u.id FROM usages u, target t
+          WHERE u."workspaceId" = ${input.workspaceId} AND u."userId" = t."userId"
+            AND u."deletedAt" IS NULL AND u."periodEnd" > NOW()
+          ORDER BY u."createdAt" DESC LIMIT 1
+        ), incremented AS (
+          UPDATE usages u SET "clicksTracked" = u."clicksTracked" + 1, "updatedAt" = NOW()
+          FROM target t WHERE u.id IN (SELECT id FROM current_usage)
+            AND (t."maxClicksLimit" IS NULL OR u."clicksTracked" < t."maxClicksLimit")
+          RETURNING u."clicksTracked"
+        ), created AS (
+          INSERT INTO usages (id, "userId", "workspaceId", "linksCreated", "clicksTracked", "addedUsers", "periodStart", "periodEnd", "createdAt", "updatedAt")
+          SELECT ${crypto.randomUUID()}, t."userId", ${input.workspaceId}, 0, 1,
+            (SELECT COUNT(*)::int FROM members WHERE "workspaceId" = ${input.workspaceId}),
+            ${periodStart.toISOString()}::timestamptz, ${periodEnd.toISOString()}::timestamptz, NOW(), NOW()
+          FROM target t WHERE NOT EXISTS (SELECT 1 FROM current_usage)
+            AND (t."maxClicksLimit" IS NULL OR t."maxClicksLimit" > 0)
+          RETURNING "clicksTracked"
+        ), tracked AS (
+          SELECT "clicksTracked" FROM incremented UNION ALL SELECT "clicksTracked" FROM created
+        )
+        UPDATE links SET clicks = clicks + 1, "lastClicked" = NOW()
+        WHERE id = ${input.linkId} AND EXISTS (SELECT 1 FROM tracked)
+        RETURNING (SELECT "clicksTracked" FROM tracked LIMIT 1) AS "clicksTracked"
+      `,
+      ],
+      { isolationLevel: "ReadCommitted" },
+    );
+    const tracked = results[1]?.[0];
+    if (!tracked) return { ok: false, limited: true };
     if (workspace.maxClicksLimit != null) {
-      void setWorkspaceLimitsCache(input.workspaceId, {
+      await setWorkspaceLimitsCache(input.workspaceId, {
         maxClicksLimit: workspace.maxClicksLimit,
-        clicksTracked: nextTracked,
-      });
+        clicksTracked: Number(tracked.clicksTracked),
+      }).catch(() => undefined);
     }
 
     // Optional secondary counter for dashboards / debugging

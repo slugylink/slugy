@@ -1,3 +1,4 @@
+import { getPolarServer } from "@/lib/polar-config";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -33,9 +34,6 @@ const getAuthCookieDomain = (): string | undefined => {
 
   return host.startsWith(".") ? host : `.${host}`;
 };
-
-const getPolarServer = () =>
-  process.env.NODE_ENV === "production" ? "production" : "sandbox";
 
 /**
  * Server-side password policy — mirrors the signup/reset client schemas so a

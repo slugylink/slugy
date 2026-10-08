@@ -1,3 +1,4 @@
+import { getPolarServer } from "@/lib/polar-config";
 import { CustomerPortal } from "@polar-sh/nextjs";
 import { NextResponse, NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
@@ -5,7 +6,6 @@ import { headers } from "next/headers";
 import { reconcileUserEntitlement } from "@/lib/subscription/reconcile";
 
 const MIN_TOKEN_LENGTH = 20;
-const DEFAULT_SANDBOX_MODE = "sandbox";
 const PRODUCTION_URL = "https://app.slugy.co";
 const DEVELOPMENT_URL = "http://app.localhost:3000";
 
@@ -109,9 +109,7 @@ function createPortalHandler(
   return CustomerPortal({
     accessToken: process.env.POLAR_ACCESS_TOKEN!,
     returnUrl,
-    server:
-      (process.env.POLAR_MODE as "sandbox" | "production") ||
-      DEFAULT_SANDBOX_MODE,
+    server: getPolarServer(),
     getCustomerId: async () => {
       try {
         return await getCustomerId();

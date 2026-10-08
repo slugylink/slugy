@@ -9,11 +9,11 @@ import {
   verifyDomainOnVercel,
   checkDnsConfiguration,
 } from "@/lib/domain-utils";
-import { checkDomainLimit } from "@/server/actions/limit";
+import { checkDomainLimit } from "@/lib/subscription/limit-queries";
 import { jsonWithETag } from "@/lib/http";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { checkDomainVerifyRateLimit } from "@/lib/middleware/rate-limit";
-import { getSubscriptionWithPlan } from "@/server/actions/subscription";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
 
 // Helper: Get authenticated session

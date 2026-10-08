@@ -2,7 +2,7 @@ import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod"; // Import zod for input validation
-import { checkBioGalleryLinkLimit } from "@/server/actions/limit";
+import { checkBioGalleryLinkLimit } from "@/lib/subscription/limit-queries";
 import { headers } from "next/headers";
 import { validateUrlSafety } from "@/server/actions/url-scan";
 import { invalidateBioCache } from "@/lib/cache-utils/bio-cache-invalidator";

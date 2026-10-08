@@ -19,8 +19,7 @@ export async function ingestTinybirdEvent(
 ): Promise<void> {
   const { token, baseUrl } = getTinybirdConfig();
   if (!token) {
-    console.error("[Tinybird] Missing TINYBIRD_TOKEN / TINYBIRD_API_KEY");
-    return;
+    throw new Error("Missing Tinybird credentials");
   }
 
   const wait = options?.wait ?? true;
@@ -43,8 +42,16 @@ export async function ingestTinybirdEvent(
     );
 
     if (!res.ok) {
-      const text = await res.text();
-      console.error(`[Tinybird] ${datasource} error:`, res.status, text);
+      throw new Error(`Tinybird ingestion failed (${res.status})`);
+    }
+    if (wait) {
+      const result = (await res.json()) as {
+        successful_rows?: number;
+        quarantined_rows?: number;
+      };
+      if (result.quarantined_rows || result.successful_rows === 0) {
+        throw new Error("Tinybird rejected the event");
+      }
     }
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {

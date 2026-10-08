@@ -450,7 +450,7 @@ model Analytics {
   ipAddress    String?
   userAgent    String?
   createdAt    DateTime @default(now())
-  clickId      String?
+  clickId      String? @unique
   trigger      String?
   utm_campaign String?
   utm_content  String?
@@ -463,7 +463,6 @@ model Analytics {
 
   @@index([linkId, clickedAt])
   @@index([clickedAt])
-  @@index([clickId])
   @@map("analytics")
 }
 

@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { apiSuccessPayload, apiErrorPayload } from "@/lib/api-response";
 import { authenticateApiKey } from "@/lib/api-keys/auth";
-import { checkLinkLimit } from "@/server/actions/limit";
+import { checkLinkLimit } from "@/lib/subscription/limit-queries";
 import {
   canUseLeadTracking,
   canUsePremiumLinkFeatures,
