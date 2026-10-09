@@ -85,7 +85,7 @@ export default function SlugyVsDubPost() {
           [
             "Lead / revenue attribution",
             "Pro ($8/mo) for leads, Growth ($29/mo) for revenue",
-            "Business tier and up",
+            "Business ($90/mo) and up (lead + sale events)",
           ],
           [
             "Bio pages",
@@ -94,19 +94,20 @@ export default function SlugyVsDubPost() {
           ],
           ["License", "Public source on GitHub", "AGPLv3"],
         ]}
-        note="Slugy pricing from our own pricing page; Dub.co figures from its public pricing pages on 2026-09-30. Both move these numbers regularly — verify before deciding."
+        note="Slugy pricing from our own pricing page; Dub.co Links figures from dub.co/pricing/links on 2026-10-09. Both move these numbers regularly — verify before deciding."
       />
-      <Checked date="30 September 2026" />
+      <Checked date="9 October 2026" />
 
       <H2 id="what-slugy-does-differently">Where Slugy differs</H2>
       <Ul>
         <li>
           <strong className="text-foreground">
-            Leads and revenue in one tool
+            Leads and revenue in one tool, at a startup price
           </strong>{" "}
           — click-to-signup attribution is on Pro at $8/mo and revenue
-          attribution on Growth at $29/mo, rather than waiting for a top
-          enterprise tier.
+          attribution on Growth at $29/mo. Dub.co also tracks leads and sales,
+          starting at Business ($90/mo) — so the difference is entry price and
+          simplicity, not capability.
         </li>
         <li>
           <strong className="text-foreground">

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Callout,
   Checked,
@@ -33,6 +34,19 @@ export default function SlugyVsBitlyPost() {
       </Callout>
 
       <Disclosure />
+
+      <P>
+        A note on intent: this is the detailed editorial evaluation — strengths,
+        tradeoffs, and migration advice. If you already know you want to switch
+        and just need the plan, see the commercial summary at{" "}
+        <Link
+          href="/alternative/bitly"
+          className="text-foreground font-medium underline underline-offset-4"
+        >
+          Slugy as a Bitly alternative
+        </Link>
+        .
+      </P>
 
       <H2 id="what-bitly-does-best">What Bitly does better than Slugy</H2>
       <P>
@@ -93,7 +107,7 @@ export default function SlugyVsBitlyPost() {
           [
             "Custom domain",
             "Included on Free, and on every plan above it",
-            "Growth plan and up",
+            "Growth ($29/mo) and up",
           ],
           ["QR codes", "Every link, every plan", "2/mo on free"],
           [
@@ -103,9 +117,9 @@ export default function SlugyVsBitlyPost() {
           ],
           ["Open source", "Yes — public on GitHub", "No"],
         ]}
-        note="Slugy prices from our own pricing page; Bitly figures from its public pricing pages on 2026-09-30. Both vendors move these numbers, so treat this as a snapshot rather than a quote."
+        note="Slugy prices from our own pricing page; Bitly figures from bitly.com/pages/pricing on 2026-10-09 (Free: 5 links/mo, 2 QR/mo, 2 landing pages; custom domains from Growth $29/mo; no conversion attribution listed). Treat this as a snapshot rather than a quote."
       />
-      <Checked date="30 September 2026" />
+      <Checked date="9 October 2026" />
 
       <H2 id="where-slugy-differs">What you get by switching</H2>
       <Ul>
@@ -198,6 +212,11 @@ export default function SlugyVsBitlyPost() {
 
       <Related
         items={[
+          {
+            href: "/alternative/bitly",
+            label: "Bitly alternative — the short version",
+            note: "migration steps and pricing without the full evaluation",
+          },
           {
             href: "/blogs/slugy-vs-dub",
             label: "Slugy vs Dub.co",

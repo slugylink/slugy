@@ -86,9 +86,7 @@ const fetchLinkFromDatabase = async (
   domain: string,
   client: typeof sql = sql,
 ): Promise<LinkCache | null> => {
-  // Fast path: direct (slug, domain) hit uses @@unique([slug, domain]) —
-  // no JOIN, no OR. Custom-domain rows store the custom host in
-  // l.domain too, so this covers the common case.
+  // Direct (slug, domain) hit via @@unique — covers custom domains too.
   const direct = await client`
     SELECT
       l.id,
@@ -131,7 +129,7 @@ const fetchLinkFromDatabase = async (
     };
   }
 
-  // Fallback: renamed/relinked rows resolved via the customDomain relation.
+  // Fallback for renamed/relinked rows via the customDomain relation.
   const result = await client`
     SELECT 
       l.id, 
@@ -211,21 +209,14 @@ export async function getLink(
   domain: string = DEFAULT_DOMAIN,
 ): Promise<GetLinkResult> {
   if (!isValidSlug(slug)) {
-    return errorResponse(
-      origin ? `${origin}/?status=invalid` : undefined,
-      "Invalid slug format",
-    );
+    return errorResponse(undefined, "Invalid slug format");
   }
 
   try {
     const cached = await getLinkCache(slug, domain).catch(() => null);
 
     if (cached === "missing") {
-      return errorResponse(
-        origin ? `${origin}/?status=not-found` : undefined,
-        "Link not found",
-        true,
-      );
+      return errorResponse(undefined, "Link not found", false);
     }
 
     let link: LinkCache | null =
@@ -252,19 +243,13 @@ export async function getLink(
     }
 
     if (!link) {
-      return errorResponse(
-        origin ? `${origin}/?status=not-found` : undefined,
-        "Link not found",
-        true,
-      );
+      return errorResponse(undefined, "Link not found", false);
     }
 
     if (isLinkExpired(link.expiresAt)) {
       return {
         success: true,
-        url:
-          link.expirationUrl ||
-          (origin ? `${origin}/?status=expired` : undefined),
+        url: link.expirationUrl || (origin ? `${origin}/expired` : undefined),
         expired: true,
         error: "Link expired",
       };

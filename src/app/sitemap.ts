@@ -4,12 +4,9 @@ import { getAllPosts } from "@/content/blogs";
 export default function sitemap(): MetadataRoute.Sitemap {
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim() || "slugy.co";
   const baseUrl = `https://${rootDomain}`;
-  const currentDate = new Date();
-  const lastWeek = new Date(currentDate.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Every blog post, newest first. lastModified tracks content freshness, so
-  // re-checking a comparison against the competitor's pricing page is a real
-  // sitemap signal rather than a stale date.
+  // Blog lastModified uses real content dates; static routes omit it rather
+  // than faking freshness.
   const posts = getAllPosts().map((post) => ({
     url: `${baseUrl}/blogs/${post.slug}`,
     lastModified: new Date(post.updatedAt ?? post.publishedAt),
@@ -20,128 +17,173 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: baseUrl,
-      lastModified: currentDate,
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
       url: `${baseUrl}/pricing`,
-      lastModified: lastWeek,
       changeFrequency: "weekly",
       priority: 0.9,
     },
     {
       url: `${baseUrl}/alternative/bitly`,
-      lastModified: lastWeek,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/alternative`,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/alternative/dub`,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/docs`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/docs/self-hosting`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/docs/conversions`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/docs/webhooks`,
+      changeFrequency: "monthly",
+      priority: 0.75,
+    },
+    {
+      url: `${baseUrl}/features`,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/features/conversion-tracking`,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
+      url: `${baseUrl}/features/custom-domains`,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/features/link-shortening`,
+      changeFrequency: "monthly",
+      priority: 0.85,
+    },
+    {
+      url: `${baseUrl}/features/analytics`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/features/bio-links`,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
       url: `${baseUrl}/blogs`,
-      lastModified: lastWeek,
       changeFrequency: "weekly",
       priority: 0.8,
     },
     {
       url: `${baseUrl}/integrations`,
-      lastModified: lastWeek,
       changeFrequency: "weekly",
       priority: 0.85,
     },
     {
       url: `${baseUrl}/integrations/shopify`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
       url: `${baseUrl}/integrations/zapier`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
       url: `${baseUrl}/tools`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.85,
     },
     {
       url: `${baseUrl}/tools/qr-code-generator`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.9,
     },
     {
       url: `${baseUrl}/tools/utm-builder`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.9,
     },
     {
       url: `${baseUrl}/tools/utm-builder/google-ads`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: `${baseUrl}/tools/utm-builder/facebook`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: `${baseUrl}/tools/utm-builder/tiktok`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
       url: `${baseUrl}/tools/utm-builder/linkedin`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/tools/utm-builder/email`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/tools/utm-builder/ga4`,
+      changeFrequency: "monthly",
+      priority: 0.65,
+    },
+    {
       url: `${baseUrl}/tools/utm-stripper`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
       url: `${baseUrl}/tools/redirect-checker`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.8,
     },
     ...posts,
-    {
-      url: `${baseUrl}/custom-domain`,
-      lastModified: lastWeek,
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
+    // /custom-domain is infra, not a marketing page — never list it.
     {
       url: `${baseUrl}/about`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.6,
     },
     {
       url: `${baseUrl}/privacy`,
-      lastModified: lastWeek,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${baseUrl}/terms`,
-      lastModified: lastWeek,
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${baseUrl}/sponsors`,
-      lastModified: lastWeek,
       changeFrequency: "monthly",
       priority: 0.5,
     },

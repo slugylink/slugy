@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import SlugPasswordForm from "./password-form";
-import NotFound from "../not-found";
+import { getLink } from "@/lib/middleware/get-link";
 
-// Password gates must never be indexed — the slug URL would otherwise leak
-// into search results before the visitor can authenticate.
+// Password gates stay noindex so slug URLs never leak into search results.
 export const metadata: Metadata = {
   robots: {
     index: false,
@@ -23,9 +22,16 @@ export default async function SlugPasswordPage({
     notFound();
   }
 
-  if (slug === "not-found") {
-    return <NotFound />;
+  // Misses 404 here (middleware redirects hits, so only gates land here).
+  const link = await getLink(slug).catch(() => null);
+
+  if (link?.requiresPassword) {
+    return <SlugPasswordForm slug={slug} />;
   }
 
-  return <SlugPasswordForm slug={slug} />;
+  if (link?.success && link.url) {
+    redirect(link.url);
+  }
+
+  notFound();
 }

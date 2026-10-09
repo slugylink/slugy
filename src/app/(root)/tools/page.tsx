@@ -162,7 +162,37 @@ export default function ToolsPage() {
       </section>
 
       <section className="mx-auto max-w-4xl px-4 pb-20 text-center">
-        <p className="text-muted-foreground text-sm">
+        <div className="rounded-[20px] border bg-white p-6 sm:p-8 dark:bg-zinc-950">
+          <h2 className="text-xl font-medium tracking-tight text-balance sm:text-2xl">
+            From free tool to tracked campaign
+          </h2>
+          <p className="text-muted-foreground mx-auto mt-3 max-w-xl text-sm leading-7">
+            Built a UTM-tagged URL? Shorten it with Slugy and see which links
+            turn into signups and sales —{" "}
+            <Link
+              href="/features/conversion-tracking"
+              className="font-medium underline underline-offset-4"
+            >
+              how conversion tracking works
+            </Link>
+            .
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              href="https://app.slugy.co/signup"
+              className="bg-primary text-primary-foreground inline-flex h-11 items-center justify-center rounded-md px-6 text-sm font-medium"
+            >
+              Track your first link free
+            </Link>
+            <Link
+              href="/blogs/lead-conversion-tracking"
+              className="text-muted-foreground text-sm font-medium underline-offset-4 hover:underline"
+            >
+              Read the conversion guide
+            </Link>
+          </div>
+        </div>
+        <p className="text-muted-foreground mt-6 text-sm">
           Need branded short links, analytics and workspaces?{" "}
           <Link
             href="https://app.slugy.co"

@@ -67,13 +67,22 @@ const Footer = () => {
       title: "Product",
       links: [
         { href: "/pricing", label: "Pricing" },
+        { href: "/features", label: "Features" },
         { href: "/integrations", label: "Integrations" },
-        { href: "/custom-domain", label: "Custom Domains" },
-        { href: "/alternative/bitly", label: "Bitly Alternative" },
+        { href: "/features/custom-domains", label: "Custom Domains" },
         { href: "/tools/qr-code-generator", label: "QR Code Generator" },
         { href: "/tools/utm-builder", label: "UTM Builder" },
         { href: "/tools/redirect-checker", label: "Redirect Checker" },
         { href: "/tools/utm-stripper", label: "UTM Stripper" },
+      ],
+    },
+    {
+      title: "Compare",
+      links: [
+        { href: "/alternative", label: "All Alternatives" },
+        { href: "/alternative/bitly", label: "Bitly Alternative" },
+        { href: "/alternative/dub", label: "Dub.co Alternative" },
+        { href: "/features/conversion-tracking", label: "Conversion Tracking" },
       ],
     },
     {
@@ -106,10 +115,7 @@ const Footer = () => {
 
   const pathname = usePathname();
 
-  // Footer carries internal-link equity to every sitemap URL. Pages without
-  // it (e.g. /about, /integrations/*, /alternative/bitly, /custom-domain)
-  // become orphans and land in "Crawled - currently not indexed".
-  // User galleries (/b/*) and transient pages keep no footer by design.
+  // Footer passes link equity to every sitemap URL; galleries stay out.
   const isPublicMarketingPage =
     pathname === "/" ||
     pathname === "/pricing" ||
@@ -118,12 +124,17 @@ const Footer = () => {
     pathname === "/terms" ||
     pathname === "/sponsors" ||
     pathname === "/custom-domain" ||
+    pathname === "/features" ||
+    pathname.startsWith("/features/") ||
     pathname === "/blogs" ||
     pathname.startsWith("/blogs/") ||
     pathname === "/integrations" ||
     pathname.startsWith("/integrations/") ||
     pathname === "/alternative/bitly" ||
+    pathname === "/alternative" ||
     pathname.startsWith("/alternative/") ||
+    pathname === "/docs" ||
+    pathname.startsWith("/docs/") ||
     pathname === "/tools" ||
     pathname.startsWith("/tools/");
 

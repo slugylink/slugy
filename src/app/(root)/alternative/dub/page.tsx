@@ -6,38 +6,39 @@ import CompareTable from "../../_components/compare-table";
 import Faq from "../../_components/faq";
 
 export const metadata: Metadata = {
-  title: "Best Bitly Alternative in 2026 — No Enterprise Pricing",
+  title:
+    "Dub.co Alternative Without $90/mo — Open-Source Link Attribution | Slugy",
   description:
-    "The best Bitly alternative for teams: branded links, custom domains, QR codes, bio pages, and conversion tracking — plus CSV migration in minutes.",
+    "The Dub.co alternative for startups: lead tracking from $8/mo and revenue attribution from $29/mo vs Dub Business $90/mo. Verified Dub Links pricing, honest tradeoffs, migration steps.",
   keywords: [
-    "bitly alternative",
-    "best bitly alternative",
-    "bitly vs slugy",
-    "free bitly alternative",
-    "branded links",
+    "dub alternative",
+    "dub.co alternative",
+    "dub.co pricing",
+    "open source dub alternative",
+    "dub vs slugy",
   ],
-  alternates: { canonical: "/alternative/bitly" },
+  alternates: { canonical: "/alternative/dub" },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Best Bitly Alternative in 2026 | Slugy",
+    title: "Dub.co Alternative Without $90/mo | Slugy",
     description:
-      "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
-    url: "/alternative/bitly",
+      "Lead + revenue attribution from $8/mo. Verified Dub Links pricing, honest tradeoffs, migration steps.",
+    url: "/alternative/dub",
     images: [
       {
         url: "https://files.slugy.co/slugy-og.png",
         width: 1200,
         height: 630,
-        alt: "Slugy — Bitly alternative with branded links and analytics",
+        alt: "Slugy — Dub.co alternative with lead and revenue attribution",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Best Bitly Alternative in 2026 | Slugy",
+    title: "Dub.co Alternative Without $90/mo | Slugy",
     description:
-      "Branded links, QR codes, bio pages, and conversion tracking — without enterprise pricing.",
+      "Lead + revenue attribution from $8/mo. Verified Dub Links pricing, honest tradeoffs, migration steps.",
     images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
@@ -47,12 +48,12 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "SoftwareApplication",
-      name: "Slugy — Bitly Alternative",
+      name: "Slugy — Dub.co Alternative",
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
-      url: "/alternative/bitly",
+      url: "/alternative/dub",
       description:
-        "Open-source Bitly alternative with branded links, QR codes, bio pages, and conversion tracking.",
+        "Open-source Dub.co alternative with branded links and lead + revenue attribution from $8/mo.",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
     },
     {
@@ -60,26 +61,26 @@ const jsonLd = {
       mainEntity: [
         {
           "@type": "Question",
-          name: "Can I migrate from Bitly?",
+          name: "How much does Dub.co cost?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. Export your links from Bitly as a CSV and import them into Slugy — slugs, destinations, and UTM parameters come with you.",
+            text: "Per dub.co/pricing/links (checked 9 October 2026): free covers 25 links/month, 1K tracked events, and 3 custom domains. Paid Dub Links plans start at Pro $30/month (1K links, 50K events, no conversion tracking) and Business $90/month (10K links, 250K events, conversion tracking included). Verify current pricing before deciding.",
           },
         },
         {
           "@type": "Question",
-          name: "Can I use my own domain?",
+          name: "Does Dub.co track conversions and revenue?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. Connect a custom domain in minutes with guided DNS setup, so every link looks like yourbrand.co/sale instead of a generic shortener.",
+            text: "Yes — Dub.co tracks lead and sale events from its Business plan ($90/month) upward, with Stripe and Shopify integrations. Slugy's difference is entry price: lead tracking from Pro $8/month and revenue attribution from Growth $29/month.",
           },
         },
         {
           "@type": "Question",
-          name: "Is there a free plan?",
+          name: "Can I migrate from Dub.co to Slugy?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Yes. The free plan covers branded links, QR codes, and basic analytics — no credit card required.",
+            text: "Yes. Export your links as CSV, connect your custom domain in Slugy with the guided DNS setup, import, and cut traffic over gradually — keep high-traffic links on Dub until Slugy click counts match for about a week.",
           },
         },
       ],
@@ -88,28 +89,28 @@ const jsonLd = {
 };
 
 const SWITCH_REASONS = [
-  "Custom domain from day one — Bitly gates branded domains behind its $29/mo Growth tier",
-  "Lead conversion tracking on Pro and sales revenue analytics on Growth — Bitly stops at clicks",
-  "Bio pages and QR codes included with every link, not separate products or monthly caps",
-  "Free plan with no credit card, backed by an open-source codebase",
+  "Attribution from $8/mo — Dub.co unlocks conversion tracking at Business $90/mo; Slugy Pro tracks leads at $8 and Growth attributes revenue at $29",
+  "Free tier that covers evaluation — 10 links/mo, 1k clicks, 1 custom domain, no credit card",
+  "Bio pages and QR codes bundled with every workspace, not gated behind higher tiers",
+  "MIT-licensed public codebase you can self-host commercially — no AGPL copyleft constraints",
 ];
 
 const STEPS = [
   {
-    title: "Export from Bitly",
-    body: "Download your links as a CSV — slugs, destinations, and UTMs come with you.",
+    title: "Export from Dub.co",
+    body: "Take the CSV export before canceling anything, so you have a clean source of truth for slugs and destinations.",
   },
   {
     title: "Connect your domain",
-    body: "Point your custom domain at Slugy with the guided DNS setup, in minutes.",
+    body: "Add your custom domain in Slugy and follow the DNS instructions — subdomain CNAME or apex A record, SSL automatic.",
   },
   {
-    title: "Import and go",
-    body: "Upload the CSV to Slugy. Links, QR codes, and analytics start working immediately.",
+    title: "Import and cut over gradually",
+    body: "Import the CSV, reconcile the collision report, and keep highest-traffic links on Dub until Slugy analytics match for a week.",
   },
 ];
 
-export default function BitlyAlternativePage() {
+export default function DubAlternativePage() {
   return (
     <main className="mt-[65px] min-h-screen overflow-x-hidden">
       <script
@@ -118,15 +119,15 @@ export default function BitlyAlternativePage() {
       />
       <section className="mx-auto max-w-3xl px-4 pt-14 pb-10 text-center sm:pt-20 sm:pb-16">
         <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
-          Bitly alternative
+          Dub.co alternative
         </p>
         <h1 className="mt-2 text-3xl font-medium tracking-tight text-balance sm:text-5xl">
-          The best Bitly alternative without the enterprise price tag
+          The Dub.co alternative without the $90/mo entry to attribution
         </h1>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-lg">
-          Slugy is the open-source URL shortener for teams: branded links, QR
-          codes, bio pages, and conversion tracking — free to start, no sales
-          call.
+          Dub.co is excellent and honest about it — but its conversion tracking
+          starts at Business $90/mo. Slugy tracks leads from $8 and revenue from
+          $29, open source.
         </p>
         <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
           <Button asChild size="lg">
@@ -140,7 +141,7 @@ export default function BitlyAlternativePage() {
 
       <section className="mx-auto max-w-2xl px-4 py-10 sm:py-16">
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-          Why teams switch from Bitly
+          Why teams switch from Dub.co
         </h2>
         <ul className="mt-6 space-y-3">
           {SWITCH_REASONS.map((r) => (
@@ -157,52 +158,33 @@ export default function BitlyAlternativePage() {
 
       <section className="mx-auto max-w-4xl px-4 py-10 sm:py-16">
         <h2 className="text-center text-2xl font-medium tracking-tight text-balance sm:text-3xl">
-          Slugy vs Bitly vs Dub.co
+          Slugy vs Dub.co vs Bitly
         </h2>
         <div className="mt-8 rounded-[20px] border bg-white p-4 sm:p-6 dark:bg-zinc-950">
           <CompareTable />
         </div>
         <p className="text-muted-foreground mt-4 text-center text-xs">
-          Competitor plans and limits checked against public pricing pages on 30
-          September 2026. Both Bitly and Dub.co move these numbers regularly —
-          verify before deciding.
+          Dub.co Links figures from dub.co/pricing/links, checked 9 October 2026
+          (Free: 25 links/mo, 1K events, 3 domains; Pro $30/mo: 1K links, 50K
+          events, no conversion tracking; Business $90/mo: conversion tracking
+          included). Plans change — verify before deciding.
         </p>
       </section>
 
       <section className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
-          Where the dollars differ: a small-business example
+          Where Dub.co stays the better pick
         </h2>
-        <p className="text-muted-foreground mt-2 text-xs tracking-wide uppercase">
-          Illustrative example with hypothetical numbers — not a customer story
-        </p>
         <p className="text-muted-foreground mt-4 text-sm leading-7 sm:text-base">
-          A boutique store runs two influencer links for the same drop. Both get
-          ~1,000 clicks — identical in Bitly. In Slugy, link A shows 12 orders
-          worth $580 and link B shows 34 orders worth $1,740, because Growth
-          attributes Shopify sales back to the click that drove them. The team
-          doubles spend on influencer B and prints link B&apos;s QR on
-          packaging. That revenue view — plus{" "}
+          Ecosystem maturity, docs depth, integrations, and community support —
+          plus a longer uptime track record. If you already run Dub or build on
+          its API, there is no reason to move. The full honest tradeoff list is
+          in{" "}
           <Link
-            href="/integrations/shopify"
+            href="/blogs/slugy-vs-dub"
             className="font-medium underline underline-offset-4"
           >
-            Shopify attribution
-          </Link>{" "}
-          and{" "}
-          <Link
-            href="/integrations/zapier"
-            className="font-medium underline underline-offset-4"
-          >
-            Zapier follow-ups
-          </Link>{" "}
-          on every sale — is what Bitly&apos;s click counts cannot answer. Full
-          method in{" "}
-          <Link
-            href="/blogs/lead-conversion-tracking"
-            className="font-medium underline underline-offset-4"
-          >
-            how to track link conversions
+            Slugy vs Dub.co, evaluated
           </Link>
           .
         </p>
@@ -231,16 +213,6 @@ export default function BitlyAlternativePage() {
           <Button asChild size="lg">
             <Link href="https://app.slugy.co/signup">Start your migration</Link>
           </Button>
-          <p className="text-muted-foreground mt-4 text-sm">
-            Want the full breakdown? Read{" "}
-            <Link
-              href="/blogs/slugy-vs-bitly"
-              className="font-medium underline underline-offset-4"
-            >
-              Slugy vs Bitly compared
-            </Link>
-            .
-          </p>
         </div>
       </section>
 
@@ -248,11 +220,11 @@ export default function BitlyAlternativePage() {
 
       <section className="mx-auto max-w-6xl px-4 pt-4 pb-16 text-center sm:pb-20">
         <h2 className="text-2xl font-medium text-balance sm:text-4xl">
-          Ready to leave per-link limits behind?
+          Attribution at a startup price
         </h2>
         <p className="text-muted-foreground mx-auto mt-4 max-w-xl text-sm sm:text-base">
-          Switch in minutes: custom domains from day one, revenue analytics on
-          every link, and CSV migration from Bitly included.
+          Leads from $8/mo, revenue from $29/mo — with the same open-source
+          transparency as the tool you are leaving.
         </p>
         <div className="mt-8">
           <Button asChild size="lg">

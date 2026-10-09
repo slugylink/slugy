@@ -222,6 +222,35 @@ Content-Type: application/json
       </section>
 
       <section className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
+        <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">
+          How your data is handled
+        </h2>
+        <p className="text-muted-foreground mt-4 text-sm leading-7 sm:text-base">
+          Attribution needs order data — here is exactly what Slugy receives and
+          stores. Send only what you need; every field below except the click ID
+          is optional or has a fallback.
+        </p>
+        <ul className="mt-6 space-y-3">
+          {[
+            "clickId (required): the slugy_click_id captured at landing. Unknown IDs return 404 and are logged, not stored — the order still exists in Shopify.",
+            "orderId (optional): stored as the event's source reference so you can reconcile against Shopify later.",
+            "customerEmail (optional): used only to identify the customer for attribution. Omit it and Slugy falls back to a shopify-<orderId> placeholder — attribution still works.",
+            "saleAmount + saleCurrency (required for revenue): the attributed revenue figures. Growth-only; other plans get 403 for these fields.",
+            "metadata (optional): your own extra JSON, stored with the event and forwarded to webhooks.",
+            "Authentication is mandatory on every order POST: either the shared-webhook HMAC (x-shopify-hmac-sha256 header) or a workspace API key with leads-write scope, which binds the sale to that workspace.",
+          ].map((t) => (
+            <li
+              key={t}
+              className="flex items-start gap-2.5 text-sm sm:text-base"
+            >
+              <Check className="mt-0.5 h-5 w-5 shrink-0 text-green-600" />
+              <span>{t}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-4 py-10 sm:py-16">
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">FAQ</h2>
         <div className="mt-6 space-y-6">
           {FAQS.map((f) => (

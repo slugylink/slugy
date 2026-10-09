@@ -1,3 +1,4 @@
+# Local dev database only — not a production deploy (see docs/self-hosting.md).
 services:
   postgres:
     image: postgres:17

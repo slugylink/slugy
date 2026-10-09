@@ -579,7 +579,14 @@ export default function UtmBuilderClient({
                   >
                     Shorten with Slugy
                   </Link>{" "}
-                  to keep the tags but hide the clutter.
+                  to keep the tags but hide the clutter — then{" "}
+                  <Link
+                    href="/features/conversion-tracking"
+                    className="text-foreground font-medium underline-offset-4 hover:underline"
+                  >
+                    track which links convert
+                  </Link>
+                  .
                 </p>
               </div>
             </div>

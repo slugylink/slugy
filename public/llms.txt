@@ -10,12 +10,21 @@
 - [Pricing](https://slugy.co/pricing): Free, Pro, and Growth plans. Pro unlocks lead tracking; Growth adds sales analytics.
 - [Free marketing tools](https://slugy.co/tools): No-login QR code generator, UTM Builder, UTM Stripper, and Redirect Checker.
 - [QR Code Generator](https://slugy.co/tools/qr-code-generator): Free custom QR codes with colors, shapes, and PNG/SVG export. No login.
-- [UTM Builder](https://slugy.co/tools/utm-builder): Free UTM Builder — build validated, GA4-ready campaign URLs (utm_source, medium, campaign, term, content). No login. Use cases for agencies, SaaS, ecommerce, performance, SEO, email, social, creators, teams, affiliate. Platform guides: [Google Ads](https://slugy.co/tools/utm-builder/google-ads), [Meta](https://slugy.co/tools/utm-builder/facebook), [TikTok](https://slugy.co/tools/utm-builder/tiktok), [LinkedIn](https://slugy.co/tools/utm-builder/linkedin).
+- [UTM Builder](https://slugy.co/tools/utm-builder): Free UTM Builder — build validated, GA4-ready campaign URLs (utm_source, medium, campaign, term, content). No login. Use cases for agencies, SaaS, ecommerce, performance, SEO, email, social, creators, teams, affiliate. Platform guides: [Google Ads](https://slugy.co/tools/utm-builder/google-ads), [Meta](https://slugy.co/tools/utm-builder/facebook), [TikTok](https://slugy.co/tools/utm-builder/tiktok), [LinkedIn](https://slugy.co/tools/utm-builder/linkedin), [Email](https://slugy.co/tools/utm-builder/email), [GA4 channel audit](https://slugy.co/tools/utm-builder/ga4).
 - [UTM Stripper](https://slugy.co/tools/utm-stripper): Free UTM remover — strip utm_source, medium, campaign, term, content and ad click IDs (gclid, fbclid) from any URL. Runs privately in the browser. No login.
 - [Redirect Checker](https://slugy.co/tools/redirect-checker): Free redirect chain tracer — follow up to 10 hops with HTTP status codes (301, 302, 307). Verify short links land where they should. No login.
 - [Blog](https://slugy.co/blogs): Guides on link analytics, lead conversion tracking, and short-link migrations.
+- [Comparisons](https://slugy.co/alternative): Date-stamped Slugy vs Bitly and Dub.co summaries plus in-depth editorial evaluations.
+- [Dub.co alternative](https://slugy.co/alternative/dub): Attribution from $8/mo vs Dub Business $90/mo, verified Dub Links pricing, migration steps.
+- [Docs](https://slugy.co/docs): Self-hosting requirements, conversion tracking API reference, and signed webhooks.
+- [Features](https://slugy.co/features): Conversion tracking for leads and revenue, plus branded short links on custom domains.
+- [Link shortening](https://slugy.co/features/link-shortening): Branded short links with custom slugs, QR codes, expiration, and password protection.
+- [Link analytics](https://slugy.co/features/analytics): Per-link clicks, referrers, geography, devices, and UTM breakdowns with bot filtering.
+- [Bio links](https://slugy.co/features/bio-links): Link-in-bio pages on bio.slugy.co or your own domain, with per-link stats.
+- [Conversion tracking](https://slugy.co/features/conversion-tracking): Track which short links generate leads and revenue — click ID lifecycle, setup example, plan requirements, and honest attribution limits.
+- [Custom domains](https://slugy.co/features/custom-domains): Branded short links on your domain — guided DNS setup (CNAME / apex A record), automatic SSL, and migration notes.
 - [Slugy vs Bitly](https://slugy.co/alternative/bitly): Honest pricing and feature comparison with migration guide.
-- [Custom domains](https://slugy.co/custom-domain): Connect your own domain with guided DNS setup.
+- [Branded custom domains](https://slugy.co/features/custom-domains): Connect your own domain with guided DNS setup.
 - [Sponsors](https://slugy.co/sponsors): Companies supporting open-source Slugy.
 
 ## Company and legal

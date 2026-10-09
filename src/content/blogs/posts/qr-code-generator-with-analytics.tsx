@@ -70,9 +70,11 @@ export default function QrCodeAnalyticsPost() {
 
       <Callout>
         The trick is order of operations:{" "}
-        <strong>shorten first, generate second</strong>. Create a branded short
-        link with analytics, then paste that short URL into the QR generator.
-        Scans then flow through your link analytics automatically.
+        <strong>shorten first, generate second</strong>. A generated QR image is
+        static — the pixels never change — but a short link behind it stays
+        editable, so create a branded short link with analytics, then paste that
+        short URL into the QR generator. Scans then flow through your link
+        analytics automatically.
       </Callout>
 
       <H2 id="how-it-works">How QR analytics work</H2>

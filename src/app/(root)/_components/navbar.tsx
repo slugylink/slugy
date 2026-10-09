@@ -34,19 +34,30 @@ import { Button } from "@/components/ui/button";
 
 type NavLink = (typeof NAV_LINKS)[number];
 
-const VISIBLE_PATHS = new Set([
-  "/",
-  "/pricing",
-  "/sponsors",
-  "/tools",
-  "/tools/qr-code-generator",
-  "/tools/utm-builder",
-]);
-
 function isMarketingChromeVisible(pathname: string) {
-  if (VISIBLE_PATHS.has(pathname)) return true;
-  if (pathname.startsWith("/tools/")) return true;
-  return pathname === "/blogs" || pathname.startsWith("/blogs/");
+  // Every public marketing page. Slug gates, bio galleries, app surfaces stay out.
+  if (pathname === "/") return true;
+  return (
+    pathname === "/pricing" ||
+    pathname === "/about" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/sponsors" ||
+    pathname === "/custom-domain" ||
+    pathname === "/expired" ||
+    pathname === "/features" ||
+    pathname.startsWith("/features/") ||
+    pathname === "/tools" ||
+    pathname.startsWith("/tools/") ||
+    pathname === "/blogs" ||
+    pathname.startsWith("/blogs/") ||
+    pathname === "/integrations" ||
+    pathname.startsWith("/integrations/") ||
+    pathname === "/alternative" ||
+    pathname.startsWith("/alternative/") ||
+    pathname === "/docs" ||
+    pathname.startsWith("/docs/")
+  );
 }
 
 function NavbarLogo() {
@@ -88,7 +99,7 @@ function DesktopSubmenu({ link }: { link: NavLink }) {
             <li className="row-span-3 mr-1.5">
               <NavigationMenuLink asChild>
                 <Link
-                  href="/#features"
+                  href="/features"
                   className="flex h-full w-full flex-col justify-end gap-3 rounded-lg border border-zinc-200/70 bg-gradient-to-b from-zinc-100 to-white p-3.5 no-underline outline-none select-none focus:shadow-md dark:border-white/10 dark:from-zinc-900 dark:to-zinc-950"
                 >
                   <div

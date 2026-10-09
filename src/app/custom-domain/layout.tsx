@@ -2,33 +2,11 @@ import type { Metadata } from "next";
 import Navbar from "../(root)/_components/navbar";
 import Footer from "../(root)/_components/footer";
 
+// Infra route with site chrome, never indexed (see /features/custom-domains).
 export const metadata: Metadata = {
-  title: "Custom Domain - Powered by Slugy",
-  description:
-    "Connect a custom domain to Slugy for branded short links with automatic SSL, guided DNS setup, and link analytics.",
-  alternates: { canonical: "/custom-domain" },
-  openGraph: {
-    type: "website",
-    siteName: "Slugy",
-    title: "Custom Domain - Powered by Slugy",
-    description:
-      "Connect a custom domain to Slugy for branded short links with automatic SSL and analytics.",
-    url: "/custom-domain",
-    images: [
-      {
-        url: "https://files.slugy.co/slugy-og.png",
-        width: 1200,
-        height: 630,
-        alt: "Slugy custom domains for branded short links",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Custom Domain - Powered by Slugy",
-    description:
-      "Connect a custom domain to Slugy for branded short links with automatic SSL and analytics.",
-    images: ["https://files.slugy.co/slugy-og.png"],
+  robots: {
+    index: false,
+    follow: false,
   },
 };
 
@@ -40,7 +18,8 @@ export default function CustomDomainLayout({
   return (
     <>
       <Navbar />
-      {children} <Footer />
+      {children}
+      <Footer />
     </>
   );
 }

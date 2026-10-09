@@ -2,11 +2,24 @@
 
 ![Slugy Banner](https://ik.imagekit.io/xriiap5ue/Slugy%20-%20Short%20links%20with%20powerful%20analytics.png)
 
-# Slugy
+# Slugy — Open-Source URL Shortener & Link Analytics
 
-**Fast, secure, open-source link management.**
+**Open-source link management that tracks clicks, leads, and revenue.**
 
-Shorten URLs, use custom domains, generate QR codes, track analytics, and share bio links — all in one place.
+Create branded short links, manage custom domains, generate QR codes, and see
+which campaigns generate signups and sales — not just clicks. Free to start,
+with lead conversion tracking on Pro and revenue attribution on Growth.
+
+Website: https://slugy.co
+Try Slugy: https://app.slugy.co/signup
+
+## See Slugy in Action
+
+Live demo: https://slugy.co · App: https://app.slugy.co/signup
+
+> Product screenshots live here once captured from a real running instance —
+> see [`docs/screenshots.md`](./docs/screenshots.md) for the required captures
+> (link creation; clicks, leads, and revenue dashboard). No mockups.
 
 [![MIT License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge)](./LICENSE)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org)
@@ -25,15 +38,17 @@ Shorten URLs, use custom domains, generate QR codes, track analytics, and share 
 
 ## ✨ Features
 
-| Feature                  | Description                                                              |
-| ------------------------ | ------------------------------------------------------------------------ |
-| 🔗 **Link shortening**   | Short, branded links with custom slugs, expiration & password protection |
-| 🌍 **Custom domains**    | Connect your own domain for fully branded links                          |
-| 📱 **QR codes**          | Generate and customize QR codes for any link                             |
-| 📊 **Analytics**         | Clicks, referrers, countries, devices & more                             |
-| 🌐 **Bio links**         | One personalized page for all your links (`bio.slugy.co`)                |
-| 📦 **Browser extension** | Shorten links without leaving the page                                   |
-| 💳 **Subscriptions**     | Plans and billing powered by Polar                                       |
+| Feature                    | Description                                                               |
+| -------------------------- | ------------------------------------------------------------------------- |
+| 🔗 **Link shortening**     | Short, branded links with custom slugs, expiration & password protection  |
+| 🌍 **Custom domains**      | Connect your own domain for fully branded links                           |
+| 📱 **QR codes**            | Generate and customize QR codes for any link                              |
+| 📊 **Click analytics**     | Clicks, referrers, countries, devices & more                              |
+| 🎯 **Lead tracking**       | Attribute signups to the short link that drove them (Pro)                 |
+| 💰 **Revenue attribution** | Attribute Shopify orders/sales back to the click that drove them (Growth) |
+| 🌐 **Bio links**           | One personalized page for all your links (`bio.slugy.co`)                 |
+| 📦 **Browser extension**   | Shorten links without leaving the page                                    |
+| 💳 **Subscriptions**       | Plans and billing powered by Polar                                        |
 
 ---
 
@@ -72,6 +87,13 @@ Shorten URLs, use custom domains, generate QR codes, track analytics, and share 
 - A Postgres database ([Neon](https://neon.tech) recommended)
 - Upstash Redis account (for caching / rate limits)
 - Optional: Tinybird, Resend, Polar, Cloudflare R2, Vercel accounts for full functionality
+
+> **Self-hosting scope:** `docker-compose.yml` provisions local Postgres +
+> a Neon-compatible proxy for development only — it is not a complete
+> single-command production deployment of Slugy. The app itself (`npm run dev`)
+> still needs the env vars in `.env.example`. See
+> [`docs/self-hosting.md`](./docs/self-hosting.md) for mandatory vs optional
+> dependencies, limitations, and support boundaries.
 
 ### 1. Clone and install
 

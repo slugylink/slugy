@@ -34,7 +34,7 @@ const ROWS: Array<{
     label: "Bio / link-in-bio page",
     slugy: { type: "check", label: "Included" },
     bitly: { type: "text", label: "2 landing pages/mo on free" },
-    dub: { type: "none" },
+    dub: { type: "text", label: "Check current plan" },
   },
   {
     label: "UTM Builder",
@@ -46,13 +46,13 @@ const ROWS: Array<{
     label: "Lead conversion tracking",
     slugy: { type: "check", label: "Pro + Growth" },
     bitly: { type: "none" },
-    dub: { type: "text", label: "Business plan and up" },
+    dub: { type: "text", label: "Business ($90/mo) and up" },
   },
   {
     label: "Sales analytics with revenue",
     slugy: { type: "check", label: "Growth plan" },
     bitly: { type: "none" },
-    dub: { type: "none" },
+    dub: { type: "text", label: "Business ($90/mo) and up" },
   },
   {
     label: "Open source",
@@ -134,8 +134,9 @@ export default function CompareTable() {
         </tbody>
       </table>
       <p className="text-muted-foreground mt-3 text-xs">
-        Competitor limits from public pricing pages, last checked September 2026
-        — plans change, so verify before you buy.
+        Bitly limits from bitly.com/pages/pricing, Dub Links limits from
+        dub.co/pricing/links — last checked October 2026. Plans change, so
+        verify before you buy.
       </p>
     </div>
   );

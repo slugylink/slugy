@@ -29,9 +29,8 @@ import {
 
 const REDIRECT_STATUS = 302;
 const UNKNOWN_VALUE = "unknown";
-// Short accidental-double-fire guard (browser retry / double-tap), NOT a
-// throttle: the old 8s per-IP window dropped legit multi-tab and office-NAT
-// clicks. Prefetch/bots are filtered before this ever runs.
+// 2s double-fire guard (browser retry/double-tap), not a throttle.
+// Prefetch/bots are filtered before this runs.
 const RATE_LIMIT_WINDOW_SECONDS = 2;
 const RATE_LIMIT_KEY_PREFIX = "rate_limit:analytics";
 const DEFAULT_DOMAIN = "slugy.co";
@@ -57,7 +56,6 @@ interface UTMParams {
   utm_content: string | null;
 }
 
-// Escape HTML to prevent XSS
 function escapeHtml(text: string | null | undefined): string {
   if (!text) return "";
 
@@ -72,7 +70,6 @@ function escapeHtml(text: string | null | undefined): string {
   return String(text).replace(/[&<>"']/g, (char) => htmlEscapes[char] ?? char);
 }
 
-// Extract UTM parameters from a single URL
 function extractUTMParamsFromUrl(urlString: string): UTMParams {
   try {
     const params = new URL(urlString).searchParams;
@@ -118,11 +115,8 @@ function extractRefParam(urlString: string): string | null {
   }
 }
 
-// Forward click-time UTMs from the short-link request onto the destination so
-// downstream analytics (GA, etc.) attribute correctly. Internal tracking
-// already merges these via extractUTMParams; without forwarding the browser
-// lands on a URL without them. Destination's own params are preserved —
-// request values win on key conflict.
+// Forward click-time UTMs onto the destination (request wins on conflict)
+// so downstream analytics attribute correctly.
 function forwardRequestUTMs(
   requestUrl: string,
   destinationUrl: string,
@@ -151,15 +145,13 @@ function forwardRequestUTMs(
   }
 }
 
-// Create safe redirect with fallback — only http(s) destinations
 function appendSlugyIdParam(url: string, clickId: string): string {
   try {
     const parsed = new URL(url);
     parsed.searchParams.set(SLUGY_ID_PARAM, clickId);
     return parsed.toString();
   } catch {
-    // Legacy rows with unparseable destinations still redirect — attribution
-    // is skipped instead of killing the redirect entirely.
+    // Unparseable destinations still redirect; attribution is skipped.
     console.warn(`Skipping slugy_id param for unparseable URL: ${url}`);
     return url;
   }
@@ -171,8 +163,7 @@ function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
     path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    // Share attribution between slugy.co and app.slugy.co in production.
-    // Localhost subdomains can't share cookies, so stay host-only there.
+    // Localhost subdomains stay host-only; production shares across subdomains.
     ...(process.env.NODE_ENV === "production" &&
     process.env.NEXT_PUBLIC_ROOT_DOMAIN &&
     !process.env.NEXT_PUBLIC_ROOT_DOMAIN.includes("localhost")
@@ -182,8 +173,7 @@ function attachSlugyIdCookie(response: NextResponse, clickId: string): void {
 }
 
 function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
-  // Redirects are per-viewer (bot HTML vs human 302, password gates, geo
-  // targets) — never cache shared, and vary on the agent that chose them.
+  // Per-viewer redirects — never cache shared; vary on the choosing agent.
   const noStore = (response: NextResponse): NextResponse => {
     response.headers.set("Cache-Control", "private, no-store, max-age=0");
     response.headers.set("Vary", "User-Agent");
@@ -206,7 +196,6 @@ function createSafeRedirect(url: string, fallbackUrl: string): NextResponse {
   }
 }
 
-// Generate HTML preview page for bots/social media crawlers
 function serveLinkPreview(
   req: NextRequest,
   slug: string,
@@ -243,8 +232,7 @@ function serveLinkPreview(
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // Bot-only HTML must never be served to humans from a shared cache:
-      // no-store + Vary kills the poisoning vector (bots simply refetch).
+      // Bot-only HTML + no-store/Vary: never served to humans from shared cache.
       "Cache-Control": "private, no-store, max-age=0",
       Vary: "User-Agent",
       "X-Robots-Tag": "noindex, nofollow",
@@ -252,7 +240,6 @@ function serveLinkPreview(
   });
 }
 
-// Check if analytics request should be rate limited
 async function checkAnalyticsRateLimit(
   ipAddress: string,
   slug: string,
@@ -279,13 +266,11 @@ async function checkAnalyticsRateLimit(
   }
 }
 
-// Extract IP address — one shared helper so rate limiting and analytics
-// agree behind CF → Vercel (see client-ip.ts).
+// Shared IP helper so rate limiting and analytics agree behind CF → Vercel.
 function getIpAddress(req: NextRequest): string {
   return getClientIp(req.headers, UNKNOWN_VALUE);
 }
 
-// Build analytics data from request + destination (for baked-in ref/UTMs)
 function buildAnalyticsData(
   req: NextRequest,
   trigger: string,
@@ -294,10 +279,8 @@ function buildAnalyticsData(
   const ua = userAgent(req);
   const uaString = req.headers.get("user-agent") ?? "";
   const geoData = getGeoData(req);
-  // Priority: explicit ?ref= (?via=/?source= aliases, short link or
-  // destination) → Referer header → utm_source → Direct. The utm_source
-  // fallback matters because in-app browsers (X, LinkedIn, Instagram,
-  // WhatsApp…) often send no Referer header at all.
+  // Referer priority: ?ref= (?via=/?source=) → header → utm_source → Direct.
+  // The utm_source fallback covers in-app browsers that send no Referer.
   const params = req.nextUrl.searchParams;
   const refParam =
     params.get("ref")?.trim() ||
@@ -327,11 +310,8 @@ function buildAnalyticsData(
     city: geoData.city,
     region: geoData.region,
     continent: geoData.continent,
-    // Layered detection: parsed UA first, token sniffing second, sensible
-    // platform defaults last — user-facing breakdowns never show "unknown"
-    // for device/browser/os. Geo keeps "unknown" (a location can't be
-    // defaulted; in production the CF/Vercel headers are always present —
-    // unknowns there mean dev/local traffic).
+    // Breakdowns never show "unknown" for device/browser/os; geo keeps it
+    // (a location can't be defaulted; unknowns in prod mean dev traffic).
     device: detectDevice(uaString, ua.device?.type),
     browser: detectBrowser(uaString, ua.browser?.name),
     os: detectOs(uaString, ua.os?.name),
@@ -340,11 +320,7 @@ function buildAnalyticsData(
   };
 }
 
-/**
- * Device class in the parser's vocabulary (mobile/tablet/desktop).
- * Bots are filtered before tracking, so an unparsed UA here is a human on an
- * obscure browser — phone/tablet tokens still classify correctly.
- */
+/** Device class in the parser's vocabulary (mobile/tablet/desktop). */
 function detectDevice(uaString: string, parsed?: string | null): string {
   if (parsed) return parsed.toLowerCase();
   const s = uaString.toLowerCase();
@@ -396,7 +372,6 @@ function detectOs(uaString: string, parsed?: string | null): string {
   return "windows";
 }
 
-// Track analytics asynchronously
 async function trackAnalytics(
   req: NextRequest,
   linkId: string,
@@ -413,10 +388,8 @@ async function trackAnalytics(
     const utmParams = extractUTMParams(req.nextUrl.toString(), url);
     const finalDomain = domain || DEFAULT_DOMAIN;
 
-    // NOTE: slugy_click_events has no `region` column, so region is
-    // intentionally NOT in the Tinybird payload — unknown columns 400 the
-    // ingest. Region flows to Prisma via the Redis batch (column exists) and
-    // can join Tinybird after a datasource migration adds the column.
+    // slugy_click_events has no `region` column — unknown columns 400 the
+    // ingest, so region flows to Prisma via the Redis batch instead.
     const cachedData: CachedAnalyticsData = {
       linkId,
       slug,
@@ -456,9 +429,8 @@ async function trackAnalytics(
       timestamp,
     };
 
-    // Caller must wrap this in waitUntil — do not nest waitUntil after awaits.
+    // Must wrap in waitUntil — never nest it after awaits.
     await Promise.allSettled([
-      // Tinybird click events (dashboard source)
       sendLinkClickEvent({
         timestamp,
         link_id: linkId,
@@ -484,7 +456,7 @@ async function trackAnalytics(
         utm_content: utmParams.utm_content ?? "",
       }).catch((err) => console.error("[Tinybird Click Event Error]", err)),
 
-      // Ensure link exists in Tinybird metadata (analytics_pipe INNER JOINs on it)
+      // Link metadata for the analytics_pipe INNER JOIN.
       ensureTinybirdLinkMetadata({
         linkId,
         workspaceId,
@@ -494,7 +466,6 @@ async function trackAnalytics(
         createdAt: timestamp,
       }).catch((err) => console.error("[Tinybird Metadata Error]", err)),
 
-      // Edge-safe click counters (Neon)
       recordLinkClick({
         linkId,
         workspaceId,
@@ -506,7 +477,6 @@ async function trackAnalytics(
         console.error("[Click Cache Error]", err),
       ),
 
-      // Redis batch cache (Prisma analytics backfill)
       cacheAnalyticsEvent(cachedData),
     ]);
   } catch (err) {
@@ -530,9 +500,7 @@ async function ensureTinybirdLinkMetadata(input: {
     const exists = await redis.get(key);
     if (exists) return;
 
-    // First-click race: N concurrent clicks must not each append a metadata
-    // row. The loser skips — the winner's write covers everyone. Lock expiry
-    // bounds the damage if the winner dies mid-write (next click retries).
+    // First-click race: concurrent clicks share one metadata write via lock.
     const acquired = await redis.set(lockKey, "1", { nx: true, ex: 120 });
     if (!acquired) return;
 
@@ -549,8 +517,7 @@ async function ensureTinybirdLinkMetadata(input: {
       });
       sent = true;
     } catch (sendError) {
-      // No immediate retry here — the outer catch would re-send blindly.
-      // The lock is released below so the next click retries.
+      // No retry here — the lock release below lets the next click retry.
       console.error("[Tinybird Metadata Error]", sendError);
       return;
     } finally {
@@ -563,8 +530,7 @@ async function ensureTinybirdLinkMetadata(input: {
     }
     return;
   } catch {
-    // Redis down — attempt the write anyway. Duplicate metadata rows are
-    // harmless: the _latest ReplacingMergeTree view collapses them.
+    // Redis down — write anyway; ReplacingMergeTree collapses duplicates.
   }
 
   await sendLinkMetadata({
@@ -584,20 +550,17 @@ export async function URLRedirects(
   domain?: string,
 ): Promise<NextResponse | null> {
   try {
-    // Validate input
     if (!shortCode?.trim()) {
       console.warn("Empty shortCode provided to URLRedirects");
       return null;
     }
 
-    // Get link data
     const origin = req.nextUrl.origin;
     const cookieHeader = req.headers.get("cookie") ?? "";
     const linkData = await getLink(shortCode, cookieHeader, origin, domain);
 
     if (!linkData.success) {
-      // Scan-flood guard: misses are cheap (30s negative cache) but unbounded
-      // enumeration isn't — throttle miss-heavy viewers with a 429.
+      // Misses are cheap but unbounded enumeration isn't — throttle miss-heavy viewers.
       if (linkData.error === "Link not found") {
         const missLimit = await checkRedirectMissRateLimit(getIpAddress(req));
         if (!missLimit.success) {
@@ -622,17 +585,15 @@ export async function URLRedirects(
       return null;
     }
 
-    // Handle password protection
     if (linkData.requiresPassword) {
       return null;
     }
 
-    // Handle expired links
+    // Expired links go to the noindex /expired page, never the homepage.
     if (linkData.expired && linkData.url) {
-      return createSafeRedirect(linkData.url, `${origin}/?status=expired`);
+      return createSafeRedirect(linkData.url, `${origin}/expired`);
     }
 
-    // Handle valid links
     if (linkData.url && linkData.linkId && linkData.workspaceId) {
       const geoData = getGeoData(req);
       const destinationUrl = resolveTargetUrl({
@@ -652,14 +613,12 @@ export async function URLRedirects(
           linkData.description,
       );
 
-      // Serve preview for bots with metadata
       if ((isBot || isExplicitPreviewRequest) && hasPreviewMetadata) {
         return serveLinkPreview(req, shortCode, linkData);
       }
 
       const clickId = createClickId();
-      // Forward click-time UTMs (?utm_* on the short link) onto the
-      // destination so GA-style tools see them; tracking already merges them.
+      // Forward click-time UTMs onto the destination; tracking merges them.
       const baseRedirectUrl = forwardRequestUTMs(
         req.nextUrl.toString(),
         destinationUrl,
@@ -669,9 +628,8 @@ export async function URLRedirects(
         ? appendSlugyIdParam(baseRedirectUrl, clickId)
         : baseRedirectUrl;
 
-      // Track analytics for humans only (skip bots + browser prefetch).
-      // waitUntil MUST be registered before the 302 returns — a bare void/async
-      // after Redis will be frozen on Vercel and Tinybird events never land.
+      // Humans only (skip bots + prefetch). waitUntil must register before
+      // the 302 returns — a bare async after Redis freezes on Vercel.
       if (!isBot && trigger !== "prefetch") {
         const bioLinkId = req.nextUrl.searchParams.get("bio")?.trim() || null;
         waitUntil(
@@ -694,8 +652,7 @@ export async function URLRedirects(
                 trigger,
                 clickId,
               ),
-              // Bio attribution: ?bio=<bioLinkId> on short-link clicks from
-              // bio pages. Validated inside (must match this linkId).
+              // ?bio=<id> attributes bio-page clicks; validated inside.
               bioLinkId
                 ? recordBioClick({ bioLinkId, linkId: linkData.linkId! })
                 : Promise.resolve({ ok: false }),
@@ -714,11 +671,7 @@ export async function URLRedirects(
       return redirectResponse;
     }
 
-    // Handle not found
-    if (linkData.url?.includes("status=not-found")) {
-      return createSafeRedirect(linkData.url, `${origin}/?status=not-found`);
-    }
-
+    // Unknown slugs fall through to [slug], which returns a true 404.
     return null;
   } catch (error) {
     console.error(`Link redirect error for slug "${shortCode}":`, error);

@@ -1,5 +1,6 @@
 import {
   FolderIcon,
+  GlobeIcon,
   HandHeart,
   HelpCircleIcon,
   LineChartIcon,
@@ -7,32 +8,44 @@ import {
   NewspaperIcon,
   QrCodeIcon,
   TablePropertiesIcon,
-  WrenchIcon,
+  TargetIcon,
 } from "lucide-react";
 
 export const NAV_LINKS = [
   {
     title: "Features",
-    href: "/#features",
+    href: "/features",
     menu: [
       {
         title: "Link Shortening",
         tagline: "Shorten links and track their performance.",
-        href: "/#features",
+        href: "/features/link-shortening",
         icon: Link2Icon,
       },
 
       {
         title: "Advanced Analytics",
         tagline: "Gain insights into who is clicking your links.",
-        href: "/#features",
+        href: "/features/analytics",
         icon: LineChartIcon,
       },
       {
         title: "Bio Links",
         tagline: "Your links in one place for easy sharing.",
-        href: "/#features",
+        href: "/features/bio-links",
         icon: FolderIcon,
+      },
+      {
+        title: "Conversion Tracking",
+        tagline: "See which links drive leads and revenue.",
+        href: "/features/conversion-tracking",
+        icon: TargetIcon,
+      },
+      {
+        title: "Custom Domains",
+        tagline: "Branded short links on your domain.",
+        href: "/features/custom-domains",
+        icon: GlobeIcon,
       },
     ],
   },
@@ -82,8 +95,4 @@ export const NAV_LINKS = [
       },
     ],
   },
-  // {
-  //   title: "Changelog",
-  //   href: "/changelog",
-  // },
 ];

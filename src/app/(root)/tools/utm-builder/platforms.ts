@@ -1,6 +1,4 @@
-// Per-platform UTM presets for the builder plus the content for each
-// dedicated platform page. Kept in one place so the chips and the pages can
-// never drift apart.
+// Platform presets + page content in one place so chips and pages never drift.
 
 export interface PlatformPreset {
   /** Stable key used in the builder chips. */
@@ -72,6 +70,32 @@ export const PLATFORM_PRESETS: PlatformPreset[] = [
       campaign: "demand-gen-q4",
       term: "job-title-managers",
       content: "single-image-a",
+    },
+  },
+  {
+    key: "email",
+    label: "Email",
+    slug: "email",
+    name: "Email",
+    values: {
+      source: "newsletter",
+      medium: "email",
+      campaign: "weekly-digest",
+      term: "",
+      content: "header-cta",
+    },
+  },
+  {
+    key: "ga4",
+    label: "GA4 Audit",
+    slug: "ga4",
+    name: "GA4",
+    values: {
+      source: "audit",
+      medium: "referral",
+      campaign: "channel-audit",
+      term: "",
+      content: "row-a",
     },
   },
 ];
@@ -435,6 +459,178 @@ export const PLATFORM_PAGES: PlatformPage[] = [
       {
         q: "Why do LinkedIn ads show up as 'linkedin / referral'?",
         a: "The destination received no UTM tags, so GA4 fell back to the referrer. Add utm_source=linkedin and utm_medium=paid_social to move those sessions into the campaign report.",
+      },
+    ],
+  },
+  {
+    slug: "email",
+    name: "Email",
+    title: "Email UTM Builder — Tag Newsletters & Drips Correctly",
+    description:
+      "Free email UTM builder, no login. Tag newsletters, drips, and lifecycle emails with utm_source, email medium, and per-send utm_content for clean GA4 reports.",
+    keywords: [
+      "email utm builder",
+      "newsletter utm parameters",
+      "utm for email campaigns",
+      "email campaign tracking url",
+      "utm_content button tracking",
+    ],
+    heading: "Email UTM Builder",
+    intro:
+      "Attribute every send, drip, and lifecycle message with the conventions GA4 expects: your list as the source, email as the medium, and the button or banner in utm_content. Pre-seeded below — swap in your campaign and go.",
+    convention: [
+      {
+        param: "utm_source",
+        value: "newsletter",
+        why: "Your list identifier (newsletter, onboarding, receipts). Keep one source per list so per-list performance stays comparable.",
+      },
+      {
+        param: "utm_medium",
+        value: "email",
+        why: "Always `email` — GA4's default channel grouping keys off this value to file sessions under Email.",
+      },
+      {
+        param: "utm_campaign",
+        value: "weekly-digest",
+        why: "The specific send or drip (weekly-digest, trial-day-3). Transactional messages like receipts get their own campaign so they never inflate newsletter numbers.",
+      },
+      {
+        param: "utm_term",
+        value: "",
+        why: "Leave empty for email — term is for paid keywords and audiences, and an empty value keeps rows clean.",
+      },
+      {
+        param: "utm_content",
+        value: "header-cta",
+        why: "The placement that earned the click (header-cta, hero-banner, footer). This is how you learn which block in the template converts.",
+      },
+    ],
+    notes: [
+      {
+        heading: "One campaign per send, not per list",
+        body: "Reuse the list in utm_source but mint a fresh utm_campaign per send or drip step. Otherwise every edition of the newsletter collapses into one row and you lose send-over-send comparison.",
+      },
+      {
+        heading: "Apple Mail Privacy Protection inflates opens",
+        body: "Since MPP, open rates are unreliable — prefetching counts as opens. Optimize email on clicks and downstream conversions (which UTMs measure exactly) instead of opens.",
+      },
+      {
+        heading: "Plain-text vs HTML versions",
+        body: "Both versions should carry identical UTMs so the send reports as one campaign. If your sender appends its own tags, check for duplicates before blaming GA4 for split rows.",
+      },
+    ],
+    examples: [
+      {
+        label: "Weekly newsletter, header CTA",
+        url: "https://example.com/blog/link-tracking?utm_source=newsletter&utm_medium=email&utm_campaign=weekly-digest&utm_content=header-cta",
+      },
+      {
+        label: "Trial drip, day 3",
+        url: "https://example.com/pricing?utm_source=onboarding&utm_medium=email&utm_campaign=trial-day-3&utm_content=compare-plans",
+      },
+    ],
+    faq: [
+      {
+        q: "What utm_medium should emails use?",
+        a: "Always `email`. GA4's default channel rules file utm_medium=email sessions under the Email channel — any other value scatters them across Direct or Referral.",
+      },
+      {
+        q: "Should transactional emails share the newsletter campaign?",
+        a: "No. Give receipts and password resets their own utm_campaign (e.g. transactional-receipts) so service messages never inflate marketing numbers.",
+      },
+      {
+        q: "Why does GA4 show my newsletter under Direct?",
+        a: "Almost always missing or inconsistent tags — often a redirect (including a short link) stripping the query string. Verify the hop preserves UTMs; Slugy forwards them onto the destination.",
+      },
+      {
+        q: "Do I need utm_term for email?",
+        a: "No. Term is for paid keywords and audiences. Leave it empty rather than stuffing it — empty keeps GA4 rows clean.",
+      },
+    ],
+  },
+  {
+    slug: "ga4",
+    name: "GA4",
+    title: "GA4 Channel Audit UTM Guide — Fix Misattributed Traffic",
+    description:
+      "Free GA4 UTM audit guide, no login. Learn how utm_source and utm_medium map to default channel groups, fix (direct) rows, and standardize team conventions.",
+    keywords: [
+      "ga4 utm audit",
+      "ga4 default channel grouping utm",
+      "ga4 direct traffic fix",
+      "utm naming convention ga4",
+      "ga4 campaign attribution",
+    ],
+    heading: "GA4 Channel Audit Guide",
+    intro:
+      "Half of all 'why is everything Direct?' mysteries are UTM inconsistencies. This guide maps source/medium values to GA4's default channel groups and gives your team a convention that keeps rows clean. Audit with the builder below.",
+    convention: [
+      {
+        param: "utm_source",
+        value: "audit",
+        why: "In real use this is the referrer or platform (google, newsletter, linkedin). Audit by listing every distinct source in your last 30 days of traffic.",
+      },
+      {
+        param: "utm_medium",
+        value: "referral",
+        why: "Medium drives channel grouping: organic→Organic Search, cpc→Paid Search, email→Email, social/paid_social→Organic/Paid Social. Unknown mediums fall to Unassigned or Direct.",
+      },
+      {
+        param: "utm_campaign",
+        value: "channel-audit",
+        why: "Group the audit itself as one campaign so the test clicks stay findable — then delete or filter them after.",
+      },
+      {
+        param: "utm_term",
+        value: "",
+        why: "Empty unless auditing paid search; term only matters for keyword-level rows.",
+      },
+      {
+        param: "utm_content",
+        value: "row-a",
+        why: "Tag each audited row distinctly so you can verify every variant lands in the intended channel.",
+      },
+    ],
+    notes: [
+      {
+        heading: "Case sensitivity splits rows",
+        body: "GA4 treats Email and email as different mediums in different channels. Standardize on lowercase everywhere — this builder enforces it automatically.",
+      },
+      {
+        heading: "Redirects eat UTMs",
+        body: "Every hop must forward the query string or GA4 sees an untagged landing and files it under Direct. Test each short-link and redirect chain with the redirect checker before blaming the channel model.",
+      },
+      {
+        heading: "Document the convention once",
+        body: "Agree on a short list of sources (newsletter, linkedin, google) and mediums (email, social, cpc) and pin it where the team writes links. Consistency beats cleverness in campaign reporting.",
+      },
+    ],
+    examples: [
+      {
+        label: "Paid social audit row",
+        url: "https://example.com/pricing?utm_source=linkedin&utm_medium=paid_social&utm_campaign=channel-audit&utm_content=row-a",
+      },
+      {
+        label: "Email audit row",
+        url: "https://example.com/pricing?utm_source=newsletter&utm_medium=email&utm_campaign=channel-audit&utm_content=row-b",
+      },
+    ],
+    faq: [
+      {
+        q: "Why does GA4 show traffic as (direct) / (none)?",
+        a: "No referrer and no usable UTMs — commonly stripped query strings on redirect, in-app browsers, or dark-social copy-paste. Tag systematically and verify redirect chains preserve parameters.",
+      },
+      {
+        q: "Which medium values map to which GA4 channels?",
+        a: "organic→Organic Search, cpc/cpm/paid→Paid variants, email→Email, social→Organic Social, paid_social→Paid Social, referral→Referral. Anything else risks Unassigned.",
+      },
+      {
+        q: "Should I backfill old UTM values?",
+        a: "No — GA4 does not reprocess history. Fix the convention going forward and annotate the change date so past/future rows are never compared naively.",
+      },
+      {
+        q: "How often should we audit UTMs?",
+        a: "Monthly for active teams: export distinct source/medium/campaign triples, kill duplicates and casing variants, and update the pinned convention list.",
       },
     ],
   },

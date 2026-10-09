@@ -16,8 +16,20 @@ client-ready analytics without the enterprise price tag. Live platform totals
 - Pro ($8/mo, $80/yr): adds lead tracking, custom domains, geo targeting, link passwords and expiry.
 - Growth ($29/mo, $290/yr): adds sales/revenue analytics. Cancel anytime in one click.
 
-### [Custom domains](https://slugy.co/custom-domain)
-Connect your own domain (e.g. yourbrand.co/sale) with guided DNS setup, SSL included.
+### [Custom domains](https://slugy.co/features/custom-domains)
+Branded short links on your domain (e.g. yourbrand.co/sale) — guided DNS setup (subdomain CNAME or apex A record), automatic SSL, safe migration notes. Included from day one, even on free.
+
+### [Conversion tracking](https://slugy.co/features/conversion-tracking)
+Track which short links generate leads and revenue — click ID lifecycle, setup example, deduplication and 90-day attribution rules, plan requirements (Pro for leads, Growth for sales), honest limits.
+
+### [Link shortening](https://slugy.co/features/link-shortening)
+Branded short links with custom slugs, QR codes, expiration and password protection (Pro+), geo targeting (Pro+).
+
+### [Link analytics](https://slugy.co/features/analytics)
+Per-link clicks, referrers, geography, devices, UTM breakdowns, bot filtering; retention 30 days (free) to 24 months (Growth).
+
+### [Bio links](https://slugy.co/features/bio-links)
+Link-in-bio pages on bio.slugy.co or your own domain, 5–30 links by plan, per-link click stats.
 
 ### [Sponsors](https://slugy.co/sponsors)
 Companies funding Slugy's open-source development.
@@ -47,6 +59,8 @@ Per-platform guides (same builder, platform-specific conventions):
 - [Meta Ads UTM Builder (Facebook & Instagram)](https://slugy.co/tools/utm-builder/facebook): separate Facebook and Instagram with utm_source, paid_social medium, creative-level utm_content.
 - [TikTok UTM Builder](https://slugy.co/tools/utm-builder/tiktok): utm_source=tiktok, creative/Spark-collaboration tagging, in-app browser referrer loss.
 - [LinkedIn UTM Builder](https://slugy.co/tools/utm-builder/linkedin): utm_source=linkedin, paid_social medium, audience-level utm_term, li_fat_id vs UTMs.
+- [Email UTM Builder](https://slugy.co/tools/utm-builder/email): newsletter source, email medium, per-send campaigns, placement-level utm_content.
+- [GA4 Channel Audit Guide](https://slugy.co/tools/utm-builder/ga4): source/medium to channel-group mapping, (direct) fixes, team conventions.
 
 ### [UTM Stripper](https://slugy.co/tools/utm-stripper)
 Free UTM remover: strips utm_source, utm_medium, utm_campaign, utm_term, utm_content and ad click IDs (gclid, gbraid, wbraid, fbclid, msclkid, dclid, ttclid, li_fat_id, mc_cid, mc_eid, igshid, mkt_tok) from any URL. Runs entirely in the browser — pasted URLs never leave the page. No login. Use before re-tagging a campaign so old tags don't pollute new reports.
@@ -66,6 +80,19 @@ Free redirect chain tracer: follows up to 10 hops showing each HTTP status (301,
 
 ### [Slugy vs Bitly (alternative page)](https://slugy.co/alternative/bitly)
 Head-to-head alternative page with FAQ: migration, custom domains, pricing.
+
+### [Slugy vs Dub.co (alternative page)](https://slugy.co/alternative/dub)
+Attribution from $8/mo vs Dub Business $90/mo, verified Dub Links pricing, migration steps.
+
+### [All comparisons](https://slugy.co/alternative)
+Commercial summaries plus in-depth editorial evaluations.
+
+## Developer docs
+
+- [Docs index](https://slugy.co/docs): self-hosting, conversions API, webhooks.
+- [Self-hosting](https://slugy.co/docs/self-hosting): mandatory vs optional services, local quickstart, production checklist.
+- [Conversion tracking API](https://slugy.co/docs/conversions): POST /api/leads_track reference.
+- [Webhooks](https://slugy.co/docs/webhooks): lead.created/sale.created fan-out, HMAC verification.
 
 ## Frequently asked questions
 
