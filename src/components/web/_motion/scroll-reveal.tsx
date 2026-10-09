@@ -3,22 +3,31 @@
 import { MotionConfig, motion, useReducedMotion } from "motion/react";
 import { Children, createContext, useContext, type ReactNode } from "react";
 
-export const EASE = [0.16, 1, 0.3, 1] as const;
+// A calm, decelerating curve — long tail so motion settles instead of stopping.
+export const EASE = [0.22, 1, 0.36, 1] as const;
 
-// A small bottom inset works for short mobile viewports and tall sections.
+// Trigger a little above the bottom edge so the reveal is actually seen
+// (not hidden behind the fold) while staying generous for short viewports.
 export const SCROLL_VIEWPORT = {
   once: true,
   amount: "some",
-  margin: "0px 0px -32px 0px",
+  margin: "0px 0px -15% 0px",
 } as const;
 
-export const REVEAL_DURATION = 0.5;
+export const REVEAL_DURATION = 0.6;
 export const REVEAL_BLUR = "blur(0px)";
 const VISIBLE = { opacity: 1, y: 0 };
 const StaggerDelay = createContext(0);
 
 export function MotionProvider({ children }: { children: ReactNode }) {
-  return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
+  return (
+    <MotionConfig
+      reducedMotion="user"
+      transition={{ duration: REVEAL_DURATION, ease: EASE }}
+    >
+      {children}
+    </MotionConfig>
+  );
 }
 
 interface RevealProps {
@@ -42,7 +51,7 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: Math.min(y, 24) }}
+      initial={{ opacity: 0, y: Math.min(y, 20) }}
       animate={reducedMotion ? VISIBLE : undefined}
       whileInView={VISIBLE}
       viewport={SCROLL_VIEWPORT}

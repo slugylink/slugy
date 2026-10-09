@@ -1,8 +1,6 @@
 "use client";
 import React, { memo } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Reveal, Stagger, StaggerItem } from "./reveal";
 import { AnalyticsDemoVisual } from "./analytics-demo";
@@ -12,8 +10,6 @@ interface Row {
   title: string;
   description: string;
   bullets: string[];
-  cta: string;
-  href: string;
   visual: React.ReactNode;
   /** Stacked full-width layout (centered text, wide visual) instead of the side-by-side grid. */
   fullWidth?: boolean;
@@ -32,8 +28,6 @@ const ROWS: Row[] = [
       "UTM Builder + bulk creation",
       "Shared workspaces for teams",
     ],
-    cta: "Create a branded link",
-    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -62,8 +56,6 @@ const ANALYTICS_ROW: Row = {
     "Referrer + campaign + geo breakdown",
     "Shareable client-ready reports",
   ],
-  cta: "Start tracking your links",
-  href: "https://app.slugy.co/signup",
   visual: <AnalyticsDemoVisual />,
   fullWidth: true,
 };
@@ -75,8 +67,6 @@ const MINIS1 = [
     eyebrow: "QR codes",
     title: "From link to scan in one click",
     description: "A print-ready, on-brand QR with every short link.",
-    cta: "Create a QR code",
-    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -100,8 +90,6 @@ const MINIS1 = [
     title: "Campaign URLs, done right",
     description:
       "Free, no-login builder with presets and validation for clean GA4-ready attribution.",
-    cta: "Open the free UTM Builder",
-    href: "/tools/utm-builder",
     visual: (
       <div
         aria-hidden
@@ -128,8 +116,6 @@ const MINIS2 = [
     eyebrow: "Geo insights",
     title: "Know where every click comes from",
     description: "Country, city and browser breakdown on every link.",
-    cta: "Explore click insights",
-    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -152,8 +138,6 @@ const MINIS2 = [
     eyebrow: "Bio links",
     title: "One page for all your links",
     description: "Your posts, videos, and QR codes behind a single URL.",
-    cta: "Build your bio page",
-    href: "https://app.slugy.co/signup",
     visual: (
       <div
         aria-hidden
@@ -226,12 +210,6 @@ const Features = memo(function Features() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href={row.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-              >
-                {row.cta} <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
             <div
               className={cn(
@@ -277,12 +255,6 @@ const Features = memo(function Features() {
                   </li>
                 ))}
               </ul>
-              <Link
-                href={ANALYTICS_ROW.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-              >
-                {ANALYTICS_ROW.cta} <ArrowRight className="h-4 w-4" />
-              </Link>
             </div>
             <div className="relative mt-8 min-w-0">
               <p className="text-muted-foreground mb-3 text-center text-xs">
@@ -320,14 +292,6 @@ const Features = memo(function Features() {
                 <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed md:text-center">
                   {mini.description}
                 </p>
-                <div className="mt-3 md:text-center">
-                  <Link
-                    href={mini.href}
-                    className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-                  >
-                    {mini.cta} <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
               </div>
             </StaggerItem>
           ))}
@@ -360,14 +324,6 @@ const Features = memo(function Features() {
                 <p className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed md:text-center">
                   {mini.description}
                 </p>
-                <div className="mt-3 md:text-center">
-                  <Link
-                    href={mini.href}
-                    className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
-                  >
-                    {mini.cta} <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
               </div>
             </StaggerItem>
           ))}

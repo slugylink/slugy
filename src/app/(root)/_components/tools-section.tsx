@@ -54,25 +54,22 @@ export default function ToolsSection() {
             key={tool.href}
             className="flex flex-col rounded-[20px] border p-5 sm:p-6"
           >
-            <h3 className="text-lg font-medium">{tool.title}</h3>
+            <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+              {tool.eyebrow}
+            </p>
+            <h3 className="mt-2 text-lg font-medium">{tool.title}</h3>
+            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+              {tool.description}
+            </p>
             <Link
               href={tool.href}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium underline underline-offset-4 hover:opacity-80"
+              className="text-foreground mt-5 inline-flex items-center gap-1 text-sm font-medium transition-opacity hover:opacity-70"
             >
               {tool.cta} <ArrowRight className="h-4 w-4" />
             </Link>
           </StaggerItem>
         ))}
       </Stagger>
-
-      <p className="text-muted-foreground mt-6 text-center text-sm">
-        <Link
-          href="/tools"
-          className="text-foreground font-medium underline underline-offset-4"
-        >
-          Browse all free tools
-        </Link>
-      </p>
     </section>
   );
 }
