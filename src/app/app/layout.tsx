@@ -1,4 +1,5 @@
 import { ThemeProvider } from "@/components/theme-provider";
+import type { Metadata } from "next";
 import React from "react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,16 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// App dashboard/auth/onboarding must never be indexed. On app.slugy.co the
+// paths are "/" and "/:workspace" (not "/app/*"), so robots.txt disallow
+// rules for "/app/" do not cover them — metadata noindex is the real guard.
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 interface RootLayoutProps {
   children: React.ReactNode;

@@ -66,10 +66,14 @@ const Footer = () => {
     {
       title: "Product",
       links: [
-        { href: "#features", label: "Features" },
         { href: "/pricing", label: "Pricing" },
+        { href: "/integrations", label: "Integrations" },
+        { href: "/custom-domain", label: "Custom Domains" },
+        { href: "/alternative/bitly", label: "Bitly Alternative" },
         { href: "/tools/qr-code-generator", label: "QR Code Generator" },
         { href: "/tools/utm-builder", label: "UTM Builder" },
+        { href: "/tools/redirect-checker", label: "Redirect Checker" },
+        { href: "/tools/utm-stripper", label: "UTM Stripper" },
       ],
     },
     {
@@ -102,14 +106,28 @@ const Footer = () => {
 
   const pathname = usePathname();
 
-  if (
-    !["/", "/tools/metadatas", "/pricing", "/sponsors", "/tools"].includes(
-      pathname,
-    ) &&
-    pathname !== "/blogs" &&
-    !pathname.startsWith("/blogs/") &&
-    !pathname.startsWith("/tools/")
-  ) {
+  // Footer carries internal-link equity to every sitemap URL. Pages without
+  // it (e.g. /about, /integrations/*, /alternative/bitly, /custom-domain)
+  // become orphans and land in "Crawled - currently not indexed".
+  // User galleries (/b/*) and transient pages keep no footer by design.
+  const isPublicMarketingPage =
+    pathname === "/" ||
+    pathname === "/pricing" ||
+    pathname === "/about" ||
+    pathname === "/privacy" ||
+    pathname === "/terms" ||
+    pathname === "/sponsors" ||
+    pathname === "/custom-domain" ||
+    pathname === "/blogs" ||
+    pathname.startsWith("/blogs/") ||
+    pathname === "/integrations" ||
+    pathname.startsWith("/integrations/") ||
+    pathname === "/alternative/bitly" ||
+    pathname.startsWith("/alternative/") ||
+    pathname === "/tools" ||
+    pathname.startsWith("/tools/");
+
+  if (!isPublicMarketingPage) {
     return null;
   }
 

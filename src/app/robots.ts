@@ -6,7 +6,27 @@ export default function robots(): MetadataRoute.Robots {
 
   // Private paths stay off-limits for every crawler, AI or not.
   // NOTE: /_next/ is intentionally NOT disallowed — blocking it prevents
-  const privatePaths = ["/api/", "/app/", "/admin/", "/private/", "/temp/"];
+  // rendering. /share/ is intentionally NOT disallowed — reports with
+  // allowIndexing=true are meant to be indexable.
+  // /b/ + /bio/ are disallowed on the root domain so Google consolidates
+  // bio galleries on their canonical host (bio.slugy.co) instead of
+  // splitting equity across /b/:username + /bio/:username duplicates.
+  const privatePaths = [
+    "/api/",
+    "/app/",
+    "/admin/",
+    "/private/",
+    "/temp/",
+    "/test/",
+    "/expired/",
+    "/b/",
+    "/bio/",
+    "/onboarding/",
+    "/extension/",
+    "/monitoring",
+    "/sentry-example-page",
+    "/custom-domain/not-found",
+  ];
 
   // AI crawlers are intentionally allowed on public marketing content
   // (comparison pages, blogs, pricing) so LLMs can cite and recommend
