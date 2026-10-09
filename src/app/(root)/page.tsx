@@ -100,10 +100,10 @@ export default function Home() {
           <ToolsSection />
 
           <IntegrationsSection />
-
+          {/* 
           <section id="stats-metrics" className="scroll-mt-20">
             <Stats />
-          </section>
+          </section> */}
 
           <section id="sponsors" className="scroll-mt-20">
             <Sponsors />
