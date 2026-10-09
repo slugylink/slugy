@@ -12,9 +12,8 @@ export default function PricingPageClient() {
             Simple pricing for short links that track revenue
           </h1>
           <p className="text-muted-foreground mx-auto mt-3 max-w-2xl text-sm sm:text-base">
-            Slugy is a URL shortener with click, lead, and revenue analytics.
-            Free branded short links on every plan — Pro adds lead conversion
-            tracking, Growth adds sales analytics. Upgrade anytime.
+            Free branded short links on every plan — Pro adds leads, Growth adds
+            revenue, Premium scales it.
           </p>
         </div>
 

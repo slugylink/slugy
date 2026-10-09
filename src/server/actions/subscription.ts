@@ -121,7 +121,10 @@ export async function getBillingData(workspaceSlug: string) {
     // If user has a plan and workspace/bio limits don't match plan, sync (fixes Pro limits after seed update)
     if (
       plan?.planType &&
-      (workspace.maxLinkTags !== plan.maxTagsPerWorkspace ||
+      (workspace.maxLinksLimit !== plan.maxLinksPerWorkspace ||
+        workspace.maxClicksLimit !== plan.maxClicksPerWorkspace ||
+        workspace.maxUsers !== plan.maxUsers ||
+        workspace.maxLinkTags !== plan.maxTagsPerWorkspace ||
         workspace.maxUtmTemplates !== plan.maxUtmTemplates ||
         (bioWithMostLinks?.maxLinksLimit ?? 5) !== plan.maxLinksPerBio)
     ) {

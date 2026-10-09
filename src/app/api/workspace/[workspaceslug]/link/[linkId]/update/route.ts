@@ -1,3 +1,4 @@
+import { withWorkspaceQuota } from "@/lib/subscription/workspace-quota";
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { jsonWithETag } from "@/lib/http";
@@ -31,7 +32,6 @@ import {
 import { Prisma } from "@prisma/client";
 
 const DEFAULT_DOMAIN = "slugy.co";
-const MAX_TAGS_PER_WORKSPACE = 5;
 
 function geoMapsEqual(
   a: GeoTargetMap | null | undefined,
@@ -308,184 +308,187 @@ export async function PATCH(
 
     // Use transaction to ensure data consistency
     try {
-      const linkWithTags = await db.$transaction(async (tx) => {
-        // Prepare update data (only provided fields)
-        const updateData: Record<string, unknown> = {};
-        for (const key of Object.keys(validatedData)) {
-          const value = validatedData[key as keyof typeof validatedData];
-          if (typeof value !== "undefined" && key !== "tags") {
-            if (key === "expiresAt" && value && typeof value === "string") {
-              updateData.expiresAt = new Date(value as string);
-            } else if (key === "geo") {
-              updateData.geo =
-                value === null ? Prisma.JsonNull : (value as GeoTargetMap);
-            } else if (key === "trackConversion") {
-              updateData.trackConversion =
-                canUseLeadTracking(planType) && Boolean(value);
-            } else if (key !== "tags") {
-              updateData[key] = value;
+      const linkWithTags = await withWorkspaceQuota(
+        workspace.id,
+        async (tx, plan) => {
+          // Prepare update data (only provided fields)
+          const updateData: Record<string, unknown> = {};
+          for (const key of Object.keys(validatedData)) {
+            const value = validatedData[key as keyof typeof validatedData];
+            if (typeof value !== "undefined" && key !== "tags") {
+              if (key === "expiresAt" && value && typeof value === "string") {
+                updateData.expiresAt = new Date(value as string);
+              } else if (key === "geo") {
+                updateData.geo =
+                  value === null ? Prisma.JsonNull : (value as GeoTargetMap);
+              } else if (key === "trackConversion") {
+                updateData.trackConversion =
+                  canUseLeadTracking(planType) && Boolean(value);
+              } else if (key !== "tags") {
+                updateData[key] = value;
+              }
             }
           }
-        }
 
-        // If customDomainId is being updated, also update the domain field
-        if (validatedData.customDomainId !== undefined) {
-          updateData.domain = customDomainName || DEFAULT_DOMAIN;
-        }
-
-        // Password: mask = keep; null = clear; new string = hash
-        if (validatedData.password !== undefined) {
-          if (isPasswordUnchanged(validatedData.password)) {
-            delete updateData.password;
-          } else if (validatedData.password === null) {
-            updateData.password = null;
-          } else {
-            updateData.password = hashLinkPassword(validatedData.password);
+          // If customDomainId is being updated, also update the domain field
+          if (validatedData.customDomainId !== undefined) {
+            updateData.domain = customDomainName || DEFAULT_DOMAIN;
           }
-        }
 
-        if (!canUseLeadTracking(planType)) {
-          updateData.trackConversion = false;
-        }
+          // Password: mask = keep; null = clear; new string = hash
+          if (validatedData.password !== undefined) {
+            if (isPasswordUnchanged(validatedData.password)) {
+              delete updateData.password;
+            } else if (validatedData.password === null) {
+              updateData.password = null;
+            } else {
+              updateData.password = hashLinkPassword(validatedData.password);
+            }
+          }
 
-        // Update the link
-        await tx.link.update({
-          where: { id: context.linkId },
-          data: updateData,
-        });
+          if (!canUseLeadTracking(planType)) {
+            updateData.trackConversion = false;
+          }
 
-        // Handle tags if provided
-        if (validatedData.tags !== undefined) {
-          // Remove all existing tag relationships
-          await tx.linkTag.deleteMany({
-            where: { linkId: context.linkId },
+          // Update the link
+          await tx.link.update({
+            where: { id: context.linkId },
+            data: updateData,
           });
 
-          // Add new tag relationships if tags are provided
-          if (validatedData.tags.length > 0) {
-            const normalizedTags = Array.from(
-              new Set(
-                validatedData.tags.map((tag) => tag.trim()).filter(Boolean),
-              ),
-            );
-
-            // Get existing tags for this workspace
-            const existingTags = await tx.tag.findMany({
-              where: {
-                workspaceId: workspace.id,
-                name: { in: normalizedTags },
-                deletedAt: null,
-              },
-              select: { id: true, name: true, color: true },
+          // Handle tags if provided
+          if (validatedData.tags !== undefined) {
+            // Remove all existing tag relationships
+            await tx.linkTag.deleteMany({
+              where: { linkId: context.linkId },
             });
 
-            // Find tags that don't exist yet
-            const existingTagNames = new Set(
-              existingTags.map((tag) => tag.name),
-            );
-            const newTagNames = normalizedTags.filter(
-              (tagName) => !existingTagNames.has(tagName),
-            );
-
-            // Create new tags if needed
-            let allTags = [...existingTags];
-            if (newTagNames.length > 0) {
-              // Check if we can create more tags (limit of 5 per workspace)
-              const currentTagCount = await tx.tag.count({
-                where: {
-                  workspaceId: workspace.id,
-                  deletedAt: null,
-                },
-              });
-
-              const canCreateCount = Math.min(
-                newTagNames.length,
-                MAX_TAGS_PER_WORKSPACE - currentTagCount,
+            // Add new tag relationships if tags are provided
+            if (validatedData.tags.length > 0) {
+              const normalizedTags = Array.from(
+                new Set(
+                  validatedData.tags.map((tag) => tag.trim()).filter(Boolean),
+                ),
               );
 
-              if (canCreateCount > 0) {
-                const tagsToCreate = newTagNames.slice(0, canCreateCount);
+              // Get existing tags for this workspace
+              const existingTags = await tx.tag.findMany({
+                where: {
+                  workspaceId: workspace.id,
+                  name: { in: normalizedTags },
+                  deletedAt: null,
+                },
+                select: { id: true, name: true, color: true },
+              });
 
-                await tx.tag.createMany({
-                  data: tagsToCreate.map((tagName) => ({
-                    name: tagName,
+              // Find tags that don't exist yet
+              const existingTagNames = new Set(
+                existingTags.map((tag) => tag.name),
+              );
+              const newTagNames = normalizedTags.filter(
+                (tagName) => !existingTagNames.has(tagName),
+              );
+
+              // Create new tags if needed
+              let allTags = [...existingTags];
+              if (newTagNames.length > 0) {
+                // Check if we can create more tags (limit of 5 per workspace)
+                const currentTagCount = await tx.tag.count({
+                  where: {
                     workspaceId: workspace.id,
-                    color: null,
+                    deletedAt: null,
+                  },
+                });
+
+                const canCreateCount = Math.min(
+                  newTagNames.length,
+                  plan.maxTagsPerWorkspace - currentTagCount,
+                );
+
+                if (canCreateCount > 0) {
+                  const tagsToCreate = newTagNames.slice(0, canCreateCount);
+
+                  await tx.tag.createMany({
+                    data: tagsToCreate.map((tagName) => ({
+                      name: tagName,
+                      workspaceId: workspace.id,
+                      color: null,
+                    })),
+                    skipDuplicates: true,
+                  });
+
+                  allTags = await tx.tag.findMany({
+                    where: {
+                      workspaceId: workspace.id,
+                      name: {
+                        in: [
+                          ...existingTags.map((tag) => tag.name),
+                          ...tagsToCreate,
+                        ],
+                      },
+                      deletedAt: null,
+                    },
+                    select: { id: true, name: true, color: true },
+                  });
+                }
+              }
+
+              // Create link-tag relationships for all tags
+              if (allTags.length > 0) {
+                await tx.linkTag.createMany({
+                  data: allTags.map((tag) => ({
+                    linkId: context.linkId,
+                    tagId: tag.id,
                   })),
                   skipDuplicates: true,
                 });
-
-                allTags = await tx.tag.findMany({
-                  where: {
-                    workspaceId: workspace.id,
-                    name: {
-                      in: [
-                        ...existingTags.map((tag) => tag.name),
-                        ...tagsToCreate,
-                      ],
-                    },
-                    deletedAt: null,
-                  },
-                  select: { id: true, name: true, color: true },
-                });
               }
             }
-
-            // Create link-tag relationships for all tags
-            if (allTags.length > 0) {
-              await tx.linkTag.createMany({
-                data: allTags.map((tag) => ({
-                  linkId: context.linkId,
-                  tagId: tag.id,
-                })),
-                skipDuplicates: true,
-              });
-            }
           }
-        }
 
-        const updatedLink = await tx.link.findUnique({
-          where: { id: context.linkId },
-          select: {
-            id: true,
-            url: true,
-            slug: true,
-            domain: true,
-            image: true,
-            title: true,
-            metadesc: true,
-            description: true,
-            password: true,
-            expiresAt: true,
-            expirationUrl: true,
-            utm_source: true,
-            utm_medium: true,
-            utm_campaign: true,
-            utm_content: true,
-            utm_term: true,
-            geo: true,
-            trackConversion: true,
-            createdAt: true,
-            tags: {
-              select: {
-                tag: {
-                  select: {
-                    id: true,
-                    name: true,
-                    color: true,
+          const updatedLink = await tx.link.findUnique({
+            where: { id: context.linkId },
+            select: {
+              id: true,
+              url: true,
+              slug: true,
+              domain: true,
+              image: true,
+              title: true,
+              metadesc: true,
+              description: true,
+              password: true,
+              expiresAt: true,
+              expirationUrl: true,
+              utm_source: true,
+              utm_medium: true,
+              utm_campaign: true,
+              utm_content: true,
+              utm_term: true,
+              geo: true,
+              trackConversion: true,
+              createdAt: true,
+              tags: {
+                select: {
+                  tag: {
+                    select: {
+                      id: true,
+                      name: true,
+                      color: true,
+                    },
                   },
                 },
               },
             },
-          },
-        });
+          });
 
-        if (!updatedLink) {
-          throw new Error("Link not found");
-        }
+          if (!updatedLink) {
+            throw new Error("Link not found");
+          }
 
-        return updatedLink;
-      });
+          return updatedLink;
+        },
+      );
 
       const oldDomain = link.domain || DEFAULT_DOMAIN;
       const newDomain = linkWithTags.domain || DEFAULT_DOMAIN;

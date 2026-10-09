@@ -14,6 +14,7 @@ export async function checkWorkspaceAccessAndLimits(
     const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
+        deletedAt: null,
         OR: [{ userId }, { members: { some: { userId } } }],
       },
       select: {
@@ -117,10 +118,7 @@ export async function checkWorkspaceLimit(userId: string) {
           : `Workspace limit reached. Upgrade to Pro.`,
         currentCount: currentWorkspaceCount,
         maxLimit: maxWorkspaces,
-        planType: (retry.subscription?.plan?.planType ?? "free") as
-          | "free"
-          | "basic"
-          | "pro",
+        planType: retry.subscription?.plan?.planType ?? "free",
       };
     }
 
@@ -168,7 +166,7 @@ export async function getUserWorkspaceStats(userId: string) {
 
     const { subscription } = subscriptionResult;
     const currentWorkspaceCount = await db.workspace.count({
-      where: { userId },
+      where: { userId, deletedAt: null },
     });
 
     return {

@@ -1,3 +1,4 @@
+import type { PlanType } from "@prisma/client";
 import { db } from "@/server/db";
 import {
   syncUserLimits,
@@ -11,7 +12,6 @@ import {
 import {
   subscriptionWithPlanSelect,
   syncSubscriptionFromPolar,
-  hasForeverDiscount,
   isLifetimeBillingPeriod,
   getPlanTypeByProductName,
 } from "@/lib/subscription/reconcile";
@@ -201,12 +201,13 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
     const items = response?.result?.items ?? [];
 
     const updates: Record<
-      "basic" | "pro" | "growth",
+      "basic" | "pro" | "growth" | "premium",
       { monthlyPriceId: string | null; yearlyPriceId: string | null }
     > = {
       basic: { monthlyPriceId: null, yearlyPriceId: null },
       pro: { monthlyPriceId: null, yearlyPriceId: null },
       growth: { monthlyPriceId: null, yearlyPriceId: null },
+      premium: { monthlyPriceId: null, yearlyPriceId: null },
     };
 
     for (const product of items) {
@@ -234,7 +235,7 @@ async function syncPlanPriceIdsFromPolar(): Promise<void> {
       }
     }
 
-    for (const planType of ["basic", "pro", "growth"] as const) {
+    for (const planType of ["basic", "pro", "growth", "premium"] as const) {
       const monthlyPriceId = updates[planType].monthlyPriceId;
       const yearlyPriceId = updates[planType].yearlyPriceId;
       if (!monthlyPriceId && !yearlyPriceId) continue;
@@ -266,7 +267,7 @@ async function findPlanByPriceIdWithSync(priceId: string) {
   plan = await findPlanByPriceId(priceId);
   if (plan) return plan;
   const candidatePlans = await db.plan.findMany({
-    where: { planType: { in: ["basic", "pro", "growth"] } },
+    where: { planType: { in: ["basic", "pro", "growth", "premium"] } },
   });
   return candidatePlans.find((p) => matchesPriceId(p, priceId)) ?? null;
 }
@@ -301,24 +302,11 @@ function getSubscriptionFields(sub: PolarSubscription) {
 }
 
 function getNormalizedPeriodEnd(
-  planType: "basic" | "pro",
+  planType: PlanType,
   periodStart: Date,
   periodEnd: Date | undefined,
-  sub?: PolarSubscription,
+  _sub?: PolarSubscription,
 ): Date {
-  if (
-    planType === "pro" &&
-    sub &&
-    hasForeverDiscount({
-      discount: (sub as { discount?: { duration?: string } | null }).discount,
-      status: sub.status,
-    })
-  ) {
-    const lifetimeEnd = new Date(periodStart);
-    lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + 100);
-    return lifetimeEnd;
-  }
-
   // Basic is a one-time forever plan. If provider doesn't send recurring
   // bounds, keep it active for a long lifetime window.
   if (planType === "basic") {
@@ -580,7 +568,7 @@ async function handleSubscriptionCreated(sub: PolarSubscription) {
   const fields = getSubscriptionFields(sub);
   const periodStart = fields.periodStart ?? new Date();
   const periodEnd = getNormalizedPeriodEnd(
-    plan.planType as "basic" | "pro",
+    plan.planType as PlanType,
     periodStart,
     fields.periodEnd,
     sub,
@@ -597,15 +585,20 @@ async function handleSubscriptionCreated(sub: PolarSubscription) {
   });
 
   const existingStatus = existing?.status?.toLowerCase() ?? "";
-  const hasActivePro =
-    existing?.plan.planType === "pro" &&
+  const hasActivePaidPlan =
+    existing &&
+    ["pro", "growth", "premium"].includes(existing.plan.planType) &&
     ["active", "trialing"].includes(existingStatus) &&
     (existing.periodEnd > new Date() ||
-      isLifetimeBillingPeriod("pro", existing.periodStart, existing.periodEnd));
+      isLifetimeBillingPeriod(
+        existing.plan.planType,
+        existing.periodStart,
+        existing.periodEnd,
+      ));
 
-  if (hasActivePro && plan.planType === "basic") {
+  if (hasActivePaidPlan && plan.planType === "basic") {
     console.warn(
-      `${LOG_PREFIX} Refusing to overwrite active Pro with Basic for user ${userId}`,
+      `${LOG_PREFIX} Refusing to overwrite active paid subscription with Basic for user ${userId}`,
     );
     return;
   }
@@ -662,16 +655,11 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
   const fields = getSubscriptionFields(sub);
   const remoteStatus = sub.status ?? existing.status;
   const periodEnd = fields.periodEnd ?? existing.periodEnd;
-  const hasLifetimeAccess =
-    hasForeverDiscount({
-      discount: sub.discount,
-      status: remoteStatus,
-    }) ||
-    isLifetimeBillingPeriod(
-      existing.plan.planType,
-      existing.periodStart,
-      existing.periodEnd,
-    );
+  const hasLifetimeAccess = isLifetimeBillingPeriod(
+    existing.plan.planType,
+    existing.periodStart,
+    existing.periodEnd,
+  );
   const access = resolveUpdatedAccess({
     remoteStatus,
     cancelAtPeriodEnd: fields.cancelAtPeriodEnd,
@@ -711,7 +699,7 @@ async function handleSubscriptionUpdated(sub: PolarSubscription) {
   if (fields.periodStart) updateData.periodStart = fields.periodStart;
   if (fields.periodEnd || fields.periodStart) {
     updateData.periodEnd = getNormalizedPeriodEnd(
-      (resolvedPlan?.planType as "basic" | "pro") ?? "pro",
+      (resolvedPlan?.planType as PlanType) ?? "pro",
       periodStart,
       fields.periodEnd ?? existing.periodEnd,
       sub,
@@ -754,7 +742,7 @@ async function handleSubscriptionActive(sub: PolarSubscription) {
     const fields = getSubscriptionFields(sub);
     const periodStart = fields.periodStart ?? new Date();
     const periodEnd = getNormalizedPeriodEnd(
-      plan.planType as "basic" | "pro",
+      plan.planType as PlanType,
       periodStart,
       fields.periodEnd,
       sub,

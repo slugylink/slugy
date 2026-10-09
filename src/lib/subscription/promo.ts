@@ -207,8 +207,8 @@ export function shouldApplyCheckoutPromo(
 
   const monthlyProId = PRO_PLAN.monthlyPriceId;
   // If we know the Pro monthly price ID, require it explicitly.
-  if (monthlyProId) return productIds.includes(monthlyProId);
+  if (monthlyProId) return productIds.every((id) => id === monthlyProId);
 
-  // Otherwise fall back to any monthly checkout (matched by name upstream).
-  return true;
+  // Without a configured Pro ID, the plan cannot be verified.
+  return false;
 }

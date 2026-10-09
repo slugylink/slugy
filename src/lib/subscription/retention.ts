@@ -6,7 +6,8 @@ const RETENTION_MONTHS: Record<string, number> = {
   free: 1,
   basic: 1,
   pro: 12,
-  growth: 24,
+  growth: Number.POSITIVE_INFINITY,
+  premium: Number.POSITIVE_INFINITY,
 };
 
 export function getRetentionMonths(
@@ -68,7 +69,9 @@ export function clampStartDateByRetention(
   startDate: Date,
   now: Date = new Date(),
 ): Date {
+  const months = getRetentionMonths(planType);
+  if (months === Number.POSITIVE_INFINITY) return startDate;
   const cutoff = new Date(now);
-  cutoff.setMonth(cutoff.getMonth() - getRetentionMonths(planType));
+  cutoff.setMonth(cutoff.getMonth() - months);
   return startDate < cutoff ? cutoff : startDate;
 }

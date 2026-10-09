@@ -1,5 +1,7 @@
 "use server";
 
+import { FREE_PLAN, toPlanSeed } from "@/constants/data/price";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 import { db } from "@/server/db";
 import { getAuthSession } from "@/lib/auth";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
@@ -39,6 +41,7 @@ export async function getUsages({
     const workspace = await db.workspace.findFirst({
       where: {
         slug: workspaceslug,
+        deletedAt: null,
         OR: [
           { userId },
           {
@@ -70,7 +73,17 @@ export async function getUsages({
       userId: workspace.userId,
     });
 
-    return { workspace, usage };
+    const { subscription } = await getSubscriptionWithPlan(workspace.userId);
+    const plan = subscription?.plan ?? toPlanSeed(FREE_PLAN);
+    return {
+      workspace: {
+        ...workspace,
+        maxClicksLimit: plan.maxClicksPerWorkspace,
+        maxLinksLimit: plan.maxLinksPerWorkspace,
+        maxUsers: plan.maxUsers,
+      },
+      usage,
+    };
   } catch (error) {
     console.error("Failed to fetch usage data:", {
       workspaceslug,

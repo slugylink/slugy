@@ -62,13 +62,13 @@ const UpgardePage = () => {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:mx-auto lg:max-w-6xl lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:mx-auto lg:max-w-6xl lg:grid-cols-4">
         {plans.map((plan) => (
           <Card
             key={plan.name}
             className={cn(
               "flex flex-col gap-6 rounded-[18px] p-6 shadow-none md:p-8",
-              plan.planType === "pro"
+              plan.isRecommended
                 ? "border-2 border-[#ffaa40] bg-zinc-50 dark:bg-black/50"
                 : "bg-background dark:border-zinc-700",
             )}
@@ -76,7 +76,7 @@ const UpgardePage = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-bold capitalize">{plan.name}</h3>
-                {plan.planType === "pro" && (
+                {plan.isRecommended && (
                   <div className="rounded-full bg-[#ffaa40] p-1 px-2 text-xs font-medium text-black">
                     Recommended
                   </div>

@@ -6,7 +6,7 @@ import { Check } from "lucide-react";
 export const metadata: Metadata = {
   title: "Short Link Analytics — Clicks, Devices & Referrers | Slugy",
   description:
-    "Per-link analytics: clicks, referrers, countries, devices, browsers, and UTM breakdowns — with bot filtering and 30-day to 24-month retention by plan.",
+    "Per-link analytics: clicks, referrers, countries, devices, browsers, and UTM breakdowns — with bot filtering and 30-day to all-time retention by plan.",
   keywords: [
     "short link analytics",
     "link click analytics",
@@ -65,7 +65,7 @@ const DIMENSIONS = [
 
 const NOTES = [
   "Free includes click analytics with 30-day retention and 1k tracked clicks/month.",
-  "Pro extends to 10k clicks/month with 12-month retention; Growth to 50k clicks/month with 24-month retention.",
+  "Pro extends to 10k clicks/month with 12-month retention; Growth to 50k clicks/month with all-time retention.",
   "Clicks answer “who visited”. For “who converted”, add lead tracking (Pro) or revenue attribution (Growth).",
   "Retention windows apply per plan — compare like-for-like periods when reporting across upgrades.",
 ];

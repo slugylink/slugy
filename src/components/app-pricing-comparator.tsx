@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 const CHECKOUT_BASE_URL = "/api/subscription/checkout";
 const MANAGE_BASE_URL = "/api/subscription/manage";
 type PriceInterval = "month" | "year" | null;
-type PaidPlanType = "pro" | "growth";
+type PaidPlanType = "pro" | "growth" | "premium";
 
 interface ProductPrice {
   id: string;
@@ -40,7 +40,7 @@ interface PricingComparatorProps {
   products?: ProductData[];
   workspace?: string;
   isPaidPlan?: boolean;
-  currentPlanType?: "free" | "basic" | "pro" | "growth" | null;
+  currentPlanType?: "free" | "basic" | "pro" | "growth" | "premium" | null;
   successUrlPath?: string;
 }
 
@@ -48,6 +48,7 @@ interface PricingComparatorProps {
 function getPlanTypeFromProductName(name?: string): PaidPlanType | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
+  if (normalized.includes("premium")) return "premium";
   if (normalized.includes("growth") || normalized.includes("business")) {
     return "growth";
   }
@@ -153,8 +154,12 @@ function PlanCta({
     );
   }
 
-  // `plans` only contains free/pro/growth; guard for legacy "basic".
-  if (plan.planType !== "pro" && plan.planType !== "growth") {
+  // `plans` only contains free/pro/growth/premium; guard for legacy "basic".
+  if (
+    plan.planType !== "pro" &&
+    plan.planType !== "growth" &&
+    plan.planType !== "premium"
+  ) {
     return (
       <Button variant="outline" size="sm" className={className} disabled>
         Unavailable
@@ -247,11 +252,14 @@ export default function AppPricingComparator({
       { feature: "Click analytics", get: () => true },
       {
         feature: "Lead conversion tracking",
-        get: (p: Plan) => p.planType === "pro" || p.planType === "growth",
+        get: (p: Plan) =>
+          p.planType === "pro" ||
+          p.planType === "growth" ||
+          p.planType === "premium",
       },
       {
         feature: "Sales analytics",
-        get: (p: Plan) => p.planType === "growth",
+        get: (p: Plan) => p.planType === "growth" || p.planType === "premium",
       },
     ],
     [],
@@ -397,17 +405,15 @@ export default function AppPricingComparator({
                   <td className="text-muted-foreground">{row.feature}</td>
                   {plans.map((plan, i) => {
                     const value = row.get(plan);
-                    return i === highlightIndex ? (
+                    return (
                       <td
                         key={plan.planType}
-                        className="bg-muted border-none px-4"
+                        className={
+                          i === highlightIndex
+                            ? "bg-muted px-4 whitespace-nowrap"
+                            : "px-2 whitespace-nowrap"
+                        }
                       >
-                        <div className="-mb-3 border-b py-3">
-                          <FeatureCell value={value} />
-                        </div>
-                      </td>
-                    ) : (
-                      <td key={plan.planType} className="px-2">
                         <FeatureCell value={value} />
                       </td>
                     );

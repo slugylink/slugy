@@ -1,3 +1,4 @@
+import { hasInvalidRecurringPeriod, isLifetimePlan } from "./billing-period";
 import { Interval, PlanType, Prisma } from "@prisma/client";
 
 import { polarClient } from "@/lib/polar";
@@ -59,10 +60,7 @@ type PolarSubscriptionSnapshot = {
   recurringInterval: string;
   prices: { id?: string }[];
   productName?: string;
-  hasForeverDiscount: boolean;
 };
-
-const LIFETIME_PERIOD_YEARS = 100;
 
 /**
  * Polar product names are "Pro [monthly]" / "Growth" (legacy: "Business") /
@@ -70,9 +68,10 @@ const LIFETIME_PERIOD_YEARS = 100;
  */
 export function getPlanTypeByProductName(
   name?: string | null,
-): "basic" | "pro" | "growth" | null {
+): "basic" | "pro" | "growth" | "premium" | null {
   const normalized = (name ?? "").toLowerCase().trim();
   if (!normalized) return null;
+  if (normalized.includes("premium")) return "premium";
   if (normalized.includes("growth") || normalized.includes("business")) {
     return "growth";
   }
@@ -92,29 +91,17 @@ function coercePolarDate(value: unknown): Date | undefined {
   return undefined;
 }
 
-export function hasForeverDiscount(remote: {
-  discount?: { duration?: string | null } | null;
-  status?: string | null;
-}): boolean {
-  const duration = remote.discount?.duration;
-  if (duration !== "forever") return false;
-
-  const status = remote.status?.toLowerCase?.() ?? "";
-  return status === "active" || status === "trialing";
-}
-
 function resolveStoredPeriodEnd(
   remote: PolarSubscriptionRemote,
   periodStart: Date,
   fallbackEnd: Date,
 ): Date {
-  if (hasForeverDiscount(remote)) {
-    const lifetimeEnd = new Date(periodStart);
-    lifetimeEnd.setFullYear(lifetimeEnd.getFullYear() + LIFETIME_PERIOD_YEARS);
-    return lifetimeEnd;
-  }
-
-  return coercePolarDate(remote.currentPeriodEnd) ?? fallbackEnd;
+  return (
+    coercePolarDate(remote.currentPeriodEnd) ??
+    (hasInvalidRecurringPeriod("pro", periodStart, fallbackEnd)
+      ? periodStart
+      : fallbackEnd)
+  );
 }
 
 function subscriptionPriority(remote: PolarSubscriptionRemote): number {
@@ -122,7 +109,6 @@ function subscriptionPriority(remote: PolarSubscriptionRemote): number {
   if (status !== "active" && status !== "trialing") return -1;
 
   let score = 0;
-  if (hasForeverDiscount(remote)) score += 1_000_000;
   score += coercePolarDate(remote.currentPeriodStart)?.getTime() ?? 0;
   return score;
 }
@@ -153,13 +139,8 @@ function normalizeDbStatus(
   periodEnd: Date,
   now: Date,
   cancelAtPeriodEnd: boolean,
-  hasForeverDiscountActive = false,
 ): "active" | "inactive" | string {
   const normalized = status.toLowerCase().trim();
-
-  if (hasForeverDiscountActive) {
-    return normalized === "trialing" ? "trialing" : "active";
-  }
 
   if (normalized === "revoked") return "inactive";
 
@@ -203,7 +184,6 @@ function toPolarSnapshot(
     recurringInterval: remote.recurringInterval,
     prices: remote.prices,
     productName: remote.product?.name,
-    hasForeverDiscount: hasForeverDiscount(remote),
   };
 }
 
@@ -266,7 +246,8 @@ export async function syncSubscriptionFromPolar(
     // hasn't run. Lazily close out expired grace periods locally.
     const now = new Date();
     const planType = subscription.plan.planType?.toLowerCase();
-    const isBillable = planType === "pro" || planType === "growth";
+    const isBillable =
+      planType === "pro" || planType === "growth" || planType === "premium";
     const expired =
       subscription.periodEnd <= now &&
       !isLifetimeBillingPeriod(
@@ -297,7 +278,6 @@ export async function syncSubscriptionFromPolar(
     nextPeriodEnd,
     now,
     nextCancelAtPeriodEnd,
-    remote.hasForeverDiscount,
   );
   const nextBillingInterval = normalizeBillingInterval(
     remote.recurringInterval,
@@ -375,22 +355,10 @@ export async function syncSubscriptionFromPolar(
 
 export function isLifetimeBillingPeriod(
   planType: string | null | undefined,
-  periodStart: Date | null | undefined,
-  periodEnd: Date | null | undefined,
+  _periodStart: Date | null | undefined,
+  _periodEnd: Date | null | undefined,
 ): boolean {
-  const normalized = planType?.toLowerCase();
-  // Basic is a one-time lifetime entitlement.
-  if (normalized === "basic") return true;
-  // Free is NOT a paid entitlement — it just has a far-future period so the
-  // row never expires. Treating it as "lifetime" leaked the "(discounted Pro)"
-  // label and skipped downgrade logic.
-  if (!normalized || normalized === "free") return false;
-  if (!periodStart || !periodEnd) return false;
-
-  const years =
-    (periodEnd.getTime() - periodStart.getTime()) /
-    (365.25 * 24 * 60 * 60 * 1000);
-  return years >= LIFETIME_PERIOD_YEARS - 1;
+  return isLifetimePlan(planType);
 }
 
 /** Extract the active price id attached to a Polar subscription, if any. */
@@ -522,13 +490,19 @@ export async function reconcileUserEntitlement(
     const now = new Date();
     const planType = subscription?.plan.planType?.toLowerCase();
     const status = subscription?.status?.toLowerCase() ?? "";
-    const isPaidPlan = planType === "pro" || planType === "growth";
+    const isPaidPlan =
+      planType === "pro" || planType === "growth" || planType === "premium";
     const isActive = status === "active" || status === "trialing";
 
     const isHealthyPaid =
       Boolean(subscription) &&
       isActive &&
       isPaidPlan &&
+      !hasInvalidRecurringPeriod(
+        planType,
+        subscription!.periodStart,
+        subscription!.periodEnd,
+      ) &&
       (subscription!.periodEnd > now ||
         isLifetimeBillingPeriod(
           planType,
@@ -575,7 +549,6 @@ export async function reconcileUserEntitlement(
       periodEnd,
       now,
       remote.cancelAtPeriodEnd,
-      hasForeverDiscount(remote),
     );
 
     const priceId = getRemotePriceId(remote);
@@ -640,9 +613,14 @@ export async function reconcileSubscriptionIfStale(
   const planType = subscription.plan.planType?.toLowerCase();
   const shouldRefresh =
     subscription.provider === "polar" &&
-    (planType === "pro" || planType === "growth") &&
+    (planType === "pro" || planType === "growth" || planType === "premium") &&
     (subscription.subscriptionId || subscription.customerId) &&
-    subscription.periodEnd <= now;
+    (subscription.periodEnd <= now ||
+      hasInvalidRecurringPeriod(
+        planType,
+        subscription.periodStart,
+        subscription.periodEnd,
+      ));
 
   if (!shouldRefresh) {
     return subscription;

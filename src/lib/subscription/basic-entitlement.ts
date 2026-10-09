@@ -24,7 +24,7 @@ export const activeSubscriptionSelect = {
 
 /**
  * Activates Basic entitlement for a verified paid Basic checkout/order.
- * Refuses to overwrite an in-period active/trialing Pro subscription.
+ * Refuses to overwrite an in-period active/trialing paid subscription.
  */
 export async function activateBasicEntitlement(input: {
   userId: string;
@@ -54,15 +54,20 @@ export async function activateBasicEntitlement(input: {
   });
 
   const status = existing?.status?.toLowerCase() ?? "";
-  const isActivePro =
-    existing?.plan.planType === "pro" &&
+  const isActivePaidPlan =
+    existing &&
+    ["pro", "growth", "premium"].includes(existing.plan.planType) &&
     ["active", "trialing"].includes(status) &&
     (existing.periodEnd > new Date() ||
-      isLifetimeBillingPeriod("pro", existing.periodStart, existing.periodEnd));
+      isLifetimeBillingPeriod(
+        existing.plan.planType,
+        existing.periodStart,
+        existing.periodEnd,
+      ));
 
-  if (isActivePro) {
+  if (isActivePaidPlan) {
     console.warn(
-      `[Basic Entitlement] Refusing to overwrite active Pro for user ${input.userId}`,
+      `[Basic Entitlement] Refusing to overwrite active paid subscription for user ${input.userId}`,
     );
     return db.subscription.findUnique({
       where: { referenceId: input.userId },

@@ -1,3 +1,7 @@
+import {
+  withWorkspaceQuota,
+  WorkspaceQuotaError,
+} from "@/lib/subscription/workspace-quota";
 import { jsonWithETag } from "@/lib/http";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
@@ -47,44 +51,36 @@ export async function POST(
     });
 
     if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
-    }
-
-    // Check the number of existing tags against workspace limit
-    const tagCount = await db.tag.count({
-      where: {
-        workspaceId: workspace.id,
-        deletedAt: null,
-      },
-    });
-
-    if (workspace.maxLinkTags != null && tagCount >= workspace.maxLinkTags) {
       return jsonWithETag(
         req,
-        {
-          error: `Maximum number of tags (${workspace.maxLinkTags}) reached for this workspace. Upgrade to pro!`,
-          code: "TAG_LIMIT_REACHED",
-        },
-        { status: 400 },
+        { error: "Workspace not found" },
+        { status: 404 },
       );
     }
 
-    const tag = await db.tag.create({
-      data: {
-        name: validatedData.name,
-        color: validatedData.color,
-        workspaceId: workspace.id,
-      },
-      select: {
-        id: true,
-        name: true,
-        color: true,
-        _count: {
-          select: {
-            links: true,
+    const tag = await withWorkspaceQuota(workspace.id, async (tx, plan) => {
+      const count = await tx.tag.count({
+        where: { workspaceId: workspace.id, deletedAt: null },
+      });
+      if (count >= plan.maxTagsPerWorkspace)
+        throw new WorkspaceQuotaError("Tag limit reached for this plan.");
+      return tx.tag.create({
+        data: {
+          name: validatedData.name,
+          color: validatedData.color,
+          workspaceId: workspace.id,
+        },
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          _count: {
+            select: {
+              links: true,
+            },
           },
         },
-      },
+      });
     });
 
     // Transform the response to include linkCount
@@ -97,8 +93,18 @@ export async function POST(
 
     return jsonWithETag(req, tagWithLinkCount, { status: 201 });
   } catch (error) {
+    if (error instanceof WorkspaceQuotaError)
+      return jsonWithETag(
+        req,
+        { error: error.message, code: "TAG_LIMIT_REACHED" },
+        { status: 400 },
+      );
     console.error("[TAGS_POST]", error);
-    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
+    return jsonWithETag(
+      req,
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -134,7 +140,11 @@ export async function GET(
     });
 
     if (!workspace) {
-      return jsonWithETag(req, { error: "Workspace not found" }, { status: 404 });
+      return jsonWithETag(
+        req,
+        { error: "Workspace not found" },
+        { status: 404 },
+      );
     }
     const tags = await db.tag.findMany({
       where: {
@@ -157,7 +167,7 @@ export async function GET(
     });
 
     // Transform the response to include linkCount
-    const tagsWithLinkCount = tags.map(tag => ({
+    const tagsWithLinkCount = tags.map((tag) => ({
       id: tag.id,
       name: tag.name,
       color: tag.color,
@@ -167,6 +177,10 @@ export async function GET(
     return jsonWithETag(req, tagsWithLinkCount);
   } catch (error) {
     console.error("[TAGS_GET]", error);
-    return jsonWithETag(req, { error: "Internal Server Error" }, { status: 500 });
+    return jsonWithETag(
+      req,
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

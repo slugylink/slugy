@@ -128,7 +128,7 @@ export default function SlugyVsBlinkPost() {
           ["Open source", "Slugy only"],
           [
             "Analytics retention",
-            "30 days Free · 12 months Pro · 24 months Growth",
+            "30 days Free · 12 months Pro · All time Growth/Premium",
           ],
         ]}
       />

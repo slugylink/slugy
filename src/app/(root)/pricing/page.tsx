@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import PricingPageClient from "./page-client";
 import PricingFaq from "./faq-section";
 import PricingDetailContent from "./detail-content";
-import { FREE_PLAN, PRO_PLAN, GROWTH_PLAN } from "@/constants/data/price";
+import { plans } from "@/constants/data/price";
 
 export const metadata: Metadata = {
   title: "Pricing — Short Links with Revenue Analytics",
@@ -47,7 +47,7 @@ const productJsonLd = {
     "Open-source link management platform: branded short links, analytics, QR codes, link-in-bio, custom domains, and team collaboration.",
   brand: { "@type": "Brand", name: "Slugy" },
   url: `${BASE_URL}/pricing`,
-  offers: [FREE_PLAN, PRO_PLAN, GROWTH_PLAN].map((plan) => ({
+  offers: plans.map((plan) => ({
     "@type": "Offer",
     name: `Slugy ${plan.name}`,
     priceCurrency: "USD",

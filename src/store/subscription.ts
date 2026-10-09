@@ -37,10 +37,11 @@ function applySubscription(
 ) {
   const planType =
     (subscription?.plan?.planType as PlanType | undefined) ?? null;
-  // Growth includes everything Pro unlocks in the UI.
+  // These flags represent feature access: Premium includes Growth and Pro.
   const normalized = planType?.toString().toLowerCase();
-  const isPro = normalized === "pro" || normalized === "growth";
-  const isGrowth = normalized === "growth";
+  const isPro =
+    normalized === "pro" || normalized === "growth" || normalized === "premium";
+  const isGrowth = normalized === "growth" || normalized === "premium";
 
   set({
     subscription,

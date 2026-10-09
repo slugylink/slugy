@@ -19,6 +19,7 @@ enum PlanType {
   basic
   pro
   growth
+  premium
 }
 
 enum Interval {

@@ -1,5 +1,5 @@
 export type BillingPeriod = "monthly" | "yearly";
-export type PlanType = "free" | "basic" | "pro" | "growth";
+export type PlanType = "free" | "basic" | "pro" | "growth" | "premium";
 export type PricingFeatureValue = string | boolean | number;
 
 export interface Plan {
@@ -38,6 +38,7 @@ export interface PricingComparisonRow {
   free: PricingFeatureValue;
   pro: PricingFeatureValue;
   growth: PricingFeatureValue;
+  premium: PricingFeatureValue;
 }
 
 export const PRICING_COPY = {
@@ -94,17 +95,18 @@ export function getPlanPriceSubtitle(
 
 /** Analytics event access per tier: free → clicks, pro → + leads, growth → + sales. */
 export function getPlanAnalyticsTier(planType: PlanType): string {
-  if (planType === "growth") return "Clicks + Leads + Sales";
+  if (planType === "growth" || planType === "premium")
+    return "Clicks + Leads + Sales";
   if (planType === "pro") return "Clicks + Leads";
   return "Clicks";
 }
 
 export function planHasLeadTracking(planType: PlanType): boolean {
-  return planType === "pro" || planType === "growth";
+  return planType === "pro" || planType === "growth" || planType === "premium";
 }
 
 export function planHasSalesAnalytics(planType: PlanType): boolean {
-  return planType === "growth";
+  return planType === "growth" || planType === "premium";
 }
 
 /** Plans flagged not-ready render disabled until launched. */
@@ -130,6 +132,8 @@ const PRO_MONTHLY_PRICE = 8;
 const PRO_YEARLY_PRICE = 80;
 const GROWTH_MONTHLY_PRICE = 29;
 const GROWTH_YEARLY_PRICE = 290;
+const PREMIUM_MONTHLY_PRICE = 199;
+const PREMIUM_YEARLY_PRICE = 1990;
 
 export const FREE_PLAN: Plan = {
   name: "Free",
@@ -219,8 +223,7 @@ export const BASIC_PLAN: Plan = {
 
 export const PRO_PLAN: Plan = {
   name: "Pro",
-  description:
-    "Perfect for individuals and small teams who need advanced features.",
+  description: "Perfect for individuals and small teams.",
   monthlyPrice: PRO_MONTHLY_PRICE,
   yearlyPrice: PRO_YEARLY_PRICE,
   monthlyPriceId:
@@ -231,7 +234,7 @@ export const PRO_PLAN: Plan = {
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRICE_ID ||
     process.env.NEXT_PUBLIC_PRO_YEARLY_PRODUCT_ID ||
     "",
-  isRecommended: true,
+  isRecommended: false,
   buttonLabel: "Get Pro",
   isReady: true,
   yearlyDiscount: getYearlyDiscountPercent(PRO_MONTHLY_PRICE, PRO_YEARLY_PRICE),
@@ -279,7 +282,7 @@ export const GROWTH_PLAN: Plan = {
   yearlyPrice: GROWTH_YEARLY_PRICE,
   monthlyPriceId: process.env.NEXT_PUBLIC_GROWTH_MONTHLY_PRICE_ID || "",
   yearlyPriceId: process.env.NEXT_PUBLIC_GROWTH_YEARLY_PRICE_ID || "",
-  isRecommended: false,
+  isRecommended: true,
   buttonLabel: "Get Growth",
   isReady: true,
   yearlyDiscount: getYearlyDiscountPercent(
@@ -301,7 +304,7 @@ export const GROWTH_PLAN: Plan = {
   linkExp: true,
   linkPassword: true,
   linkGeoTargeting: true,
-  analyticsRetention: "24 months",
+  analyticsRetention: "All time",
   customizeLinkPreview: true,
   features: [
     "10 workspaces",
@@ -316,7 +319,7 @@ export const GROWTH_PLAN: Plan = {
     "30 links/bio links",
     "Up to 5 team members",
     "30 link tags",
-    "24 months analytics retention",
+    "All-time analytics retention",
     "Priority support",
     "10 custom domains",
     "30 UTM templates",
@@ -324,7 +327,59 @@ export const GROWTH_PLAN: Plan = {
   ],
 };
 
-export const plans: Plan[] = [FREE_PLAN, PRO_PLAN, GROWTH_PLAN];
+export const PREMIUM_PLAN: Plan = {
+  name: "Premium",
+  description: "For larger teams and agencies managing high-volume campaigns.",
+  monthlyPrice: PREMIUM_MONTHLY_PRICE,
+  yearlyPrice: PREMIUM_YEARLY_PRICE,
+  monthlyPriceId: process.env.NEXT_PUBLIC_PREMIUM_MONTHLY_PRICE_ID || "",
+  yearlyPriceId: process.env.NEXT_PUBLIC_PREMIUM_YEARLY_PRICE_ID || "",
+  isRecommended: false,
+  buttonLabel: "Get Premium",
+  isReady: true,
+  yearlyDiscount: getYearlyDiscountPercent(
+    PREMIUM_MONTHLY_PRICE,
+    PREMIUM_YEARLY_PRICE,
+  ),
+  planType: "premium",
+  currency: "USD",
+  interval: "month",
+  maxWorkspaces: 25,
+  maxLinksPerWorkspace: 5000,
+  maxClicksPerWorkspace: 250000,
+  maxUsers: 15,
+  maxCustomDomains: 30,
+  maxBioLinks: 100,
+  maxLinkTags: 100,
+  maxUTM: 100,
+  maxGalleries: 15,
+  linkExp: true,
+  linkPassword: true,
+  linkGeoTargeting: true,
+  analyticsRetention: "All time",
+  customizeLinkPreview: true,
+  features: [
+    "25 workspaces",
+    "5000 new links/month",
+    "250k tracked clicks/month",
+    "Click + lead + sales analytics",
+    "Sales analytics with revenue attribution",
+    "Custom link preview",
+    "Link expiration",
+    "Password protection",
+    "Geo targeting",
+    "100 links/bio links",
+    "Up to 15 team members",
+    "100 link tags",
+    "All-time analytics retention",
+    "Priority support",
+    "30 custom domains",
+    "100 UTM templates",
+    "Bulk link creation",
+  ],
+};
+
+export const plans: Plan[] = [FREE_PLAN, PRO_PLAN, GROWTH_PLAN, PREMIUM_PLAN];
 
 export const PRICING_COMPARISON_FEATURES: PricingComparisonRow[] = [
   {
@@ -332,92 +387,119 @@ export const PRICING_COMPARISON_FEATURES: PricingComparisonRow[] = [
     free: FREE_PLAN.maxWorkspaces,
     pro: PRO_PLAN.maxWorkspaces,
     growth: GROWTH_PLAN.maxWorkspaces,
+    premium: PREMIUM_PLAN.maxWorkspaces,
   },
   {
     feature: "Links",
     free: `${FREE_PLAN.maxLinksPerWorkspace} / workspace`,
     pro: `${PRO_PLAN.maxLinksPerWorkspace} / workspace`,
     growth: `${GROWTH_PLAN.maxLinksPerWorkspace} / workspace`,
+    premium: `${PREMIUM_PLAN.maxLinksPerWorkspace} / workspace`,
   },
   {
     feature: "Analytics",
     free: formatClicks(FREE_PLAN.maxClicksPerWorkspace),
     pro: formatClicks(PRO_PLAN.maxClicksPerWorkspace),
     growth: formatClicks(GROWTH_PLAN.maxClicksPerWorkspace),
+    premium: formatClicks(PREMIUM_PLAN.maxClicksPerWorkspace),
   },
   {
     feature: "Analytics events",
     free: getPlanAnalyticsTier("free"),
     pro: getPlanAnalyticsTier("pro"),
     growth: getPlanAnalyticsTier("growth"),
+    premium: getPlanAnalyticsTier("premium"),
   },
   {
     feature: "Lead conversion tracking",
     free: false,
     pro: true,
     growth: true,
+    premium: true,
   },
-  { feature: "Sales analytics", free: false, pro: false, growth: true },
+  {
+    feature: "Sales analytics",
+    free: false,
+    pro: false,
+    growth: true,
+    premium: true,
+  },
   {
     feature: "Analytics Retention",
     free: FREE_PLAN.analyticsRetention,
     pro: PRO_PLAN.analyticsRetention,
     growth: GROWTH_PLAN.analyticsRetention,
+    premium: PREMIUM_PLAN.analyticsRetention,
   },
-  { feature: "Advanced Analytics", free: false, pro: true, growth: true },
+  {
+    feature: "Advanced Analytics",
+    free: false,
+    pro: true,
+    growth: true,
+    premium: true,
+  },
   {
     feature: "Bio Links",
     free: FREE_PLAN.maxBioLinks,
     pro: PRO_PLAN.maxBioLinks,
     growth: GROWTH_PLAN.maxBioLinks,
+    premium: PREMIUM_PLAN.maxBioLinks,
   },
   {
     feature: "Link Tags",
     free: FREE_PLAN.maxLinkTags,
     pro: PRO_PLAN.maxLinkTags,
     growth: GROWTH_PLAN.maxLinkTags,
+    premium: PREMIUM_PLAN.maxLinkTags,
   },
   {
     feature: "Custom Domains",
     free: FREE_PLAN.maxCustomDomains,
     pro: PRO_PLAN.maxCustomDomains,
     growth: GROWTH_PLAN.maxCustomDomains,
+    premium: PREMIUM_PLAN.maxCustomDomains,
   },
   {
     feature: "Users",
     free: FREE_PLAN.maxUsers,
     pro: PRO_PLAN.maxUsers,
     growth: GROWTH_PLAN.maxUsers,
+    premium: PREMIUM_PLAN.maxUsers,
   },
   {
     feature: "UTM Templates",
     free: FREE_PLAN.maxUTM,
     pro: PRO_PLAN.maxUTM,
     growth: GROWTH_PLAN.maxUTM,
+    premium: PREMIUM_PLAN.maxUTM,
   },
   {
     feature: "Custom Link Preview",
     free: FREE_PLAN.customizeLinkPreview,
     pro: PRO_PLAN.customizeLinkPreview,
     growth: GROWTH_PLAN.customizeLinkPreview,
+    premium: PREMIUM_PLAN.customizeLinkPreview,
   },
   {
     feature: "Link Expiration",
     free: FREE_PLAN.linkExp,
     pro: PRO_PLAN.linkExp,
     growth: GROWTH_PLAN.linkExp,
+    premium: PREMIUM_PLAN.linkExp,
   },
   {
     feature: "Password Protection",
     free: FREE_PLAN.linkPassword,
     pro: PRO_PLAN.linkPassword,
     growth: GROWTH_PLAN.linkPassword,
+    premium: PREMIUM_PLAN.linkPassword,
   },
   {
     feature: "Geo Targeting",
     free: FREE_PLAN.linkGeoTargeting,
     pro: PRO_PLAN.linkGeoTargeting,
     growth: GROWTH_PLAN.linkGeoTargeting,
+    premium: PREMIUM_PLAN.linkGeoTargeting,
   },
 ];
 

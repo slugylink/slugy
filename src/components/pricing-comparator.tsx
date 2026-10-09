@@ -32,7 +32,7 @@ function buildButtonUrl(
   workspace: string | undefined,
 ): string {
   if (
-    (planType === "pro" || planType === "growth") &&
+    (planType === "pro" || planType === "growth" || planType === "premium") &&
     isPaidPlan &&
     workspace
   ) {
@@ -83,11 +83,14 @@ const COMPARE_ROWS: CompareRow[] = [
   { feature: "Click analytics", get: () => true },
   {
     feature: "Lead conversion tracking",
-    get: (p) => p.planType === "pro" || p.planType === "growth",
+    get: (p) =>
+      p.planType === "pro" ||
+      p.planType === "growth" ||
+      p.planType === "premium",
   },
   {
     feature: "Sales analytics",
-    get: (p) => p.planType === "growth",
+    get: (p) => p.planType === "growth" || p.planType === "premium",
   },
 ];
 
@@ -117,7 +120,10 @@ function PriceHeader({
 }) {
   const price = getPlanPrice(plan, billing);
   const subtitle = getPlanPriceSubtitle(plan, billing);
-  const paid = plan.planType === "pro" || plan.planType === "growth";
+  const paid =
+    plan.planType === "pro" ||
+    plan.planType === "growth" ||
+    plan.planType === "premium";
   const shouldManage = paid && Boolean(isPaidPlan);
   const disabled = shouldManage ? false : isPlanComingSoon(plan);
   const buttonText = shouldManage ? "Manage" : getPlanCtaLabel(plan);
@@ -167,19 +173,18 @@ function FeatureRow({
   return (
     <tr className="*:border-b *:py-3">
       <td className="text-muted-foreground">{feature}</td>
-      {values.map((value, i) =>
-        i === highlightIndex ? (
-          <td key={i} className="bg-muted border-none px-4">
-            <div className="-mb-3 border-b py-3">
-              <FeatureValue value={value} />
-            </div>
-          </td>
-        ) : (
-          <td key={i}>
-            <FeatureValue value={value} />
-          </td>
-        ),
-      )}
+      {values.map((value, i) => (
+        <td
+          key={i}
+          className={
+            i === highlightIndex
+              ? "bg-muted px-4 whitespace-nowrap"
+              : "whitespace-nowrap"
+          }
+        >
+          <FeatureValue value={value} />
+        </td>
+      ))}
     </tr>
   );
 }
@@ -220,7 +225,7 @@ export default function PricingComparator({
         </div>
 
         <div className="w-full overflow-auto lg:overflow-visible">
-          <table className="w-full border-separate border-spacing-x-3 dark:[--color-muted:var(--color-zinc-900)]">
+          <table className="w-full min-w-[840px] border-separate border-spacing-x-3 dark:[--color-muted:var(--color-zinc-900)]">
             <thead className="bg-background sticky top-0">
               <tr className="*:py-4 *:text-left *:font-medium">
                 <th className="lg:w-1/4" />

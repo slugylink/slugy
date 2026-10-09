@@ -21,7 +21,10 @@ export default function PricingDetailContent() {
           analytics retention, more custom domains, and more team seats. Click
           analytics work everywhere. Lead conversion tracking — attributing
           signups to the link that drove them — unlocks on Pro. Sales analytics
-          with revenue per link unlocks on Growth.
+          with revenue per link unlocks on Growth. Premium includes everything
+          in Growth with 25 workspaces, 5,000 new links per month, 250,000
+          tracked clicks per month, 15 team members, and all-time analytics
+          retention.
         </p>
         <p className="text-muted-foreground mt-4 text-sm leading-7 sm:text-base">
           If you are comparing on price alone, start with{" "}

@@ -1,11 +1,10 @@
 import { jsonWithETag } from "@/lib/http";
 import { getAuthSession } from "@/lib/auth";
 import { db } from "@/server/db";
+import { FREE_PLAN, toPlanSeed } from "@/constants/data/price";
+import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
 import { ensureCurrentUsageRecord } from "@/lib/usage/current-usage";
-import {
-  isLifetimeBillingPeriod,
-  reconcileUserEntitlement,
-} from "@/lib/subscription/reconcile";
+import { isLifetimeBillingPeriod } from "@/lib/subscription/reconcile";
 
 // ============================================================================
 // Types
@@ -36,6 +35,7 @@ async function getWorkspaceData(workspaceslug: string, userId: string) {
   return db.workspace.findFirst({
     where: {
       slug: workspaceslug,
+      deletedAt: null,
       ...buildWorkspaceAccessFilter(userId),
     },
     select: {
@@ -56,28 +56,8 @@ async function getUsageData(workspaceId: string, ownerUserId: string) {
 }
 
 async function getSubscriptionData(userId: string) {
-  // Grace periods ARE active (core getSubscriptionWithPlan treats
-  // cancelAtPeriodEnd inside periodEnd as active) — excluding them here made
-  // isActivePro flicker false while billing still granted Pro.
-  return db.subscription.findFirst({
-    where: {
-      referenceId: userId,
-      status: { in: ["active", "trialing"] },
-    },
-    select: {
-      id: true,
-      status: true,
-      cancelAtPeriodEnd: true,
-      periodStart: true,
-      periodEnd: true,
-      plan: {
-        select: {
-          planType: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const result = await getSubscriptionWithPlan(userId);
+  return result.subscription;
 }
 
 // ============================================================================
@@ -92,7 +72,8 @@ function isActivePro(subscription: SubscriptionRow): boolean {
   // Paid plans: pro + growth. Basic is a paid lifetime tier but never
   // marketed as "Pro" — the badge/upsell must not claim otherwise.
   const planType = subscription.plan.planType.toLowerCase();
-  const isPaidPlan = planType === "pro" || planType === "growth";
+  const isPaidPlan =
+    planType === "pro" || planType === "growth" || planType === "premium";
   const status = subscription.status.toLowerCase();
   const isActiveStatus = status === "active" || status === "trialing";
   if (!isActiveStatus) return false;
@@ -142,16 +123,21 @@ export async function GET(
     }
 
     // Usage + subscription are workspace-scoped → use the owner's record.
-    await reconcileUserEntitlement(workspace.userId);
-
     const [usage, subscription] = await Promise.all([
       getUsageData(workspace.id, workspace.userId),
       getSubscriptionData(workspace.userId),
     ]);
 
+    const plan = subscription?.plan ?? toPlanSeed(FREE_PLAN);
+
     // Return usage data
     return jsonWithETag(req, {
-      workspace,
+      workspace: {
+        ...workspace,
+        maxClicksLimit: plan.maxClicksPerWorkspace,
+        maxLinksLimit: plan.maxLinksPerWorkspace,
+        maxUsers: plan.maxUsers,
+      },
       usage,
       subscription,
       isActivePro: isActivePro(subscription),

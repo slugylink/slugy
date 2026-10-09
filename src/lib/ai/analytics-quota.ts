@@ -25,7 +25,11 @@ export function quotaForPlan(planType: string | null | undefined): {
   isLimited: boolean;
 } {
   const normalized = planType?.toLowerCase();
-  if (normalized === "pro" || normalized === "growth") {
+  if (
+    normalized === "pro" ||
+    normalized === "growth" ||
+    normalized === "premium"
+  ) {
     return { limit: PAID_AI_QUOTA_PER_DAY, isLimited: false };
   }
   return { limit: FREE_AI_QUOTA_PER_DAY, isLimited: true };

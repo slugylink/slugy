@@ -1,4 +1,8 @@
 "use server";
+import {
+  withWorkspaceQuota,
+  assertSeatAvailable,
+} from "@/lib/subscription/workspace-quota";
 import { auth } from "@/lib/auth";
 import { db } from "@/server/db";
 import { headers } from "next/headers";
@@ -194,17 +198,23 @@ export async function inviteMember({
     }
 
     // Create invitation
-    const invitation = await db.invitation.create({
-      data: {
-        organizationId,
-        workspaceId: defaultWorkspace.id,
-        inviterId: userId,
-        email,
-        role,
-        token: crypto.randomUUID(),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    const invitation = await withWorkspaceQuota(
+      defaultWorkspace.id,
+      async (tx, plan) => {
+        await assertSeatAvailable(tx, defaultWorkspace.id, plan.maxUsers, true);
+        return tx.invitation.create({
+          data: {
+            organizationId,
+            workspaceId: defaultWorkspace.id,
+            inviterId: userId,
+            email,
+            role,
+            token: crypto.randomUUID(),
+            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+          },
+        });
       },
-    });
+    );
 
     // Send invitation email
     const inviteLink = `${process.env.NEXT_APP_URL}/accept-invitation/${invitation.token}`;
@@ -382,27 +392,26 @@ export async function acceptInvitation(invitationKey: string) {
     // Seat check + member insert run in one transaction so a burst of accepts
     // can't overfill past the owner's plan (TOCTOU at invite time).
     try {
-      await db.$transaction(async (tx) => {
+      await withWorkspaceQuota(invitation.workspaceId, async (tx, plan) => {
         const fresh = await tx.invitation.findUnique({
           where: { id: invitation.id },
-          select: { status: true },
+          select: { status: true, expiresAt: true, deletedAt: true },
         });
-        if (!fresh || fresh.status !== "pending") {
+        if (
+          !fresh ||
+          fresh.status !== "pending" ||
+          fresh.deletedAt ||
+          fresh.expiresAt <= new Date()
+        ) {
           throw new Error("INVITATION_PROCESSED");
         }
 
-        const [memberCount, ownerSub] = await Promise.all([
-          tx.member.count({ where: { workspaceId: invitation.workspaceId } }),
-          tx.subscription.findFirst({
-            where: { referenceId: invitation.workspace.userId },
-            select: { plan: { select: { maxUsers: true } } },
-          }),
-        ]);
-        const maxUsers = ownerSub?.plan?.maxUsers ?? 1;
-        // Current rows (owner row included) + this accepter must fit.
-        if (memberCount + 1 > maxUsers) {
-          throw new Error("WORKSPACE_FULL");
-        }
+        await assertSeatAvailable(
+          tx,
+          invitation.workspaceId,
+          plan.maxUsers,
+          false,
+        );
 
         await tx.invitation.update({
           where: { id: invitation.id },

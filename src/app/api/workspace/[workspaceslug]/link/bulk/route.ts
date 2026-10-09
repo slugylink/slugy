@@ -1,3 +1,4 @@
+import { withWorkspaceQuota } from "@/lib/subscription/workspace-quota";
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { customAlphabet } from "nanoid";
@@ -296,49 +297,49 @@ export async function POST(
     if (valid.length > 0) {
       // Resolve tags up-front (same approach as CSV import), capped at
       // the owner's plan tag limit.
-      const ownerPlan = await db.plan.findFirst({
-        where: {
-          planType:
-            (workspaceCheck.planType as "free" | "basic" | "pro" | "growth") ??
-            "free",
-        },
-        select: { maxTagsPerWorkspace: true },
-      });
-      const maxTags = ownerPlan?.maxTagsPerWorkspace ?? 5;
       const allTagNames = Array.from(new Set(valid.flatMap((v) => v.tags)));
       const tagNameToId = new Map<string, string>();
       if (allTagNames.length > 0) {
-        const existingTags = await db.tag.findMany({
-          where: {
-            workspaceId: workspaceCheck.workspace.id,
-            name: { in: allTagNames },
+        await withWorkspaceQuota(
+          workspaceCheck.workspace.id,
+          async (db, plan) => {
+            const maxTags = plan.maxTagsPerWorkspace;
+            const existingTags = await db.tag.findMany({
+              where: {
+                workspaceId: workspaceCheck.workspace.id,
+                name: { in: allTagNames },
+              },
+              select: { id: true, name: true },
+            });
+            for (const tag of existingTags) tagNameToId.set(tag.name, tag.id);
+            const currentTagCount = await db.tag.count({
+              where: {
+                workspaceId: workspaceCheck.workspace.id,
+                deletedAt: null,
+              },
+            });
+            const missing = allTagNames
+              .filter((n) => !tagNameToId.has(n))
+              .slice(0, Math.max(0, maxTags - currentTagCount));
+            if (missing.length > 0) {
+              await db.tag.createMany({
+                data: missing.map((name) => ({
+                  name,
+                  workspaceId: workspaceCheck.workspace.id,
+                })),
+                skipDuplicates: true,
+              });
+              const refreshed = await db.tag.findMany({
+                where: {
+                  workspaceId: workspaceCheck.workspace.id,
+                  name: { in: allTagNames },
+                },
+                select: { id: true, name: true },
+              });
+              for (const tag of refreshed) tagNameToId.set(tag.name, tag.id);
+            }
           },
-          select: { id: true, name: true },
-        });
-        for (const tag of existingTags) tagNameToId.set(tag.name, tag.id);
-        const currentTagCount = await db.tag.count({
-          where: { workspaceId: workspaceCheck.workspace.id, deletedAt: null },
-        });
-        const missing = allTagNames
-          .filter((n) => !tagNameToId.has(n))
-          .slice(0, Math.max(0, maxTags - currentTagCount));
-        if (missing.length > 0) {
-          await db.tag.createMany({
-            data: missing.map((name) => ({
-              name,
-              workspaceId: workspaceCheck.workspace.id,
-            })),
-            skipDuplicates: true,
-          });
-          const refreshed = await db.tag.findMany({
-            where: {
-              workspaceId: workspaceCheck.workspace.id,
-              name: { in: allTagNames },
-            },
-            select: { id: true, name: true },
-          });
-          for (const tag of refreshed) tagNameToId.set(tag.name, tag.id);
-        }
+        );
       }
 
       // Batched insert: 1 createMany + 1 findMany instead of N

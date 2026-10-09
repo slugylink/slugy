@@ -1,3 +1,4 @@
+import { hasInvalidRecurringPeriod } from "./billing-period";
 import "server-only";
 import { db } from "@/server/db";
 import {
@@ -26,6 +27,11 @@ export async function getActiveSubscription(userId: string) {
 
     if (
       !subscription ||
+      hasInvalidRecurringPeriod(
+        subscription.plan.planType,
+        subscription.periodStart,
+        subscription.periodEnd,
+      ) ||
       !["active", "trialing"].includes(subscription.status.toLowerCase())
     ) {
       return {
@@ -61,6 +67,11 @@ export async function getSubscriptionWithPlan(userId: string) {
 
     if (
       !subscription ||
+      hasInvalidRecurringPeriod(
+        subscription.plan.planType,
+        subscription.periodStart,
+        subscription.periodEnd,
+      ) ||
       !["active", "trialing"].includes(subscription.status.toLowerCase())
     ) {
       return {

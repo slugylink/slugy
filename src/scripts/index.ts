@@ -7,6 +7,7 @@ import {
   GROWTH_PLAN as GROWTH_PLAN_SOURCE,
   FREE_PLAN as FREE_PLAN_SOURCE,
   PRO_PLAN as PRO_PLAN_SOURCE,
+  PREMIUM_PLAN as PREMIUM_PLAN_SOURCE,
   toPlanSeed,
 } from "../constants/data/price";
 
@@ -21,6 +22,7 @@ const BASIC_PLAN = toPlanSeed(BASIC_PLAN_SOURCE);
 const PRO_PLAN = toPlanSeed(PRO_PLAN_SOURCE);
 const FREE_PLAN = toPlanSeed(FREE_PLAN_SOURCE);
 const GROWTH_PLAN = toPlanSeed(GROWTH_PLAN_SOURCE);
+const PREMIUM_PLAN = toPlanSeed(PREMIUM_PLAN_SOURCE);
 
 async function main() {
   try {
@@ -48,12 +50,13 @@ async function main() {
     `);
 
     const upsertPlanByType = async (
-      planType: "free" | "basic" | "pro" | "growth",
+      planType: "free" | "basic" | "pro" | "growth" | "premium",
       plan:
         | typeof BASIC_PLAN
         | typeof PRO_PLAN
         | typeof FREE_PLAN
-        | typeof GROWTH_PLAN,
+        | typeof GROWTH_PLAN
+        | typeof PREMIUM_PLAN,
     ) => {
       const rows = await db.$queryRawUnsafe<Array<{ count: number }>>(
         `SELECT COUNT(*)::int AS count FROM "plans" WHERE "planType" = $1::"PlanType"`,
@@ -178,6 +181,7 @@ async function main() {
     await upsertPlanByType("basic", BASIC_PLAN);
     await upsertPlanByType("pro", PRO_PLAN);
     await upsertPlanByType("growth", GROWTH_PLAN);
+    await upsertPlanByType("premium", PREMIUM_PLAN);
 
     console.log("Seeded successfully");
   } catch (error) {

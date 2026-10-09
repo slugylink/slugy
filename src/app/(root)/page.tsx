@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import dynamic from "next/dynamic";
 import Hero from "./_components/hero";
 import ToolsSection from "./_components/tools-section";
+import Differentiator from "./_components/differentiator";
 import { MotionProvider, Reveal } from "./_components/reveal";
 
 export const metadata: Metadata = {
@@ -36,11 +37,9 @@ const LOADING_HEIGHT = {
   integrations: "h-[420px]",
   stats: "h-[300px]",
   pricing: "h-[500px]",
-  openSource: "h-[300px]",
   sponsors: "h-[280px]",
   faq: "h-[420px]",
   finalCta: "h-[380px]",
-  compare: "h-[480px]",
 } as const;
 
 function SectionPlaceholder({ height }: { height: string }) {
@@ -98,6 +97,8 @@ export default function Home() {
             <Features />
           </section>
 
+          <ToolsSection />
+
           <IntegrationsSection />
 
           <section id="stats-metrics" className="scroll-mt-20">
@@ -107,6 +108,8 @@ export default function Home() {
           <section id="sponsors" className="scroll-mt-20">
             <Sponsors />
           </section>
+
+          {/* <Differentiator /> */}
 
           <section id="pricing" className="scroll-mt-20">
             <PricingSection />
@@ -119,8 +122,6 @@ export default function Home() {
           <section id="get-started" className="scroll-mt-20">
             <FinalCta />
           </section>
-
-          <ToolsSection />
         </MotionProvider>
       </div>
     </main>

@@ -1,3 +1,4 @@
+import { withWorkspaceQuota } from "@/lib/subscription/workspace-quota";
 import { db } from "@/server/db";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
@@ -576,60 +577,60 @@ export async function POST(
     const tagNameToId = new Map<string, string>();
 
     // Pre-create all tags in one batch (capped at the plan tag limit).
-    const ownerPlan = await db.plan.findFirst({
-      where: {
-        planType:
-          (workspaceCheck.planType as "free" | "basic" | "pro" | "growth") ??
-          "free",
-      },
-      select: { maxTagsPerWorkspace: true },
-    });
-    const maxTags = ownerPlan?.maxTagsPerWorkspace ?? 5;
     const allTagNames = Array.from(
       new Set(tagsToCreate.flatMap((t) => t.tagNames)),
     );
 
     if (allTagNames.length > 0) {
-      const existingTags = await db.tag.findMany({
-        where: {
-          workspaceId: workspaceCheck.workspace.id,
-          name: { in: allTagNames },
+      await withWorkspaceQuota(
+        workspaceCheck.workspace.id,
+        async (db, plan) => {
+          const maxTags = plan.maxTagsPerWorkspace;
+          const existingTags = await db.tag.findMany({
+            where: {
+              workspaceId: workspaceCheck.workspace.id,
+              name: { in: allTagNames },
+            },
+            select: { id: true, name: true },
+          });
+
+          for (const tag of existingTags) {
+            tagNameToId.set(tag.name, tag.id);
+          }
+
+          const currentTagCount = await db.tag.count({
+            where: {
+              workspaceId: workspaceCheck.workspace.id,
+              deletedAt: null,
+            },
+          });
+          const missingTagNames = allTagNames
+            .filter((name) => !tagNameToId.has(name))
+            .slice(0, Math.max(0, maxTags - currentTagCount));
+
+          if (missingTagNames.length > 0) {
+            await db.tag.createMany({
+              data: missingTagNames.map((name) => ({
+                name,
+                workspaceId: workspaceCheck.workspace.id,
+              })),
+              skipDuplicates: true,
+            });
+
+            const refreshedTags = await db.tag.findMany({
+              where: {
+                workspaceId: workspaceCheck.workspace.id,
+                name: { in: allTagNames },
+              },
+              select: { id: true, name: true },
+            });
+
+            for (const tag of refreshedTags) {
+              tagNameToId.set(tag.name, tag.id);
+            }
+          }
         },
-        select: { id: true, name: true },
-      });
-
-      for (const tag of existingTags) {
-        tagNameToId.set(tag.name, tag.id);
-      }
-
-      const currentTagCount = await db.tag.count({
-        where: { workspaceId: workspaceCheck.workspace.id, deletedAt: null },
-      });
-      const missingTagNames = allTagNames
-        .filter((name) => !tagNameToId.has(name))
-        .slice(0, Math.max(0, maxTags - currentTagCount));
-
-      if (missingTagNames.length > 0) {
-        await db.tag.createMany({
-          data: missingTagNames.map((name) => ({
-            name,
-            workspaceId: workspaceCheck.workspace.id,
-          })),
-          skipDuplicates: true,
-        });
-
-        const refreshedTags = await db.tag.findMany({
-          where: {
-            workspaceId: workspaceCheck.workspace.id,
-            name: { in: allTagNames },
-          },
-          select: { id: true, name: true },
-        });
-
-        for (const tag of refreshedTags) {
-          tagNameToId.set(tag.name, tag.id);
-        }
-      }
+      );
     }
 
     // Process links in batches

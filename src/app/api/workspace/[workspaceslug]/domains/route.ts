@@ -9,12 +9,13 @@ import {
   verifyDomainOnVercel,
   checkDnsConfiguration,
 } from "@/lib/domain-utils";
-import { checkDomainLimit } from "@/lib/subscription/limit-queries";
+import {
+  withWorkspaceQuota,
+  WorkspaceQuotaError,
+} from "@/lib/subscription/workspace-quota";
 import { jsonWithETag } from "@/lib/http";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
 import { checkDomainVerifyRateLimit } from "@/lib/middleware/rate-limit";
-import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
-import { getBasicPlanLimits } from "@/lib/subscription/limits-sync";
 
 // Helper: Get authenticated session
 async function getSession() {
@@ -34,6 +35,7 @@ async function getWorkspace(
   const workspace = await db.workspace.findFirst({
     where: {
       slug: workspaceSlug,
+      deletedAt: null,
       OR: [
         { userId },
         {
@@ -144,19 +146,6 @@ export async function POST(
     // Verify workspace access (admin only)
     const workspace = await getWorkspace(workspaceslug, session.user.id, true);
 
-    const ownerSubscription = await getSubscriptionWithPlan(workspace.userId);
-    const maxDomains =
-      ownerSubscription.subscription?.plan?.maxCustomDomains ??
-      (await getBasicPlanLimits()).maxCustomDomains;
-    const limitCheck = await checkDomainLimit(workspace.id, maxDomains);
-    if (!limitCheck.canAdd) {
-      return jsonWithETag(
-        req,
-        { error: limitCheck.error || "Domain limit reached" },
-        { status: 403 },
-      );
-    }
-
     // Check if domain is already in use
     const inUse = await isDomainInUse(domain);
     if (inUse) {
@@ -167,44 +156,54 @@ export async function POST(
       );
     }
 
-    // Add domain to Vercel (for SSL handling)
-    const vercelResult = await addDomainToVercel(domain);
+    // Reserve capacity atomically before contacting the provider. The unverified
+    // row also reserves the unique domain name against concurrent requests.
+    const reservation = await withWorkspaceQuota(
+      workspace.id,
+      async (tx, plan) => {
+        const count = await tx.customDomain.count({
+          where: { workspaceId: workspace.id },
+        });
+        if (count >= plan.maxCustomDomains)
+          throw new WorkspaceQuotaError(
+            "Custom domain limit reached for this plan.",
+          );
+        return tx.customDomain.create({
+          data: {
+            domain,
+            workspaceId: workspace.id,
+            verified: false,
+            dnsConfigured: false,
+          },
+        });
+      },
+    );
+    let vercelResult;
+    try {
+      vercelResult = await addDomainToVercel(domain);
+    } catch (error) {
+      await db.customDomain.delete({ where: { id: reservation.id } });
+      throw error;
+    }
     if (!vercelResult.success) {
+      await db.customDomain.delete({ where: { id: reservation.id } });
       return jsonWithETag(
         req,
         { error: vercelResult.error || "Failed to add domain to Vercel" },
         { status: 500 },
       );
     }
-
-    // Create domain in database — P2002 (concurrent double-add) is a 409,
-    // and a DB failure after a Vercel add compensates by detaching again so
-    // the domain isn't orphaned in Vercel (which would 409 every retry).
     let customDomain;
     try {
-      customDomain = await db.customDomain.create({
+      customDomain = await db.customDomain.update({
+        where: { id: reservation.id },
         data: {
-          domain,
-          workspaceId: workspace.id,
           verificationToken: vercelResult.verificationRecord?.value || null,
-          verified: false,
-          dnsConfigured: false,
         },
       });
     } catch (error) {
-      if (
-        error &&
-        typeof error === "object" &&
-        "code" in error &&
-        error.code === "P2002"
-      ) {
-        return jsonWithETag(
-          req,
-          { error: "Domain is already in use" },
-          { status: 409 },
-        );
-      }
       await removeDomainFromVercel(domain).catch(() => undefined);
+      await db.customDomain.delete({ where: { id: reservation.id } });
       throw error;
     }
 
@@ -218,6 +217,19 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof WorkspaceQuotaError)
+      return jsonWithETag(req, { error: error.message }, { status: 403 });
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    )
+      return jsonWithETag(
+        req,
+        { error: "Domain is already in use" },
+        { status: 409 },
+      );
     console.error("Error adding domain:", error);
     const message =
       error instanceof Error ? error.message : "Failed to add domain";

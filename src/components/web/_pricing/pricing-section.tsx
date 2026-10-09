@@ -154,10 +154,15 @@ function PlanCard({
 
 export default function PricingSection() {
   const [billing, setBilling] = useState<BillingPeriod>("monthly");
-  const [free, pro, growth] = plans;
+  const [free, pro, growth, premium] = plans;
   const proFeatures = new Set(pro?.features ?? []);
   const growthExtras = (growth?.features ?? []).filter(
     (f) => !proFeatures.has(f),
+  );
+
+  const growthFeatures = new Set(growth?.features ?? []);
+  const premiumExtras = (premium?.features ?? []).filter(
+    (f) => !growthFeatures.has(f),
   );
 
   return (
@@ -191,7 +196,7 @@ export default function PricingSection() {
           </div>
 
           <Stagger
-            className="mx-auto mt-8 grid w-full max-w-5xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-3 md:gap-5"
+            className="mx-auto mt-8 grid w-full max-w-6xl grid-cols-1 gap-8 sm:mt-10 md:grid-cols-2 md:gap-5 lg:grid-cols-4"
             stagger={0.12}
           >
             {free && (
@@ -201,7 +206,11 @@ export default function PricingSection() {
             )}
             {pro && (
               <StaggerItem>
-                <PlanCard plan={pro} billing={billing} bestValue />
+                <PlanCard
+                  plan={pro}
+                  billing={billing}
+                  bestValue={pro.isRecommended}
+                />
               </StaggerItem>
             )}
             {growth && (
@@ -209,10 +218,22 @@ export default function PricingSection() {
                 <PlanCard
                   plan={growth}
                   billing={billing}
+                  bestValue={growth.isRecommended}
                   plusHeader="Everything in Pro, plus:"
                   plusFeatures={
                     growthExtras.length > 0 ? growthExtras : undefined
                   }
+                />
+              </StaggerItem>
+            )}
+            {premium && (
+              <StaggerItem>
+                <PlanCard
+                  plan={premium}
+                  billing={billing}
+                  bestValue={premium.isRecommended}
+                  plusHeader="Everything in Growth, plus:"
+                  plusFeatures={premiumExtras}
                 />
               </StaggerItem>
             )}

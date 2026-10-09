@@ -69,6 +69,8 @@ const SECTIONS: Array<{ title: string; keys: string[] }> = [
       "NEXT_PUBLIC_PRO_YEARLY_PRICE_ID",
       "NEXT_PUBLIC_GROWTH_MONTHLY_PRICE_ID",
       "NEXT_PUBLIC_GROWTH_YEARLY_PRICE_ID",
+      "NEXT_PUBLIC_PREMIUM_MONTHLY_PRICE_ID",
+      "NEXT_PUBLIC_PREMIUM_YEARLY_PRICE_ID",
     ],
   },
   {
@@ -114,7 +116,12 @@ const SECTIONS: Array<{ title: string; keys: string[] }> = [
   },
   {
     title: "Vercel (custom domains)",
-    keys: ["VERCEL_API_URL", "VERCEL_TOKEN", "VERCEL_PROJECT_ID", "VERCEL_TEAM_ID"],
+    keys: [
+      "VERCEL_API_URL",
+      "VERCEL_TOKEN",
+      "VERCEL_PROJECT_ID",
+      "VERCEL_TEAM_ID",
+    ],
   },
   {
     title: "Link Safety & Misc",
@@ -147,6 +154,8 @@ const ENSURE_KEYS = [
   "NEXT_PUBLIC_PRO_YEARLY_PRICE_ID",
   "NEXT_PUBLIC_GROWTH_MONTHLY_PRICE_ID",
   "NEXT_PUBLIC_GROWTH_YEARLY_PRICE_ID",
+  "NEXT_PUBLIC_PREMIUM_MONTHLY_PRICE_ID",
+  "NEXT_PUBLIC_PREMIUM_YEARLY_PRICE_ID",
 ];
 
 /** Known-unused keys (kept, but sorted last under a warning header). */

@@ -4,7 +4,11 @@ import { db } from "@/server/db";
 import { headers } from "next/headers";
 import { sendOrganizationInvitation } from "@/server/actions/email";
 import { getWorkspaceAccess, hasRole } from "@/lib/workspace-access";
-import { getSubscriptionWithPlan } from "@/lib/subscription/queries";
+import {
+  withWorkspaceQuota,
+  assertSeatAvailable,
+  WorkspaceQuotaError,
+} from "@/lib/subscription/workspace-quota";
 
 const INVITE_EXPIRY_DAYS = 7;
 
@@ -37,33 +41,6 @@ export async function POST(
       return NextResponse.json(
         { error: "Workspace not found" },
         { status: 404 },
-      );
-    }
-
-    // Enforce plan seat limit (members + pending invites count as seats).
-    const ownerSub = await getSubscriptionWithPlan(workspace.userId);
-    const maxUsers = ownerSub.subscription?.plan?.maxUsers ?? 1;
-    const [memberCount, pendingCount] = await Promise.all([
-      db.member.count({ where: { workspaceId: workspace.id } }),
-      db.invitation.count({
-        where: {
-          workspaceId: workspace.id,
-          status: "pending",
-          deletedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-      }),
-    ]);
-    // +1 for the invitee seat on top of current rows (owner row included).
-    // Strictly greater — >= would make every plan off-by-one (e.g. Pro with
-    // maxUsers=2 could never invite a second user).
-    if (memberCount + pendingCount + 1 > maxUsers) {
-      return NextResponse.json(
-        {
-          error:
-            "Team member limit reached for this plan. Upgrade for more seats.",
-        },
-        { status: 403 },
       );
     }
 
@@ -129,16 +106,35 @@ export async function POST(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + INVITE_EXPIRY_DAYS);
 
-    const invitation = await db.invitation.create({
-      data: {
-        workspaceId: workspace.id,
-        inviterId: session.user.id,
-        email,
-        role,
-        token: crypto.randomUUID(),
-        expiresAt,
+    const invitation = await withWorkspaceQuota(
+      workspace.id,
+      async (tx, plan) => {
+        await assertSeatAvailable(tx, workspace.id, plan.maxUsers, true);
+        const duplicate = await tx.invitation.findFirst({
+          where: {
+            workspaceId: workspace.id,
+            email,
+            status: "pending",
+            deletedAt: null,
+            expiresAt: { gt: new Date() },
+          },
+        });
+        if (duplicate)
+          throw new WorkspaceQuotaError(
+            "An invitation has already been sent to this email",
+          );
+        return tx.invitation.create({
+          data: {
+            workspaceId: workspace.id,
+            inviterId: session.user.id,
+            email,
+            role,
+            token: crypto.randomUUID(),
+            expiresAt,
+          },
+        });
       },
-    });
+    );
 
     // Invite links carry the unguessable `token`, not the sequential `id` —
     // ids are cuid-enumerable and the details endpoint gated on the invitee.
@@ -160,6 +156,8 @@ export async function POST(
       { status: 201 },
     );
   } catch (error) {
+    if (error instanceof WorkspaceQuotaError)
+      return NextResponse.json({ error: error.message }, { status: 403 });
     console.error("[Team Invite]", error);
     return NextResponse.json(
       { error: "Failed to send invitation" },
