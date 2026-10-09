@@ -2,24 +2,26 @@ import type { Metadata } from "next";
 import RedirectCheckerClient from "./checker-client";
 
 export const metadata: Metadata = {
-  title: "Free Redirect Checker — Trace Every Hop & Status Code",
+  title: "Free URL Checker — Redirects, Status Codes & Link Health",
   description:
-    "Free redirect checker with no login. Trace any link's full redirect chain (301, 302, 307) up to 10 hops and verify short links land where they should.",
+    "Free URL checker with no login. Check any link's destination, trace its full redirect chain (301, 302, 307) up to 10 hops, and verify short links land where they should.",
   keywords: [
+    "url checker",
+    "free url checker",
+    "check url destination",
+    "link health check",
+    "is this link safe",
     "redirect checker",
-    "link redirect checker",
     "trace redirects",
-    "check 301 redirect chain",
-    "short link preview",
     "where does this link go",
   ],
   alternates: { canonical: "/tools/redirect-checker" },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Free Redirect Checker — See Every Hop",
+    title: "Free URL Checker — Destination, Hops & Link Health",
     description:
-      "Trace any link's redirect chain with status codes. Verify short links and campaign URLs. No login.",
+      "Check any link's destination and redirect chain with status codes. Verify short links and campaign URLs. No login.",
     url: "/tools/redirect-checker",
     images: [
       {
@@ -32,9 +34,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Free Redirect Checker — Trace Every Hop & Status Code",
+    title: "Free URL Checker — Redirects, Status Codes & Link Health",
     description:
-      "Trace any link's redirect chain with status codes. Verify short links and campaign URLs. No login.",
+      "Check any link's destination and redirect chain with status codes. Verify short links and campaign URLs. No login.",
     images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
@@ -57,6 +59,10 @@ const FAQ = [
     a: "Yes — paste any shortened URL here to see its destination without visiting it. Private and local addresses are never fetched.",
   },
   {
+    q: "Does this tell me if a link is safe or malicious?",
+    a: "It shows you the destination without visiting it — so a suspicious link can't drive-by load anything in your browser — and it never fetches private or local addresses or downloads response bodies. That is link transparency, not a malware verdict: for unknown senders, preview here first and verify the sender before clicking through.",
+  },
+  {
     q: "Do you store the URLs I check?",
     a: "No. Checks run on demand and only the status plus Location headers are read — response bodies are never downloaded and nothing is logged.",
   },
@@ -67,13 +73,13 @@ const jsonLd = {
   "@graph": [
     {
       "@type": "SoftwareApplication",
-      name: "Slugy Redirect Checker",
+      name: "Slugy URL Checker",
       applicationCategory: "UtilitiesApplication",
       operatingSystem: "Web",
       offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
       url: "/tools/redirect-checker",
       description:
-        "Free redirect chain tracer with HTTP status codes. No login required.",
+        "Free URL checker: destination preview, redirect chain tracer with HTTP status codes, and link-health basics. No login required.",
     },
     {
       "@type": "FAQPage",
@@ -130,7 +136,31 @@ export default function RedirectCheckerPage() {
         </p>
       </section>
       <section className="mx-auto max-w-3xl px-4 pb-16">
-        <h2 className="text-xl font-medium">Redirect checker FAQ</h2>
+        <h2 className="text-xl font-medium">
+          Beyond a basic checker: what Slugy links add
+        </h2>
+        <p className="text-muted-foreground mt-3 text-sm leading-7">
+          Standard checkers stop at hops and codes. A Slugy short link keeps
+          going: every click records referrer, country, device, and UTM
+          breakdowns, and on Pro and Growth the same link attributes{" "}
+          <a
+            href="/features/conversion-tracking"
+            className="font-medium underline underline-offset-4"
+          >
+            leads and revenue
+          </a>
+          . Check a chain here, then{" "}
+          <a
+            href="https://app.slugy.co/signup"
+            className="font-medium underline underline-offset-4"
+          >
+            shorten and track it free
+          </a>{" "}
+          so the next check comes with analytics attached.
+        </p>
+      </section>
+      <section className="mx-auto max-w-3xl px-4 pb-16">
+        <h2 className="text-xl font-medium">URL checker FAQ</h2>
         <div className="mt-4 space-y-4">
           {FAQ.map((f) => (
             <div key={f.q}>

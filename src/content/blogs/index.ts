@@ -14,6 +14,15 @@ import SlugyVsDubPost from "./posts/slugy-vs-dub";
 import SlugyVsRebrandlyPost from "./posts/slugy-vs-rebrandly";
 import SlugyVsShortIoPost from "./posts/slugy-vs-short-io";
 import SlugyVsBlinkPost, { SlugyVsBlinkFaqs } from "./posts/slugy-vs-blink";
+import InstagramStoryLinksPost, {
+  InstagramStoryLinksFaqs,
+} from "./posts/instagram-story-links";
+import EvaluationCriteriaPost, {
+  EvaluationCriteriaFaqs,
+} from "./posts/url-shortener-evaluation-criteria";
+import BestUrlShortenersPost, {
+  BestUrlShortenersFaqs,
+} from "./posts/best-url-shorteners-2026";
 
 // Comparisons are published on their own cadence, spaced weeks apart, and each
 // one is re-checked against the competitor's public pricing pages on a schedule.
@@ -23,6 +32,39 @@ import SlugyVsBlinkPost, { SlugyVsBlinkFaqs } from "./posts/slugy-vs-blink";
 const REFRESHED_ON = "2026-09-30";
 
 export const BLOG_POSTS: BlogPost[] = [
+  {
+    slug: "best-url-shorteners-2026",
+    title: "Top 8 URL shorteners for 2026: compared by price and attribution",
+    description:
+      "Eight shorteners ranked by dated pricing, free tiers, and attribution depth — Slugy, Dub, Bitly, Short.io, Rebrandly, Cuttly, Kutt, and BL.INK.",
+    publishedAt: "2026-10-09",
+    author: { name: "Slugy" },
+    tags: ["comparison", "guides", "roundup"],
+    Content: BestUrlShortenersPost,
+    faqs: BestUrlShortenersFaqs,
+  },
+  {
+    slug: "url-shortener-evaluation-criteria",
+    title: "What makes a great URL shortener in 2026: our evaluation criteria",
+    description:
+      "Our published rubric: seven weighted criteria from price-to-value to track record, with bias disclosure and verification rules.",
+    publishedAt: "2026-10-09",
+    author: { name: "Slugy" },
+    tags: ["guides", "methodology"],
+    Content: EvaluationCriteriaPost,
+    faqs: EvaluationCriteriaFaqs,
+  },
+  {
+    slug: "instagram-story-links",
+    title: "How to add a link to your Instagram Story (and track clicks)",
+    description:
+      "Add a link sticker to any Story, swap the raw URL for a branded short link, and count taps per story — plus bio-page best practices.",
+    publishedAt: "2026-10-09",
+    author: { name: "Slugy" },
+    tags: ["instagram", "social", "guides"],
+    Content: InstagramStoryLinksPost,
+    faqs: InstagramStoryLinksFaqs,
+  },
   {
     slug: "track-revenue-with-short-links",
     title: "How to use Slugy for revenue tracking",

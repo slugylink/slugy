@@ -66,7 +66,7 @@ Per-platform guides (same builder, platform-specific conventions):
 Free UTM remover: strips utm_source, utm_medium, utm_campaign, utm_term, utm_content and ad click IDs (gclid, gbraid, wbraid, fbclid, msclkid, dclid, ttclid, li_fat_id, mc_cid, mc_eid, igshid, mkt_tok) from any URL. Runs entirely in the browser — pasted URLs never leave the page. No login. Use before re-tagging a campaign so old tags don't pollute new reports.
 
 ### [Redirect Checker](https://slugy.co/tools/redirect-checker)
-Free redirect chain tracer: follows up to 10 hops showing each HTTP status (301, 302, 307) through to the final landing page. Verifies short links, affiliate URLs, and campaign links land where they should. Private and local addresses are never fetched; response bodies are never downloaded. No login.
+Free URL checker: preview any link's destination and follow redirect chains up to 10 hops showing each HTTP status (301, 302, 307) through to the final landing page. Verifies short links, affiliate URLs, and campaign links land where they should. Private and local addresses are never fetched; response bodies are never downloaded. No login.
 
 ## Comparisons and guides
 

@@ -101,12 +101,12 @@ export default function RedirectCheckerClient() {
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="max-w-2xl">
             <h1 className="text-2xl leading-[1.15] font-medium tracking-tight text-balance sm:text-[32px]">
-              Free Redirect Checker — See Every Hop
+              Free URL Checker — Redirects & Link Health
             </h1>
             <p className="text-muted-foreground mt-2.5 max-w-xl text-[15px] leading-relaxed">
-              Paste any link to trace its full redirect chain with status codes.
-              Verify short links, affiliate URLs and campaign links land where
-              they should.
+              Paste any link to preview its destination and trace the full
+              redirect chain with status codes. Verify short links, affiliate
+              URLs and campaign links land where they should.
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -153,19 +153,30 @@ export default function RedirectCheckerClient() {
                   {result.hopCount} hop{result.hopCount === 1 ? "" : "s"}
                   {result.truncated ? " (chain truncated at 10)" : ""}
                 </p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleCopy}
-                >
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5" />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5" />
-                  )}
-                  {copied ? "Copied" : "Copy final URL"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button asChild type="button" size="sm">
+                    <Link
+                      href="https://app.slugy.co/signup"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Shorten & track
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopy}
+                  >
+                    {copied ? (
+                      <Check className="h-3.5 w-3.5" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                    {copied ? "Copied" : "Copy final URL"}
+                  </Button>
+                </div>
               </div>
 
               <ol className="mt-4 space-y-0">
