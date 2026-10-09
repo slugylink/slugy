@@ -36,6 +36,22 @@ Live demo: https://slugy.co · App: https://app.slugy.co/signup
 
 ---
 
+## Why Slugy?
+
+| Feature                 | Slugy (Open Source)                               | Dub.co                            | Bitly                  |
+| :---------------------- | :------------------------------------------------ | :-------------------------------- | :--------------------- |
+| **License**             | **MIT**                                           | AGPLv3 / Commercial               | Proprietary            |
+| **Self-hosting**        | Yes, documented ([guide](./docs/self-hosting.md)) | Complex                           | No                     |
+| **Free tier**           | 10 links/mo, 1k clicks, 1 domain                  | 25 links/mo, 1K events, 3 domains | 5 links/mo, 2 QR/mo    |
+| **Custom domains**      | Included from free                                | 3 on free                         | Growth ($29/mo) and up |
+| **Lead tracking**       | Pro ($8/mo)                                       | Business ($90/mo) and up          | Not offered            |
+| **Revenue attribution** | Growth ($29/mo)                                   | Business ($90/mo) and up          | Not offered            |
+| **Entry price**         | **$0 / $8 / $29**                                 | $0 / $30 / $90+                   | $0 / $10 / $29+        |
+
+Competitor figures from public pricing pages, checked 9 October 2026 — verify before deciding.
+
+---
+
 ## ✨ Features
 
 | Feature                    | Description                                                               |
