@@ -3,11 +3,9 @@ import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Reveal } from "./reveal";
 
-// Set when the listing goes live; otherwise falls back to store search
-// so the section still works before approval.
+// Listing is under review: fall back to "#" until the store URL is set.
 const CHROME_STORE_URL =
-  process.env.NEXT_PUBLIC_CHROME_STORE_URL?.trim() ||
-  "https://chromewebstore.google.com/search/slugy";
+  process.env.NEXT_PUBLIC_CHROME_STORE_URL?.trim() || "#";
 
 export default function ExtensionSection() {
   return (
@@ -33,8 +31,9 @@ export default function ExtensionSection() {
         <div className="mt-6 flex justify-center">
           <Link
             href={CHROME_STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...(CHROME_STORE_URL.startsWith("http")
+              ? { target: "_blank", rel: "noopener noreferrer" }
+              : {})}
             className="bg-primary text-primary-foreground inline-flex h-11 items-center gap-2 rounded-md px-6 text-sm font-medium transition-opacity hover:opacity-90"
           >
             <Image
