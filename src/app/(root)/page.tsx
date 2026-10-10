@@ -65,6 +65,13 @@ const IntegrationsSection = dynamic(
   },
 );
 
+const ExtensionSection = dynamic(
+  () => import("./_components/extension-section"),
+  {
+    loading: () => <SectionPlaceholder height={LOADING_HEIGHT.integrations} />,
+  },
+);
+
 const Stats = dynamic(() => import("./_components/stats"), {
   loading: () => <SectionPlaceholder height={LOADING_HEIGHT.stats} />,
 });
@@ -98,6 +105,8 @@ export default function Home() {
           </section>
 
           <ToolsSection />
+
+          <ExtensionSection />
 
           <IntegrationsSection />
           {/* 

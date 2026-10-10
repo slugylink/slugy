@@ -86,7 +86,20 @@ export default function Hero() {
               </Button>
             </div>
             <p className="text-muted-foreground mt-3 text-xs">
-              Free plan available. No credit card required.
+              <Link
+                href="#browser-extension"
+                className="text-foreground inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+              >
+                <Image
+                  src="/icons/chrome.svg"
+                  width={14}
+                  height={14}
+                  alt=""
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5"
+                />
+                Get the browser extension
+              </Link>
             </p>
           </div>
         </div>

@@ -77,13 +77,12 @@ See [PUBLISHING.md](PUBLISHING.md) for outstanding release checks and store copy
 
 ## Choosing a workspace
 
-Connecting loads all non-deleted workspaces you own, each with its own
-link-write API key. Choose **Save to workspace** before shortening a link;
+Connecting loads all non-deleted workspaces you own or are a member of,
+each with its own link-write API key. Choose **Save to workspace** before shortening a link;
 the extension remembers the selection when reopened. The link API uses that
 workspace's key, so its quotas and permissions still apply.
 
-Use **More options → Refresh workspaces** after creating a workspace or upgrading
+Use **More options → Refresh workspaces** after joining or creating a workspace or upgrading
 from a single-workspace extension session. This reconnects through the dashboard
-and preserves the selected workspace if it still exists. Shared workspaces you
-do not own are excluded to match the dashboard's owner-only API key creation.
+and preserves the selected workspace if it still exists.
 Refreshing rotates extension keys as before and may disconnect other browsers.
