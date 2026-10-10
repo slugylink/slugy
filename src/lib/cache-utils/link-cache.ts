@@ -15,6 +15,7 @@ export type LinkCacheType = {
   description: string | null;
   geo?: GeoTargetMap | null;
   trackConversion?: boolean;
+  campaignId?: string | null;
 } | null;
 
 const NEGATIVE_CACHE_TTL_SECONDS = 30;

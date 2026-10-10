@@ -1,0 +1,11 @@
+DESCRIPTION >
+    Campaign click totals, scoped to a workspace and click-time campaign.
+
+NODE endpoint
+SQL >
+    SELECT count() AS clicks, uniqExactIf(ip, ip != '') AS visitors
+    FROM slugy_click_events
+    WHERE workspace_id = {{String(workspace_id)}}
+      AND campaign_id = {{String(campaign_id)}}
+
+TYPE endpoint

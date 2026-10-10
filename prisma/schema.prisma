@@ -246,6 +246,7 @@ model SubscriptionHistory {
 // --------------Workspaces & Teams----------
 
 model Workspace {
+  campaigns Campaign[]
   id             String   @id @default(cuid())
   userId         String
   name           String
@@ -377,6 +378,8 @@ model Invitation {
 // ----------Links & Analytics------------
 
 model Link {
+  campaignId String?
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   id             String    @id @default(cuid())
   userId         String?
   url            String
@@ -426,6 +429,7 @@ model Link {
   bioLinks        BioLinks[]
 
   @@unique([slug, domain])
+  @@index([campaignId])
   @@index([workspaceId])
   @@index([customDomainId])
   @@index([workspaceId, domain])
@@ -437,6 +441,10 @@ model Link {
 }
 
 model Analytics {
+  campaignId String?
+  qualityScore Int?
+  isBot Boolean @default(false)
+  isDuplicate Boolean @default(false)
   id           String   @id @default(cuid())
   linkId       String
   clickedAt    DateTime @default(now())
@@ -464,10 +472,13 @@ model Analytics {
 
   @@index([linkId, clickedAt])
   @@index([clickedAt])
+  @@index([campaignId, clickedAt])
   @@map("analytics")
 }
 
 model SharedAnalytics {
+  showRevenue Boolean @default(false)
+  showCost Boolean @default(false)
   id            String    @id @default(cuid())
   linkId        String    @unique
   publicId      String    @unique
@@ -752,6 +763,8 @@ model LeadCustomer {
 }
 
 model LeadEvent {
+  campaignId String?
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
   id                 String   @id @default(cuid())
   workspaceId        String
   linkId             String
@@ -774,6 +787,67 @@ model LeadEvent {
   @@index([linkId, createdAt])
   @@index([clickId])
   @@map("lead_events")
+  @@index([campaignId, createdAt])
+}
+
+enum CampaignStatus {
+  active
+  paused
+  archived
+}
+
+enum CampaignCostModel {
+  manual
+  cpc
+  cpm
+  cpa
+}
+
+model TrafficSource {
+  id String @id
+  provider String
+  name String
+  utmSource String
+  utmMedium String
+  costImportEnabled Boolean @default(true)
+  campaigns Campaign[]
+  @@map("traffic_sources")
+}
+
+model Campaign {
+  id String @id @default(cuid())
+  workspaceId String
+  name String
+  slug String
+  status CampaignStatus @default(active)
+  trafficSourceId String?
+  costModel CampaignCostModel @default(manual)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shareToken String? @unique
+  showRevenue Boolean @default(false)
+  showCost Boolean @default(false)
+  alertsEnabled Boolean @default(true)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  trafficSource TrafficSource? @relation(fields: [trafficSourceId], references: [id])
+  links Link[]
+  events LeadEvent[]
+  costs CampaignCost[]
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, status])
+  @@map("campaigns")
+}
+
+model CampaignCost {
+  id String @id @default(cuid())
+  campaignId String
+  date DateTime @db.Date
+  spend Decimal @db.Decimal(18, 4)
+  currency String @db.VarChar(3)
+  source String
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  @@unique([campaignId, date, currency, source])
+  @@map("campaign_costs")
 }
 
 

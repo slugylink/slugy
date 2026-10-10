@@ -1,6 +1,10 @@
 import { redis } from "@/lib/redis";
 
 export interface CachedAnalyticsData {
+  campaignId?: string | null;
+  qualityScore?: number | null;
+  isBot?: boolean;
+  isDuplicate?: boolean;
   linkId: string;
   slug: string;
   workspaceId: string;

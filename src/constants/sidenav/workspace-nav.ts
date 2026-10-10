@@ -49,7 +49,10 @@ export const WORKSPACE_NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Analyze",
-    items: [{ title: "Analytics", url: "/analytics", icon: BarChart2 }],
+    items: [
+      { title: "Analytics", url: "/analytics", icon: BarChart2 },
+      { title: "Campaigns", url: "/campaigns", icon: BarChart2 },
+    ],
   },
   {
     label: "Organize",

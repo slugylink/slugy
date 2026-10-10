@@ -1,4 +1,5 @@
 import { serve } from "inngest/next";
+import { campaignAlerts } from "@/inngest/functions/campaign-alerts";
 
 import { inngest } from "@/inngest/client";
 import { linkCreatedFunction } from "@/inngest/functions/link-created";
@@ -9,6 +10,7 @@ import { webhookDeliverFunction } from "@/inngest/functions/webhook-delivery";
 export const { GET, POST, PUT } = serve({
   client: inngest,
   functions: [
+    campaignAlerts,
     linkCreatedFunction,
     polarWebhookFunction,
     webhookDeliverFunction,

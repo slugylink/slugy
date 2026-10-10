@@ -4,6 +4,10 @@ import { normalizeContinentKey } from "@/lib/analytics/geo";
 
 export interface LinkClickEvent {
   timestamp?: string;
+  campaign_id?: string;
+  quality_score?: number | null;
+  is_bot?: boolean;
+  is_duplicate?: boolean;
   link_id: string;
   workspace_id: string;
   click_id?: string;
@@ -30,6 +34,10 @@ export interface LinkClickEvent {
 
 export async function sendLinkClickEvent(event: LinkClickEvent) {
   await enqueueTinybirdEvent(tb.link_click_events, {
+    campaign_id: event.campaign_id ?? "",
+    quality_score: event.quality_score ?? null,
+    is_bot: event.is_bot ? 1 : 0,
+    is_duplicate: event.is_duplicate ? 1 : 0,
     timestamp: event.timestamp ?? new Date().toISOString(),
     link_id: event.link_id,
     workspace_id: event.workspace_id,

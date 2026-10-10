@@ -134,6 +134,7 @@ export async function recordIntegrationSale(
 
       return tx.leadEvent.create({
         data: {
+          campaignId: attribution.campaignId ?? null,
           workspaceId: attribution.workspaceId,
           linkId: attribution.linkId,
           clickId,

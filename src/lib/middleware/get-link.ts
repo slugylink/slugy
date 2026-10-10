@@ -25,6 +25,7 @@ export interface GetLinkResult {
   description?: string | null;
   geo?: GeoTargetMap | null;
   trackConversion?: boolean;
+  campaignId?: string | null;
 }
 
 interface LinkCache {
@@ -41,6 +42,7 @@ interface LinkCache {
   description: string | null;
   geo?: GeoTargetMap | null;
   trackConversion?: boolean;
+  campaignId?: string | null;
 }
 
 const safeDecodeCookieValue = (value: string): string => {
@@ -101,7 +103,8 @@ const fetchLinkFromDatabase = async (
       l.metadesc,
       l.description,
       l.geo,
-      l."trackConversion"
+      l."trackConversion",
+      l."campaignId"
     FROM "links" l
     WHERE l.slug = ${slug}
       AND l.domain = ${domain}
@@ -126,6 +129,7 @@ const fetchLinkFromDatabase = async (
       description: row.description ?? null,
       geo: parseGeoFromCache(row.geo),
       trackConversion: Boolean(row.trackConversion),
+      campaignId: row.campaignId ?? null,
     };
   }
 
@@ -145,6 +149,7 @@ const fetchLinkFromDatabase = async (
       l.description,
       l.geo,
       l."trackConversion",
+      l."campaignId",
       cd.domain as custom_domain
     FROM "links" l
     LEFT JOIN "custom_domains" cd ON l."customDomainId" = cd.id
@@ -172,6 +177,7 @@ const fetchLinkFromDatabase = async (
     description: row.description ?? null,
     geo: parseGeoFromCache(row.geo),
     trackConversion: Boolean(row.trackConversion),
+    campaignId: row.campaignId ?? null,
   };
 };
 
@@ -220,7 +226,9 @@ export async function getLink(
     }
 
     let link: LinkCache | null =
-      cached && typeof cached === "object" ? cached : null;
+      cached && typeof cached === "object" && "campaignId" in cached
+        ? cached
+        : null;
 
     if (link) {
       link = {
@@ -279,6 +287,7 @@ export async function getLink(
       description: link.description,
       geo: link.geo ?? null,
       trackConversion: Boolean(link.trackConversion),
+      campaignId: link.campaignId ?? null,
     };
   } catch (error) {
     console.error(`Error fetching link for slug "${slug}":`, error);

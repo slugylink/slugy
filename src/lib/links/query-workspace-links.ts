@@ -6,6 +6,7 @@ import { toJsonSafe } from "@/lib/http";
 
 type LinkWhereInput = {
   workspaceId: string;
+  campaignId?: string;
   OR?: Array<{
     slug?: { contains: string; mode: "insensitive" };
     url?: { contains: string; mode: "insensitive" };
@@ -38,6 +39,7 @@ export type LinkSortOption = (typeof VALID_LINK_SORT_OPTIONS)[number];
 
 const LINK_SELECT_FIELDS = {
   id: true,
+  campaignId: true,
   slug: true,
   url: true,
   clicks: true,
@@ -90,6 +92,7 @@ const LINK_SELECT_FIELDS = {
 } as const;
 
 export type QueryWorkspaceLinksInput = {
+  campaignId?: string;
   workspaceId: string;
   search?: string;
   showArchived?: boolean;
@@ -151,6 +154,7 @@ export async function queryWorkspaceLinks(
   const searchConditions = getSearchConditions(search);
   const conditions: LinkWhereInput = {
     workspaceId: input.workspaceId,
+    ...(input.campaignId ? { campaignId: input.campaignId } : {}),
     ...(searchConditions.length > 0 && { OR: searchConditions }),
     ...(!showArchived && { isArchived: false }),
     ...(inBio && { bioLinks: { some: { deletedAt: null } } }),

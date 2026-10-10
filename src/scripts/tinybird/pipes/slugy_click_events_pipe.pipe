@@ -20,3 +20,4 @@ SELECT
         utm_term,
         utm_content
     FROM slugy_click_events
+    WHERE is_bot = 0 AND is_duplicate = 0

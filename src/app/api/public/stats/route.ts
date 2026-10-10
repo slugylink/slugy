@@ -24,7 +24,7 @@ async function computeStats(): Promise<Omit<SiteStats, "cachedAt">> {
   const [users, links, clicks] = await Promise.all([
     db.user.count(),
     db.link.count({ where: { deletedAt: null } }),
-    db.analytics.count(),
+    db.analytics.count({ where: { isBot: false, isDuplicate: false } }),
   ]);
   return { users, links, clicks };
 }

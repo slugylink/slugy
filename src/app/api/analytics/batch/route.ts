@@ -48,9 +48,15 @@ async function storeBatch(
           skipDuplicates: true,
           data: indexed.map(({ event, key }) => ({
             linkId: event.linkId,
+            campaignId: event.campaignId,
+            qualityScore: event.qualityScore,
+            isBot: event.isBot ?? false,
+            isDuplicate: event.isDuplicate ?? false,
             clickedAt: new Date(event.timestamp),
             clickId:
-              event.clickId ||
+              (event.isDuplicate && event.clickId
+                ? `${event.clickId}:duplicate:${createHash("sha256").update(key).digest("hex")}`
+                : event.clickId) ||
               `legacy:${createHash("sha256").update(key).digest("hex")}`,
             ipAddress: event.ipAddress?.substring(0, 45),
             country: event.country?.substring(0, 100),

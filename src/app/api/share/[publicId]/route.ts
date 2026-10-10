@@ -327,6 +327,8 @@ export async function GET(
           ],
           where: {
             linkId: shared.link.id,
+            isBot: false,
+            isDuplicate: false,
             clickedAt: { gte: startDate },
             ...(parsed.data.country_key
               ? { country: parsed.data.country_key }

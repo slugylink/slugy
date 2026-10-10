@@ -27,6 +27,10 @@ import {
 export const slugyClickEvents = defineDatasource("slugy_click_events", {
   description: "Raw Slugy link click events",
   schema: {
+    campaign_id: t.string().default(""),
+    quality_score: t.uint8().nullable(),
+    is_bot: t.uint8().default(0),
+    is_duplicate: t.uint8().default(0),
     timestamp: t.dateTime64(3),
     link_id: t.string(),
     workspace_id: t.string(),
@@ -116,6 +120,7 @@ export const slugyClickEventsMvPipe = defineMaterializedView(
             utm_term,
             utm_content
           FROM slugy_click_events
+          WHERE is_bot = 0 AND is_duplicate = 0
         `,
       }),
     ],
@@ -608,6 +613,20 @@ export type SalesAnalyticsOutput = InferOutputRow<typeof salesAnalytics>;
 // Client
 // ============================================================================
 
+export const campaignClicks = defineEndpoint("campaign_clicks", {
+  params: { workspace_id: p.string(), campaign_id: p.string() },
+  nodes: [
+    node({
+      name: "endpoint",
+      sql: `
+    SELECT count() AS clicks, uniqExactIf(ip, ip != '') AS visitors FROM slugy_click_events
+    WHERE workspace_id = {{String(workspace_id)}} AND campaign_id = {{String(campaign_id)}}
+  `,
+    }),
+  ],
+  output: { clicks: t.uint64(), visitors: t.uint64() },
+});
+
 export const tinybird = new Tinybird({
   token: process.env.TINYBIRD_TOKEN ?? process.env.TINYBIRD_API_KEY,
   baseUrl: process.env.TINYBIRD_URL ?? "https://api.us-east.aws.tinybird.co",
@@ -621,6 +640,7 @@ export const tinybird = new Tinybird({
     slugyLeadEvents,
   },
   pipes: {
+    campaignClicks,
     slugyClickEventsMvPipe,
     slugyLinksMetadataMvPipe,
     analyticsPipe,

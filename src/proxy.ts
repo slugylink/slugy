@@ -336,6 +336,9 @@ async function handleAppSubdomain(
   baseUrl: string,
 ): Promise<NextResponse> {
   const { pathname, search } = url;
+  if (pathname.startsWith("/share/campaigns/")) {
+    return addSecurityHeaders(NextResponse.next());
+  }
   const prefixedPath = `/app${pathname}${search}`;
   const isAlreadyInApp = pathname.startsWith("/app");
   const isAuthPage = AUTH_PATHS.has(pathname);

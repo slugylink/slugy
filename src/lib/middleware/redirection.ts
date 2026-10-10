@@ -1,3 +1,4 @@
+import { clickQuality } from "@/lib/campaigns/quality";
 import { waitUntil } from "@vercel/functions";
 import { NextRequest, NextResponse, userAgent } from "next/server";
 import { getLink } from "./get-link";
@@ -381,16 +382,26 @@ async function trackAnalytics(
   domain: string | undefined,
   trigger: string,
   clickId: string,
+  campaignId?: string | null,
 ): Promise<void> {
   try {
     const timestamp = new Date().toISOString();
     const analytics = buildAnalyticsData(req, trigger, url);
     const utmParams = extractUTMParams(req.nextUrl.toString(), url);
     const finalDomain = domain || DEFAULT_DOMAIN;
+    const quality = await clickQuality(
+      linkId,
+      clickId,
+      analytics.ipAddress,
+      req.headers.get("user-agent") || "",
+      trigger,
+    );
 
     // slugy_click_events has no `region` column — unknown columns 400 the
     // ingest, so region flows to Prisma via the Redis batch instead.
     const cachedData: CachedAnalyticsData = {
+      campaignId,
+      ...quality,
       linkId,
       slug,
       workspaceId,
@@ -407,6 +418,7 @@ async function trackAnalytics(
     };
 
     const clickAttribution: CachedClickAttribution = {
+      campaignId,
       clickId,
       linkId,
       workspaceId,
@@ -433,6 +445,10 @@ async function trackAnalytics(
     await Promise.allSettled([
       sendLinkClickEvent({
         timestamp,
+        campaign_id: campaignId ?? "",
+        quality_score: quality.qualityScore,
+        is_bot: quality.isBot,
+        is_duplicate: quality.isDuplicate,
         link_id: linkId,
         workspace_id: workspaceId,
         click_id: clickId,
@@ -466,12 +482,16 @@ async function trackAnalytics(
         createdAt: timestamp,
       }).catch((err) => console.error("[Tinybird Metadata Error]", err)),
 
-      recordLinkClick({
-        linkId,
-        workspaceId,
-        slug,
-        domain: finalDomain,
-      }).catch((err) => console.error("[Click Counter Error]", err)),
+      ...(quality.isBot || quality.isDuplicate
+        ? []
+        : [
+            recordLinkClick({
+              linkId,
+              workspaceId,
+              slug,
+              domain: finalDomain,
+            }).catch((err) => console.error("[Click Counter Error]", err)),
+          ]),
 
       cacheClickAttribution(clickAttribution).catch((err) =>
         console.error("[Click Cache Error]", err),
@@ -613,6 +633,22 @@ export async function URLRedirects(
           linkData.description,
       );
 
+      if (isBot) {
+        waitUntil(
+          trackAnalytics(
+            req,
+            linkData.linkId,
+            shortCode,
+            destinationUrl,
+            linkData.workspaceId,
+            domain,
+            trigger,
+            createClickId(),
+            linkData.campaignId,
+          ),
+        );
+      }
+
       if ((isBot || isExplicitPreviewRequest) && hasPreviewMetadata) {
         return serveLinkPreview(req, shortCode, linkData);
       }
@@ -651,6 +687,7 @@ export async function URLRedirects(
                 domain,
                 trigger,
                 clickId,
+                linkData.campaignId,
               ),
               // ?bio=<id> attributes bio-page clicks; validated inside.
               bioLinkId

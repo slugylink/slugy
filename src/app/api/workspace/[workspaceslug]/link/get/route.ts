@@ -85,6 +85,7 @@ export async function GET(
 
     const result = await queryWorkspaceLinks({
       workspaceId: access.workspace.id,
+      campaignId: searchParams.get("campaignId") || undefined,
       search,
       showArchived,
       inBio,

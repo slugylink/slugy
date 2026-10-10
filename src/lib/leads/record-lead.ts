@@ -113,6 +113,7 @@ export async function trackLead(
 
       return tx.leadEvent.create({
         data: {
+          campaignId: attribution.campaignId ?? null,
           workspaceId,
           linkId: attribution.linkId,
           clickId,

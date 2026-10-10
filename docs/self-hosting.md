@@ -1,5 +1,95 @@
 # Self-Hosting Slugy: Requirements & Setup
 
+## L3 campaign attribution rollout
+
+The workspace sidebar includes Campaigns (Pro+); revenue, costs, and public
+campaign reports require Growth/Premium under the existing entitlement rules.
+No billing prices or L4 partner/payout behavior change in this release.
+
+Deploy in this order:
+
+1. Back up Postgres and apply `npm run db:migrate` to staging first. Migration
+   `20261010000000_campaign_attribution` creates campaigns, seven traffic sources,
+   decimal spend rows, click quality fields, and campaign attribution. It backfills
+   campaign membership from exact, nonblank `Link.utm_campaign` names per workspace.
+   Historical events inherit their link's campaign at migration time; historical
+   reassignment cannot be reconstructed. Review the updates against production
+   data volume before deploying (the analytics backfill may lock/write many rows).
+2. Deploy the Tinybird definitions in `src/lib/tinybird/could/tinybird.ts` using
+   your existing Tinybird deployment workflow **before deploying application code**.
+   The raw click datasource gains `campaign_id`, `quality_score`, `is_bot`, and
+   `is_duplicate`; `campaign_clicks` is the new read endpoint. Allow its execution
+   in the server Tinybird token. The existing click projection filters bots and
+   duplicates so ordinary click analytics retain their previous meaning. Legacy
+   `.datasource`/`.pipe` equivalents are in `src/scripts/tinybird`.
+3. Generate Prisma (`npx prisma generate`), build, and deploy the application.
+   Old redirect cache entries without `campaignId` are refreshed automatically.
+4. Sync `/api/inngest` so `campaign-health-alerts` runs every two minutes.
+   Keep the existing authenticated analytics batch cron running; quality reports
+   and bot alerts reflect its processing delay. Configure `RESEND_API_KEY` and
+   `EMAIL_FROM` for email; without them alerts are still stored as notifications.
+
+Campaign link assignment affects future clicks. The campaign captured on each
+click is copied to lead/sale events; moving links does not move past conversions.
+Existing short links still need conversion tracking enabled to forward `slugy_id`.
+Revenue uses existing lead/sale writers and their existing conversion dedupe rule.
+
+Reports show all-time clicks, unique customers with non-sale lead events, sales,
+and separate revenue/spend/ROAS/CPA per currency. Zero denominators display a dash;
+unknown revenue currency is never assumed to be USD. Costs use decimal storage;
+there is no FX conversion. Tinybird totals are used when available and at least as
+complete as the Postgres copy; otherwise the report identifies its Postgres fallback.
+Pre-migration raw Tinybird clicks have no campaign ID, while Postgres has the UTM
+backfill. The converting device/browser/country breakdown and match rate use
+Postgres clicks joined by click ID, so allow the batch to catch up before judging
+match coverage. Quality only counts newly scored events; older clicks are unknown.
+
+Cost API: `POST /api/campaigns/:id/costs` with a Bearer workspace API key that has
+links write permission. JSON accepts one row or up to 1,000 rows; `text/csv` accepts
+the same columns. The dashboard uses the equivalent workspace-scoped endpoint.
+Imports upsert by campaign/date/currency/source, replacing spend on repeat imports.
+The complete import is validated and written transactionally. Example CSV:
+
+```csv
+date,spend,currency,source
+2026-10-10,50.00,USD,google
+```
+
+Share links use revocable random tokens. Revenue and cost visibility default off;
+public pages expose aggregates, never customer IDs, click IDs, or individual costs.
+An expired Growth entitlement makes the public report unavailable.
+
+Traffic quality scores bots as 0, duplicate click ID/IP/UA tuples within 30 seconds
+as 25, and other traffic as 100. A failed quality check is unscored. Redirects still
+generate a new click ID per visit; this exact-tuple rule detects replayed events,
+not repeat visits with different click IDs. Bot previews are recorded for quality
+but excluded from normal click counters and the Tinybird click projection.
+
+Alerts check active, opted-in campaigns: over 20% bots in the trailing hour,
+conversion changes over two standard deviations using the last completed UTC day
+against the previous seven completed days, and non-2xx destination HEAD responses.
+Conversion alerts require at least seven baseline conversions and a change greater
+than two events. Destination checks follow at most three redirects, pin DNS to
+validated public addresses, and time out each request after eight seconds. Servers
+that reject HEAD may report a failure even if GET works. Alerts are throttled for
+one hour per campaign/signal. Email latency depends on Inngest queue and mail delivery;
+the under-five-minute delivery target must be measured on staging.
+
+Validation before production:
+
+- Run `node --test scripts/test-campaigns.cjs`, `npx prisma validate`, lint, and build.
+- In a Growth test workspace create a campaign, assign five conversion-enabled
+  links, click, record ten lead/sale events, and import the sample cost CSV. Verify
+  ROAS equals revenue divided by 50 and CPA equals 50 divided by unique leads.
+- Export spend and import it twice: row count and totals must remain unchanged.
+- Verify click-ID join coverage exceeds 95% after the batch runs, simulate a bot
+  burst, and check the campaign quality percentages and notification/email.
+- Verify cross-workspace API keys cannot import costs or attach foreign links,
+  and revoking a share link removes public access.
+
+These live checks require deployed Postgres/Tinybird/Inngest/Resend services; the
+local tests use isolated fixtures and do not write to those services.
+
 > Status: community-supported. The production service at slugy.co runs on
 > managed infrastructure (Neon Postgres, Upstash Redis, Tinybird, Resend,
 > Polar, Cloudflare R2, Vercel). A self-hosted instance can run the core

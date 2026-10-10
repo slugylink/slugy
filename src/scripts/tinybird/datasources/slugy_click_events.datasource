@@ -1,5 +1,9 @@
 
 SCHEMA >
+    `campaign_id` String `json:$.campaign_id` DEFAULT '',
+    `quality_score` Nullable(UInt8) `json:$.quality_score`,
+    `is_bot` UInt8 `json:$.is_bot` DEFAULT 0,
+    `is_duplicate` UInt8 `json:$.is_duplicate` DEFAULT 0,
     `timestamp` DateTime64(3) `json:$.timestamp`,
     `link_id` String `json:$.link_id`,
     `workspace_id` String `json:$.workspace_id`,

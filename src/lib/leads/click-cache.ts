@@ -2,6 +2,7 @@ import { redis } from "@/lib/redis";
 import { CLICK_CACHE_TTL_SECONDS, clickCacheKey } from "@/lib/leads/constants";
 
 export interface CachedClickAttribution {
+  campaignId?: string | null;
   clickId: string;
   linkId: string;
   workspaceId: string;
@@ -57,7 +58,7 @@ export async function resolveClickAttribution(
   clickId: string,
 ): Promise<CachedClickAttribution | null> {
   const cached = await getClickAttribution(clickId);
-  if (cached) return cached;
+  if (cached && "campaignId" in cached) return cached;
 
   const { db } = await import("@/server/db");
   const row = await db.analytics.findFirst({
@@ -65,6 +66,7 @@ export async function resolveClickAttribution(
     orderBy: { clickedAt: "desc" },
     select: {
       clickId: true,
+      campaignId: true,
       linkId: true,
       country: true,
       city: true,
@@ -91,10 +93,11 @@ export async function resolveClickAttribution(
     },
   });
 
-  if (!row?.clickId || !row.link) return null;
+  if (!row?.clickId || !row.link) return cached;
 
   return {
     clickId: row.clickId,
+    campaignId: row.campaignId,
     linkId: row.link.id,
     workspaceId: row.link.workspaceId,
     slug: row.link.slug,
