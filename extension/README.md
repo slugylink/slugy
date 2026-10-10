@@ -60,7 +60,30 @@ After rebuilding, click the reload icon on the extension card.
 | Permission         | Why                                                               |
 | ------------------ | ----------------------------------------------------------------- |
 | `storage`          | Persist the extension session token                               |
-| `tabs`             | Open the connect tab, read the active tab URL, open the dashboard |
+| `activeTab`        | Read the current tab URL only when the user invokes the extension |
 | `clipboardWrite`   | Copy the short link to the clipboard                              |
 | `host_permissions` | Call the Slugy API and read the authorize page                    |
 | `content_scripts`  | Read the token fragment on `/extension/authorize`                 |
+
+Opening and closing tabs does not require the broad `tabs` permission.
+
+## Release verification
+
+Run `node --test extension/extension.test.mjs extension/popup.test.mjs` and build with
+`node extension/build.mjs --app-url=https://app.slugy.co` so an environment override
+cannot accidentally produce a localhost release. Upload the contents of
+`extension/dist/chrome` as a ZIP with `manifest.json` at the archive root.
+See [PUBLISHING.md](PUBLISHING.md) for outstanding release checks and store copy.
+
+## Choosing a workspace
+
+Connecting loads all non-deleted workspaces you own, each with its own
+link-write API key. Choose **Save to workspace** before shortening a link;
+the extension remembers the selection when reopened. The link API uses that
+workspace's key, so its quotas and permissions still apply.
+
+Use **More options → Refresh workspaces** after creating a workspace or upgrading
+from a single-workspace extension session. This reconnects through the dashboard
+and preserves the selected workspace if it still exists. Shared workspaces you
+do not own are excluded to match the dashboard's owner-only API key creation.
+Refreshing rotates extension keys as before and may disconnect other browsers.

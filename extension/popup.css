@@ -318,6 +318,12 @@ body {
   gap: 8px;
 }
 
+#workspace-select {
+  background: var(--background);
+  color: var(--foreground);
+  cursor: pointer;
+}
+
 .label {
   font-size: 13px;
   font-weight: 500;
@@ -417,7 +423,7 @@ body {
 /* ---------- Status ---------- */
 
 .status {
-  margin-top: 12px;
+  margin: 0 16px 16px;
   font-size: 12px;
   line-height: 1.45;
   word-break: break-word;

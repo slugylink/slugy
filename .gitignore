@@ -18,7 +18,7 @@ db.sqlite
 /.agents
 /.dev-plan
 /.docs
-
+/.firecrawl
 # next.js
 /.next/
 /out/

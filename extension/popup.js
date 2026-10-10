@@ -1,4 +1,3 @@
-/* global SLUGY_CONFIG */
 const { appUrl, createLinkPath, dashboardPath } = globalThis.SLUGY_CONFIG ?? {};
 
 const api = globalThis.browser ?? globalThis.chrome;
@@ -16,6 +15,7 @@ const dom = {
   urlInput: el("url-input"),
   resetUrl: el("reset-url"),
   contextText: el("context-text"),
+  workspaceSelect: el("workspace-select"),
   aliasToggle: el("alias-toggle"),
   aliasField: el("alias-field"),
   aliasInput: el("alias-input"),
@@ -29,6 +29,7 @@ const dom = {
 let session = null;
 let tabUrl = "";
 let busy = false;
+let switchingWorkspace = false;
 
 /* ---------- helpers ---------- */
 
@@ -58,6 +59,8 @@ function errorMessage(code) {
       return "No workspace found. Create one on the dashboard first.";
     case "auth_failed":
       return "Sign in failed. Please try again.";
+    case "account_suspended":
+      return "Your account is suspended. Please contact Slugy support.";
     case "cancelled":
       return "Sign in was cancelled.";
     default:
@@ -105,6 +108,22 @@ function render() {
     dom.appView.hidden = false;
     dom.menuEmail.textContent = session.email || session.name || "";
     dom.aliasDomain.textContent = "slugy.co/";
+    const workspaces = session.workspaces ?? [
+      { workspace: session.workspace, workspaceName: session.workspaceName },
+    ];
+    dom.workspaceSelect.replaceChildren(
+      ...workspaces.map((workspace) => {
+        const option = document.createElement("option");
+        option.value = workspace.workspace;
+        option.textContent =
+          workspace.workspaceName ||
+          workspace.workspace ||
+          "Connected workspace";
+        return option;
+      }),
+    );
+    dom.workspaceSelect.value = session.workspace;
+    dom.workspaceSelect.disabled = busy || switchingWorkspace;
     dom.contextText.textContent = session.workspaceName
       ? `Workspace · ${session.workspaceName}`
       : "Plain short link";
@@ -119,6 +138,7 @@ function render() {
 function setBusy(next) {
   busy = next;
   dom.shortenButton.disabled = next;
+  dom.workspaceSelect.disabled = next || switchingWorkspace;
   dom.shortenSpinner.hidden = !next;
   dom.shortenLabel.textContent = next ? "Shortening…" : "Shorten & copy";
 }
@@ -152,18 +172,25 @@ async function startConnect() {
 }
 
 async function signOut() {
-  await sendMessage({ type: "SIGN_OUT" });
+  const response = await sendMessage({ type: "SIGN_OUT" });
+  if (!response?.ok) {
+    setStatus("Could not sign out. Please try again.", "error");
+    return;
+  }
   session = null;
   dom.urlInput.value = "";
   dom.aliasInput.value = "";
   dom.aliasField.hidden = true;
+  dom.aliasToggle.textContent = "+ Custom alias";
   setStatus("");
   render();
 }
 
 async function openDashboard() {
   try {
-    await api.tabs.create({ url: `${appUrl}${dashboardPath ?? "/"}` });
+    await api.tabs.create({
+      url: `${appUrl}${session?.workspace ? `/${encodeURIComponent(session.workspace)}` : (dashboardPath ?? "/")}`,
+    });
   } finally {
     window.close();
   }
@@ -172,7 +199,7 @@ async function openDashboard() {
 /* ---------- shorten ---------- */
 
 async function shorten() {
-  if (busy || !session?.token) return;
+  if (busy || switchingWorkspace || !session?.token) return;
 
   const url = dom.urlInput.value.trim();
   if (!url) {
@@ -192,7 +219,7 @@ async function shorten() {
     return;
   }
 
-  const alias = dom.aliasInput.value.trim();
+  const alias = dom.aliasField.hidden ? "" : dom.aliasInput.value.trim();
   if (alias && alias.length < 3) {
     setStatus("Alias must be at least 3 characters.", "error");
     dom.aliasInput.focus();
@@ -213,6 +240,7 @@ async function shorten() {
         Authorization: `Bearer ${session.token}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000),
     });
 
     const payload = await response.json().catch(() => null);
@@ -239,12 +267,6 @@ async function shorten() {
       copied ? `Copied ${shortUrl}` : `Created ${shortUrl} (copy failed)`,
       copied ? "success" : "error",
     );
-    dom.shortenButton.classList.add("is-success");
-    dom.shortenLabel.textContent = "Copied!";
-    setTimeout(() => {
-      dom.shortenButton.classList.remove("is-success");
-      dom.shortenLabel.textContent = "Shorten & copy";
-    }, 1600);
   } catch (error) {
     console.error("Slugy: shorten failed", error);
     setStatus("Network error. Please try again.", "error");
@@ -256,6 +278,23 @@ async function shorten() {
 /* ---------- events ---------- */
 
 dom.connectButton.addEventListener("click", startConnect);
+
+dom.workspaceSelect.addEventListener("change", async () => {
+  if (busy || switchingWorkspace) return;
+  switchingWorkspace = true;
+  dom.workspaceSelect.disabled = true;
+  dom.shortenButton.disabled = true;
+  setStatus("");
+  const response = await sendMessage({
+    type: "SELECT_WORKSPACE",
+    workspace: dom.workspaceSelect.value,
+  });
+  if (response?.ok) session = response.session;
+  else setStatus("Could not switch workspace. Please try again.", "error");
+  switchingWorkspace = false;
+  dom.shortenButton.disabled = busy;
+  render();
+});
 
 dom.resetUrl.addEventListener("click", () => {
   dom.urlInput.value = tabUrl;
@@ -285,6 +324,10 @@ dom.menu.addEventListener("click", (event) => {
   const action = event.target?.dataset?.action;
   if (!action) return;
   if (action === "dashboard") openDashboard();
+  if (action === "reconnect") {
+    closeMenu();
+    startConnect();
+  }
   if (action === "shortcut") {
     const url = navigator.userAgent.includes("Firefox")
       ? "about:addons"

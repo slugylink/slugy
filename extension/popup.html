@@ -21,6 +21,7 @@
         <div id="menu" class="menu" hidden>
           <p id="menu-email" class="menu-email"></p>
           <button type="button" class="menu-item" data-action="dashboard">Open dashboard</button>
+          <button type="button" class="menu-item" data-action="reconnect">Refresh workspaces</button>
           <button type="button" class="menu-item" data-action="shortcut">Keyboard shortcut</button>
           <button type="button" class="menu-item menu-item-danger" data-action="signout">Sign out</button>
         </div>
@@ -42,6 +43,10 @@
     </main>
 
     <main id="app-view" class="view app-view" hidden>
+      <div class="field">
+        <label class="label" for="workspace-select">Save to workspace</label>
+        <select id="workspace-select" class="input" aria-label="Save to workspace"></select>
+      </div>
       <div class="field">
         <label class="label" for="url-input">Link to shorten</label>
         <div class="input-row">
@@ -73,8 +78,8 @@
         <span id="shorten-spinner" class="spinner" hidden></span>
       </button>
 
-      <p id="status" class="status" hidden></p>
     </main>
+    <p id="status" class="status" role="status" aria-live="polite" hidden></p>
 
     <script src="config.js"></script>
     <script src="popup.js"></script>

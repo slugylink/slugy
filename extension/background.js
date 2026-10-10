@@ -45,19 +45,11 @@ async function storageGet(key) {
 }
 
 async function storageSet(values) {
-  try {
-    await getStorage().set(values);
-  } catch (error) {
-    console.error("Slugy: storage write failed", error);
-  }
+  await getStorage().set(values);
 }
 
 async function storageRemove(keys) {
-  try {
-    await getStorage().remove(keys);
-  } catch (error) {
-    console.error("Slugy: storage remove failed", error);
-  }
+  await getStorage().remove(keys);
 }
 
 function createState() {
@@ -72,7 +64,7 @@ async function startConnect() {
   const connectUrl = new URL(`${appUrl}${connectPath}`);
   connectUrl.searchParams.set("state", state);
 
-  await storageSet({ [STATE_KEY]: state });
+  await storageSet({ [STATE_KEY]: { state, createdAt: Date.now() } });
   await storageRemove([ERROR_KEY]);
 
   await api.tabs.create({ url: connectUrl.toString(), active: true });
@@ -83,28 +75,61 @@ async function startConnect() {
 async function handleAuthResult(params = {}) {
   const expectedState = await storageGet(STATE_KEY);
 
-  if (expectedState && params.state && params.state !== expectedState) {
+  if (
+    !expectedState?.state ||
+    !params.state ||
+    params.state !== expectedState.state ||
+    Date.now() - expectedState.createdAt > 15 * 60 * 1000
+  ) {
     await storageSet({ [ERROR_KEY]: "auth_failed" });
     return { ok: false, error: "auth_failed" };
   }
 
-  await storageRemove([STATE_KEY]);
-
   if (params.error) {
     await storageSet({ [ERROR_KEY]: params.error });
+    await storageRemove([STATE_KEY]);
     return { ok: false, error: params.error };
   }
 
   const token = params.token;
-  if (!token) {
+  if (typeof token !== "string" || !token.startsWith("slugy_")) {
     await storageSet({ [ERROR_KEY]: "auth_failed" });
     return { ok: false, error: "auth_failed" };
   }
 
+  const workspaces = params.workspaces
+    ? JSON.parse(params.workspaces)
+    : [
+        {
+          token,
+          workspace: params.workspace ?? "",
+          workspaceName: params.workspace_name ?? "",
+        },
+      ];
+  if (
+    !Array.isArray(workspaces) ||
+    !workspaces.length ||
+    workspaces.some(
+      (item) =>
+        !item ||
+        typeof item.workspace !== "string" ||
+        typeof item.workspaceName !== "string" ||
+        typeof item.token !== "string" ||
+        !item.token.startsWith("slugy_"),
+    ) ||
+    new Set(workspaces.map((item) => item.workspace)).size !== workspaces.length
+  ) {
+    return { ok: false, error: "auth_failed" };
+  }
+  const previous = await storageGet(SESSION_KEY);
+  const selected =
+    workspaces.find((item) => item.workspace === previous?.workspace) ??
+    workspaces[0];
   const session = {
-    token,
-    workspace: params.workspace ?? "",
-    workspaceName: params.workspace_name ?? "",
+    token: selected.token,
+    workspace: selected.workspace,
+    workspaceName: selected.workspaceName,
+    workspaces,
     name: params.name ?? "",
     email: params.email ?? "",
     image: params.image ?? "",
@@ -112,12 +137,28 @@ async function handleAuthResult(params = {}) {
   };
 
   await storageSet({ [SESSION_KEY]: session });
-  await storageRemove([ERROR_KEY]);
+  await storageRemove([ERROR_KEY, STATE_KEY]);
 
-  return { ok: true, session };
+  return { ok: true };
 }
 
-async function handleMessage(message) {
+async function handleMessage(message, sender) {
+  if (sender?.id !== api.runtime.id) {
+    return { ok: false, error: "auth_failed" };
+  }
+  if (message?.type === "AUTH_RESULT") {
+    const callback = new URL(sender.url || "about:blank");
+    if (
+      sender.tab?.id == null ||
+      sender.frameId !== 0 ||
+      callback.origin !== new URL(appUrl).origin ||
+      callback.pathname !== "/extension/authorize"
+    ) {
+      return { ok: false, error: "auth_failed" };
+    }
+  } else if (sender.url !== api.runtime.getURL("popup.html")) {
+    return { ok: false, error: "auth_failed" };
+  }
   switch (message?.type) {
     case "START_CONNECT":
       return startConnect();
@@ -128,6 +169,21 @@ async function handleMessage(message) {
       const error = await storageGet(ERROR_KEY);
       return { ok: true, session, error };
     }
+    case "SELECT_WORKSPACE": {
+      const session = await storageGet(SESSION_KEY);
+      const selected = session?.workspaces?.find(
+        (item) => item.workspace === message.workspace,
+      );
+      if (!selected) return { ok: false, error: "no_workspace" };
+      const updated = {
+        ...session,
+        token: selected.token,
+        workspace: selected.workspace,
+        workspaceName: selected.workspaceName,
+      };
+      await storageSet({ [SESSION_KEY]: updated });
+      return { ok: true, session: updated };
+    }
     case "SIGN_OUT":
       await storageRemove([SESSION_KEY, ERROR_KEY, STATE_KEY]);
       return { ok: true };
@@ -137,10 +193,14 @@ async function handleMessage(message) {
 }
 
 api.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  const task = handleMessage(message)
+  const task = handleMessage(message, sender)
     .then((response) => {
       // The authorize tab has done its job once the result is stored.
-      if (message?.type === "AUTH_RESULT" && sender?.tab?.id != null) {
+      if (
+        response.ok &&
+        message?.type === "AUTH_RESULT" &&
+        sender?.tab?.id != null
+      ) {
         try {
           Promise.resolve(api.tabs.remove(sender.tab.id)).catch(() => {});
         } catch {

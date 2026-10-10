@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
 };
 
-const LAST_UPDATED = "October 2, 2026";
+const LAST_UPDATED = "October 10, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -127,6 +127,37 @@ export default function PrivacyPage() {
           <p className="text-muted-foreground mt-3">
             You can clear cookies in your browser at any time; doing so signs
             you out and resets remembered link unlocks.
+          </p>
+        </section>
+
+        <section>
+          <h2 className="text-xl font-medium">Browser extension</h2>
+          <p className="text-muted-foreground mt-3">
+            When you open the Slugy extension, it reads the current tab URL to
+            fill the link field. When you choose Shorten &amp; copy, it sends
+            the URL you submit and any custom alias to the Slugy API over HTTPS
+            to create a link in your workspace. Submitted links are processed by
+            the service and its providers for storage, destination safety
+            checks, and link functionality. The extension does not collect your
+            browsing history or the contents of pages you visit.
+          </p>
+          <p className="text-muted-foreground mt-3">
+            Connecting your account stores API tokens for your owned workspaces
+            and account details (name, email, profile image URL, and workspace
+            information) in local extension storage, along with your selected
+            workspace. The selected workspace token authenticates link creation;
+            account and workspace details identify your connection. The
+            extension writes created short links to your clipboard and does not
+            read clipboard contents.
+          </p>
+          <p className="text-muted-foreground mt-3">
+            Signing out clears the stored extension session. To revoke server
+            access, delete the Slugy Browser Extension key in your workspace
+            settings under API keys. Signing out or uninstalling the extension
+            does not delete links already created; you can manage those in your
+            dashboard. The service provider, retention, and data use practices
+            described in this policy also apply to links created through the
+            extension.
           </p>
         </section>
 

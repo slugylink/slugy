@@ -26,12 +26,21 @@ const getAppBaseUrl = () =>
 function authorizeRedirect(params: Record<string, string>): NextResponse {
   const url = new URL("/extension/authorize", getAppBaseUrl());
   url.hash = new URLSearchParams(params).toString();
-  return NextResponse.redirect(url.toString(), 302);
+  const response = NextResponse.redirect(url.toString(), 302);
+  response.headers.set("Cache-Control", "private, no-store");
+  response.headers.set("Referrer-Policy", "no-referrer");
+  return response;
 }
 
-async function resolveWorkspace(userId: string) {
-  return db.workspace.findFirst({
-    where: { userId, deletedAt: null },
+async function resolveWorkspaces(userId: string) {
+  // Match the dashboard switcher: owned + member workspaces. Members can
+  // already create links via the UI, so minting a scoped links:write
+  // extension key for them is equivalent privilege, not an escalation.
+  return db.workspace.findMany({
+    where: {
+      deletedAt: null,
+      OR: [{ userId }, { members: { some: { userId } } }],
+    },
     orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     select: { id: true, name: true, slug: true },
   });
@@ -92,6 +101,13 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get("state");
   const error = req.nextUrl.searchParams.get("error");
 
+  if (!state || !/^[a-zA-Z0-9-]{16,128}$/.test(state)) {
+    return NextResponse.json(
+      { error: "A valid extension connection state is required." },
+      { status: 400, headers: { "Cache-Control": "no-store" } },
+    );
+  }
+
   const withState = (params: Record<string, string>) => ({
     ...params,
     ...(state ? { state } : {}),
@@ -144,18 +160,27 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(loginUrl.toString(), 302);
   }
 
-  const workspace = await resolveWorkspace(session.user.id);
-  if (!workspace) {
+  const workspaces = await resolveWorkspaces(session.user.id);
+  if (!workspaces.length) {
     return authorizeRedirect(withState({ error: "no_workspace" }));
   }
 
-  const token = await getOrCreateExtensionToken(workspace.id, session.user.id);
+  const connections = [];
+  for (const workspace of workspaces) {
+    connections.push({
+      workspace: workspace.slug,
+      workspaceName: workspace.name,
+      token: await getOrCreateExtensionToken(workspace.id, session.user.id),
+    });
+  }
+  const primary = connections[0]!;
 
   return authorizeRedirect(
     withState({
-      token,
-      workspace: workspace.slug,
-      workspace_name: workspace.name,
+      token: primary.token,
+      workspace: primary.workspace,
+      workspace_name: primary.workspaceName,
+      workspaces: JSON.stringify(connections),
       name: session.user.name ?? "",
       email: session.user.email ?? "",
       image: session.user.image ?? "",

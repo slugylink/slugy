@@ -3,7 +3,7 @@
   "name": "Slugy — Link Shortener",
   "description": "Shorten the page you are on and copy a branded short link in one click.",
   "version": "1.0.0",
-  "minimum_chrome_version": "109",
+  "minimum_chrome_version": "111",
   "action": {
     "default_title": "Slugy",
     "default_popup": "popup.html",
@@ -20,7 +20,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "tabs", "clipboardWrite"],
+  "permissions": ["storage", "activeTab", "clipboardWrite"],
   "host_permissions": ["https://app.slugy.co/*", "http://app.localhost:3000/*"],
   "background": {
     "service_worker": "background.js"
@@ -28,8 +28,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://app.slugy.co/extension/*",
-        "http://app.localhost:3000/extension/*"
+        "https://app.slugy.co/extension/authorize",
+        "http://app.localhost:3000/extension/authorize"
       ],
       "js": ["content.js"],
       "run_at": "document_start"

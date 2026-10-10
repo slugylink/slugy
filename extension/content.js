@@ -20,7 +20,8 @@ const api = globalThis.browser ?? globalThis.chrome;
       type: "AUTH_RESULT",
       params: Object.fromEntries(params),
     })
-    .then(() => {
+    .then((response) => {
+      if (!response?.ok) return;
       // Strip the token from the address bar only once it is safely stored.
       try {
         history.replaceState(null, "", location.pathname + location.search);
