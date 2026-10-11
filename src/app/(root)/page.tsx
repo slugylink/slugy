@@ -106,7 +106,7 @@ export default function Home() {
 
           <ToolsSection />
 
-          <ExtensionSection />
+          {/* <ExtensionSection /> */}
 
           <IntegrationsSection />
           {/* 
