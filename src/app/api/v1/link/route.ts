@@ -9,7 +9,6 @@ import { checkLinkLimit } from "@/lib/subscription/limit-queries";
 import {
   canUseLeadTracking,
   canUsePremiumLinkFeatures,
-  getWorkspaceOwnerPlanType,
 } from "@/lib/subscription/entitlements";
 import {
   canUseGeoTargeting,
@@ -249,15 +248,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const [limitCheck, planType, customDomainRow, safetyResult] =
-      await Promise.all([
-        checkLinkLimit(workspace.userId, workspace.id),
-        getWorkspaceOwnerPlanType(workspace.id),
-        validatedData.customDomainId
-          ? findVerifiedCustomDomain(validatedData.customDomainId)
-          : Promise.resolve(null),
-        validateUrlSafety(validatedData.url),
-      ]);
+    const [limitCheck, customDomainRow, safetyResult] = await Promise.all([
+      checkLinkLimit(workspace.userId, workspace.id),
+      validatedData.customDomainId
+        ? findVerifiedCustomDomain(validatedData.customDomainId)
+        : Promise.resolve(null),
+      validateUrlSafety(validatedData.url),
+    ]);
+
+    // The quota check already resolves the owner's subscription and plan.
+    // Reuse it for feature and tag limits instead of querying them again.
+    const planType = limitCheck.planType ?? "free";
 
     if (!limitCheck.canCreate) {
       return jsonWithETag(
@@ -345,15 +346,7 @@ export async function POST(req: Request) {
       ? hashLinkPassword(validatedData.password)
       : null;
 
-    const ownerPlan = await db.plan.findFirst({
-      where: {
-        planType:
-          (planType as "free" | "basic" | "pro" | "growth" | "premium") ??
-          "free",
-      },
-      select: { maxTagsPerWorkspace: true },
-    });
-    const maxTags = ownerPlan?.maxTagsPerWorkspace ?? MAX_TAGS_PER_WORKSPACE;
+    const maxTags = limitCheck.maxTagsPerWorkspace ?? MAX_TAGS_PER_WORKSPACE;
 
     const linkSelect = {
       id: true,

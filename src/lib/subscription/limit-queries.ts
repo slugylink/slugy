@@ -236,6 +236,7 @@ export async function checkLinkLimit(userId: string, workspaceId: string) {
       currentCount: currentLinkCount,
       maxLimit: maxLinks,
       planType: subscription.plan.planType,
+      maxTagsPerWorkspace: subscription.plan.maxTagsPerWorkspace,
       ownerUserId,
     };
   } catch (error) {
