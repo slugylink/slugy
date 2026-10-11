@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
 import { Reveal } from "./reveal";
 
-// Listing is under review: fall back to "#" until the store URL is set.
+// Live Chrome Web Store listing (ID: neobdkcadhgnnhdkecjegofmaoembddf).
+const DEFAULT_CHROME_STORE_URL =
+  "https://chromewebstore.google.com/detail/neobdkcadhgnnhdkecjegofmaoembddf";
 const CHROME_STORE_URL =
-  process.env.NEXT_PUBLIC_CHROME_STORE_URL?.trim() || "#";
+  process.env.NEXT_PUBLIC_CHROME_STORE_URL?.trim() || DEFAULT_CHROME_STORE_URL;
 
 export default function ExtensionSection() {
   return (
