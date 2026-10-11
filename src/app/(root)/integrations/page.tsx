@@ -1,24 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check } from "lucide-react";
+import { brandFor } from "@/lib/integrations/branding";
 
 export const metadata: Metadata = {
-  title: "Integrations — Shopify, Zapier, Slack, WordPress & More",
+  title: "Integrations — Slack, Zapier, Shopify, Stripe, WordPress & More",
   description:
-    "Connect Slugy to Shopify, Zapier, Slack, Make, WordPress, Polar and Stripe. Trigger automations on leads and sales, and attribute revenue back to the short links that drove it.",
+    "Connect Slugy to Slack, Zapier, Make, Shopify, Stripe, Polar, Segment and WordPress. Trigger automations on leads and sales, and attribute revenue back to the short links that drove it.",
   keywords: [
     "integrate Shopify with URL shortener",
     "Zapier URL shortener integration",
     "Slugy integrations",
     "Shopify URL shortener integration",
     "Slack link shortening",
+    "Stripe revenue attribution links",
   ],
   alternates: { canonical: "/integrations" },
   openGraph: {
     type: "website",
     siteName: "Slugy",
-    title: "Slugy Integrations — Shopify, Zapier, Slack & More",
+    title: "Slugy Integrations — Slack, Zapier, Shopify, Stripe & More",
     description:
       "Notifications where your team works, automation without glue code, and revenue attribution for every checkout.",
     url: "/integrations",
@@ -27,43 +30,103 @@ export const metadata: Metadata = {
         url: "https://files.slugy.co/slugy-og.png",
         width: 1200,
         height: 630,
-        alt: "Slugy integrations — Shopify, Zapier, Slack, WordPress",
+        alt: "Slugy integrations — Slack, Zapier, Shopify, Stripe, WordPress",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Slugy Integrations — Shopify, Zapier, Slack & More",
+    title: "Slugy Integrations — Slack, Zapier, Shopify, Stripe & More",
     description:
       "Notifications, automation, and revenue attribution for your short links.",
     images: ["https://files.slugy.co/slugy-og.png"],
   },
 };
 
-const INTEGRATIONS = [
+interface Integration {
+  provider: string;
+  name: string;
+  tagline: string;
+  body: string;
+  href: string;
+}
+
+const GROUPS: Array<{ label: string; items: Integration[] }> = [
   {
-    slug: "shopify",
-    name: "Shopify",
-    tagline: "Tie store revenue back to the short links behind it.",
-    body: "Capture slugy_click_id at checkout with a web pixel and post orders to Slugy. Growth workspaces get sale attribution, conversions, and revenue reports per link.",
+    label: "Notifications",
+    items: [
+      {
+        provider: "slack",
+        name: "Slack",
+        tagline: "Lead and sale alerts plus /shorten without leaving chat.",
+        body: "Connect in Settings → Integrations, invite @slug to the channel, and send a test. Real-time notifications plus a /shorten slash command.",
+        href: "/blogs/slugy-integrations",
+      },
+    ],
   },
   {
-    slug: "zapier",
-    name: "Zapier",
-    tagline: "Trigger 7,000+ app workflows on every lead or sale.",
-    body: "Forward lead.created and sale.created events to a Zapier catch hook. Add rows to Sheets, create CRM contacts, send emails — no glue code.",
+    label: "Automation",
+    items: [
+      {
+        provider: "zapier",
+        name: "Zapier",
+        tagline: "Trigger 7,000+ app workflows on every lead or sale.",
+        body: "Forward lead.created and sale.created events to a Zapier catch hook. Add rows to Sheets, create CRM contacts, send emails — no glue code.",
+        href: "/integrations/zapier",
+      },
+      {
+        provider: "make",
+        name: "Make",
+        tagline: "Route link events through 2,000+ visual scenarios.",
+        body: "Point the same lead and sale events at a Make webhook and build visual scenarios — routers, filters and iterators included.",
+        href: "/blogs/slugy-integrations",
+      },
+    ],
   },
   {
-    slug: "slack",
-    name: "Slack",
-    tagline: "Lead and sale alerts plus /shorten without leaving chat.",
-    body: "Connect in Settings → Integrations, invite @slug to the channel, and send a test. Real-time notifications plus a /shorten slash command.",
+    label: "Revenue attribution",
+    items: [
+      {
+        provider: "shopify",
+        name: "Shopify",
+        tagline: "Tie store revenue back to the short links behind it.",
+        body: "Capture slugy_click_id at checkout with a web pixel and post orders to Slugy. Growth workspaces get sale attribution, conversions, and revenue reports per link.",
+        href: "/integrations/shopify",
+      },
+      {
+        provider: "stripe",
+        name: "Stripe",
+        tagline: "Attribute checkouts to the links that drove them.",
+        body: "Pass the click id through your checkout and post the payment to Slugy. Every sale lands on the link report it belongs to.",
+        href: "/blogs/slugy-integrations",
+      },
+      {
+        provider: "polar",
+        name: "Polar",
+        tagline: "Attribute orders to the clicks that drove them.",
+        body: "Polar checkouts carry the click id into orders automatically. Paid plans reconcile against the links behind them.",
+        href: "/blogs/slugy-integrations",
+      },
+      {
+        provider: "segment",
+        name: "Segment",
+        tagline: "Stream lead and sale events into your warehouse.",
+        body: "Forward the same events to Segment and fan out to your warehouse and every connected destination.",
+        href: "/blogs/slugy-integrations",
+      },
+    ],
   },
   {
-    slug: "wordpress",
-    name: "WordPress",
-    tagline: "Auto-shorten every post link the moment you publish.",
-    body: "Install the Slugy plugin, paste a Links-write API key, and turn on auto-shorten. Every post stores its short link as post metadata.",
+    label: "Publishing",
+    items: [
+      {
+        provider: "wordpress",
+        name: "WordPress",
+        tagline: "Auto-shorten every post link the moment you publish.",
+        body: "Install the Slugy plugin, paste a Links-write API key, and turn on auto-shorten. Every post stores its short link as post metadata.",
+        href: "/blogs/slugy-integrations",
+      },
+    ],
   },
 ];
 
@@ -74,15 +137,17 @@ const jsonLd = {
       "@type": "CollectionPage",
       name: "Slugy Integrations",
       description:
-        "Guides for connecting Slugy to Shopify, Zapier, Slack, Make, WordPress, Polar and Stripe.",
+        "Guides for connecting Slugy to Slack, Zapier, Make, Shopify, Stripe, Polar, Segment and WordPress.",
       url: "/integrations",
-      hasPart: INTEGRATIONS.map((i) => ({
-        "@type": "SoftwareApplication",
-        name: `Slugy for ${i.name}`,
-        applicationCategory: "BusinessApplication",
-        operatingSystem: "Web",
-        url: `/integrations/${i.slug}`,
-      })),
+      hasPart: GROUPS.flatMap((g) =>
+        g.items.map((i) => ({
+          "@type": "SoftwareApplication",
+          name: `Slugy for ${i.name}`,
+          applicationCategory: "BusinessApplication",
+          operatingSystem: "Web",
+          url: i.href,
+        })),
+      ),
     },
     {
       "@type": "BreadcrumbList",
@@ -98,6 +163,40 @@ const jsonLd = {
     },
   ],
 };
+
+function IntegrationCard({ item }: { item: Integration }) {
+  const brand = brandFor(item.provider);
+  return (
+    <Link
+      href={item.href}
+      className="group flex flex-col rounded-[20px] border p-6 transition-all hover:shadow-md"
+    >
+      <div className="bg-muted flex h-9 w-9 items-center justify-center rounded-md">
+        {brand.src ? (
+          <Image
+            src={brand.src}
+            alt=""
+            width={16}
+            height={16}
+            className={brand.invertOnDark ? "dark:invert" : undefined}
+          />
+        ) : (
+          brand.Icon && <brand.Icon className="h-4 w-4" aria-hidden />
+        )}
+      </div>
+      <h3 className="mt-3 flex items-center gap-2 text-lg font-medium">
+        {item.name}
+        <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+      </h3>
+      <p className="mt-1 text-sm font-medium text-orange-700 dark:text-orange-300">
+        {item.tagline}
+      </p>
+      <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+        {item.body}
+      </p>
+    </Link>
+  );
+}
 
 export default function IntegrationsHubPage() {
   return (
@@ -139,30 +238,21 @@ export default function IntegrationsHubPage() {
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-4xl gap-4 px-4 pb-16 sm:grid-cols-2">
-        {INTEGRATIONS.map((i) => (
-          <Link
-            key={i.slug}
-            href={
-              i.slug === "shopify" || i.slug === "zapier"
-                ? `/integrations/${i.slug}`
-                : "/blogs/slugy-integrations"
-            }
-            className="group flex flex-col rounded-[20px] border p-6 transition-all hover:shadow-md"
-          >
-            <h2 className="flex items-center gap-2 text-lg font-medium">
-              {i.name}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </h2>
-            <p className="mt-1 text-sm font-medium text-orange-700 dark:text-orange-300">
-              {i.tagline}
-            </p>
-            <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
-              {i.body}
-            </p>
-          </Link>
-        ))}
-      </section>
+      {GROUPS.map((group) => (
+        <section
+          key={group.label}
+          className="mx-auto max-w-4xl px-4 pb-10 last:pb-16"
+        >
+          <p className="text-muted-foreground text-xs font-semibold tracking-widest uppercase">
+            {group.label}
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            {group.items.map((item) => (
+              <IntegrationCard key={item.provider} item={item} />
+            ))}
+          </div>
+        </section>
+      ))}
 
       <section className="mx-auto max-w-2xl px-4 py-10 sm:py-16">
         <h2 className="text-2xl font-medium tracking-tight sm:text-3xl">

@@ -633,7 +633,7 @@ export default function UtmBuilderClient({
                 href={`/tools/utm-builder/${p.slug}`}
                 className="text-foreground underline underline-offset-4 hover:opacity-80"
               >
-                {p.label}
+                {p.label} UTM Builder
               </Link>
             </span>
           ))}
