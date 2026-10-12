@@ -46,6 +46,7 @@ const productJsonLd = {
   description:
     "Open-source link management platform: branded short links, analytics, QR codes, link-in-bio, custom domains, and team collaboration.",
   brand: { "@type": "Brand", name: "Slugy" },
+  image: ["https://files.slugy.co/slugy-og.png"],
   url: `${BASE_URL}/pricing`,
   offers: plans.map((plan) => ({
     "@type": "Offer",
