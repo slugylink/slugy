@@ -1,5 +1,7 @@
 const { appUrl, createLinkPath, dashboardPath } = globalThis.SLUGY_CONFIG ?? {};
 
+const DEFAULT_DOMAIN = "slugy.co";
+
 const api = globalThis.browser ?? globalThis.chrome;
 
 const el = (id) => document.getElementById(id);
@@ -107,7 +109,7 @@ function render() {
     dom.authView.hidden = true;
     dom.appView.hidden = false;
     dom.menuEmail.textContent = session.email || session.name || "";
-    dom.aliasDomain.textContent = "slugy.co/";
+    dom.aliasDomain.textContent = `${DEFAULT_DOMAIN}/`;
     const workspaces = session.workspaces ?? [
       { workspace: session.workspace, workspaceName: session.workspaceName },
     ];
@@ -124,9 +126,10 @@ function render() {
     );
     dom.workspaceSelect.value = session.workspace;
     dom.workspaceSelect.disabled = busy || switchingWorkspace;
-    dom.contextText.textContent = session.workspaceName
-      ? `Workspace · ${session.workspaceName}`
-      : "Plain short link";
+    const targetName = session.workspaceName || session.workspace || "";
+    dom.contextText.textContent = targetName
+      ? `Will create: ${DEFAULT_DOMAIN}/... in ${targetName}`
+      : `Will create: ${DEFAULT_DOMAIN}/...`;
     if (!dom.urlInput.value) dom.urlInput.value = tabUrl;
   } else {
     dom.appView.hidden = true;
@@ -229,6 +232,10 @@ async function shorten() {
   const body = { url };
   if (alias) body.slug = alias;
 
+  const activeWorkspace = session.workspace;
+  const activeWorkspaceName = session.workspaceName || session.workspace || "";
+  const activeToken = session.token;
+
   setBusy(true);
   setStatus("");
 
@@ -237,7 +244,7 @@ async function shorten() {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.token}`,
+        Authorization: `Bearer ${activeToken}`,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(30000),
@@ -263,8 +270,15 @@ async function shorten() {
     }
 
     const copied = await copyText(shortUrl);
+    const savedTo = activeWorkspaceName
+      ? ` · saved to ${activeWorkspaceName}`
+      : activeWorkspace
+        ? ` · saved to ${activeWorkspace}`
+        : "";
     setStatus(
-      copied ? `Copied ${shortUrl}` : `Created ${shortUrl} (copy failed)`,
+      copied
+        ? `Copied ${shortUrl}${savedTo}`
+        : `Created ${shortUrl}${savedTo} (copy failed)`,
       copied ? "success" : "error",
     );
   } catch (error) {
